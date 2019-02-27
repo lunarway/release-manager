@@ -22,9 +22,9 @@ type Git struct {
 }
 
 type CI struct {
-	URL   string    `json:"url,omitempty"`
-	Start time.Time `json:"start,omitempty"`
-	End   time.Time `json:"end,omitempty"`
+	JobURL string    `json:"jobUrl,omitempty"`
+	Start  time.Time `json:"start,omitempty"`
+	End    time.Time `json:"end,omitempty"`
 }
 
 type Repository struct {
@@ -101,7 +101,7 @@ func Get(path string) (Spec, error) {
 }
 
 func Persist(path string, spec Spec) error {
-	s, err := os.Open(path)
+	s, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, os.ModePerm)
 	if err != nil {
 		return err
 	}
