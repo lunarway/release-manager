@@ -3,11 +3,11 @@ package spec
 import "time"
 
 type Spec struct {
-	Git        Git
-	Ci         Ci
-	Squad      string
-	Repository Repository
-	Stages     []Stage
+	Git        Git        `json:"git,omitempty"`
+	CI         CI         `json:"ci,omitempty"`
+	Squad      string     `json:"squad,omitempty"`
+	Repository Repository `json:"repository,omitempty"`
+	Stages     []Stage    `json:"stages,omitempty"`
 }
 
 type Git struct {
@@ -17,66 +17,67 @@ type Git struct {
 	Message   string `json:"message,omitempty"`
 }
 
-type Ci struct {
-	URL      string
-	Duration time.Duration
+type CI struct {
+	URL   string    `json:"url,omitempty"`
+	Start time.Time `json:"start,omitempty"`
+	End   time.Time `json:"end,omitempty"`
 }
 
 type Repository struct {
-	Name     string
-	URL      string
-	Provider string
+	Name     string `json:"name,omitempty"`
+	URL      string `json:"url,omitempty"`
+	Provider string `json:"provider,omitempty"`
 }
 
 type Stage struct {
-	ID   string
-	Name string
-	Data interface{}
+	ID   string      `json:"id,omitempty"`
+	Name string      `json:"name,omitempty"`
+	Data interface{} `json:"data,omitempty"`
 }
 
 type BuildData struct {
-	Image         string
-	Tag           string
-	DockerVersion string
+	Image         string `json:"image,omitempty"`
+	Tag           string `json:"tag,omitempty"`
+	DockerVersion string `json:"docker_version,omitempty"`
 }
 
 type PushData struct {
-	Image string
-	Tag   string
-	URL   string
+	Image string `json:"image,omitempty"`
+	Tag   string `json:"tag,omitempty"`
+	URL   string `json:"url,omitempty"`
 }
 
 type TestData struct {
-	URL         string
-	TestResults TestResult
+	URL         string     `json:"url,omitempty"`
+	TestResults TestResult `json:"test_results,omitempty"`
 }
 
 type TestResult struct {
-	Passed  int
-	Failed  int
-	Skipped int
+	Passed  int `json:"passed,omitempty"`
+	Failed  int `json:"failed,omitempty"`
+	Skipped int `json:"skipped,omitempty"`
 }
 
 type SnykDockerData struct {
-	Tag             string
-	SnykVersion     string
-	URL             string
-	BaseImage       string
-	Vulnerabilities VulnerabilityResult
+	Tag             string              `json:"tag,omitempty"`
+	SnykVersion     string              `json:"snyk_version,omitempty"`
+	URL             string              `json:"url,omitempty"`
+	BaseImage       string              `json:"base_image,omitempty"`
+	Vulnerabilities VulnerabilityResult `json:"vulnerabilities,omitempty"`
 }
 
 type SnykCodeData struct {
-	Tag             string
-	SnykVersion     string
-	URL             string
-	Language        string
-	Vulnerabilities VulnerabilityResult
+	Tag             string              `json:"tag,omitempty"`
+	SnykVersion     string              `json:"snyk_version,omitempty"`
+	URL             string              `json:"url,omitempty"`
+	Language        string              `json:"language,omitempty"`
+	Vulnerabilities VulnerabilityResult `json:"vulnerabilities,omitempty"`
 }
 
 type VulnerabilityResult struct {
-	High   int
-	Medium int
-	Low    int
+	High   int `json:"high,omitempty"`
+	Medium int `json:"medium,omitempty"`
+	Low    int `json:"low,omitempty"`
 }
 
 func Get(path string) (Spec, error) {
