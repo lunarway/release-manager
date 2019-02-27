@@ -1,6 +1,10 @@
 package spec
 
-import "time"
+import (
+	"encoding/json"
+	"os"
+	"time"
+)
 
 type Spec struct {
 	Git        Git        `json:"git,omitempty"`
@@ -81,5 +85,31 @@ type VulnerabilityResult struct {
 }
 
 func Get(path string) (Spec, error) {
-	return Spec{}, nil
+	s, err := os.Open(path)
+	if err != nil {
+		return Spec{}, err
+	}
+	defer s.Close()
+	var fileSpec Spec
+	decoder := json.NewDecoder(s)
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&fileSpec)
+	if err != nil {
+		return Spec{}, err
+	}
+	return fileSpec, nil
+}
+
+func Persist(path string, spec Spec) error {
+	s, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	encode := json.NewEncoder(s)
+	err = encode.Encode(spec)
+	if err != nil {
+		return err
+	}
+	return nil
 }
