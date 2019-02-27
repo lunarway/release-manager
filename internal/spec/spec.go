@@ -42,7 +42,7 @@ type Stage struct {
 type BuildData struct {
 	Image         string `json:"image,omitempty"`
 	Tag           string `json:"tag,omitempty"`
-	DockerVersion string `json:"docker_version,omitempty"`
+	DockerVersion string `json:"dockerVersion,omitempty"`
 }
 
 type PushData struct {
@@ -52,27 +52,27 @@ type PushData struct {
 }
 
 type TestData struct {
-	URL         string     `json:"url,omitempty"`
-	TestResults TestResult `json:"test_results,omitempty"`
+	URL     string     `json:"url,omitempty"`
+	Results TestResult `json:"results,omitempty"`
 }
 
 type TestResult struct {
-	Passed  int `json:"passed,omitempty"`
-	Failed  int `json:"failed,omitempty"`
-	Skipped int `json:"skipped,omitempty"`
+	Passed  int `json:"passed"`
+	Failed  int `json:"failed"`
+	Skipped int `json:"skipped"`
 }
 
 type SnykDockerData struct {
 	Tag             string              `json:"tag,omitempty"`
-	SnykVersion     string              `json:"snyk_version,omitempty"`
+	SnykVersion     string              `json:"snykVersion,omitempty"`
 	URL             string              `json:"url,omitempty"`
-	BaseImage       string              `json:"base_image,omitempty"`
+	BaseImage       string              `json:"baseImage,omitempty"`
 	Vulnerabilities VulnerabilityResult `json:"vulnerabilities,omitempty"`
 }
 
 type SnykCodeData struct {
 	Tag             string              `json:"tag,omitempty"`
-	SnykVersion     string              `json:"snyk_version,omitempty"`
+	SnykVersion     string              `json:"snykVersion,omitempty"`
 	URL             string              `json:"url,omitempty"`
 	Language        string              `json:"language,omitempty"`
 	Vulnerabilities VulnerabilityResult `json:"vulnerabilities,omitempty"`
@@ -108,6 +108,22 @@ func Persist(path string, spec Spec) error {
 	defer s.Close()
 	encode := json.NewEncoder(s)
 	err = encode.Encode(spec)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func Update(path string, f func(Spec) Spec) error {
+	s, err := Get(path)
+	if err != nil {
+		return err
+	}
+
+	s = f(s)
+
+	// Persist back to the file
+	err = Persist(path, s)
 	if err != nil {
 		return err
 	}

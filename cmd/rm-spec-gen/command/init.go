@@ -1,35 +1,47 @@
 package command
 
 import (
-	"fmt"
+	"path"
+	"time"
 
 	"github.com/lunarway/release-manager/internal/spec"
 	"github.com/spf13/cobra"
 )
 
 // NewCommand sets up the move command
-func initCommand() *cobra.Command {
-	var git spec.Git
+func initCommand(options *Options) *cobra.Command {
+	var s spec.Spec
 
 	command := &cobra.Command{
 		Use:   "init",
 		Short: "",
 		Long:  "",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Printf("Git: %s %s %s %s", git.Author, git.Committer, git.Message, git.SHA)
+			// Record when this job started
+			s.CI.Start = time.Now()
+
+			// Persist the spec to disk
+			err := spec.Persist(path.Join(options.RootPath, options.FileName), s)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		},
 	}
 
 	// Init git data
-	command.Flags().StringVar(&git.Author, "git-author", "", "the commit author")
-	command.Flags().StringVar(&git.Message, "git-message", "", "the commit message")
-	command.Flags().StringVar(&git.Committer, "git-committer", "", "the commit committer")
-	command.Flags().StringVar(&git.SHA, "git-sha", "", "the commit sha")
+	command.Flags().StringVar(&s.Git.Author, "git-author", "", "the commit author")
+	command.Flags().StringVar(&s.Git.Message, "git-message", "", "the commit message")
+	command.Flags().StringVar(&s.Git.Committer, "git-committer", "", "the commit committer")
+	command.Flags().StringVar(&s.Git.SHA, "git-sha", "", "the commit sha")
 	command.MarkFlagRequired("git-author")
 	command.MarkFlagRequired("git-message")
 	command.MarkFlagRequired("git-committer")
 	command.MarkFlagRequired("git-sha")
+
+	// Init ci data
+	command.Flags().StringVar(&s.CI.JobURL, "ci-job-url", "", "the URL of the Job in CI")
 
 	return command
 }
