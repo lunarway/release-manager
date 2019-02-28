@@ -17,6 +17,9 @@ snapshot:
   name_template: "git-{{.Commit}}"
 
 release:
+  github:
+    owner: lunarway
+    name: release-manager
   name_template: "v{{.Version}}"
 
 changelog:
