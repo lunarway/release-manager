@@ -131,7 +131,7 @@ func appendSnykCodeSubCommand(options *Options) *cobra.Command {
 }
 
 func appendPushSubCommand(options *Options) *cobra.Command {
-	var pushData spec.BuildData
+	var pushData spec.PushData
 	var stage spec.Stage
 	command := &cobra.Command{
 		Use:   "push",

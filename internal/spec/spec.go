@@ -48,9 +48,9 @@ type BuildData struct {
 }
 
 type PushData struct {
-	Image string `json:"image,omitempty"`
-	Tag   string `json:"tag,omitempty"`
-	URL   string `json:"url,omitempty"`
+	Image         string `json:"image,omitempty"`
+	Tag           string `json:"tag,omitempty"`
+	DockerVersion string `json:"dockerVersion,omitempty"`
 }
 
 type TestData struct {
@@ -83,6 +83,16 @@ type VulnerabilityResult struct {
 	High   int `json:"high"`
 	Medium int `json:"medium"`
 	Low    int `json:"low"`
+}
+
+// GetStage returns a stage of the spec with provided stage ID.
+func (s *Spec) GetStage(stageID string) (Stage, bool) {
+	for _, stage := range s.Stages {
+		if stage.ID == stageID {
+			return stage, true
+		}
+	}
+	return Stage{}, false
 }
 
 func Get(path string) (Spec, error) {
