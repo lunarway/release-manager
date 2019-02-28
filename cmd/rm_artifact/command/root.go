@@ -11,14 +11,14 @@ type Options struct {
 func NewCommand() *cobra.Command {
 	var options Options
 	var command = &cobra.Command{
-		Use:   "rm-spec-gen",
-		Short: "rm-spec-gen json generate service build specifications",
+		Use:   "rm-artifact",
+		Short: "rm-artifact json generate service build specifications",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
 	}
 	command.PersistentFlags().StringVar(&options.RootPath, "root", ".", "Root from where builds and releases should be found.")
-	command.PersistentFlags().StringVar(&options.FileName, "file", ".spec.json", "")
+	command.PersistentFlags().StringVar(&options.FileName, "file", ".artifact.json", "")
 	command.AddCommand(initCommand(&options))
 	command.AddCommand(endCommand(&options))
 	command.AddCommand(addCommand(&options))
