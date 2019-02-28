@@ -7,10 +7,9 @@ import (
 )
 
 type Spec struct {
-	Application Repository
+	Application Repository `json:"application,omitempty"`
 	CI          CI         `json:"ci,omitempty"`
 	Squad       string     `json:"squad,omitempty"`
-	Repository  Repository `json:"repository,omitempty"`
 	Shuttle     Shuttle    `json:"shuttle,omitempty"`
 	Stages      []Stage    `json:"stages,omitempty"`
 }
@@ -74,7 +73,6 @@ type SnykDockerData struct {
 }
 
 type SnykCodeData struct {
-	Tag             string              `json:"tag,omitempty"`
 	SnykVersion     string              `json:"snykVersion,omitempty"`
 	URL             string              `json:"url,omitempty"`
 	Language        string              `json:"language,omitempty"`
@@ -82,9 +80,9 @@ type SnykCodeData struct {
 }
 
 type VulnerabilityResult struct {
-	High   int `json:"high,omitempty"`
-	Medium int `json:"medium,omitempty"`
-	Low    int `json:"low,omitempty"`
+	High   int `json:"high"`
+	Medium int `json:"medium"`
+	Low    int `json:"low"`
 }
 
 func Get(path string) (Spec, error) {
