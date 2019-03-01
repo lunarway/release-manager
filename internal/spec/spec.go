@@ -118,6 +118,7 @@ func Persist(path string, spec Spec) error {
 	}
 	defer s.Close()
 	encode := json.NewEncoder(s)
+	encode.SetIndent("", "  ")
 	err = encode.Encode(spec)
 	if err != nil {
 		return err
