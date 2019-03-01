@@ -7,6 +7,7 @@ import (
 )
 
 type Spec struct {
+	ID          string     `json:"id,omitempty"`
 	Application Repository `json:"application,omitempty"`
 	CI          CI         `json:"ci,omitempty"`
 	Squad       string     `json:"squad,omitempty"`
