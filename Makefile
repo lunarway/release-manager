@@ -1,2 +1,2 @@
 release:
-	goreleaser --rm-dist
+	goreleaser --rm-dist --skip-publish
