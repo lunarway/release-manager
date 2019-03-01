@@ -18,7 +18,7 @@ func NewCommand() *cobra.Command {
 		},
 	}
 	command.PersistentFlags().StringVar(&options.RootPath, "root", ".", "Root from where builds and releases should be found.")
-	command.PersistentFlags().StringVar(&options.FileName, "file", ".artifact.json", "")
+	command.PersistentFlags().StringVar(&options.FileName, "file", "artifact.json", "")
 	command.AddCommand(initCommand(&options))
 	command.AddCommand(endCommand(&options))
 	command.AddCommand(addCommand(&options))
