@@ -1,5 +1,5 @@
-example: 
-	- rm -rf examples/.artifact.json
+example:
+	- rm -rf examples/artifact.json
 	go run main.go init \
 		--git-author "Kasper Nissen"\
 		--git-message "Some message"\
@@ -19,7 +19,7 @@ example:
 		--tag "master-1234ds"\
 		--docker-version "1.18.6"\
 		--root examples
-	
+
 	go run main.go add push\
 		--image "quay.io/lunarway/application"\
 		--tag "master-1234ds"\
@@ -54,4 +54,4 @@ example:
 
 	go run main.go end --root examples
 
-	
+
