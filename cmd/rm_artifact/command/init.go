@@ -33,9 +33,11 @@ func initCommand(options *Options) *cobra.Command {
 	command.Flags().StringVar(&s.ID, "artifact-id", "", "the id of the artifact")
 
 	// Init git data
-	command.Flags().StringVar(&s.Application.Author, "git-author", "", "the commit author")
+	command.Flags().StringVar(&s.Application.AuthorName, "git-author-name", "", "the commit author name")
+	command.Flags().StringVar(&s.Application.AuthorEmail, "git-author-email", "", "the commit author email")
 	command.Flags().StringVar(&s.Application.Message, "git-message", "", "the commit message")
-	command.Flags().StringVar(&s.Application.Committer, "git-committer", "", "the commit committer")
+	command.Flags().StringVar(&s.Application.CommitterName, "git-committer-name", "", "the commit committer name")
+	command.Flags().StringVar(&s.Application.CommitterEmail, "git-committer-email", "", "the commit committer email")
 	command.Flags().StringVar(&s.Application.SHA, "git-sha", "", "the commit sha")
 	command.Flags().StringVar(&s.Application.Provider, "provider", "", "the name of the repository provider")
 	command.Flags().StringVar(&s.Application.URL, "url", "", "the url to the repository commit")
@@ -45,9 +47,11 @@ func initCommand(options *Options) *cobra.Command {
 	command.Flags().StringVar(&s.Shuttle.Plan.Message, "shuttle-plan-message", "", "the shuttle plan commit message")
 
 	command.MarkFlagRequired("artifact-id")
-	command.MarkFlagRequired("git-author")
+	command.MarkFlagRequired("git-author-name")
+	command.MarkFlagRequired("git-author-email")
 	command.MarkFlagRequired("git-message")
-	command.MarkFlagRequired("git-committer")
+	command.MarkFlagRequired("git-committer-name")
+	command.MarkFlagRequired("git-committer-email")
 	command.MarkFlagRequired("git-sha")
 
 	// Init ci data
