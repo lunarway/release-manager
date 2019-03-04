@@ -87,6 +87,15 @@ func Promote(configRepoURL, artifactFileName, service, env string) error {
 	if err != nil {
 		return errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", sourcePath, destinationPath))
 	}
+	// copy artifact spec
+	artifactSourcePath := srcPath(sourceConfigRepoPath, service, artifactFileName)
+	artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, env), artifactFileName)
+	fmt.Printf("Copy artifact from: %s\n", artifactSourcePath)
+	fmt.Printf("To:                 %s\n", artifactDestinationPath)
+	err = copy.Copy(artifactSourcePath, artifactDestinationPath)
+	if err != nil {
+		return errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
+	}
 
 	// commit changes
 	committerName, committerEmail, err := committerDetails()
