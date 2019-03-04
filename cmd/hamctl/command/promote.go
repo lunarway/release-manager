@@ -6,13 +6,13 @@ import (
 )
 
 func NewPromote(options *Options) *cobra.Command {
-	var serviceName, environment, configRepo, checkoutPath, artifactFileName string
+	var serviceName, environment, configRepo, artifactFileName string
 
 	var command = &cobra.Command{
 		Use:   "promote",
 		Short: "Promote a service to a specific environment following promoting conventions.",
 		RunE: func(c *cobra.Command, args []string) error {
-			return flow.Promote(configRepo, checkoutPath, artifactFileName, serviceName, environment)
+			return flow.Promote(configRepo, artifactFileName, serviceName, environment)
 		},
 	}
 	command.Flags().StringVar(&serviceName, "service", "", "Service to promote to specified environment (required)")
@@ -20,7 +20,6 @@ func NewPromote(options *Options) *cobra.Command {
 	command.Flags().StringVar(&environment, "env", "", "Environment to promote to (required)")
 	command.MarkFlagRequired("env")
 	command.Flags().StringVar(&configRepo, "config-repo", "git@github.com:lunarway/k8s-cluster-config.git", "Kubernetes cluster configuration repository.")
-	command.Flags().StringVar(&checkoutPath, "config-repo-checkout-path", ".tmp/k8s-config", "Checkout path for config repo.")
-	command.Flags().StringVar(&artifactFileName, "file", ".artifact.json", "")
+	command.Flags().StringVar(&artifactFileName, "file", "artifact.json", "")
 	return command
 }

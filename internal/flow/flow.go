@@ -11,6 +11,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	sourceConfigRepoPath      = path.Join(".tmp", "k8s-config-source")
+	destinationConfigRepoPath = path.Join(".tmp", "k8s-config-destination")
+)
+
 // Promote promotes a specific service to environment env.
 //
 // By convention, promotion means:
@@ -31,43 +36,42 @@ import (
 // current release was based.
 //
 // Copy artifacts from the current release into the new environment and commit the changes
-func Promote(configRepoURL, configRepoPath, artifactFileName, service, env string) error {
+func Promote(configRepoURL, artifactFileName, service, env string) error {
 	// find current released .artifact.json for service in env - 1 (dev for staging, staging for prod)
-	repo, err := git.Clone(configRepoURL, configRepoPath)
+	fmt.Printf("Cloning source config repo %s into %s\n", configRepoURL, sourceConfigRepoPath)
+	sourceRepo, err := git.Clone(configRepoURL, sourceConfigRepoPath)
 	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, configRepoPath))
+		return errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
 	}
-	sourceSpec, err := sourceSpec(configRepoPath, artifactFileName, service, env)
+	sourceSpec, err := sourceSpec(sourceConfigRepoPath, artifactFileName, service, env)
 	if err != nil {
 		return errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 	}
 
 	// find release identifier in .artifact.json
-	pushStage, ok := sourceSpec.GetStage("push")
-	if !ok {
-		return errors.New("no push stage available for release")
-	}
-	pushData, ok := pushStage.Data.(map[string]interface{})
-	if !ok {
-		fmt.Printf("stage data type %[1]T data: %+[1]v\n", pushStage.Data)
-		return errors.New("push stage data not of correct type: this should never happen")
-	}
-	release := pushData["tag"].(string)
+	release := sourceSpec.ID
+	fmt.Printf("Found artifact id '%s'\n", release)
 
 	// ckechout commit of release
-	hash, err := git.LocateRelease(configRepoURL, release)
+	hash, err := git.LocateRelease(sourceRepo, release)
 	if err != nil {
 		return errors.WithMessage(err, fmt.Sprintf("locate release '%s' from '%s'", release, configRepoURL))
 	}
-	err = git.Checkout(repo, hash)
+	err = git.Checkout(sourceRepo, hash)
 	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("checkout '%s' hash '%s'", configRepoPath, hash))
+		return errors.WithMessage(err, fmt.Sprintf("checkout release hash '%s' from '%s'", hash, configRepoURL))
+	}
+
+	destinationRepo, err := git.Clone(configRepoURL, destinationConfigRepoPath)
+	if err != nil {
+		return errors.WithMessage(err, fmt.Sprintf("clone destination repo '%s' into '%s'", configRepoURL, destinationConfigRepoPath))
 	}
 
 	// release service to env from original release
-	sourcePath := srcPath(configRepoPath, service, env)
-	destinationPath := releasePath(configRepoPath, service, env)
-	fmt.Printf("source: %s\ndestin: %s\n", sourcePath, destinationPath)
+	sourcePath := srcPath(sourceConfigRepoPath, service, env)
+	destinationPath := releasePath(destinationConfigRepoPath, service, env)
+	fmt.Printf("Copy resources from: %s\n", sourcePath)
+	fmt.Printf("To:                  %s\n", destinationPath)
 
 	// empty existing resources in destination
 	err = os.RemoveAll(destinationPath)
@@ -85,12 +89,38 @@ func Promote(configRepoURL, configRepoPath, artifactFileName, service, env strin
 	}
 
 	// commit changes
-	err = git.Commit(repo, releasePath(".", service, env), service, env, release, "BSO", "bso@lunarway.com")
+	committerName, committerEmail, err := committerDetails()
+	if err != nil {
+		return err
+	}
+	authorName := sourceSpec.Application.AuthorName
+	authorEmail := sourceSpec.Application.AuthorEmail
+	releaseMessage := fmt.Sprintf("[%s/%s] release %s", env, service, release)
+	fmt.Printf("Committing release: %s\n", releaseMessage)
+	fmt.Printf("  Author:    %s <%s>\n", authorName, authorEmail)
+	fmt.Printf("  Committer: %s <%s>\n", committerName, committerEmail)
+	err = git.Commit(destinationRepo, releasePath(".", service, env), authorName, authorEmail, committerName, committerEmail, releaseMessage)
 	if err != nil {
 		return errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}
 
 	return nil
+}
+
+func committerDetails() (string, string, error) {
+	c, err := git.GlobalConfig()
+	if err != nil {
+		return "", "", errors.WithMessage(err, "get global config")
+	}
+	committerName := c.Section("user").Option("name")
+	committerEmail := c.Section("user").Option("email")
+	if committerEmail == "" {
+		return "", "", errors.New("user.email not available in global git config")
+	}
+	if committerName == "" {
+		return "", "", errors.New("user.name not available in global git config")
+	}
+	return committerName, committerEmail, nil
 }
 
 // sourceSpec returns the Spec of the current release.
@@ -104,16 +134,19 @@ func Promote(configRepoURL, configRepoPath, artifactFileName, service, env strin
 // env prod
 // promote prod config from build commit of staging release
 func sourceSpec(root, artifactFileName, service, env string) (spec.Spec, error) {
+	var specPath string
 	switch env {
 	case "dev":
-		return spec.Get(path.Join(buildPath(root, service, "master"), artifactFileName))
+		specPath = path.Join(buildPath(root, service, "master"), artifactFileName)
 	case "staging":
-		return spec.Get(path.Join(releasePath(root, service, "dev"), artifactFileName))
+		specPath = path.Join(releasePath(root, service, "dev"), artifactFileName)
 	case "prod":
-		return spec.Get(path.Join(releasePath(root, service, "staging"), artifactFileName))
+		specPath = path.Join(releasePath(root, service, "staging"), artifactFileName)
 	default:
 		return spec.Spec{}, errors.New("unknown environment")
 	}
+	fmt.Printf("Get artifact spec from %s\n", specPath)
+	return spec.Get(specPath)
 }
 
 func srcPath(root, service, env string) string {

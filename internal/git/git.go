@@ -1,18 +1,19 @@
 package git
 
 import (
-	"fmt"
 	"io"
 	"os"
+	"path"
+	"runtime"
 	"strings"
 	"time"
 
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/go-git.v4/plumbing/format/config"
 
 	"github.com/pkg/errors"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/storage/memory"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 func Clone(repoURL, destination string) (*git.Repository, error) {
@@ -44,13 +45,7 @@ func Checkout(r *git.Repository, hash plumbing.Hash) error {
 	return nil
 }
 
-func LocateRelease(repoURL, release string) (plumbing.Hash, error) {
-	r, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
-		URL: repoURL,
-	})
-	if err != nil {
-		return plumbing.ZeroHash, errors.WithMessage(err, "clone repo")
-	}
+func LocateRelease(r *git.Repository, release string) (plumbing.Hash, error) {
 	ref, err := r.Head()
 	if err != nil {
 		return plumbing.ZeroHash, errors.WithMessage(err, "retrieve HEAD branch")
@@ -75,7 +70,7 @@ func LocateRelease(repoURL, release string) (plumbing.Hash, error) {
 	}
 }
 
-func Commit(repo *git.Repository, changesPath, service, env, tag, authorName, authorEmail string) error {
+func Commit(repo *git.Repository, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
 	w, err := repo.Worktree()
 	if err != nil {
 		return errors.WithMessage(err, "get worktree")
@@ -84,19 +79,16 @@ func Commit(repo *git.Repository, changesPath, service, env, tag, authorName, au
 	if err != nil {
 		return errors.WithMessage(err, "add changes")
 	}
-	err = Checkout(repo, plumbing.NewHash("HEAD"))
-	if err != nil {
-		return errors.WithMessage(err, "checkout HEAD")
-	}
-	_, err = w.Commit(fmt.Sprintf("[%s/%s] release tag %s by %s", env, service, tag, authorName), &git.CommitOptions{
+
+	_, err = w.Commit(msg, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  authorName,
 			Email: authorEmail,
 			When:  time.Now(),
 		},
 		Committer: &object.Signature{
-			Name:  "HamAstrochimp",
-			Email: "operations@lunarway.com",
+			Name:  committerName,
+			Email: committerEmail,
 			When:  time.Now(),
 		},
 	})
@@ -104,4 +96,43 @@ func Commit(repo *git.Repository, changesPath, service, env, tag, authorName, au
 		return errors.WithMessage(err, "commit")
 	}
 	return nil
+}
+
+// GlobalConfig returns the global Git configuration read from the user home
+// directory.
+func GlobalConfig() (config.Config, error) {
+	file, err := os.Open(path.Join(userHomeDir(), ".gitconfig"))
+	if err != nil {
+		return config.Config{}, err
+	}
+	decoder := config.NewDecoder(file)
+	var c config.Config
+	err = decoder.Decode(&c)
+	if err != nil {
+		return config.Config{}, err
+	}
+	return c, nil
+}
+
+// userHomeDir returns the home directory of the current user.
+//
+// It handles windows, linux and darwin operating systems by inspecting
+// runtime.GOOS.
+func userHomeDir() string {
+	switch runtime.GOOS {
+	case "windows":
+		home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
+		if home == "" {
+			home = os.Getenv("USERPROFILE")
+		}
+		return home
+	case "linux":
+		home := os.Getenv("XDG_CONFIG_HOME")
+		if home != "" {
+			return home
+		}
+		fallthrough
+	default:
+		return os.Getenv("HOME")
+	}
 }
