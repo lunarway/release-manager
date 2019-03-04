@@ -16,13 +16,15 @@ type Spec struct {
 }
 
 type Repository struct {
-	SHA       string `json:"sha,omitempty"`
-	Author    string `json:"author,omitempty"`
-	Committer string `json:"committer,omitempty"`
-	Message   string `json:"message,omitempty"`
-	Name      string `json:"name,omitempty"`
-	URL       string `json:"url,omitempty"`
-	Provider  string `json:"provider,omitempty"`
+	SHA            string `json:"sha,omitempty"`
+	AuthorName     string `json:"authorName,omitempty"`
+	AuthorEmail    string `json:"authorEmail,omitempty"`
+	CommitterName  string `json:"committerName,omitempty"`
+	CommitterEmail string `json:"committerEmail,omitempty"`
+	Message        string `json:"message,omitempty"`
+	Name           string `json:"name,omitempty"`
+	URL            string `json:"url,omitempty"`
+	Provider       string `json:"provider,omitempty"`
 }
 
 type Shuttle struct {
