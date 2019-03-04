@@ -7,6 +7,7 @@ import (
 )
 
 type Spec struct {
+	ID          string     `json:"id,omitempty"`
 	Application Repository `json:"application,omitempty"`
 	CI          CI         `json:"ci,omitempty"`
 	Squad       string     `json:"squad,omitempty"`
@@ -118,6 +119,7 @@ func Persist(path string, spec Spec) error {
 	}
 	defer s.Close()
 	encode := json.NewEncoder(s)
+	encode.SetIndent("", "  ")
 	err = encode.Encode(spec)
 	if err != nil {
 		return err

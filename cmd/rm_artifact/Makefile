@@ -1,6 +1,7 @@
-example: 
-	- rm -rf examples/.artifact.json
+example:
+	- rm -rf examples/artifact.json
 	go run main.go init \
+	  --artifact-id "master-1234ds13g3-12s46g356g"\
 		--git-author "Kasper Nissen"\
 		--git-message "Some message"\
 		--git-sha "asd39sdas0g392"\
@@ -16,13 +17,13 @@ example:
 
 	go run main.go add build\
 		--image "quay.io/lunarway/application"\
-		--tag "master-1234ds"\
+		--tag "master-1234ds13g3-12s46g356g"\
 		--docker-version "1.18.6"\
 		--root examples
-	
+
 	go run main.go add push\
 		--image "quay.io/lunarway/application"\
-		--tag "master-1234ds"\
+		--tag "master-1234ds13g3-12s46g356g"\
 		--docker-version "1.18.6"\
 		--root examples
 
@@ -54,4 +55,4 @@ example:
 
 	go run main.go end --root examples
 
-	
+

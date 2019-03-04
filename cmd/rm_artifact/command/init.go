@@ -30,6 +30,8 @@ func initCommand(options *Options) *cobra.Command {
 		},
 	}
 
+	command.Flags().StringVar(&s.ID, "artifact-id", "", "the id of the artifact")
+
 	// Init git data
 	command.Flags().StringVar(&s.Application.Author, "git-author", "", "the commit author")
 	command.Flags().StringVar(&s.Application.Message, "git-message", "", "the commit message")
@@ -42,6 +44,7 @@ func initCommand(options *Options) *cobra.Command {
 	command.Flags().StringVar(&s.Shuttle.Plan.URL, "shuttle-plan-url", "", "the url to the shuttle plan commit")
 	command.Flags().StringVar(&s.Shuttle.Plan.Message, "shuttle-plan-message", "", "the shuttle plan commit message")
 
+	command.MarkFlagRequired("artifact-id")
 	command.MarkFlagRequired("git-author")
 	command.MarkFlagRequired("git-message")
 	command.MarkFlagRequired("git-committer")

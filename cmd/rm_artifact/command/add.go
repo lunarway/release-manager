@@ -11,7 +11,7 @@ import (
 func addCommand(options *Options) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "add",
-		Short: "",
+		Short: "add sub commands",
 		Long:  "",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
