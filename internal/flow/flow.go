@@ -37,7 +37,7 @@ var (
 //
 // Copy artifacts from the current release into the new environment and commit the changes
 func Promote(configRepoURL, artifactFileName, service, env string) error {
-	// find current released .artifact.json for service in env - 1 (dev for staging, staging for prod)
+	// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
 	fmt.Printf("Cloning source config repo %s into %s\n", configRepoURL, sourceConfigRepoPath)
 	sourceRepo, err := git.Clone(configRepoURL, sourceConfigRepoPath)
 	if err != nil {
