@@ -9,18 +9,17 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/src-d/go-git.v4/plumbing/format/config"
-
 	"github.com/pkg/errors"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/format/config"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 func Clone(repoURL, destination string) (*git.Repository, error) {
 	err := os.RemoveAll(destination)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "remove existing destination")
 	}
 
 	r, err := git.PlainClone(destination, false, &git.CloneOptions{

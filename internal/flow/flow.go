@@ -30,12 +30,13 @@ var (
 //
 // Checkout the current kubernetes configuration status and find the
 // artifact.json spec for the service and previous environment.
-// In this spec, find the image tag used as a key for locating the build.
+// Use the artifact ID as a key for locating the build.
 //
-// Checkout the Git hash of the kubernetes config repository from where the
-// current release was based.
+// Find the commit with the artifact ID and checkout the config repository at
+// this point.
 //
-// Copy artifacts from the current release into the new environment and commit the changes
+// Copy artifacts from the current release into the new environment and commit
+// the changes
 func Promote(configRepoURL, artifactFileName, service, env string) error {
 	// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
 	fmt.Printf("Cloning source config repo %s into %s\n", configRepoURL, sourceConfigRepoPath)
@@ -133,15 +134,6 @@ func committerDetails() (string, string, error) {
 }
 
 // sourceSpec returns the Spec of the current release.
-//
-// env dev
-// promote master branch to dev
-//
-// env staging
-// promote staging config from commit of dev release
-//
-// env prod
-// promote prod config from build commit of staging release
 func sourceSpec(root, artifactFileName, service, env string) (spec.Spec, error) {
 	var specPath string
 	switch env {
@@ -159,8 +151,7 @@ func sourceSpec(root, artifactFileName, service, env string) (spec.Spec, error) 
 }
 
 func srcPath(root, service, env string) string {
-	return path.Join(root, "builds", service, "master", env)
-
+	return path.Join(buildPath(root, service, "master"), env)
 }
 
 func buildPath(root, service, branch string) string {
