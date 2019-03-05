@@ -1,6 +1,7 @@
 package git
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -80,6 +81,16 @@ func Commit(repo *git.Repository, changesPath, authorName, authorEmail, committe
 		return errors.WithMessage(err, "add changes")
 	}
 
+	status, err := w.Status()
+	if err != nil {
+		return errors.WithMessage(err, "status")
+	}
+
+	// if commit is empty
+	if status.IsClean() {
+		fmt.Printf("\nEnvironment is up to date\n")
+		return nil
+	}
 	_, err = w.Commit(msg, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  authorName,
