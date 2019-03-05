@@ -29,7 +29,7 @@ var (
 // Flow
 //
 // Checkout the current kubernetes configuration status and find the
-// .artifact.json spec for the service and previous environment.
+// artifact.json spec for the service and previous environment.
 // In this spec, find the image tag used as a key for locating the build.
 //
 // Checkout the Git hash of the kubernetes config repository from where the
