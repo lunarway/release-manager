@@ -16,6 +16,7 @@ func NewCommand() *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
+	command.AddCommand(NewPromote(&options))
 
 	command.PersistentFlags().StringVar(&options.RootPath, "root", ".", "Root from where builds and releases should be found.")
 	return command
