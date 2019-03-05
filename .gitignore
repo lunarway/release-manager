@@ -1,3 +1,4 @@
 *artifact.json
 dist/
 rm_artifact-linux-amd64
+.tmp/
