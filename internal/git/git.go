@@ -95,6 +95,12 @@ func Commit(repo *git.Repository, changesPath, authorName, authorEmail, committe
 	if err != nil {
 		return errors.WithMessage(err, "commit")
 	}
+
+	// TODO: this could be made optional if needed
+	err = repo.Push(&git.PushOptions{})
+	if err != nil {
+		return errors.WithMessage(err, "push")
+	}
 	return nil
 }
 
