@@ -48,7 +48,7 @@ func Promote(configRepoURL, artifactFileName, service, env string) error {
 		return errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 	}
 
-	// find release identifier in .artifact.json
+	// find release identifier in artifact.json
 	release := sourceSpec.ID
 	fmt.Printf("Found artifact id '%s'\n", release)
 
