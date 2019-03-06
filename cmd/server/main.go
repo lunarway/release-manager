@@ -2,6 +2,10 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/lunarway/release-manager/cmd/server/grpc"
@@ -42,6 +46,19 @@ func main() {
 		}
 	}()
 
-	// Keep everything running
-	select {}
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		select {
+		case sig := <-sigs:
+			done <- fmt.Errorf("received os signal '%s'", sig)
+		}
+	}()
+
+	err := <-done
+	if err != nil {
+		fmt.Printf("Exited unknown error: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Program ended")
 }
