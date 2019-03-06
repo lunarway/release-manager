@@ -11,3 +11,7 @@ deploy-jenkins-prod:
 
 deploy: deploy-jenkins-dev deploy-jenkins-prod
 	
+generate-go:
+	- mkdir -p generated/grpc
+	docker run --rm -v $(shell pwd):$(shell pwd) -w $(shell pwd) znly/protoc -I. protos/*.proto --go_out=plugins=grpc:.
+	mv protos/*.pb.go generated/grpc/

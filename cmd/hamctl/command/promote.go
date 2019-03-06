@@ -1,8 +1,18 @@
 package command
 
 import (
-	"github.com/lunarway/release-manager/internal/flow"
+	"context"
+	"fmt"
+	"time"
+
+	gengrpc "github.com/lunarway/release-manager/generated/grpc"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+)
+
+const (
+	address = "localhost:7900"
+	timeout = 20
 )
 
 func NewPromote(options *Options) *cobra.Command {
@@ -12,7 +22,25 @@ func NewPromote(options *Options) *cobra.Command {
 		Use:   "promote",
 		Short: "Promote a service to a specific environment following promoting conventions.",
 		RunE: func(c *cobra.Command, args []string) error {
-			return flow.Promote(configRepo, artifactFileName, serviceName, environment)
+			conn, err := grpc.Dial(address, grpc.WithInsecure())
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+			client := gengrpc.NewReleaseManagerClient(conn)
+
+			ctx, cancel := context.WithTimeout(context.Background(), timeout*time.Second)
+			defer cancel()
+			r, err := client.Promote(ctx, &gengrpc.PromoteRequest{
+				Service:     serviceName,
+				Environment: environment,
+			})
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("%s", r.Status)
+			return nil
 		},
 	}
 	command.Flags().StringVar(&serviceName, "service", "", "Service to promote to specified environment (required)")

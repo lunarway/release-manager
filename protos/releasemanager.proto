@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package releasemanager;
+option go_package = "grpc";
+
+service ReleaseManager {
+  rpc Promote (PromoteRequest) returns (PromoteResponse) {}
+}
+
+message PromoteRequest {
+  string service = 1;
+  string environment = 2;
+}
+
+message PromoteResponse {
+  string service = 1;
+  string environment = 2;
+  string status = 3;
+}
