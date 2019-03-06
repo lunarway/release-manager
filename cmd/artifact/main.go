@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/lunarway/release-manager/cmd/rm_artifact/command"
+	"github.com/lunarway/release-manager/cmd/artifact/command"
 )
 
 func main() {

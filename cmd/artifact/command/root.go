@@ -11,8 +11,8 @@ type Options struct {
 func NewCommand() *cobra.Command {
 	var options Options
 	var command = &cobra.Command{
-		Use:   "rm-artifact",
-		Short: "rm-artifact json generate service build specifications",
+		Use:   "artifact",
+		Short: "generates a artifact.json with build status",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},

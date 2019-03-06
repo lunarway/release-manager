@@ -3,33 +3,26 @@ package command
 import (
 	"context"
 	"fmt"
-	"time"
 
 	gengrpc "github.com/lunarway/release-manager/generated/grpc"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
 
-const (
-	address = "localhost:7900"
-	timeout = 20
-)
-
 func NewPromote(options *Options) *cobra.Command {
 	var serviceName, environment, configRepo, artifactFileName string
-
 	var command = &cobra.Command{
 		Use:   "promote",
 		Short: "Promote a service to a specific environment following promoting conventions.",
 		RunE: func(c *cobra.Command, args []string) error {
-			conn, err := grpc.Dial(address, grpc.WithInsecure())
+			conn, err := grpc.Dial(options.gRPCAddress, grpc.WithInsecure())
 			if err != nil {
 				return err
 			}
 			defer conn.Close()
 			client := gengrpc.NewReleaseManagerClient(conn)
 
-			ctx, cancel := context.WithTimeout(context.Background(), timeout*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), options.gRPCTimeout)
 			defer cancel()
 			r, err := client.Promote(ctx, &gengrpc.PromoteRequest{
 				Service:     serviceName,

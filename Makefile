@@ -2,12 +2,12 @@ release:
 	goreleaser --rm-dist --skip-publish
 
 deploy-jenkins-dev: 
-	GOOS=linux GOARCH=amd64 go build -o rm_artifact-linux-amd64 cmd/rm_artifact/main.go 
-	scp rm_artifact-linux-amd64 lunar-dev-jenkins:/usr/local/bin/rm_artifact
+	GOOS=linux GOARCH=amd64 go build -o rm_artifact-linux-amd64 cmd/artifact/main.go 
+	scp artifact-linux-amd64 lunar-dev-jenkins:/usr/local/bin/artifact
 
 deploy-jenkins-prod: 
-	GOOS=linux GOARCH=amd64 go build -o rm_artifact-linux-amd64 cmd/rm_artifact/main.go 
-	scp rm_artifact-linux-amd64 lunar-prod-jenkins:/usr/local/bin/rm_artifact
+	GOOS=linux GOARCH=amd64 go build -o rm_artifact-linux-amd64 cmd/artifact/main.go 
+	scp artifact-linux-amd64 lunar-prod-jenkins:/usr/local/bin/artifact
 
 deploy: deploy-jenkins-dev deploy-jenkins-prod
 	
@@ -15,3 +15,15 @@ generate-go:
 	- mkdir -p generated/grpc
 	docker run --rm -v $(shell pwd):$(shell pwd) -w $(shell pwd) znly/protoc -I. protos/*.proto --go_out=plugins=grpc:.
 	mv protos/*.pb.go generated/grpc/
+
+server: 
+	go build -o dist/server ./cmd/server
+	./dist/server
+
+hamctl: 
+	go build -o dist/hamctl ./cmd/hamctl
+	./dist/hamctl help
+
+artifact: 
+	go build -o dist/artifact ./cmd/artifact
+	./dist/artifact help
