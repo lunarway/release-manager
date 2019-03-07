@@ -1,7 +1,6 @@
 package git
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -14,6 +13,10 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/format/config"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+)
+
+var (
+	ErrNothingToCommit = errors.New("nothing to commit")
 )
 
 func Clone(repoURL, destination string) (*git.Repository, error) {
@@ -87,9 +90,9 @@ func Commit(repo *git.Repository, changesPath, authorName, authorEmail, committe
 
 	// if commit is empty
 	if status.IsClean() {
-		fmt.Printf("\nEnvironment is up to date\n")
-		return nil
+		return ErrNothingToCommit
 	}
+
 	_, err = w.Commit(msg, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  authorName,

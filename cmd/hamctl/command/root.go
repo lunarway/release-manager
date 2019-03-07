@@ -1,9 +1,15 @@
 package command
 
-import "github.com/spf13/cobra"
+import (
+	"time"
+
+	"github.com/spf13/cobra"
+)
 
 type Options struct {
-	RootPath string
+	RootPath    string
+	grpcAddress string
+	grpcTimeout time.Duration
 }
 
 // NewCommand returns a new instance of a hamctl command.
@@ -19,5 +25,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewPromote(&options))
 
 	command.PersistentFlags().StringVar(&options.RootPath, "root", ".", "Root from where builds and releases should be found.")
+	command.PersistentFlags().StringVar(&options.grpcAddress, "grpc-address", "localhost:7900", "address of the gRPC release manager server")
+	command.PersistentFlags().DurationVar(&options.grpcTimeout, "grpc-timeout", 20*time.Second, "gRPC timeout")
 	return command
 }
