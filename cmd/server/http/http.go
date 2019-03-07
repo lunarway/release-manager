@@ -68,7 +68,11 @@ func promote(configRepo, artifactFileName string) http.HandlerFunc {
 		if err != nil && errors.Cause(err) == git.ErrNothingToCommit {
 			pResp.Status = "nothing to commit"
 		} else if err != nil {
-			pResp.Status = err.Error()
+			fmt.Printf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v\n", configRepo, artifactFileName, pReq.Service, pReq.Environment, err)
+--
+  | return nil, status.Errorf(codes.Internal, "unknown error")
+
+
 		}
 
 		pResp.Service = pReq.Service
