@@ -23,6 +23,7 @@ func NewCommand() *cobra.Command {
 		},
 	}
 	command.AddCommand(NewPromote(&options))
+	command.AddCommand(NewStatus(&options))
 
 	command.PersistentFlags().StringVar(&options.RootPath, "root", ".", "Root from where builds and releases should be found.")
 	command.PersistentFlags().StringVar(&options.grpcAddress, "grpc-address", "localhost:7900", "address of the gRPC release manager server")

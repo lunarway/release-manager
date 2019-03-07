@@ -2,6 +2,7 @@ module github.com/lunarway/release-manager
 
 require (
 	github.com/emirpasic/gods v1.12.0 // indirect
+	github.com/fatih/color v1.7.0
 	github.com/golang/protobuf v1.2.0
 	github.com/google/pprof v0.0.0-20190228041337-2ef8d84b2e3c // indirect
 	github.com/goreleaser/goreleaser v0.102.0 // indirect
