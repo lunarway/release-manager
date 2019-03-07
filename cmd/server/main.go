@@ -15,7 +15,7 @@ import (
 
 func main() {
 	var (
-		gRPCPort         int
+		grpcPort         int
 		httpPort         int
 		timeout          time.Duration
 		configRepo       string
