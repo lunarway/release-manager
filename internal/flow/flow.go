@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"time"
 
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/spec"
@@ -15,6 +16,68 @@ var (
 	sourceConfigRepoPath      = path.Join(".tmp", "k8s-config-source")
 	destinationConfigRepoPath = path.Join(".tmp", "k8s-config-destination")
 )
+
+type Environment struct {
+	Tag       string    `json:"tag,omitempty"`
+	Committer string    `json:"committer,omitempty"`
+	Author    string    `json:"author,omitempty"`
+	Message   string    `json:"message,omitempty"`
+	Date      time.Time `json:"date,omitempty"`
+}
+
+type StatusResponse struct {
+	Dev     Environment `json:"dev,omitempty"`
+	Staging Environment `json:"staging,omitempty"`
+	Prod    Environment `json:"prod,omitempty"`
+}
+
+func Status(configRepoURL, artifactFileName, service string) (StatusResponse, error) {
+	// find current released artifact.json for each environment
+	fmt.Printf("Cloning source config repo %s into %s\n", configRepoURL, sourceConfigRepoPath)
+	_, err := git.Clone(configRepoURL, sourceConfigRepoPath)
+	if err != nil {
+		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
+	}
+
+	devSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "dev")
+	if err != nil {
+		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
+	}
+
+	stagingSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "staging")
+	if err != nil {
+		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
+	}
+
+	prodSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "prod")
+	if err != nil {
+		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
+	}
+
+	return StatusResponse{
+		Dev: Environment{
+			Tag:       devSpec.ID,
+			Committer: devSpec.Application.CommitterName,
+			Author:    devSpec.Application.AuthorName,
+			Message:   devSpec.Application.Message,
+			Date:      devSpec.CI.End,
+		},
+		Staging: Environment{
+			Tag:       stagingSpec.ID,
+			Committer: stagingSpec.Application.CommitterName,
+			Author:    stagingSpec.Application.AuthorName,
+			Message:   stagingSpec.Application.Message,
+			Date:      stagingSpec.CI.End,
+		},
+		Prod: Environment{
+			Tag:       prodSpec.ID,
+			Committer: prodSpec.Application.CommitterName,
+			Author:    prodSpec.Application.AuthorName,
+			Message:   prodSpec.Application.Message,
+			Date:      prodSpec.CI.End,
+		},
+	}, nil
+}
 
 // Promote promotes a specific service to environment env.
 //
@@ -131,6 +194,12 @@ func committerDetails() (string, string, error) {
 		return "", "", errors.New("user.name not available in global git config")
 	}
 	return committerName, committerEmail, nil
+}
+
+func envSpec(root, artifactFileName, service, env string) (spec.Spec, error) {
+	specPath := path.Join(releasePath(root, service, env), artifactFileName)
+	fmt.Printf("Get artifact spec from %s\n", specPath)
+	return spec.Get(specPath)
 }
 
 // sourceSpec returns the Spec of the current release.

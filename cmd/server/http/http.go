@@ -15,6 +15,7 @@ func NewServer(port int, timeout time.Duration, configRepo, artifactFileName str
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
 	mux.HandleFunc("/promote", promote(configRepo, artifactFileName))
+	mux.HandleFunc("/status", status(configRepo, artifactFileName))
 
 	s := http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
@@ -46,6 +47,33 @@ type PromoteResponse struct {
 	Service     string `json:"service,omitempty"`
 	Environment string `json:"environment,omitempty"`
 	Status      string `json:"status,omitempty"`
+}
+
+func status(configRepo, artifactFileName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		services, ok := r.URL.Query()["service"]
+
+		if !ok || len(services[0]) < 1 {
+			fmt.Printf("query param service is missing: %v\n", ok)
+			http.Error(w, "Invalid query param", http.StatusBadRequest)
+			return
+		}
+		service := services[0]
+		fmt.Printf("Service: %s\n", string(service))
+
+		resp, err := flow.Status(configRepo, artifactFileName, service)
+		if err != nil {
+			fmt.Printf("getting status failed: config repo '%s' artifact file name '%s' service '%s': %v\n", configRepo, artifactFileName, service, err)
+			http.Error(w, "promote flow failed", http.StatusInternalServerError)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
+			http.Error(w, "json encoding failed", http.StatusInternalServerError)
+			return
+		}
+	}
 }
 
 func promote(configRepo, artifactFileName string) http.HandlerFunc {
