@@ -96,16 +96,20 @@ func Status(configRepoURL, artifactFileName, service string) (StatusResponse, er
 }
 
 func calculateTotalVulnerabilties(severity string, s spec.Spec) int64 {
-	var result int64
-	// for _, stage := range s.Stages {
-	// 	if stage.ID == "snyk-code" {
-	// 		result += stage.Data.
-	// 	}
-	// 	if stage.ID == "snyk-docker" {
-
-	// 	}
-	// }
-	return result
+	var result float64 = 0
+	for _, stage := range s.Stages {
+		if stage.ID == "snyk-code" {
+			data := stage.Data.(map[string]interface{})
+			vulnerabilities := data["vulnerabilities"].(map[string]interface{})
+			result += vulnerabilities[severity].(float64)
+		}
+		if stage.ID == "snyk-docker" {
+			data := stage.Data.(map[string]interface{})
+			vulnerabilities := data["vulnerabilities"].(map[string]interface{})
+			result += vulnerabilities[severity].(float64)
+		}
+	}
+	return int64(result + 0.5)
 }
 
 // Promote promotes a specific service to environment env.
