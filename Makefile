@@ -18,7 +18,7 @@ generate-go:
 
 server: 
 	go build -o dist/server ./cmd/server
-	./dist/server
+	./dist/server start
 
 hamctl: 
 	go build -o dist/hamctl ./cmd/hamctl
