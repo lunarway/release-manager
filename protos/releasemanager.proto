@@ -15,8 +15,10 @@ message PromoteRequest {
 
 message PromoteResponse {
   string service = 1;
-  string environment = 2;
+  string fromEnvironment = 2;
   string status = 3;
+  string toEnvironment = 4;
+  string tag = 5;
 }
 
 message StatusRequest {
@@ -29,6 +31,10 @@ message Environment {
   string author = 3;
   string message = 4;
   int64 date = 5;
+  string buildUrl = 6;
+  int64 highVulnerabilities = 7;
+  int64 mediumVulnerabilities = 8;
+  int64 lowVulnerabilities = 9;
 }
 
 message StatusResponse {

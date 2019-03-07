@@ -96,7 +96,7 @@ func promote(configRepo, artifactFileName string) http.HandlerFunc {
 		resp.Environment = req.Environment
 
 		fmt.Printf("Repo: %s, File: %s\n", configRepo, artifactFileName)
-		err = flow.Promote(configRepo, artifactFileName, req.Service, req.Environment)
+		_, err = flow.Promote(configRepo, artifactFileName, req.Service, req.Environment)
 
 		if err != nil && errors.Cause(err) == git.ErrNothingToCommit {
 			resp.Status = "nothing to commit"

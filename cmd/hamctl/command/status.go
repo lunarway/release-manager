@@ -35,11 +35,11 @@ func NewStatus(options *Options) *cobra.Command {
 
 			fmt.Printf("\n")
 			color.Green("k8s.dev.lunarway.com\n")
-			fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n\n", r.Dev.Tag, r.Dev.Author, r.Dev.Committer, r.Dev.Message, time.Unix(r.Dev.Date, 0))
+			fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n  Link: %s\n  Vulnerabilities: %d high, %d medium, %d low\n\n", r.Dev.Tag, r.Dev.Author, r.Dev.Committer, r.Dev.Message, time.Unix(r.Dev.Date, 0), r.Dev.BuildUrl, r.Dev.HighVulnerabilities, r.Dev.MediumVulnerabilities, r.Dev.LowVulnerabilities)
 			color.Green("k8s.staging.lunarway.com\n")
-			fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n\n", r.Staging.Tag, r.Staging.Author, r.Staging.Committer, r.Staging.Message, time.Unix(r.Staging.Date, 0))
+			fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n  Link: %s\n  Vulnerabilities: %d high, %d medium, %d low\n\n", r.Staging.Tag, r.Staging.Author, r.Staging.Committer, r.Staging.Message, time.Unix(r.Staging.Date, 0), r.Staging.BuildUrl, r.Staging.HighVulnerabilities, r.Staging.MediumVulnerabilities, r.Staging.LowVulnerabilities)
 			color.Green("kubernetes.prod.lunarway.com\n")
-			fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n\n", r.Prod.Tag, r.Prod.Author, r.Prod.Committer, r.Prod.Message, time.Unix(r.Prod.Date, 0))
+			fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n  Link: %s\n  Vulnerabilities: %d high, %d medium, %d low\n\n", r.Prod.Tag, r.Prod.Author, r.Prod.Committer, r.Prod.Message, time.Unix(r.Prod.Date, 0), r.Prod.BuildUrl, r.Prod.HighVulnerabilities, r.Prod.MediumVulnerabilities, r.Prod.LowVulnerabilities)
 			return nil
 		},
 	}
