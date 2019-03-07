@@ -43,7 +43,8 @@ func (h gRPCHandlers) Promote(ctx context.Context, req *gengrpc.PromoteRequest) 
 	if err != nil && errors.Cause(err) == git.ErrNothingToCommit {
 		pResp.Status = "nothing to commit"
 	} else if err != nil {
-		pResp.Status = err.Error()
+		fmt.Printf("gRPC promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v\n", h.ConfigRepo, h.ArtifactFileName, req.Service, req.Environment, err)
+		return nil, status.Errorf(codes.Internal, "unknown error")
 	}
 
 	pResp.Service = req.Service
