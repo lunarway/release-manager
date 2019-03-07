@@ -3,7 +3,6 @@ package grpc
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 
 	gengrpc "github.com/lunarway/release-manager/generated/grpc"
@@ -11,6 +10,8 @@ import (
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type grpcHandlers struct {
@@ -19,12 +20,12 @@ type grpcHandlers struct {
 }
 
 func NewServer(port int, configRepo, artifactFileName string) error {
-	grpcServer := grpcpkg.NewServer()
+	grpcServer := grpc.NewServer()
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return errors.WithMessage(err, "listen on tcp port")
 	}
-	gengrpc.RegisterReleaseManagerServer(grpcServer, &gRPCHandlers{
+	gengrpc.RegisterReleaseManagerServer(grpcServer, &grpcHandlers{
 		ArtifactFileName: artifactFileName,
 		ConfigRepo:       configRepo,
 	})
@@ -36,19 +37,18 @@ func NewServer(port int, configRepo, artifactFileName string) error {
 	return nil
 }
 
-func (h gRPCHandlers) Promote(ctx context.Context, req *gengrpc.PromoteRequest) (*gengrpc.PromoteResponse, error) {
-	var pResp gengrpc.PromoteResponse
+func (h grpcHandlers) Promote(ctx context.Context, req *gengrpc.PromoteRequest) (*gengrpc.PromoteResponse, error) {
+	var resp gengrpc.PromoteResponse
+	resp.Service = req.Service
+	resp.Environment = req.Environment
 
 	err := flow.Promote(h.ConfigRepo, h.ArtifactFileName, req.Service, req.Environment)
 	if err != nil && errors.Cause(err) == git.ErrNothingToCommit {
-		pResp.Status = "nothing to commit"
+		resp.Status = "nothing to commit"
 	} else if err != nil {
 		fmt.Printf("gRPC promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v\n", h.ConfigRepo, h.ArtifactFileName, req.Service, req.Environment, err)
 		return nil, status.Errorf(codes.Internal, "unknown error")
 	}
 
-	pResp.Service = req.Service
-	pResp.Environment = req.Environment
-
-	return &pResp, nil
+	return &resp, nil
 }

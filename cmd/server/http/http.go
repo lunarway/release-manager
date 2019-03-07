@@ -51,33 +51,37 @@ type PromoteResponse struct {
 func promote(configRepo, artifactFileName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
-		w.Header().Set("Content-Type", "application/json")
 
-		var pReq PromoteRequest
+		var req PromoteRequest
 
-		err := decoder.Decode(&pReq)
+		err := decoder.Decode(&req)
 		if err != nil {
-			http.Error(w, "", http.StatusInternalServerError)
+			fmt.Printf("Decode request body failed: %v\n", err)
+			http.Error(w, "Invalid payload", http.StatusBadRequest)
 			return
 		}
 
-		var pResp PromoteResponse
+		var resp PromoteResponse
+		resp.Service = req.Service
+		resp.Environment = req.Environment
 
 		fmt.Printf("Repo: %s, File: %s\n", configRepo, artifactFileName)
-		err = flow.Promote(configRepo, artifactFileName, pReq.Service, pReq.Environment)
+		err = flow.Promote(configRepo, artifactFileName, req.Service, req.Environment)
+
 		if err != nil && errors.Cause(err) == git.ErrNothingToCommit {
-			pResp.Status = "nothing to commit"
+			resp.Status = "nothing to commit"
 		} else if err != nil {
-			fmt.Printf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v\n", configRepo, artifactFileName, pReq.Service, pReq.Environment, err)
---
-  | return nil, status.Errorf(codes.Internal, "unknown error")
-
-
+			fmt.Printf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v\n", configRepo, artifactFileName, req.Service, req.Environment, err)
+			http.Error(w, "promote flow failed", http.StatusInternalServerError)
+			return
 		}
 
-		pResp.Service = pReq.Service
-		pResp.Environment = pReq.Environment
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(pResp)
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
+			http.Error(w, "json encoding failed", http.StatusInternalServerError)
+			return
+		}
 	}
 }
