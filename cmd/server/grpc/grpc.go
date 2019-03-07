@@ -13,7 +13,7 @@ import (
 	grpcpkg "google.golang.org/grpc"
 )
 
-type gRPCHandlers struct {
+type grpcHandlers struct {
 	ConfigRepo       string
 	ArtifactFileName string
 }
