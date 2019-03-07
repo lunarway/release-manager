@@ -8,7 +8,7 @@ import (
 
 type Options struct {
 	RootPath    string
-	gRPCAddress string
+	grpcAddress string
 	gRPCTimeout time.Duration
 }
 
