@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	gengrpc "github.com/lunarway/release-manager/generated/grpc"
 	"github.com/lunarway/release-manager/internal/flow"
@@ -63,14 +64,12 @@ func (h grpcHandlers) Status(ctx context.Context, req *gengrpc.StatusRequest) (*
 
 	fmt.Printf("Status: %v\n", s)
 
-	// TODO: This is ugly, find a better way
-	var resp gengrpc.StatusResponse
 	dev := gengrpc.Environment{
 		Message:   s.Dev.Message,
 		Author:    s.Dev.Author,
 		Tag:       s.Dev.Tag,
 		Committer: s.Dev.Committer,
-		Date:      s.Dev.Date.Unix(),
+		Date:      convertTimeToEpoch(s.Dev.Date),
 	}
 
 	staging := gengrpc.Environment{
@@ -78,7 +77,7 @@ func (h grpcHandlers) Status(ctx context.Context, req *gengrpc.StatusRequest) (*
 		Author:    s.Staging.Author,
 		Tag:       s.Staging.Tag,
 		Committer: s.Staging.Committer,
-		Date:      s.Staging.Date.Unix(),
+		Date:      convertTimeToEpoch(s.Staging.Date),
 	}
 
 	prod := gengrpc.Environment{
@@ -86,11 +85,16 @@ func (h grpcHandlers) Status(ctx context.Context, req *gengrpc.StatusRequest) (*
 		Author:    s.Prod.Author,
 		Tag:       s.Prod.Tag,
 		Committer: s.Prod.Committer,
-		Date:      s.Prod.Date.Unix(),
+		Date:      convertTimeToEpoch(s.Prod.Date),
 	}
-	resp.Dev = &dev
-	resp.Staging = &staging
-	resp.Prod = &prod
 
-	return &resp, nil
+	return &gengrpc.StatusResponse{
+		Dev:     &dev,
+		Staging: &staging,
+		Prod:    &prod,
+	}, nil
+}
+
+func convertTimeToEpoch(t time.Time) int64 {
+	return t.UnixNano() / int64(time.Millisecond)
 }

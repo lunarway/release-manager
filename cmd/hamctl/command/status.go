@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fatih/color"
+	"github.com/lunarway/color"
 	gengrpc "github.com/lunarway/release-manager/generated/grpc"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -43,7 +43,7 @@ func NewStatus(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&serviceName, "service", "", "Service to promote to specified environment (required)")
+	command.Flags().StringVar(&serviceName, "service", "", "service to output current status for")
 	command.MarkFlagRequired("service")
 	command.Flags().StringVar(&configRepo, "config-repo", "git@github.com:lunarway/k8s-cluster-config.git", "Kubernetes cluster configuration repository.")
 	command.Flags().StringVar(&artifactFileName, "file", "artifact.json", "")

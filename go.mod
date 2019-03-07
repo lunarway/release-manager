@@ -8,6 +8,7 @@ require (
 	github.com/goreleaser/goreleaser v0.102.0 // indirect
 	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect
 	github.com/kisielk/errcheck v1.2.0 // indirect
+	github.com/lunarway/color v1.7.0
 	github.com/opennota/check v0.0.0-20180911053232-0c771f5545ff // indirect
 	github.com/otiai10/copy v1.0.1
 	github.com/pkg/errors v0.8.0

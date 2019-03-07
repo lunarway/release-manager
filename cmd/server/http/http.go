@@ -53,8 +53,8 @@ func status(configRepo, artifactFileName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		services, ok := r.URL.Query()["service"]
 
-		if !ok || len(services[0]) < 1 {
-			fmt.Printf("query param service is missing: %v\n", ok)
+		if !ok || len(services[0]) == 0 {
+			fmt.Printf("query param service is missing for /status endpoint: %v\n", ok)
 			http.Error(w, "Invalid query param", http.StatusBadRequest)
 			return
 		}
@@ -65,12 +65,14 @@ func status(configRepo, artifactFileName string) http.HandlerFunc {
 		if err != nil {
 			fmt.Printf("getting status failed: config repo '%s' artifact file name '%s' service '%s': %v\n", configRepo, artifactFileName, service, err)
 			http.Error(w, "promote flow failed", http.StatusInternalServerError)
+			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 		err = json.NewEncoder(w).Encode(resp)
 		if err != nil {
-			http.Error(w, "json encoding failed", http.StatusInternalServerError)
+			fmt.Printf("get status for service '%s' failed: marshal response: %v\n", service, err)
+			http.Error(w, "unknown", http.StatusInternalServerError)
 			return
 		}
 	}

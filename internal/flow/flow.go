@@ -41,17 +41,17 @@ func Status(configRepoURL, artifactFileName, service string) (StatusResponse, er
 
 	devSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "dev")
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
+		return StatusResponse{}, errors.WithMessage(err, "locate source spec for env dev")
 	}
 
 	stagingSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "staging")
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
+		return StatusResponse{}, errors.WithMessage(err, "locate source spec for env staging")
 	}
 
 	prodSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "prod")
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
+		return StatusResponse{}, errors.WithMessage(err, "locate source spec for env prod")
 	}
 
 	return StatusResponse{
@@ -197,9 +197,7 @@ func committerDetails() (string, string, error) {
 }
 
 func envSpec(root, artifactFileName, service, env string) (spec.Spec, error) {
-	specPath := path.Join(releasePath(root, service, env), artifactFileName)
-	fmt.Printf("Get artifact spec from %s\n", specPath)
-	return spec.Get(specPath)
+	return spec.Get(path.Join(releasePath(root, service, env), artifactFileName))
 }
 
 // sourceSpec returns the Spec of the current release.
