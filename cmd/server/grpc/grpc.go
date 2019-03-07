@@ -28,6 +28,7 @@ func NewServer(port int, configRepo, artifactFileName string) error {
 		ArtifactFileName: artifactFileName,
 		ConfigRepo:       configRepo,
 	})
+	fmt.Printf("Initializing gRPC Server on port %d\n", port)
 	err = grpcServer.Serve(lis)
 	if err != nil {
 		return errors.WithMessage(err, "serve")
