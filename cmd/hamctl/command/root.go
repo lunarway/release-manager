@@ -9,7 +9,7 @@ import (
 type Options struct {
 	RootPath    string
 	grpcAddress string
-	gRPCTimeout time.Duration
+	grpcTimeout time.Duration
 }
 
 // NewCommand returns a new instance of a hamctl command.
