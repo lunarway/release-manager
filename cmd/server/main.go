@@ -25,7 +25,7 @@ func main() {
 	flag.IntVar(&gRPCPort, "grpc-port", 7900, "the port of the grpc server")
 	flag.IntVar(&HTTPPort, "http-port", 8080, "the port of the http server")
 	flag.StringVar(&artifactFileName, "artifact-filename", "artifact.json", "the filename of the artifact to be used")
-	flag.DurationVar(&timeout, "timeout", (20 * time.Second), "timeout of both the grpc and http server")
+	flag.DurationVar(&timeout, "timeout", 20 * time.Second, "timeout of both the grpc and http server")
 	flag.Parse()
 
 	done := make(chan error, 1)
