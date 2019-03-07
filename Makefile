@@ -2,11 +2,11 @@ release:
 	goreleaser --rm-dist --skip-publish
 
 deploy-jenkins-dev: 
-	GOOS=linux GOARCH=amd64 go build -o rm_artifact-linux-amd64 cmd/artifact/main.go 
+	GOOS=linux GOARCH=amd64 go build -o artifact-linux-amd64 cmd/artifact/main.go 
 	scp artifact-linux-amd64 lunar-dev-jenkins:/usr/local/bin/artifact
 
 deploy-jenkins-prod: 
-	GOOS=linux GOARCH=amd64 go build -o rm_artifact-linux-amd64 cmd/artifact/main.go 
+	GOOS=linux GOARCH=amd64 go build -o artifact-linux-amd64 cmd/artifact/main.go 
 	scp artifact-linux-amd64 lunar-prod-jenkins:/usr/local/bin/artifact
 
 deploy: deploy-jenkins-dev deploy-jenkins-prod
