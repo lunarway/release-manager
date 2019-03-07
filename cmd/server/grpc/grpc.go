@@ -10,7 +10,7 @@ import (
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/pkg/errors"
-	grpcpkg "google.golang.org/grpc"
+	"google.golang.org/grpc"
 )
 
 type grpcHandlers struct {
