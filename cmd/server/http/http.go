@@ -15,6 +15,7 @@ func NewServer(port int, timeout time.Duration, configRepo, artifactFileName str
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
 	mux.HandleFunc("/promote", promote(configRepo, artifactFileName))
+	mux.HandleFunc("/status", status(configRepo, artifactFileName))
 
 	s := http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
@@ -48,6 +49,35 @@ type PromoteResponse struct {
 	Status      string `json:"status,omitempty"`
 }
 
+func status(configRepo, artifactFileName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		services, ok := r.URL.Query()["service"]
+
+		if !ok || len(services[0]) == 0 {
+			fmt.Printf("query param service is missing for /status endpoint: %v\n", ok)
+			http.Error(w, "Invalid query param", http.StatusBadRequest)
+			return
+		}
+		service := services[0]
+		fmt.Printf("Service: %s\n", string(service))
+
+		resp, err := flow.Status(configRepo, artifactFileName, service)
+		if err != nil {
+			fmt.Printf("getting status failed: config repo '%s' artifact file name '%s' service '%s': %v\n", configRepo, artifactFileName, service, err)
+			http.Error(w, "promote flow failed", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
+			fmt.Printf("get status for service '%s' failed: marshal response: %v\n", service, err)
+			http.Error(w, "unknown", http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func promote(configRepo, artifactFileName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
@@ -66,7 +96,7 @@ func promote(configRepo, artifactFileName string) http.HandlerFunc {
 		resp.Environment = req.Environment
 
 		fmt.Printf("Repo: %s, File: %s\n", configRepo, artifactFileName)
-		err = flow.Promote(configRepo, artifactFileName, req.Service, req.Environment)
+		_, err = flow.Promote(configRepo, artifactFileName, req.Service, req.Environment)
 
 		if err != nil && errors.Cause(err) == git.ErrNothingToCommit {
 			resp.Status = "nothing to commit"

@@ -5,6 +5,7 @@ option go_package = "grpc";
 
 service ReleaseManager {
   rpc Promote (PromoteRequest) returns (PromoteResponse) {}
+  rpc Status (StatusRequest) returns (StatusResponse) {}
 }
 
 message PromoteRequest {
@@ -14,6 +15,30 @@ message PromoteRequest {
 
 message PromoteResponse {
   string service = 1;
-  string environment = 2;
+  string fromEnvironment = 2;
   string status = 3;
+  string toEnvironment = 4;
+  string tag = 5;
+}
+
+message StatusRequest {
+  string service = 1;
+}
+
+message Environment {
+  string tag = 1;
+  string committer = 2;
+  string author = 3;
+  string message = 4;
+  int64 date = 5;
+  string buildUrl = 6;
+  int64 highVulnerabilities = 7;
+  int64 mediumVulnerabilities = 8;
+  int64 lowVulnerabilities = 9;
+}
+
+message StatusResponse {
+  Environment dev = 1;
+  Environment staging = 2;
+  Environment prod = 3;
 }

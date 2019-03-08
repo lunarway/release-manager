@@ -32,7 +32,12 @@ func NewPromote(options *Options) *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("%s\n", r.Status)
+			if r.Status != "" {
+				fmt.Printf("%s\n", r.Status)
+			} else {
+				fmt.Printf("[✓] Promotion of %s from %s to %s initialized\n", r.Tag, r.FromEnvironment, r.ToEnvironment)
+			}
+
 			return nil
 		},
 	}
