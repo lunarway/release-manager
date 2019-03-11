@@ -1,3 +1,5 @@
+image=quay.io/lunarway/release-manager
+
 release:
 	goreleaser --rm-dist --skip-publish
 
@@ -27,3 +29,7 @@ hamctl:
 artifact: 
 	go build -o dist/artifact ./cmd/artifact
 	./dist/artifact help
+
+docker: 
+	docker build -t ${image}:${tag} .
+	docker push ${image}:${tag}
