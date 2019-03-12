@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 )
 
@@ -35,6 +36,7 @@ func NewServer(port int, configRepo, artifactFileName string) error {
 	if err != nil {
 		return errors.WithMessage(err, "serve")
 	}
+	reflection.Register(grpcServer)
 	return nil
 }
 
