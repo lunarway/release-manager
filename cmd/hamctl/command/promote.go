@@ -1,12 +1,13 @@
 package command
 
 import (
-	"context"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
-	gengrpc "github.com/lunarway/release-manager/generated/grpc"
+	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 func NewPromote(options *Options) *cobra.Command {
@@ -15,19 +16,31 @@ func NewPromote(options *Options) *cobra.Command {
 		Use:   "promote",
 		Short: "Promote a service to a specific environment following promoting conventions.",
 		RunE: func(c *cobra.Command, args []string) error {
-			conn, err := grpc.Dial(options.grpcAddress, grpc.WithInsecure())
+			url := options.httpBaseURL + "/promote"
+
+			client := &http.Client{}
+
+			promReq := httpinternal.PromoteRequest{
+				Service:     serviceName,
+				Environment: environment,
+			}
+			b := new(bytes.Buffer)
+			json.NewEncoder(b).Encode(promReq)
+
+			req, err := http.NewRequest("POST", url, b)
 			if err != nil {
 				return err
 			}
-			defer conn.Close()
-			client := gengrpc.NewReleaseManagerClient(conn)
+			req.Header.Set("Authorization", "Bearer "+options.authToken)
+			resp, err := client.Do(req)
+			if err != nil {
+				return err
+			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), options.grpcTimeout)
-			defer cancel()
-			r, err := client.Promote(ctx, &gengrpc.PromoteRequest{
-				Service:     serviceName,
-				Environment: environment,
-			})
+			decoder := json.NewDecoder(resp.Body)
+			var r httpinternal.PromoteResponse
+
+			err = decoder.Decode(&r)
 			if err != nil {
 				return err
 			}

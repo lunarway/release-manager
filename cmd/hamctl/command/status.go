@@ -1,14 +1,14 @@
 package command
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/lunarway/color"
-	gengrpc "github.com/lunarway/release-manager/generated/grpc"
+	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 func NewStatus(options *Options) *cobra.Command {
@@ -17,22 +17,26 @@ func NewStatus(options *Options) *cobra.Command {
 		Use:   "status",
 		Short: "List the status of the environments",
 		RunE: func(c *cobra.Command, args []string) error {
-			conn, err := grpc.Dial(options.grpcAddress, grpc.WithInsecure())
+			url := options.httpBaseURL + "/status?service=" + serviceName
+
+			client := &http.Client{}
+			req, err := http.NewRequest("GET", url, nil)
 			if err != nil {
 				return err
 			}
-			defer conn.Close()
-			client := gengrpc.NewReleaseManagerClient(conn)
-
-			ctx, cancel := context.WithTimeout(context.Background(), options.grpcTimeout)
-			defer cancel()
-			r, err := client.Status(ctx, &gengrpc.StatusRequest{
-				Service: serviceName,
-			})
+			req.Header.Set("Authorization", "Bearer "+options.authToken)
+			resp, err := client.Do(req)
 			if err != nil {
 				return err
 			}
 
+			decoder := json.NewDecoder(resp.Body)
+			var r httpinternal.StatusResponse
+
+			err = decoder.Decode(&r)
+			if err != nil {
+				return err
+			}
 			fmt.Printf("\n")
 			color.Green("k8s.dev.lunarway.com\n")
 			fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n  Link: %s\n  Vulnerabilities: %d high, %d medium, %d low\n\n", r.Dev.Tag, r.Dev.Author, r.Dev.Committer, r.Dev.Message, Time(r.Dev.Date), r.Dev.BuildUrl, r.Dev.HighVulnerabilities, r.Dev.MediumVulnerabilities, r.Dev.LowVulnerabilities)
