@@ -115,8 +115,13 @@ func Commit(repo *git.Repository, changesPath, authorName, authorEmail, committe
 		return errors.WithMessage(err, "commit")
 	}
 
+	authSSH, err := ssh.NewPublicKeysFromFile("git", "/etc/release-manager/ssh/identity", "")
+	if err != nil {
+		return errors.WithMessage(err, "public keys from file")
+	}
+
 	// TODO: this could be made optional if needed
-	err = repo.Push(&git.PushOptions{})
+	err = repo.Push(&git.PushOptions{Auth: authSSH})
 	if err != nil {
 		return errors.WithMessage(err, "push")
 	}
