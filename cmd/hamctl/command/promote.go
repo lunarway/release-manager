@@ -24,7 +24,7 @@ func NewPromote(options *Options) *cobra.Command {
 				Service:     serviceName,
 				Environment: environment,
 			}
-			b := new(bytes.Buffer)
+			var b bytes.Buffer
 			json.NewEncoder(b).Encode(promReq)
 
 			req, err := http.NewRequest("POST", url, b)
