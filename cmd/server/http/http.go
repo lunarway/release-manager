@@ -176,9 +176,8 @@ func promote(configRepo, artifactFileName string) http.HandlerFunc {
 
 func validateToken(reqToken string) bool {
 	serverToken := os.Getenv("RELEASE_MANAGER_AUTH_TOKEN")
+	token := strings.TrimPrefix(reqToken, "Bearer ")
 
-	splitToken := strings.Split(reqToken, "Bearer ")
-	token := splitToken[1]
 	if token == serverToken {
 		return true
 	}

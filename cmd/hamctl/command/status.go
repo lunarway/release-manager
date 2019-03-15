@@ -19,7 +19,10 @@ func NewStatus(options *Options) *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			url := options.httpBaseURL + "/status?service=" + serviceName
 
-			client := &http.Client{}
+			client := &http.Client{
+				Timeout: options.httpTimeout,
+			}
+
 			req, err := http.NewRequest("GET", url, nil)
 			if err != nil {
 				return err

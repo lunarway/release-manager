@@ -18,14 +18,20 @@ func NewPromote(options *Options) *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			url := options.httpBaseURL + "/promote"
 
-			client := &http.Client{}
+			client := &http.Client{
+				Timeout: options.httpTimeout,
+			}
 
 			promReq := httpinternal.PromoteRequest{
 				Service:     serviceName,
 				Environment: environment,
 			}
-			var b bytes.Buffer
-			json.NewEncoder(b).Encode(promReq)
+
+			b := new(bytes.Buffer)
+			err := json.NewEncoder(b).Encode(promReq)
+			if err != nil {
+				return err
+			}
 
 			req, err := http.NewRequest(http.MethodPost, url, b)
 			if err != nil {
