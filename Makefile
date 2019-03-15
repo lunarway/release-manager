@@ -20,11 +20,11 @@ generate-go:
 
 server: 
 	go build -o dist/server ./cmd/server
-	./dist/server start
+	RELEASE_MANAGER_AUTH_TOKEN=test ./dist/server start
 
 hamctl: 
 	go build -o dist/hamctl ./cmd/hamctl
-	./dist/hamctl help
+	HAMCTL_AUTH_TOKEN=test ./dist/hamctl help 
 
 artifact: 
 	go build -o dist/artifact ./cmd/artifact

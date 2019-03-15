@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
+	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/pkg/errors"
 )
 
@@ -38,38 +41,75 @@ func ping(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "pong")
 }
 
-type PromoteRequest struct {
-	Service     string `json:"service,omitempty"`
-	Environment string `json:"environment,omitempty"`
-}
-
-type PromoteResponse struct {
-	Service     string `json:"service,omitempty"`
-	Environment string `json:"environment,omitempty"`
-	Status      string `json:"status,omitempty"`
-}
-
 func status(configRepo, artifactFileName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		services, ok := r.URL.Query()["service"]
+		fmt.Printf("Status request\n")
+		valid := validateToken(r.Header.Get("Authorization"))
+		if !valid {
+			http.Error(w, "not authorized", http.StatusUnauthorized)
+			return
+		}
 
+		services, ok := r.URL.Query()["service"]
 		if !ok || len(services[0]) == 0 {
 			fmt.Printf("query param service is missing for /status endpoint: %v\n", ok)
 			http.Error(w, "Invalid query param", http.StatusBadRequest)
 			return
 		}
 		service := services[0]
-		fmt.Printf("Service: %s\n", string(service))
 
-		resp, err := flow.Status(configRepo, artifactFileName, service)
+		s, err := flow.Status(configRepo, artifactFileName, service)
 		if err != nil {
 			fmt.Printf("getting status failed: config repo '%s' artifact file name '%s' service '%s': %v\n", configRepo, artifactFileName, service, err)
 			http.Error(w, "promote flow failed", http.StatusInternalServerError)
 			return
 		}
+
+		dev := httpinternal.Environment{
+			Message:               s.Dev.Message,
+			Author:                s.Dev.Author,
+			Tag:                   s.Dev.Tag,
+			Committer:             s.Dev.Committer,
+			Date:                  convertTimeToEpoch(s.Dev.Date),
+			BuildUrl:              s.Dev.BuildURL,
+			HighVulnerabilities:   s.Dev.HighVulnerabilities,
+			MediumVulnerabilities: s.Dev.MediumVulnerabilities,
+			LowVulnerabilities:    s.Dev.LowVulnerabilities,
+		}
+
+		staging := httpinternal.Environment{
+			Message:               s.Staging.Message,
+			Author:                s.Staging.Author,
+			Tag:                   s.Staging.Tag,
+			Committer:             s.Staging.Committer,
+			Date:                  convertTimeToEpoch(s.Staging.Date),
+			BuildUrl:              s.Staging.BuildURL,
+			HighVulnerabilities:   s.Staging.HighVulnerabilities,
+			MediumVulnerabilities: s.Staging.MediumVulnerabilities,
+			LowVulnerabilities:    s.Staging.LowVulnerabilities,
+		}
+
+		prod := httpinternal.Environment{
+			Message:               s.Prod.Message,
+			Author:                s.Prod.Author,
+			Tag:                   s.Prod.Tag,
+			Committer:             s.Prod.Committer,
+			Date:                  convertTimeToEpoch(s.Prod.Date),
+			BuildUrl:              s.Prod.BuildURL,
+			HighVulnerabilities:   s.Prod.HighVulnerabilities,
+			MediumVulnerabilities: s.Prod.MediumVulnerabilities,
+			LowVulnerabilities:    s.Prod.LowVulnerabilities,
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		err = json.NewEncoder(w).Encode(resp)
+
+		err = json.NewEncoder(w).Encode(httpinternal.StatusResponse{
+			Dev:     &dev,
+			Staging: &staging,
+			Prod:    &prod,
+		})
+
 		if err != nil {
 			fmt.Printf("get status for service '%s' failed: marshal response: %v\n", service, err)
 			http.Error(w, "unknown", http.StatusInternalServerError)
@@ -80,9 +120,13 @@ func status(configRepo, artifactFileName string) http.HandlerFunc {
 
 func promote(configRepo, artifactFileName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		valid := validateToken(r.Header.Get("Authorization"))
+		if !valid {
+			http.Error(w, "not authorized", http.StatusUnauthorized)
+			return
+		}
 		decoder := json.NewDecoder(r.Body)
-
-		var req PromoteRequest
+		var req httpinternal.PromoteRequest
 
 		err := decoder.Decode(&req)
 		if err != nil {
@@ -91,27 +135,55 @@ func promote(configRepo, artifactFileName string) http.HandlerFunc {
 			return
 		}
 
-		var resp PromoteResponse
-		resp.Service = req.Service
-		resp.Environment = req.Environment
+		releaseID, err := flow.Promote(configRepo, artifactFileName, req.Service, req.Environment)
 
-		fmt.Printf("Repo: %s, File: %s\n", configRepo, artifactFileName)
-		_, err = flow.Promote(configRepo, artifactFileName, req.Service, req.Environment)
-
+		var statusString string
 		if err != nil && errors.Cause(err) == git.ErrNothingToCommit {
-			resp.Status = "nothing to commit"
+			statusString = "Environment is already up-to-date"
 		} else if err != nil {
 			fmt.Printf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v\n", configRepo, artifactFileName, req.Service, req.Environment, err)
 			http.Error(w, "promote flow failed", http.StatusInternalServerError)
 			return
 		}
 
+		var fromEnvironment string
+		switch req.Environment {
+		case "dev":
+			fromEnvironment = "master"
+		case "staging":
+			fromEnvironment = "dev"
+		case "prod":
+			fromEnvironment = "staging"
+		default:
+			fromEnvironment = req.Environment
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		err = json.NewEncoder(w).Encode(resp)
+		err = json.NewEncoder(w).Encode(httpinternal.PromoteResponse{
+			Service:         req.Service,
+			FromEnvironment: fromEnvironment,
+			ToEnvironment:   req.Environment,
+			Tag:             releaseID,
+			Status:          statusString,
+		})
 		if err != nil {
 			http.Error(w, "json encoding failed", http.StatusInternalServerError)
 			return
 		}
 	}
+}
+
+func validateToken(reqToken string) bool {
+	serverToken := os.Getenv("RELEASE_MANAGER_AUTH_TOKEN")
+	token := strings.TrimPrefix(reqToken, "Bearer ")
+
+	if token == serverToken {
+		return true
+	}
+	return false
+}
+
+func convertTimeToEpoch(t time.Time) int64 {
+	return t.UnixNano() / int64(time.Millisecond)
 }
