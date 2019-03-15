@@ -27,7 +27,7 @@ func NewPromote(options *Options) *cobra.Command {
 			var b bytes.Buffer
 			json.NewEncoder(b).Encode(promReq)
 
-			req, err := http.NewRequest("POST", url, b)
+			req, err := http.NewRequest(http.MethodPost, url, b)
 			if err != nil {
 				return err
 			}
