@@ -24,7 +24,10 @@ server:
 
 hamctl: 
 	go build -o dist/hamctl ./cmd/hamctl
-	HAMCTL_AUTH_TOKEN=test ./dist/hamctl help 
+
+install-hamctl: hamctl
+	chmod +x cmd/hamctl
+	cp dist/hamctl /usr/local/bin/hamctl
 
 artifact: 
 	go build -o dist/artifact ./cmd/artifact
