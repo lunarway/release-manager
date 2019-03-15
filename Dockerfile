@@ -14,15 +14,15 @@ COPY cmd/server/ ./cmd/server/
 
 RUN go build -o server cmd/server/main.go
  
-FROM alpine:3.8
+FROM alpine:3.9
 RUN   apk update && \
       apk add --no-cache \
-      openssh-keygen bash openssh-client
+      openssh-keygen bash openssh-client git ca-certificates
+RUN ssh-keyscan github.com bitbucket.org >> /etc/ssh/ssh_known_hosts
 WORKDIR /app
 
 COPY ./ssh_config /etc/ssh/ssh_config
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs
 COPY --from=builder /app/server .
 
 ENTRYPOINT [ "./server", "start" ]

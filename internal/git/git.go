@@ -13,6 +13,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/format/config"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
 var (
@@ -20,13 +21,18 @@ var (
 )
 
 func Clone(repoURL, destination string) (*git.Repository, error) {
-	err := os.RemoveAll(destination)
+	authSSH, err := ssh.NewPublicKeysFromFile("git", "/etc/release-manager/ssh/identity", "")
+	if err != nil {
+		return nil, errors.WithMessage(err, "public keys from file")
+	}
+	err = os.RemoveAll(destination)
 	if err != nil {
 		return nil, errors.WithMessage(err, "remove existing destination")
 	}
 
 	r, err := git.PlainClone(destination, false, &git.CloneOptions{
-		URL: repoURL,
+		URL:  repoURL,
+		Auth: authSSH,
 	})
 	if err != nil {
 		return nil, errors.WithMessage(err, "clone repo")
