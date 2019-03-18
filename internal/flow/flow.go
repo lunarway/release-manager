@@ -35,10 +35,10 @@ type StatusResponse struct {
 	Prod    Environment `json:"prod,omitempty"`
 }
 
-func Status(configRepoURL, artifactFileName, service string) (StatusResponse, error) {
+func Status(configRepoURL, artifactFileName, service, sshPrivateKeyPath string) (StatusResponse, error) {
 	// find current released artifact.json for each environment
 	fmt.Printf("Cloning source config repo %s into %s\n", configRepoURL, sourceConfigRepoPath)
-	_, err := git.Clone(configRepoURL, sourceConfigRepoPath)
+	_, err := git.Clone(configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
 	}
@@ -133,10 +133,10 @@ func calculateTotalVulnerabilties(severity string, s spec.Spec) int64 {
 //
 // Copy artifacts from the current release into the new environment and commit
 // the changes
-func Promote(configRepoURL, artifactFileName, service, env string) (string, error) {
+func Promote(configRepoURL, artifactFileName, service, env, committerName, committerEmail, sshPrivateKeyPath string) (string, error) {
 	// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
 	fmt.Printf("Cloning source config repo %s into %s\n", configRepoURL, sourceConfigRepoPath)
-	sourceRepo, err := git.Clone(configRepoURL, sourceConfigRepoPath)
+	sourceRepo, err := git.Clone(configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
 	}
@@ -159,7 +159,7 @@ func Promote(configRepoURL, artifactFileName, service, env string) (string, erro
 		return "", errors.WithMessage(err, fmt.Sprintf("checkout release hash '%s' from '%s'", hash, configRepoURL))
 	}
 
-	destinationRepo, err := git.Clone(configRepoURL, destinationConfigRepoPath)
+	destinationRepo, err := git.Clone(configRepoURL, destinationConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("clone destination repo '%s' into '%s'", configRepoURL, destinationConfigRepoPath))
 	}
@@ -194,39 +194,23 @@ func Promote(configRepoURL, artifactFileName, service, env string) (string, erro
 		return "", errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 	}
 
-	// commit changes
-	committerName, committerEmail, err := committerDetails()
-	if err != nil {
-		return "", err
-	}
+	// // commit changes
+	// committerName, committerEmail, err := committerDetails()
+	// if err != nil {
+	// 	return "", err
+	// }
 	authorName := sourceSpec.Application.AuthorName
 	authorEmail := sourceSpec.Application.AuthorEmail
 	releaseMessage := fmt.Sprintf("[%s/%s] release %s", env, service, release)
 	fmt.Printf("Committing release: %s\n", releaseMessage)
 	fmt.Printf("  Author:    %s <%s>\n", authorName, authorEmail)
 	fmt.Printf("  Committer: %s <%s>\n", committerName, committerEmail)
-	err = git.Commit(destinationRepo, releasePath(".", service, env), authorName, authorEmail, committerName, committerEmail, releaseMessage)
+	err = git.Commit(destinationRepo, releasePath(".", service, env), authorName, authorEmail, committerName, committerEmail, releaseMessage, sshPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}
 
 	return release, nil
-}
-
-func committerDetails() (string, string, error) {
-	c, err := git.GlobalConfig()
-	if err != nil {
-		return "", "", errors.WithMessage(err, "get global config")
-	}
-	committerName := c.Section("user").Option("name")
-	committerEmail := c.Section("user").Option("email")
-	if committerEmail == "" {
-		return "", "", errors.New("user.email not available in global git config")
-	}
-	if committerName == "" {
-		return "", "", errors.New("user.name not available in global git config")
-	}
-	return committerName, committerEmail, nil
 }
 
 func envSpec(root, artifactFileName, service, env string) (spec.Spec, error) {

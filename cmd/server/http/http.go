@@ -14,11 +14,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewServer(port int, timeout time.Duration, configRepo, artifactFileName string) error {
+func NewServer(port int, timeout time.Duration, configRepo, artifactFileName, sshPrivateKeyPath string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
-	mux.HandleFunc("/promote", promote(configRepo, artifactFileName))
-	mux.HandleFunc("/status", status(configRepo, artifactFileName))
+	mux.HandleFunc("/promote", promote(configRepo, artifactFileName, sshPrivateKeyPath))
+	mux.HandleFunc("/status", status(configRepo, artifactFileName, sshPrivateKeyPath))
 
 	s := http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
@@ -41,7 +41,7 @@ func ping(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "pong")
 }
 
-func status(configRepo, artifactFileName string) http.HandlerFunc {
+func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Status request\n")
 		valid := validateToken(r.Header.Get("Authorization"))
@@ -58,7 +58,7 @@ func status(configRepo, artifactFileName string) http.HandlerFunc {
 		}
 		service := services[0]
 
-		s, err := flow.Status(configRepo, artifactFileName, service)
+		s, err := flow.Status(configRepo, artifactFileName, service, sshPrivateKeyPath)
 		if err != nil {
 			fmt.Printf("getting status failed: config repo '%s' artifact file name '%s' service '%s': %v\n", configRepo, artifactFileName, service, err)
 			http.Error(w, "promote flow failed", http.StatusInternalServerError)
@@ -118,7 +118,7 @@ func status(configRepo, artifactFileName string) http.HandlerFunc {
 	}
 }
 
-func promote(configRepo, artifactFileName string) http.HandlerFunc {
+func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		valid := validateToken(r.Header.Get("Authorization"))
 		if !valid {
@@ -135,7 +135,7 @@ func promote(configRepo, artifactFileName string) http.HandlerFunc {
 			return
 		}
 
-		releaseID, err := flow.Promote(configRepo, artifactFileName, req.Service, req.Environment)
+		releaseID, err := flow.Promote(configRepo, artifactFileName, req.Service, req.Environment, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath)
 
 		var statusString string
 		if err != nil && errors.Cause(err) == git.ErrNothingToCommit {

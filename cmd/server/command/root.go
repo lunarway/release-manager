@@ -7,11 +7,12 @@ import (
 )
 
 type Options struct {
-	grpcPort         int
-	httpPort         int
-	timeout          time.Duration
-	configRepo       string
-	artifactFileName string
+	grpcPort          int
+	httpPort          int
+	timeout           time.Duration
+	configRepo        string
+	artifactFileName  string
+	sshPrivateKeyPath string
 }
 
 // NewCommand returns a new instance of a hamctl command.
@@ -29,6 +30,7 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().IntVar(&options.grpcPort, "grpc-port", 7900, "port of the grpc server")
 	command.PersistentFlags().IntVar(&options.httpPort, "http-port", 8080, "port of the http server")
 	command.PersistentFlags().StringVar(&options.artifactFileName, "artifact-filename", "artifact.json", "the filename of the artifact to be used")
+	command.PersistentFlags().StringVar(&options.sshPrivateKeyPath, "ssh-private-key", "/etc/release-manager/ssh/identity", "ssh-private-key for the config repo")
 	command.PersistentFlags().DurationVar(&options.timeout, "timeout", 20*time.Second, "timeout of both the grpc and http server")
 
 	return command
