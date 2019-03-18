@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
@@ -22,13 +23,20 @@ func NewPromote(options *Options) *cobra.Command {
 				Timeout: options.httpTimeout,
 			}
 
+			committerName, committerEmail, err := git.CommitterDetails()
+			if err != nil {
+				return err
+			}
+
 			promReq := httpinternal.PromoteRequest{
-				Service:     serviceName,
-				Environment: environment,
+				Service:        serviceName,
+				Environment:    environment,
+				CommitterName:  committerName,
+				CommitterEmail: committerEmail,
 			}
 
 			b := new(bytes.Buffer)
-			err := json.NewEncoder(b).Encode(promReq)
+			err = json.NewEncoder(b).Encode(promReq)
 			if err != nil {
 				return err
 			}

@@ -20,8 +20,8 @@ var (
 	ErrNothingToCommit = errors.New("nothing to commit")
 )
 
-func Clone(repoURL, destination string) (*git.Repository, error) {
-	authSSH, err := ssh.NewPublicKeysFromFile("git", "/etc/release-manager/ssh/identity", "")
+func Clone(repoURL, destination, sshPrivateKeyPath string) (*git.Repository, error) {
+	authSSH, err := ssh.NewPublicKeysFromFile("git", sshPrivateKeyPath, "")
 	if err != nil {
 		return nil, errors.WithMessage(err, "public keys from file")
 	}
@@ -79,7 +79,7 @@ func LocateRelease(r *git.Repository, release string) (plumbing.Hash, error) {
 	}
 }
 
-func Commit(repo *git.Repository, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
+func Commit(repo *git.Repository, changesPath, authorName, authorEmail, committerName, committerEmail, msg, sshPrivateKeyPath string) error {
 	w, err := repo.Worktree()
 	if err != nil {
 		return errors.WithMessage(err, "get worktree")
@@ -115,7 +115,7 @@ func Commit(repo *git.Repository, changesPath, authorName, authorEmail, committe
 		return errors.WithMessage(err, "commit")
 	}
 
-	authSSH, err := ssh.NewPublicKeysFromFile("git", "/etc/release-manager/ssh/identity", "")
+	authSSH, err := ssh.NewPublicKeysFromFile("git", sshPrivateKeyPath, "")
 	if err != nil {
 		return errors.WithMessage(err, "public keys from file")
 	}
@@ -165,4 +165,20 @@ func userHomeDir() string {
 	default:
 		return os.Getenv("HOME")
 	}
+}
+
+func CommitterDetails() (string, string, error) {
+	c, err := GlobalConfig()
+	if err != nil {
+		return "", "", errors.WithMessage(err, "get global config")
+	}
+	committerName := c.Section("user").Option("name")
+	committerEmail := c.Section("user").Option("email")
+	if committerEmail == "" {
+		return "", "", errors.New("user.email not available in global git config")
+	}
+	if committerName == "" {
+		return "", "", errors.New("user.name not available in global git config")
+	}
+	return committerName, committerEmail, nil
 }

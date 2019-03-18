@@ -23,8 +23,10 @@ type Environment struct {
 }
 
 type PromoteRequest struct {
-	Service     string `json:"service,omitempty"`
-	Environment string `json:"environment,omitempty"`
+	Service        string `json:"service,omitempty"`
+	Environment    string `json:"environment,omitempty"`
+	CommitterName  string `json:"committerName,omitempty"`
+	CommitterEmail string `json:"committerEmail,omitempty"`
 }
 
 type PromoteResponse struct {

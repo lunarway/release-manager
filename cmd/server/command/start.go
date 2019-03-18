@@ -20,7 +20,7 @@ func NewStart(options *Options) *cobra.Command {
 			done := make(chan error, 1)
 
 			go func() {
-				err := http.NewServer(options.httpPort, options.timeout, options.configRepo, options.artifactFileName)
+				err := http.NewServer(options.httpPort, options.timeout, options.configRepo, options.artifactFileName, options.sshPrivateKeyPath)
 				if err != nil {
 					done <- errors.WithMessage(err, "new http server")
 					return
@@ -53,5 +53,6 @@ func NewStart(options *Options) *cobra.Command {
 			return nil
 		},
 	}
+
 	return command
 }

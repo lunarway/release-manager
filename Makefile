@@ -20,7 +20,7 @@ generate-go:
 
 server: 
 	go build -o dist/server ./cmd/server
-	RELEASE_MANAGER_AUTH_TOKEN=test ./dist/server start
+	RELEASE_MANAGER_AUTH_TOKEN=test ./dist/server start --ssh-private-key ~/.ssh/github
 
 hamctl: 
 	go build -o dist/hamctl ./cmd/hamctl
