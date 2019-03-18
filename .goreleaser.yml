@@ -2,8 +2,15 @@
 # Make sure to check the documentation at http://goreleaser.com
 
 builds:
-- binary: rm_artifact
-  main: ./cmd/rm_artifact/main.go
+- binary: artifact
+  main: ./cmd/artifact/main.go
+  goarch:
+  - amd64    
+  goos:
+  - darwin
+  - linux
+- binary: hamctl
+  main: ./cmd/hamctl/main.go
   goarch:
   - amd64    
   goos:
