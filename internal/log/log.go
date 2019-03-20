@@ -6,7 +6,7 @@ import (
 
 var logger *Logger
 
-// Logger is a general loggerlication logger.
+// Logger is a general structured logger.
 type Logger struct {
 	sugar *zap.SugaredLogger
 }

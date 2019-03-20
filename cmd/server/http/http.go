@@ -54,7 +54,7 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 
 		services, ok := r.URL.Query()["service"]
 		if !ok || len(services[0]) == 0 {
-			log.Errorf("query param service is missing for /status endpoint: %v\n", ok)
+			log.Errorf("query param service is missing for /status endpoint")
 			http.Error(w, "Invalid query param", http.StatusBadRequest)
 			return
 		}
@@ -62,7 +62,7 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 
 		s, err := flow.Status(configRepo, artifactFileName, service, sshPrivateKeyPath)
 		if err != nil {
-			log.Errorf("getting status failed: config repo '%s' artifact file name '%s' service '%s': %v\n", configRepo, artifactFileName, service, err)
+			log.Errorf("getting status failed: config repo '%s' artifact file name '%s' service '%s': %v", configRepo, artifactFileName, service, err)
 			http.Error(w, "promote flow failed", http.StatusInternalServerError)
 			return
 		}
@@ -113,7 +113,7 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 		})
 
 		if err != nil {
-			log.Errorf("get status for service '%s' failed: marshal response: %v\n", service, err)
+			log.Errorf("get status for service '%s' failed: marshal response: %v", service, err)
 			http.Error(w, "unknown", http.StatusInternalServerError)
 			return
 		}
@@ -135,7 +135,7 @@ func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecre
 			rgx := regexp.MustCompile(`\[(.*?)\]`)
 			matches := rgx.FindStringSubmatch(push.HeadCommit.Message)
 			if len(matches) < 2 {
-				log.Errorf("no matches")
+				log.Debugf("webhook: no service match from commit '%s'", push.HeadCommit.Message)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
@@ -155,14 +155,14 @@ func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecre
 				}
 				log.WithFields("service", serviceName,
 					"environment", toEnvironment,
-					"commit", push.HeadCommit).Info("auto-release of %s to %s", releaseID, toEnvironment)
+					"commit", push.HeadCommit).Infof("auto-release of %s to %s", releaseID, toEnvironment)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
 			w.WriteHeader(http.StatusOK)
 
 		default:
-			log.Infof("default case hit: %v", payload)
+			log.Infof("webhook: payload type: default case hit: %v", payload)
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -181,7 +181,7 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 
 		err := decoder.Decode(&req)
 		if err != nil {
-			log.Errorf("Decode request body failed: %v\n", err)
+			log.Errorf("Decode request body failed: %v", err)
 			http.Error(w, "Invalid payload", http.StatusBadRequest)
 			return
 		}
@@ -192,7 +192,7 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 		if err != nil && errors.Cause(err) == git.ErrNothingToCommit {
 			statusString = "Environment is already up-to-date"
 		} else if err != nil {
-			log.Errorf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v\n", configRepo, artifactFileName, req.Service, req.Environment, err)
+			log.Errorf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v", configRepo, artifactFileName, req.Service, req.Environment, err)
 			http.Error(w, "promote flow failed", http.StatusInternalServerError)
 			return
 		}

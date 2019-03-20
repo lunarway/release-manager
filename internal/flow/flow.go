@@ -38,7 +38,7 @@ type StatusResponse struct {
 
 func Status(configRepoURL, artifactFileName, service, sshPrivateKeyPath string) (StatusResponse, error) {
 	// find current released artifact.json for each environment
-	log.Infof("Cloning source config repo %s into %s\n", configRepoURL, sourceConfigRepoPath)
+	log.Infof("Cloning source config repo %s into %s", configRepoURL, sourceConfigRepoPath)
 	_, err := git.Clone(configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))

@@ -38,10 +38,10 @@ func NewStart(options *Options) *cobra.Command {
 
 			err := <-done
 			if err != nil {
-				log.Errorf("Exited unknown error: %v\n", err)
+				log.Errorf("Exited unknown error: %v", err)
 				os.Exit(1)
 			}
-			log.Errorf("Program ended")
+			log.Infof("Program ended")
 			return nil
 		},
 	}
