@@ -17,7 +17,7 @@ ifeq ($(TAG),)
 endif
 	docker build -t $(IMAGE):${TAG} .
 
-push_docker:
+push_server_docker:
 ifeq ($(TAG),)
 	@echo "TAG is required for this target" && exit 1
 endif

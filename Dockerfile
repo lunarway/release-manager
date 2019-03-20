@@ -8,7 +8,6 @@ COPY go.mod .
 COPY go.sum .
 RUN go mod download
 
-COPY generated/ ./generated/
 COPY internal/ ./internal/
 COPY cmd/server/ ./cmd/server/
 
