@@ -138,7 +138,7 @@ func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecre
 			branch := "master"
 			toEnvironment := "dev"
 			for _, f := range push.HeadCommit.Modified {
-				if strings.Contains(f, branch) && strings.Contains(f, artifactFileName) {
+				if !strings.Contains(f, branch) || !strings.Contains(f, artifactFileName) {
 					releaseID, err := flow.Promote(configRepo, artifactFileName, serviceName, toEnvironment, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath)
 					if err != nil {
 						fmt.Printf("webhook: promote failed: %v", err)
