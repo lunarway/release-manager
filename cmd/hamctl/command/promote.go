@@ -8,6 +8,7 @@ import (
 
 	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -52,8 +53,16 @@ func NewPromote(options *Options) *cobra.Command {
 			}
 
 			decoder := json.NewDecoder(resp.Body)
-			var r httpinternal.PromoteResponse
+			if resp.StatusCode != http.StatusOK {
+				var r httpinternal.ErrorResponse
+				err = decoder.Decode(&r)
+				if err != nil {
+					return err
+				}
+				return errors.Errorf("Failed to promote: %s", r.Message)
+			}
 
+			var r httpinternal.PromoteResponse
 			err = decoder.Decode(&r)
 			if err != nil {
 				return err

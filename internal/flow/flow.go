@@ -16,6 +16,7 @@ import (
 var (
 	sourceConfigRepoPath      = path.Join(".tmp", "k8s-config-source")
 	destinationConfigRepoPath = path.Join(".tmp", "k8s-config-destination")
+	ErrUnknownEnvironment     = errors.New("unknown environment")
 )
 
 type Environment struct {
@@ -218,7 +219,7 @@ func sourceSpec(root, artifactFileName, service, env string) (spec.Spec, error) 
 	case "prod":
 		specPath = path.Join(releasePath(root, service, "staging"), artifactFileName)
 	default:
-		return spec.Spec{}, errors.New("unknown environment")
+		return spec.Spec{}, ErrUnknownEnvironment
 	}
 	log.Debugf("Get artifact spec from %s\n", specPath)
 	return spec.Get(specPath)

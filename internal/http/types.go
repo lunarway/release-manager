@@ -36,3 +36,6 @@ type PromoteResponse struct {
 	ToEnvironment   string `json:"toEnvironment,omitempty"`
 	Tag             string `json:"tag,omitempty"`
 }
+type ErrorResponse struct {
+	Message string `json:"message,omitempty"`
+}
