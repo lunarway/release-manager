@@ -133,7 +133,7 @@ func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecre
 
 		case github.PushPayload:
 			push := payload.(github.PushPayload)
-			var rgx = regexp.MustCompile(`\[(.*?)\]`)
+			rgx := regexp.MustCompile(`\[(.*?)\]`)
 			serviceName := rgx.FindStringSubmatch(push.HeadCommit.Message)[1]
 			branch := "master"
 			toEnvironment := "dev"
