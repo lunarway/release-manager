@@ -29,7 +29,7 @@ func Init() {
 // logs the following fields (some fields omitted)
 //   { "message": "msg", "fields": { "hello": "world", "zapKey": "zapValue", "user": { "name": "alice" }}}
 func WithFields(args ...interface{}) *Logger {
-	args = loggerend([]interface{}{zap.Namespace("fields")}, args...)
+	args = append([]interface{}{zap.Namespace("fields")}, args...)
 	return &Logger{sugar: logger.sugar.With(args...)}
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/internal/git"
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/spec"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
@@ -37,7 +38,7 @@ type StatusResponse struct {
 
 func Status(configRepoURL, artifactFileName, service, sshPrivateKeyPath string) (StatusResponse, error) {
 	// find current released artifact.json for each environment
-	fmt.Printf("Cloning source config repo %s into %s\n", configRepoURL, sourceConfigRepoPath)
+	log.Infof("Cloning source config repo %s into %s\n", configRepoURL, sourceConfigRepoPath)
 	_, err := git.Clone(configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
@@ -135,7 +136,7 @@ func calculateTotalVulnerabilties(severity string, s spec.Spec) int64 {
 // the changes
 func Promote(configRepoURL, artifactFileName, service, env, committerName, committerEmail, sshPrivateKeyPath string) (string, error) {
 	// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
-	fmt.Printf("Cloning source config repo %s into %s\n", configRepoURL, sourceConfigRepoPath)
+	log.Debugf("Cloning source config repo %s into %s", configRepoURL, sourceConfigRepoPath)
 	sourceRepo, err := git.Clone(configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
@@ -147,8 +148,6 @@ func Promote(configRepoURL, artifactFileName, service, env, committerName, commi
 
 	// find release identifier in artifact.json
 	release := sourceSpec.ID
-	fmt.Printf("Found artifact id '%s'\n", release)
-
 	// ckechout commit of release
 	hash, err := git.LocateRelease(sourceRepo, release)
 	if err != nil {
@@ -167,8 +166,7 @@ func Promote(configRepoURL, artifactFileName, service, env, committerName, commi
 	// release service to env from original release
 	sourcePath := srcPath(sourceConfigRepoPath, service, env)
 	destinationPath := releasePath(destinationConfigRepoPath, service, env)
-	fmt.Printf("Copy resources from: %s\n", sourcePath)
-	fmt.Printf("To:                  %s\n", destinationPath)
+	log.Debugf("Copy resources from: %s to %s", sourcePath, destinationPath)
 
 	// empty existing resources in destination
 	err = os.RemoveAll(destinationPath)
@@ -187,8 +185,7 @@ func Promote(configRepoURL, artifactFileName, service, env, committerName, commi
 	// copy artifact spec
 	artifactSourcePath := srcPath(sourceConfigRepoPath, service, artifactFileName)
 	artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, env), artifactFileName)
-	fmt.Printf("Copy artifact from: %s\n", artifactSourcePath)
-	fmt.Printf("To:                 %s\n", artifactDestinationPath)
+	log.Debugf("Copy artifact from: %s to %s", artifactSourcePath, artifactDestinationPath)
 	err = copy.Copy(artifactSourcePath, artifactDestinationPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
@@ -202,9 +199,7 @@ func Promote(configRepoURL, artifactFileName, service, env, committerName, commi
 	authorName := sourceSpec.Application.AuthorName
 	authorEmail := sourceSpec.Application.AuthorEmail
 	releaseMessage := fmt.Sprintf("[%s/%s] release %s", env, service, release)
-	fmt.Printf("Committing release: %s\n", releaseMessage)
-	fmt.Printf("  Author:    %s <%s>\n", authorName, authorEmail)
-	fmt.Printf("  Committer: %s <%s>\n", committerName, committerEmail)
+	log.Debugf("Committing release: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, committerName, committerEmail)
 	err = git.Commit(destinationRepo, releasePath(".", service, env), authorName, authorEmail, committerName, committerEmail, releaseMessage, sshPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
@@ -230,7 +225,7 @@ func sourceSpec(root, artifactFileName, service, env string) (spec.Spec, error) 
 	default:
 		return spec.Spec{}, errors.New("unknown environment")
 	}
-	fmt.Printf("Get artifact spec from %s\n", specPath)
+	log.Debugf("Get artifact spec from %s\n", specPath)
 	return spec.Get(specPath)
 }
 

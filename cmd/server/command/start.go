@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/lunarway/release-manager/cmd/server/http"
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -37,10 +38,10 @@ func NewStart(options *Options) *cobra.Command {
 
 			err := <-done
 			if err != nil {
-				fmt.Printf("Exited unknown error: %v\n", err)
+				log.Errorf("Exited unknown error: %v\n", err)
 				os.Exit(1)
 			}
-			fmt.Printf("Program ended")
+			log.Errorf("Program ended")
 			return nil
 		},
 	}

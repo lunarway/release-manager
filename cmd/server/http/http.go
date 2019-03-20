@@ -32,7 +32,7 @@ func NewServer(port int, timeout time.Duration, configRepo, artifactFileName, ss
 		IdleTimeout:       timeout,
 		ReadHeaderTimeout: timeout,
 	}
-	log.Infof("Initializing HTTP Server on port %d\n", port)
+	log.Infof("Initializing HTTP Server on port %d", port)
 	err := s.ListenAndServe()
 	if err != nil {
 		return errors.WithMessage(err, "listen and server")
@@ -162,7 +162,7 @@ func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecre
 			w.WriteHeader(http.StatusOK)
 
 		default:
-			fmt.Printf("Default case: %v", payload)
+			log.Infof("default case hit: %v", payload)
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -181,7 +181,7 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 
 		err := decoder.Decode(&req)
 		if err != nil {
-			fmt.Printf("Decode request body failed: %v\n", err)
+			log.Errorf("Decode request body failed: %v\n", err)
 			http.Error(w, "Invalid payload", http.StatusBadRequest)
 			return
 		}
@@ -192,7 +192,7 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 		if err != nil && errors.Cause(err) == git.ErrNothingToCommit {
 			statusString = "Environment is already up-to-date"
 		} else if err != nil {
-			fmt.Printf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v\n", configRepo, artifactFileName, req.Service, req.Environment, err)
+			log.Errorf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v\n", configRepo, artifactFileName, req.Service, req.Environment, err)
 			http.Error(w, "promote flow failed", http.StatusInternalServerError)
 			return
 		}
