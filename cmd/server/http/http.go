@@ -12,6 +12,7 @@ import (
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	"gopkg.in/go-playground/webhooks.v5/github"
 )
@@ -31,8 +32,7 @@ func NewServer(port int, timeout time.Duration, configRepo, artifactFileName, ss
 		IdleTimeout:       timeout,
 		ReadHeaderTimeout: timeout,
 	}
-
-	fmt.Printf("Initializing HTTP Server on port %d\n", port)
+	log.Infof("Initializing HTTP Server on port %d\n", port)
 	err := s.ListenAndServe()
 	if err != nil {
 		return errors.WithMessage(err, "listen and server")
@@ -46,7 +46,6 @@ func ping(w http.ResponseWriter, r *http.Request) {
 
 func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("Status request\n")
 		valid := validateToken(r.Header.Get("Authorization"))
 		if !valid {
 			http.Error(w, "not authorized", http.StatusUnauthorized)
@@ -55,7 +54,7 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 
 		services, ok := r.URL.Query()["service"]
 		if !ok || len(services[0]) == 0 {
-			fmt.Printf("query param service is missing for /status endpoint: %v\n", ok)
+			log.Errorf("query param service is missing for /status endpoint: %v\n", ok)
 			http.Error(w, "Invalid query param", http.StatusBadRequest)
 			return
 		}
@@ -63,7 +62,7 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 
 		s, err := flow.Status(configRepo, artifactFileName, service, sshPrivateKeyPath)
 		if err != nil {
-			fmt.Printf("getting status failed: config repo '%s' artifact file name '%s' service '%s': %v\n", configRepo, artifactFileName, service, err)
+			log.Errorf("getting status failed: config repo '%s' artifact file name '%s' service '%s': %v\n", configRepo, artifactFileName, service, err)
 			http.Error(w, "promote flow failed", http.StatusInternalServerError)
 			return
 		}
@@ -114,7 +113,7 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 		})
 
 		if err != nil {
-			fmt.Printf("get status for service '%s' failed: marshal response: %v\n", service, err)
+			log.Errorf("get status for service '%s' failed: marshal response: %v\n", service, err)
 			http.Error(w, "unknown", http.StatusInternalServerError)
 			return
 		}
@@ -136,7 +135,7 @@ func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecre
 			rgx := regexp.MustCompile(`\[(.*?)\]`)
 			matches := rgx.FindStringSubmatch(push.HeadCommit.Message)
 			if len(matches) < 2 {
-				fmt.Printf("no matches")
+				log.Errorf("no matches")
 				w.WriteHeader(http.StatusOK)
 				return
 			}
@@ -150,11 +149,13 @@ func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecre
 				}
 				releaseID, err := flow.Promote(configRepo, artifactFileName, serviceName, toEnvironment, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath)
 				if err != nil {
-					fmt.Printf("webhook: promote failed: %v", err)
+					log.Errorf("webhook: promote failed: %v", err)
 					http.Error(w, "internal error", http.StatusInternalServerError)
 					return
 				}
-				fmt.Printf("%s auto-released to %s\n", releaseID, toEnvironment)
+				log.WithFields("service", serviceName,
+					"environment", toEnvironment,
+					"commit", push.HeadCommit).Info("auto-release of %s to %s", releaseID, toEnvironment)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
