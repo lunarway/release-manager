@@ -44,5 +44,5 @@ To build and push a new version of the release manager use the `build_server_doc
 
 ```
 $ make build_server_docker TAG=v1.2.3
-$ make push_docker TAG=v1.2.3
+$ make push_server_docker TAG=v1.2.3
 ```
