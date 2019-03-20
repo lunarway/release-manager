@@ -12,11 +12,6 @@ deploy-jenkins-prod:
 	scp artifact-linux-amd64 lunar-prod-jenkins:/usr/local/bin/artifact
 
 deploy: deploy-jenkins-dev deploy-jenkins-prod
-	
-generate-go:
-	- mkdir -p generated/grpc
-	docker run --rm -v $(shell pwd):$(shell pwd) -w $(shell pwd) znly/protoc -I. protos/*.proto --go_out=plugins=grpc:.
-	mv protos/*.pb.go generated/grpc/
 
 server: 
 	go build -o dist/server ./cmd/server
