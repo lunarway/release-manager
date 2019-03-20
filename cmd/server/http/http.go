@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,13 +13,15 @@ import (
 	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/pkg/errors"
+	"gopkg.in/go-playground/webhooks.v5/github"
 )
 
-func NewServer(port int, timeout time.Duration, configRepo, artifactFileName, sshPrivateKeyPath string) error {
+func NewServer(port int, timeout time.Duration, configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
 	mux.HandleFunc("/promote", promote(configRepo, artifactFileName, sshPrivateKeyPath))
 	mux.HandleFunc("/status", status(configRepo, artifactFileName, sshPrivateKeyPath))
+	mux.HandleFunc("/webhook", webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret))
 
 	s := http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
@@ -113,6 +116,53 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 		if err != nil {
 			fmt.Printf("get status for service '%s' failed: marshal response: %v\n", service, err)
 			http.Error(w, "unknown", http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		hook, _ := github.New(github.Options.Secret(githubWebhookSecret))
+		payload, err := hook.Parse(r, github.PushEvent)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		switch payload.(type) {
+
+		case github.PushPayload:
+			push := payload.(github.PushPayload)
+			rgx := regexp.MustCompile(`\[(.*?)\]`)
+			matches := rgx.FindStringSubmatch(push.HeadCommit.Message)
+			if len(matches) < 2 {
+				fmt.Printf("no matches")
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			serviceName := matches[1]
+
+			branch := "master"
+			toEnvironment := "dev"
+			for _, f := range push.HeadCommit.Modified {
+				if !strings.Contains(f, branch) || !strings.Contains(f, artifactFileName) {
+					continue
+				}
+				releaseID, err := flow.Promote(configRepo, artifactFileName, serviceName, toEnvironment, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath)
+				if err != nil {
+					fmt.Printf("webhook: promote failed: %v", err)
+					http.Error(w, "internal error", http.StatusInternalServerError)
+					return
+				}
+				fmt.Printf("%s auto-released to %s\n", releaseID, toEnvironment)
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+
+		default:
+			fmt.Printf("Default case: %v", payload)
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 	}

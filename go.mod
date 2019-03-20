@@ -18,6 +18,7 @@ require (
 	golang.org/x/arch v0.0.0-20190226203302-36aee92af9e8 // indirect
 	golang.org/x/net v0.0.0-20181023162649-9b4f9f5ad519
 	google.golang.org/grpc v1.19.0
+	gopkg.in/go-playground/webhooks.v5 v5.6.0
 	gopkg.in/src-d/go-git-fixtures.v3 v3.3.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.10.0
 	honnef.co/go/tools v0.0.0-20190215041234-466a0476246c // indirect
