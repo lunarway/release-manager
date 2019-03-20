@@ -144,16 +144,17 @@ func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecre
 			toEnvironment := "dev"
 			for _, f := range push.HeadCommit.Modified {
 				if !strings.Contains(f, branch) || !strings.Contains(f, artifactFileName) {
-					releaseID, err := flow.Promote(configRepo, artifactFileName, serviceName, toEnvironment, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath)
-					if err != nil {
-						fmt.Printf("webhook: promote failed: %v", err)
-						http.Error(w, "internal error", http.StatusInternalServerError)
-						return
-					}
-					fmt.Printf("%s auto-released to %s\n", releaseID, toEnvironment)
-					w.WriteHeader(http.StatusOK)
+					continue
+				}
+				releaseID, err := flow.Promote(configRepo, artifactFileName, serviceName, toEnvironment, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath)
+				if err != nil {
+					fmt.Printf("webhook: promote failed: %v", err)
+					http.Error(w, "internal error", http.StatusInternalServerError)
 					return
 				}
+				fmt.Printf("%s auto-released to %s\n", releaseID, toEnvironment)
+				w.WriteHeader(http.StatusOK)
+				return
 			}
 			w.WriteHeader(http.StatusOK)
 
