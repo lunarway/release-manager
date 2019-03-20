@@ -134,7 +134,12 @@ func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecre
 		case github.PushPayload:
 			push := payload.(github.PushPayload)
 			rgx := regexp.MustCompile(`\[(.*?)\]`)
-			serviceName := rgx.FindStringSubmatch(push.HeadCommit.Message)[1]
+			matches := rgx.FindStringSubmatch(push.HeadCommit.Message)
+			if len(matches < 2) {
+				fmt.Printf("no matches")
+			}
+			serviceName := matches[1]
+
 			branch := "master"
 			toEnvironment := "dev"
 			for _, f := range push.HeadCommit.Modified {
@@ -150,6 +155,7 @@ func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecre
 					return
 				}
 			}
+			w.WriteHeader(http.StatusOK)
 
 		default:
 			fmt.Printf("Default case: %v", payload)
