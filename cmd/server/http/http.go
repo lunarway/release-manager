@@ -135,8 +135,10 @@ func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecre
 			push := payload.(github.PushPayload)
 			rgx := regexp.MustCompile(`\[(.*?)\]`)
 			matches := rgx.FindStringSubmatch(push.HeadCommit.Message)
-			if len(matches < 2) {
+			if len(matches) < 2 {
 				fmt.Printf("no matches")
+				w.WriteHeader(http.StatusOK)
+				return
 			}
 			serviceName := matches[1]
 
