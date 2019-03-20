@@ -47,17 +47,17 @@ func Status(configRepoURL, artifactFileName, service, sshPrivateKeyPath string) 
 
 	devSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "dev")
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, "locate source spec for env dev")
+		//return StatusResponse{}, errors.WithMessage(err, "locate source spec for env dev")
 	}
 
 	stagingSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "staging")
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, "locate source spec for env staging")
+		//return StatusResponse{}, errors.WithMessage(err, "locate source spec for env staging")
 	}
 
 	prodSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "prod")
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, "locate source spec for env prod")
+		//return StatusResponse{}, errors.WithMessage(err, "locate source spec for env prod")
 	}
 
 	return StatusResponse{

@@ -4,6 +4,12 @@ import (
 	"encoding/json"
 	"os"
 	"time"
+
+	"github.com/pkg/errors"
+)
+
+var (
+	ErrFileNotFound = errors.New("file or directory not found")
 )
 
 type Spec struct {
@@ -101,6 +107,10 @@ func (s *Spec) GetStage(stageID string) (Stage, bool) {
 func Get(path string) (Spec, error) {
 	s, err := os.Open(path)
 	if err != nil {
+		pathErr, ok := err.(*os.PathError)
+		if ok && pathErr.Err == errors.Errorf("no such file or directory") {
+			return Spec{}, ErrFileNotFound
+		}
 		return Spec{}, err
 	}
 	defer s.Close()

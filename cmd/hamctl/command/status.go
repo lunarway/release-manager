@@ -42,11 +42,25 @@ func NewStatus(options *Options) *cobra.Command {
 			}
 			fmt.Printf("\n")
 			color.Green("k8s.dev.lunarway.com\n")
-			fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n  Link: %s\n  Vulnerabilities: %d high, %d medium, %d low\n\n", r.Dev.Tag, r.Dev.Author, r.Dev.Committer, r.Dev.Message, Time(r.Dev.Date), r.Dev.BuildUrl, r.Dev.HighVulnerabilities, r.Dev.MediumVulnerabilities, r.Dev.LowVulnerabilities)
+			if r.Dev.Tag != "" {
+				fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n  Link: %s\n  Vulnerabilities: %d high, %d medium, %d low\n\n", r.Dev.Tag, r.Dev.Author, r.Dev.Committer, r.Dev.Message, Time(r.Dev.Date), r.Dev.BuildUrl, r.Dev.HighVulnerabilities, r.Dev.MediumVulnerabilities, r.Dev.LowVulnerabilities)
+			} else {
+				fmt.Printf("  Not managed by the release-manager\n\n")
+			}
+
 			color.Green("k8s.staging.lunarway.com\n")
-			fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n  Link: %s\n  Vulnerabilities: %d high, %d medium, %d low\n\n", r.Staging.Tag, r.Staging.Author, r.Staging.Committer, r.Staging.Message, Time(r.Staging.Date), r.Staging.BuildUrl, r.Staging.HighVulnerabilities, r.Staging.MediumVulnerabilities, r.Staging.LowVulnerabilities)
+			if r.Staging.Tag != "" {
+				fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n  Link: %s\n  Vulnerabilities: %d high, %d medium, %d low\n\n", r.Staging.Tag, r.Staging.Author, r.Staging.Committer, r.Staging.Message, Time(r.Staging.Date), r.Staging.BuildUrl, r.Staging.HighVulnerabilities, r.Staging.MediumVulnerabilities, r.Staging.LowVulnerabilities)
+			} else {
+				fmt.Printf("  Not managed by the release-manager\n\n")
+			}
+
 			color.Green("kubernetes.prod.lunarway.com\n")
-			fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n  Link: %s\n  Vulnerabilities: %d high, %d medium, %d low\n\n", r.Prod.Tag, r.Prod.Author, r.Prod.Committer, r.Prod.Message, Time(r.Prod.Date), r.Prod.BuildUrl, r.Prod.HighVulnerabilities, r.Prod.MediumVulnerabilities, r.Prod.LowVulnerabilities)
+			if r.Prod.Tag != "" {
+				fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n  Link: %s\n  Vulnerabilities: %d high, %d medium, %d low\n\n", r.Prod.Tag, r.Prod.Author, r.Prod.Committer, r.Prod.Message, Time(r.Prod.Date), r.Prod.BuildUrl, r.Prod.HighVulnerabilities, r.Prod.MediumVulnerabilities, r.Prod.LowVulnerabilities)
+			} else {
+				fmt.Printf("  Not managed by the release-manager\n\n")
+			}
 			return nil
 		},
 	}
