@@ -6,7 +6,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/lunarway/release-manager/cmd/server/grpc"
 	"github.com/lunarway/release-manager/cmd/server/http"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -23,14 +22,6 @@ func NewStart(options *Options) *cobra.Command {
 				err := http.NewServer(options.httpPort, options.timeout, options.configRepo, options.artifactFileName, options.sshPrivateKeyPath, options.githubWebhookSecret)
 				if err != nil {
 					done <- errors.WithMessage(err, "new http server")
-					return
-				}
-			}()
-
-			go func() {
-				err := grpc.NewServer(options.grpcPort, options.configRepo, options.artifactFileName)
-				if err != nil {
-					done <- errors.WithMessage(err, "new grpc server")
 					return
 				}
 			}()
