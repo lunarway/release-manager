@@ -13,6 +13,18 @@ build_server:
 build_daemon:
 	go build -o dist/daemon ./cmd/daemon
 
+build_daemon_docker:
+ifeq ($(TAG),)
+	@echo "TAG is required for this target" && exit 1
+endif
+	docker build -f Dockerfile-daemon -t quay.io/lunarway/release-daemon:${TAG} .
+
+push_daemon_docker:
+ifeq ($(TAG),)
+	@echo "TAG is required for this target" && exit 1
+endif
+	docker push quay.io/lunarway/release-daemon:${TAG}
+
 IMAGE=quay.io/lunarway/release-manager
 build_server_docker:
 ifeq ($(TAG),)
