@@ -38,7 +38,7 @@ type StatusResponse struct {
 
 func Status(configRepoURL, artifactFileName, service, sshPrivateKeyPath string) (StatusResponse, error) {
 	// find current released artifact.json for each environment
-	log.Infof("Cloning source config repo %s into %s", configRepoURL, sourceConfigRepoPath)
+	log.Debugf("Cloning source config repo %s into %s", configRepoURL, sourceConfigRepoPath)
 	_, err := git.Clone(configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
@@ -191,11 +191,6 @@ func Promote(configRepoURL, artifactFileName, service, env, committerName, commi
 		return "", errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 	}
 
-	// // commit changes
-	// committerName, committerEmail, err := committerDetails()
-	// if err != nil {
-	// 	return "", err
-	// }
 	authorName := sourceSpec.Application.AuthorName
 	authorEmail := sourceSpec.Application.AuthorEmail
 	releaseMessage := fmt.Sprintf("[%s/%s] release %s", env, service, release)

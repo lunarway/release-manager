@@ -2,6 +2,7 @@ package log
 
 import (
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var logger *Logger
@@ -12,7 +13,18 @@ type Logger struct {
 }
 
 func Init() {
-	zapLogger, _ := zap.NewProduction()
+	config := zap.NewProductionConfig()
+	config.EncoderConfig.TimeKey = "@timestamp"
+	config.EncoderConfig.MessageKey = "message"
+	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	config.EncoderConfig.LevelKey = "level"
+	config.EncoderConfig.CallerKey = "caller"
+	config.EncoderConfig.StacktraceKey = "stacktrace"
+	config.EncoderConfig.LineEnding = zapcore.DefaultLineEnding
+	config.EncoderConfig.EncodeLevel = zapcore.LowercaseLevelEncoder
+	config.EncoderConfig.EncodeDuration = zapcore.SecondsDurationEncoder
+	config.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
+	zapLogger, _ := config.Build()
 	logger = &Logger{sugar: zapLogger.Sugar()}
 }
 
