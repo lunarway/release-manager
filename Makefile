@@ -10,6 +10,9 @@ build_hamctl:
 build_server:
 	go build -o dist/server ./cmd/server
 
+build_daemon:
+	go build -o dist/daemon ./cmd/daemon
+
 IMAGE=quay.io/lunarway/release-manager
 build_server_docker:
 ifeq ($(TAG),)
