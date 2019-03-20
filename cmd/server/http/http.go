@@ -191,9 +191,12 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 		var statusString string
 		if err != nil && errors.Cause(err) == git.ErrNothingToCommit {
 			statusString = "Environment is already up-to-date"
+		} else if err != nil && errors.Cause(err) == flow.ErrUnknownEnvironment {
+			log.Errorf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v", configRepo, artifactFileName, req.Service, req.Environment, err)
+			Error(w, fmt.Sprintf("Unknown environment: %s", req.Environment), http.StatusBadRequest)
 		} else if err != nil {
 			log.Errorf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v", configRepo, artifactFileName, req.Service, req.Environment, err)
-			http.Error(w, "promote flow failed", http.StatusInternalServerError)
+			Error(w, "Unknown error", http.StatusInternalServerError)
 			return
 		}
 
@@ -237,4 +240,17 @@ func validateToken(reqToken string) bool {
 
 func convertTimeToEpoch(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
+}
+
+func Error(w http.ResponseWriter, message string, statusCode int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	err := json.NewEncoder(w).Encode(httpinternal.ErrorResponse{
+		Message: message,
+	})
+	if err != nil {
+		log.Errorf("json encoding failed in error response: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 }
