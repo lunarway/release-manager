@@ -71,7 +71,6 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 		return
 	}
 
-	log.Infof("Event received: %s, pod=%s", e.Type, pod.Name)
 	switch e.Type {
 	case watch.Modified:
 		switch pod.Status.Phase {
