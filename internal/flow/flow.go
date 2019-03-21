@@ -48,17 +48,26 @@ func Status(ctx context.Context, configRepoURL, artifactFileName, service, sshPr
 
 	devSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "dev")
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, "locate source spec for env dev")
+		cause := errors.Cause(err)
+		if cause != spec.ErrFileNotFound && cause != spec.ErrNotParsable && cause != spec.ErrUnknownFields {
+			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env dev")
+		}
 	}
 
 	stagingSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "staging")
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, "locate source spec for env staging")
+		cause := errors.Cause(err)
+		if cause != spec.ErrFileNotFound && cause != spec.ErrNotParsable && cause != spec.ErrUnknownFields {
+			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env staging")
+		}
 	}
 
 	prodSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "prod")
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, "locate source spec for env prod")
+		cause := errors.Cause(err)
+		if cause != spec.ErrFileNotFound && cause != spec.ErrNotParsable && cause != spec.ErrUnknownFields {
+			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env prod")
+		}
 	}
 
 	return StatusResponse{
