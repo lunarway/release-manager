@@ -48,17 +48,26 @@ func Status(ctx context.Context, configRepoURL, artifactFileName, service, sshPr
 
 	devSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "dev")
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, "locate source spec for env dev")
+		cause := errors.Cause(err)
+		if cause != spec.ErrFileNotFound && cause != spec.ErrNotParsable && cause != spec.ErrUnknownFields {
+			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env dev")
+		}
 	}
 
 	stagingSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "staging")
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, "locate source spec for env staging")
+		cause := errors.Cause(err)
+		if cause != spec.ErrFileNotFound && cause != spec.ErrNotParsable && cause != spec.ErrUnknownFields {
+			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env staging")
+		}
 	}
 
 	prodSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "prod")
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, "locate source spec for env prod")
+		cause := errors.Cause(err)
+		if cause != spec.ErrFileNotFound && cause != spec.ErrNotParsable && cause != spec.ErrUnknownFields {
+			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env prod")
+		}
 	}
 
 	return StatusResponse{
@@ -294,7 +303,7 @@ func ReleaseBranch(ctx context.Context, configRepoURL, artifactFileName, service
 	authorEmail := buildSpec.Application.AuthorEmail
 	artifactID := buildSpec.ID
 	releaseMessage := fmt.Sprintf("[%s/%s] release %s", env, service, artifactID)
-	err = git.Commit(ctx, repo, destinationPath, authorName, authorEmail, committerName, committerEmail, releaseMessage, sshPrivateKeyPath)
+	err = git.Commit(ctx, repo, releasePath(".", service, env), authorName, authorEmail, committerName, committerEmail, releaseMessage, sshPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}
@@ -369,7 +378,7 @@ func ReleaseArtifactID(ctx context.Context, configRepoURL, artifactFileName, ser
 	authorName := sourceSpec.Application.AuthorName
 	authorEmail := sourceSpec.Application.AuthorEmail
 	releaseMessage := fmt.Sprintf("[%s/%s] release %s", env, service, artifactID)
-	err = git.Commit(ctx, destinationRepo, destinationPath, authorName, authorEmail, committerName, committerEmail, releaseMessage, sshPrivateKeyPath)
+	err = git.Commit(ctx, destinationRepo, releasePath(".", service, env), authorName, authorEmail, committerName, committerEmail, releaseMessage, sshPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}
