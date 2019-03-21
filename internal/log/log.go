@@ -24,7 +24,7 @@ func Init() {
 	config.EncoderConfig.EncodeLevel = zapcore.LowercaseLevelEncoder
 	config.EncoderConfig.EncodeDuration = zapcore.SecondsDurationEncoder
 	config.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
-	zapLogger, _ := config.Build()
+	zapLogger, _ := config.Build(zap.AddCallerSkip(2))
 	logger = &Logger{sugar: zapLogger.Sugar()}
 }
 

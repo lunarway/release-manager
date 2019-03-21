@@ -21,6 +21,7 @@ func NewServer(port int, timeout time.Duration, configRepo, artifactFileName, ss
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
 	mux.HandleFunc("/promote", promote(configRepo, artifactFileName, sshPrivateKeyPath))
+	mux.HandleFunc("/release", release(configRepo, artifactFileName, sshPrivateKeyPath))
 	mux.HandleFunc("/status", status(configRepo, artifactFileName, sshPrivateKeyPath))
 	mux.HandleFunc("/webhook", webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret))
 
@@ -60,7 +61,7 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 		}
 		service := services[0]
 
-		s, err := flow.Status(configRepo, artifactFileName, service, sshPrivateKeyPath)
+		s, err := flow.Status(r.Context(), configRepo, artifactFileName, service, sshPrivateKeyPath)
 		if err != nil {
 			log.Errorf("getting status failed: config repo '%s' artifact file name '%s' service '%s': %v", configRepo, artifactFileName, service, err)
 			http.Error(w, "promote flow failed", http.StatusInternalServerError)
@@ -147,7 +148,7 @@ func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecre
 				if !strings.Contains(f, branch) || !strings.Contains(f, artifactFileName) {
 					continue
 				}
-				releaseID, err := flow.Promote(configRepo, artifactFileName, serviceName, toEnvironment, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath)
+				releaseID, err := flow.Promote(r.Context(), configRepo, artifactFileName, serviceName, toEnvironment, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath)
 				if err != nil {
 					log.Errorf("webhook: promote failed: %v", err)
 					http.Error(w, "internal error", http.StatusInternalServerError)
@@ -186,7 +187,7 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 			return
 		}
 
-		releaseID, err := flow.Promote(configRepo, artifactFileName, req.Service, req.Environment, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath)
+		releaseID, err := flow.Promote(r.Context(), configRepo, artifactFileName, req.Service, req.Environment, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath)
 
 		var statusString string
 		if err != nil && errors.Cause(err) == git.ErrNothingToCommit {
@@ -224,6 +225,74 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 		if err != nil {
 			http.Error(w, "json encoding failed", http.StatusInternalServerError)
 			return
+		}
+	}
+}
+
+func release(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		valid := validateToken(r.Header.Get("Authorization"))
+		if !valid {
+			Error(w, "not authorized", http.StatusUnauthorized)
+			return
+		}
+		decoder := json.NewDecoder(r.Body)
+		var req httpinternal.ReleaseRequest
+
+		err := decoder.Decode(&req)
+		if err != nil {
+			log.Errorf("Decode request body failed: %v", err)
+			Error(w, "Invalid payload", http.StatusBadRequest)
+			return
+		}
+		log.Infof("http release: service '%s' environment '%s' branch '%s' build id '%s'", req.Service, req.Environment, req.Branch, req.ArtifactID)
+		ctx := r.Context()
+		var releaseID string
+		switch {
+		case req.Branch != "" && req.ArtifactID != "":
+			Error(w, "Branch and build id cannot both be specified. Pick one", http.StatusBadRequest)
+			return
+		case req.Branch == "" && req.ArtifactID == "":
+			Error(w, "Branch or build id must be specified.", http.StatusBadRequest)
+			return
+		case req.Branch != "":
+			log.Infof("Release '%s' from branch '%s' to '%s'", req.Service, req.Branch, req.Environment)
+			releaseID, err = flow.ReleaseBranch(ctx, configRepo, artifactFileName, req.Service, req.Environment, req.Branch, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath)
+		case req.ArtifactID != "":
+			releaseID, err = flow.ReleaseArtifactID(ctx, configRepo, artifactFileName, req.Service, req.Environment, req.ArtifactID, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath)
+		default:
+			Error(w, "Either branch or build id must be specified", http.StatusBadRequest)
+			return
+		}
+		var statusString string
+		if err != nil {
+			cause := errors.Cause(err)
+			switch cause {
+			case git.ErrNothingToCommit:
+				statusString = "Environment is already up-to-date"
+				log.Info("release: nothing to commit")
+			case git.ErrBuildNotFound:
+				Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
+				return
+			default:
+				log.Errorf("http release flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v", configRepo, artifactFileName, req.Service, req.Environment, err)
+				Error(w, "release flow failed", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		err = json.NewEncoder(w).Encode(httpinternal.ReleaseResponse{
+			Service:       req.Service,
+			ReleaseID:     releaseID,
+			ToEnvironment: req.Environment,
+			Tag:           releaseID,
+			Status:        statusString,
+		})
+		if err != nil {
+			log.Errorf("release: marshal response failed: %v", err)
+			Error(w, "unknown error", http.StatusInternalServerError)
 		}
 	}
 }
