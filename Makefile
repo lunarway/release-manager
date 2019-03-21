@@ -1,5 +1,5 @@
 .DEFAULT: build
-build: build_hamctl build_server build_artifact
+build: build_hamctl build_server build_artifact build_daemon
 
 build_artifact:
 	go build -o dist/artifact ./cmd/artifact
