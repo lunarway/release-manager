@@ -1,8 +1,7 @@
 package kubernetes
 
 import (
-	"fmt"
-
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -10,42 +9,55 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-type K8s struct {
+type Client struct {
 	clientset *kubernetes.Clientset
 	config    *rest.Config
 }
 
-func NewClient() (*K8s, error) {
+func NewClient() (*Client, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		return &K8s{}, err
+		return nil, err
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return &K8s{}, err
+		return nil, err
 	}
 
-	return &K8s{clientset: clientset, config: config}, nil
+	client := Client{
+		clientset: clientset,
+		config:    config,
+	}
+
+	return &client, nil
 }
 
-func (c *K8s) WatchPods() error {
+func (c *Client) WatchPods() error {
 	watcher, err := c.clientset.CoreV1().Pods("").Watch(metav1.ListOptions{})
 	if err != nil {
-		errors.WithMessage(err, "cannot create pod watcher")
+		return err
 	}
 
 	for {
 		e := <-watcher.ResultChan()
 		if e.Object == nil {
-			return errors.WithMessage(err, "cannot read object")
+			log.Errorf("Object not found: %v", e.Object)
+			return errors.New("object not found")
 		}
-		p, ok := e.Object.(*v1.Pod)
+
+		pod, ok := e.Object.(*v1.Pod)
 		if !ok {
 			continue
 		}
 
-		fmt.Printf("POD: %v", p)
+		log.WithFields("action", e.Type,
+			"namespace", pod.Namespace,
+			"name", pod.Name,
+			"phase", pod.Status.Phase,
+			"reason", pod.Status.Reason,
+			"container#", len(pod.Status.ContainerStatuses)).Infof("Event received: Type=%s, Pod=%s", e.Type, pod.Name)
 	}
+
 	watcher.Stop()
 	return nil
 }

@@ -14,7 +14,6 @@ func StartDaemon() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			err = kubectl.WatchPods()
 			if err != nil {
 				return err
@@ -22,6 +21,5 @@ func StartDaemon() *cobra.Command {
 			return nil
 		},
 	}
-
 	return command
 }
