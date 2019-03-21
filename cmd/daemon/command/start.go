@@ -1,7 +1,10 @@
 package command
 
 import (
+	"context"
+
 	"github.com/lunarway/release-manager/cmd/daemon/kubernetes"
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +17,29 @@ func StartDaemon() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = kubectl.WatchPods()
+
+			succeededFunc := func(event *kubernetes.PodEvent) error {
+				//TODO: send event to release-manager
+				log.WithFields("namespace", event.Namespace,
+					"name", event.PodName,
+					"exitCode", event.ExitCode,
+					"reason", event.Reason,
+				).Infof("Success: pod=%s", event.PodName)
+				return nil
+			}
+
+			failedFunc := func(event *kubernetes.PodEvent) error {
+				//TODO: send event to release-manager
+				log.WithFields("namespace", event.Namespace,
+					"name", event.PodName,
+					"exitCode", event.ExitCode,
+					"reason", event.Reason,
+					"message", event.Message,
+				).Infof("Failure: pod=%s, reason=%s", event.PodName, event.Reason)
+				return nil
+			}
+
+			err = kubectl.WatchPods(context.Background(), succeededFunc, failedFunc)
 			if err != nil {
 				return err
 			}
