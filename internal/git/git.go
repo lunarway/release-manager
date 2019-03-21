@@ -1,6 +1,8 @@
 package git
 
 import (
+	"context"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -18,9 +20,18 @@ import (
 
 var (
 	ErrNothingToCommit = errors.New("nothing to commit")
+	ErrReleaseNotFound = errors.New("release not found")
+	ErrBuildNotFound   = errors.New("build not found")
 )
 
-func Clone(repoURL, destination, sshPrivateKeyPath string) (*git.Repository, error) {
+func CloneDepth(ctx context.Context, repoURL, destination, sshPrivateKeyPath string, depth int) (*git.Repository, error) {
+	return clone(ctx, repoURL, destination, sshPrivateKeyPath, depth)
+}
+func Clone(ctx context.Context, repoURL, destination, sshPrivateKeyPath string) (*git.Repository, error) {
+	return clone(ctx, repoURL, destination, sshPrivateKeyPath, 0)
+}
+
+func clone(ctx context.Context, repoURL, destination, sshPrivateKeyPath string, depth int) (*git.Repository, error) {
 	authSSH, err := ssh.NewPublicKeysFromFile("git", sshPrivateKeyPath, "")
 	if err != nil {
 		return nil, errors.WithMessage(err, "public keys from file")
@@ -30,9 +41,10 @@ func Clone(repoURL, destination, sshPrivateKeyPath string) (*git.Repository, err
 		return nil, errors.WithMessage(err, "remove existing destination")
 	}
 
-	r, err := git.PlainClone(destination, false, &git.CloneOptions{
-		URL:  repoURL,
-		Auth: authSSH,
+	r, err := git.PlainCloneContext(ctx, destination, false, &git.CloneOptions{
+		URL:   repoURL,
+		Auth:  authSSH,
+		Depth: depth,
 	})
 	if err != nil {
 		return nil, errors.WithMessage(err, "clone repo")
@@ -55,6 +67,18 @@ func Checkout(r *git.Repository, hash plumbing.Hash) error {
 }
 
 func LocateRelease(r *git.Repository, release string) (plumbing.Hash, error) {
+	return locate(r, func(commitMsg string) bool {
+		return strings.Contains(commitMsg, release)
+	}, ErrReleaseNotFound)
+}
+
+func LocateBuild(r *git.Repository, build string) (plumbing.Hash, error) {
+	return locate(r, func(commitMsg string) bool {
+		return strings.Contains(commitMsg, fmt.Sprintf("build tag %s", build))
+	}, ErrBuildNotFound)
+}
+
+func locate(r *git.Repository, condition func(commitMsg string) bool, notFoundErr error) (plumbing.Hash, error) {
 	ref, err := r.Head()
 	if err != nil {
 		return plumbing.ZeroHash, errors.WithMessage(err, "retrieve HEAD branch")
@@ -69,17 +93,17 @@ func LocateRelease(r *git.Repository, release string) (plumbing.Hash, error) {
 		commit, err := cIter.Next()
 		if err != nil {
 			if err == io.EOF {
-				return plumbing.ZeroHash, errors.New("release not found")
+				return plumbing.ZeroHash, notFoundErr
 			}
 			return plumbing.ZeroHash, errors.WithMessage(err, "retrieve commit")
 		}
-		if strings.Contains(commit.Message, release) {
+		if condition(commit.Message) {
 			return commit.Hash, nil
 		}
 	}
 }
 
-func Commit(repo *git.Repository, changesPath, authorName, authorEmail, committerName, committerEmail, msg, sshPrivateKeyPath string) error {
+func Commit(ctx context.Context, repo *git.Repository, changesPath, authorName, authorEmail, committerName, committerEmail, msg, sshPrivateKeyPath string) error {
 	w, err := repo.Worktree()
 	if err != nil {
 		return errors.WithMessage(err, "get worktree")
@@ -121,7 +145,7 @@ func Commit(repo *git.Repository, changesPath, authorName, authorEmail, committe
 	}
 
 	// TODO: this could be made optional if needed
-	err = repo.Push(&git.PushOptions{Auth: authSSH})
+	err = repo.PushContext(ctx, &git.PushOptions{Auth: authSSH})
 	if err != nil {
 		return errors.WithMessage(err, "push")
 	}

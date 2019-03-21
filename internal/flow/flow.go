@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -37,10 +38,10 @@ type StatusResponse struct {
 	Prod    Environment `json:"prod,omitempty"`
 }
 
-func Status(configRepoURL, artifactFileName, service, sshPrivateKeyPath string) (StatusResponse, error) {
+func Status(ctx context.Context, configRepoURL, artifactFileName, service, sshPrivateKeyPath string) (StatusResponse, error) {
 	// find current released artifact.json for each environment
 	log.Debugf("Cloning source config repo %s into %s", configRepoURL, sourceConfigRepoPath)
-	_, err := git.Clone(configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
+	_, err := git.Clone(ctx, configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
 	}
@@ -135,10 +136,10 @@ func calculateTotalVulnerabilties(severity string, s spec.Spec) int64 {
 //
 // Copy artifacts from the current release into the new environment and commit
 // the changes
-func Promote(configRepoURL, artifactFileName, service, env, committerName, committerEmail, sshPrivateKeyPath string) (string, error) {
+func Promote(ctx context.Context, configRepoURL, artifactFileName, service, env, committerName, committerEmail, sshPrivateKeyPath string) (string, error) {
 	// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
 	log.Debugf("Cloning source config repo %s into %s", configRepoURL, sourceConfigRepoPath)
-	sourceRepo, err := git.Clone(configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
+	sourceRepo, err := git.Clone(ctx, configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
 	}
@@ -159,13 +160,13 @@ func Promote(configRepoURL, artifactFileName, service, env, committerName, commi
 		return "", errors.WithMessage(err, fmt.Sprintf("checkout release hash '%s' from '%s'", hash, configRepoURL))
 	}
 
-	destinationRepo, err := git.Clone(configRepoURL, destinationConfigRepoPath, sshPrivateKeyPath)
+	destinationRepo, err := git.Clone(ctx, configRepoURL, destinationConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("clone destination repo '%s' into '%s'", configRepoURL, destinationConfigRepoPath))
 	}
 
 	// release service to env from original release
-	sourcePath := srcPath(sourceConfigRepoPath, service, env)
+	sourcePath := srcPath(sourceConfigRepoPath, service, "master", env)
 	destinationPath := releasePath(destinationConfigRepoPath, service, env)
 	log.Debugf("Copy resources from: %s to %s", sourcePath, destinationPath)
 
@@ -184,7 +185,7 @@ func Promote(configRepoURL, artifactFileName, service, env, committerName, commi
 		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", sourcePath, destinationPath))
 	}
 	// copy artifact spec
-	artifactSourcePath := srcPath(sourceConfigRepoPath, service, artifactFileName)
+	artifactSourcePath := srcPath(sourceConfigRepoPath, service, "master", artifactFileName)
 	artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, env), artifactFileName)
 	log.Debugf("Copy artifact from: %s to %s", artifactSourcePath, artifactDestinationPath)
 	err = copy.Copy(artifactSourcePath, artifactDestinationPath)
@@ -196,7 +197,7 @@ func Promote(configRepoURL, artifactFileName, service, env, committerName, commi
 	authorEmail := sourceSpec.Application.AuthorEmail
 	releaseMessage := fmt.Sprintf("[%s/%s] release %s", env, service, release)
 	log.Debugf("Committing release: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, committerName, committerEmail)
-	err = git.Commit(destinationRepo, releasePath(".", service, env), authorName, authorEmail, committerName, committerEmail, releaseMessage, sshPrivateKeyPath)
+	err = git.Commit(ctx, destinationRepo, releasePath(".", service, env), authorName, authorEmail, committerName, committerEmail, releaseMessage, sshPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}
@@ -225,8 +226,8 @@ func sourceSpec(root, artifactFileName, service, env string) (spec.Spec, error) 
 	return spec.Get(specPath)
 }
 
-func srcPath(root, service, env string) string {
-	return path.Join(buildPath(root, service, "master"), env)
+func srcPath(root, service, branch, env string) string {
+	return path.Join(buildPath(root, service, branch), env)
 }
 
 func buildPath(root, service, branch string) string {
@@ -235,4 +236,144 @@ func buildPath(root, service, branch string) string {
 
 func releasePath(root, service, env string) string {
 	return path.Join(root, env, "releases", env, service)
+}
+
+// ReleaseBranch releases the latest artifact from a branch of a specific
+// service to environment env.
+//
+// Flow
+//
+// Checkout the current kubernetes configuration status and find the
+// artifact spec for the service and branch.
+//
+// Copy artifacts from the build into the environment and commit the changes.
+func ReleaseBranch(ctx context.Context, configRepoURL, artifactFileName, service, env, branch, committerName, committerEmail, sshPrivateKeyPath string) (string, error) {
+	repo, err := git.CloneDepth(ctx, configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath, 1)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
+	}
+	// repo/builds/{service}/{branch}/{artifactFileName}
+	buildArtifactPath := path.Join(buildPath(sourceConfigRepoPath, service, branch), artifactFileName)
+	buildSpec, err := spec.Get(buildArtifactPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
+	}
+	log.Infof("flow: ReleaseBranch: release branch: id '%s'", buildSpec.ID)
+
+	// release service to env from the build path
+	// repo/builds/{service}/{branch}/{env}
+	buildPath := srcPath(sourceConfigRepoPath, service, branch, env)
+	// repo/{env}/releases/{ns}/{service}
+	destinationPath := releasePath(sourceConfigRepoPath, service, env)
+	log.Infof("flow: ReleaseBranch: copy resources from %s to %s", buildPath, destinationPath)
+
+	// empty existing resources in destination
+	err = os.RemoveAll(destinationPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("remove destination path '%s'", destinationPath))
+	}
+	err = os.MkdirAll(destinationPath, os.ModePerm)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
+	}
+	// copy build files into destination
+	err = copy.Copy(buildPath, destinationPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", buildPath, destinationPath))
+	}
+	// copy artifact spec
+	// repo/{env}/releases/{ns}/{service}/{artifactFileName}
+	artifactDestinationPath := path.Join(releasePath(sourceConfigRepoPath, service, env), artifactFileName)
+	log.Infof("flow: ReleaseBranch: copy artifact from %s to %s", buildArtifactPath, artifactDestinationPath)
+	err = copy.Copy(buildArtifactPath, artifactDestinationPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", buildArtifactPath, artifactDestinationPath))
+	}
+
+	authorName := buildSpec.Application.AuthorName
+	authorEmail := buildSpec.Application.AuthorEmail
+	artifactID := buildSpec.ID
+	releaseMessage := fmt.Sprintf("[%s/%s] release %s", env, service, artifactID)
+	err = git.Commit(ctx, repo, destinationPath, authorName, authorEmail, committerName, committerEmail, releaseMessage, sshPrivateKeyPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
+	}
+	log.Infof("flow: ReleaseBranch: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, committerName, committerEmail)
+	return artifactID, nil
+}
+
+// ReleaseArtifactID releases a specific artifact to environment env.
+//
+// Flow
+//
+// Locate the commit of the artifact ID and checkout the config repository at
+// this point.
+//
+// Copy resources from the artifact commit into the environment and commit
+// the changes
+func ReleaseArtifactID(ctx context.Context, configRepoURL, artifactFileName, service, env, artifactID, committerName, committerEmail, sshPrivateKeyPath string) (string, error) {
+	sourceRepo, err := git.Clone(ctx, configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
+	}
+
+	hash, err := git.LocateBuild(sourceRepo, artifactID)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("locate release '%s' from '%s'", artifactID, configRepoURL))
+	}
+	err = git.Checkout(sourceRepo, hash)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("checkout release hash '%s' from '%s'", hash, configRepoURL))
+	}
+
+	sourceSpec, err := sourceSpec(sourceConfigRepoPath, artifactFileName, service, env)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
+	}
+
+	log.Infof("flow: ReleaseArtifactID: hash '%s' id '%s'", hash, sourceSpec.ID)
+
+	destinationRepo, err := git.Clone(ctx, configRepoURL, destinationConfigRepoPath, sshPrivateKeyPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("clone destination repo '%s' into '%s'", configRepoURL, destinationConfigRepoPath))
+	}
+
+	// release service to env from original release
+	sourcePath := srcPath(sourceConfigRepoPath, service, "master", env)
+	destinationPath := releasePath(destinationConfigRepoPath, service, env)
+	log.Infof("flow: ReleaseArtifactID: copy resources from %s to %s", sourcePath, destinationPath)
+
+	// empty existing resources in destination
+	err = os.RemoveAll(destinationPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("remove destination path '%s'", destinationPath))
+	}
+	err = os.MkdirAll(destinationPath, os.ModePerm)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
+	}
+	// copy previous env. files into destination
+	err = copy.Copy(sourcePath, destinationPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", sourcePath, destinationPath))
+	}
+	// copy artifact spec
+	artifactSourcePath := srcPath(sourceConfigRepoPath, service, "master", artifactFileName)
+	artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, env), artifactFileName)
+	log.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
+	err = copy.Copy(artifactSourcePath, artifactDestinationPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
+	}
+
+	authorName := sourceSpec.Application.AuthorName
+	authorEmail := sourceSpec.Application.AuthorEmail
+	releaseMessage := fmt.Sprintf("[%s/%s] release %s", env, service, artifactID)
+	err = git.Commit(ctx, destinationRepo, destinationPath, authorName, authorEmail, committerName, committerEmail, releaseMessage, sshPrivateKeyPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
+	}
+	log.Infof("flow: ReleaseArtifactID: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, committerName, committerEmail)
+
+	return artifactID, nil
 }
