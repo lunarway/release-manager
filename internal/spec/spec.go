@@ -3,13 +3,20 @@ package spec
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 )
 
 var (
-	ErrFileNotFound = errors.New("file or directory not found")
+	// ErrFileNotFound indicates that an artifact was not found.
+	ErrFileNotFound = errors.New("file not found")
+	// ErrNotParsable indicates that an artifact could not be parsed against the
+	// artifact specification.
+	ErrNotParsable = errors.New("artifact not parsable")
+	// ErrUnknownFields indicates that an artifact contains an unknown field.
+	ErrUnknownFields = errors.New("artifact contains unknown fields")
 )
 
 type Spec struct {
@@ -107,8 +114,7 @@ func (s *Spec) GetStage(stageID string) (Stage, bool) {
 func Get(path string) (Spec, error) {
 	s, err := os.Open(path)
 	if err != nil {
-		pathErr, ok := err.(*os.PathError)
-		if ok && pathErr.Err == errors.Errorf("no such file or directory") {
+		if os.IsNotExist(err) {
 			return Spec{}, ErrFileNotFound
 		}
 		return Spec{}, err
@@ -119,6 +125,15 @@ func Get(path string) (Spec, error) {
 	decoder.DisallowUnknownFields()
 	err = decoder.Decode(&fileSpec)
 	if err != nil {
+		_, ok := err.(*json.SyntaxError)
+		if ok {
+			return Spec{}, ErrNotParsable
+		}
+		// there is no other way to detect this error type unfortunately
+		// https://github.com/golang/go/blob/277609f844ed9254d25e975f7cf202d042beecc6/src/encoding/json/decode.go#L739
+		if strings.HasPrefix(err.Error(), "json: unknown field") {
+			return Spec{}, errors.WithMessagef(ErrUnknownFields, "%v", err)
+		}
 		return Spec{}, err
 	}
 	return fileSpec, nil
