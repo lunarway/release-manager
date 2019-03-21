@@ -82,13 +82,25 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 		// At least one container is still running or is in the process of being restarted.
 		case v1.PodRunning:
 			log.WithFields("pod", fmt.Sprintf("%v", pod)).Infof("PodRunning: pod=%s, reason=%s, message=%s", pod.Name, pod.Status.Reason, pod.Status.Message)
-			succeeded(&PodEvent{
-				Namespace: pod.Namespace,
-				PodName:   pod.Name,
-				Reason:    "",
-				Message:   "",
-			})
-
+			for _, cst := range pod.Status.ContainerStatuses {
+				if cst.State.Waiting.Reason == "CrashLoopBackOff" {
+					failed(&PodEvent{
+						Namespace: pod.Namespace,
+						PodName:   pod.Name,
+						Reason:    cst.State.Waiting.Reason,
+						Message:   cst.State.Waiting.Message,
+					})
+					return
+				}
+				if cst.State.Running != nil {
+					succeeded(&PodEvent{
+						Namespace: pod.Namespace,
+						PodName:   pod.Name,
+						Reason:    "",
+						Message:   "",
+					})
+				}
+			}
 		// PodFailed means that all containers in the pod have terminated, and at least one container has
 		// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
 		case v1.PodFailed:
@@ -113,8 +125,8 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 						Reason:    cst.State.Waiting.Reason,
 						Message:   cst.State.Waiting.Message,
 					})
+					return
 				}
-
 			}
 
 		// PodUnknown means that for some reason the state of the pod could not be obtained, typically due
@@ -122,8 +134,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 		case v1.PodUnknown:
 			log.WithFields("pod", fmt.Sprintf("%v", pod)).Infof("PodUnknown: pod=%s, reason=%s, message=%s", pod.Name, pod.Status.Reason, pod.Status.Message)
 
-		// PodSucceeded means that all containers in the pod have voluntarily terminated
-		// with a container exit code of 0, and the system is not going to restart any of these containers.
+		// PodSucceeded means that all containers in the pod have voluntarily terminate	// with a container exit code of 0, and the system is not going to restart any of these containers.
 		case v1.PodSucceeded:
 			log.WithFields("pod", fmt.Sprintf("%v", pod)).Infof("PodSucceeded: pod=%s, reason=%s, message=%s", pod.Name, pod.Status.Reason, pod.Status.Message)
 		}
