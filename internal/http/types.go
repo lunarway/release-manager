@@ -36,6 +36,24 @@ type PromoteResponse struct {
 	ToEnvironment   string `json:"toEnvironment,omitempty"`
 	Tag             string `json:"tag,omitempty"`
 }
+
 type ErrorResponse struct {
 	Message string `json:"message,omitempty"`
+}
+
+type ReleaseRequest struct {
+	Service        string `json:"service,omitempty"`
+	Environment    string `json:"environment,omitempty"`
+	Branch         string `json:"branch,omitempty"`
+	ArtifactID     string `json:"artifactId,omitempty"`
+	CommitterName  string `json:"committerName,omitempty"`
+	CommitterEmail string `json:"committerEmail,omitempty"`
+}
+
+type ReleaseResponse struct {
+	Service       string `json:"service,omitempty"`
+	ReleaseID     string `json:"releaseId,omitempty"`
+	Status        string `json:"status,omitempty"`
+	ToEnvironment string `json:"toEnvironment,omitempty"`
+	Tag           string `json:"tag,omitempty"`
 }
