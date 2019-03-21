@@ -74,16 +74,13 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 	log.Infof("Event received: %s, pod=%s", e.Type, pod.Name)
 	switch e.Type {
 	case watch.Modified:
-		log.Infof("In modified state: pod=%s, pod.Status.Phase=%s", pod.Name, pod.Status.Phase)
-
 		switch pod.Status.Phase {
 
 		// PodRunning means the pod has been bound to a node and all of the containers have been started.
 		// At least one container is still running or is in the process of being restarted.
 		case v1.PodRunning:
-			log.WithFields("pod", fmt.Sprintf("%v", pod)).Infof("PodRunning: pod=%s, reason=%s, message=%s", pod.Name, pod.Status.Reason, pod.Status.Message)
 			for _, cst := range pod.Status.ContainerStatuses {
-				if cst.State.Waiting.Reason == "CrashLoopBackOff" {
+				if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CrashLoopBackOff" {
 					failed(&PodEvent{
 						Namespace: pod.Namespace,
 						PodName:   pod.Name,
@@ -92,6 +89,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 					})
 					return
 				}
+
 				if cst.State.Running != nil {
 					succeeded(&PodEvent{
 						Namespace: pod.Namespace,
@@ -104,7 +102,6 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 		// PodFailed means that all containers in the pod have terminated, and at least one container has
 		// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
 		case v1.PodFailed:
-			log.WithFields("pod", fmt.Sprintf("%v", pod)).Infof("PodFailed: pod=%s, reason=%s, message=%s", pod.Name, pod.Status.Reason, pod.Status.Message)
 			failed(&PodEvent{
 				Namespace: pod.Namespace,
 				PodName:   pod.Name,
