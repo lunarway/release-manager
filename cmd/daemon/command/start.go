@@ -29,6 +29,15 @@ func StartDaemon() *cobra.Command {
 			}
 
 			failedFunc := func(event *kubernetes.PodEvent) error {
+
+				if event.Reason == "CrashLoopBackOff" {
+					logs, err := kubectl.GetLogs(event.PodName, event.Namespace)
+					if err != nil {
+						return err
+					}
+					log.WithFields("logs", logs).Infof("CrashLoopBackOff Logs")
+				}
+
 				//TODO: send event to release-manager
 				log.WithFields("namespace", event.Namespace,
 					"name", event.PodName,

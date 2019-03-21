@@ -1,8 +1,10 @@
 package kubernetes
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
@@ -34,6 +36,28 @@ func NewClient() (*Client, error) {
 	}
 
 	return &client, nil
+}
+func (c *Client) GetLogs(podName, namespace string) (string, error) {
+	numberOfLogLines := int64(50)
+	podLogOpts := v1.PodLogOptions{
+		TailLines: &numberOfLogLines,
+	}
+	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, &podLogOpts)
+
+	podLogs, err := req.Stream()
+	if err != nil {
+		return "", err
+	}
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return "", err
+	}
+	str := buf.String()
+
+	return str, nil
 }
 
 func (c *Client) WatchPods(ctx context.Context, succeeded, failed NotifyFunc) error {
