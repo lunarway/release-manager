@@ -5,12 +5,13 @@ import (
 
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"time"
 )
 
-func Test(t *testing.T) {
+func TestStatusNotifier(t *testing.T) {
 	log.Init()
 	testCases := []struct {
 		desc          string
@@ -19,24 +20,109 @@ func Test(t *testing.T) {
 		failureOutput *PodEvent
 	}{
 		{
-			desc: "Pod Running",
+			desc: "Pod in State: Running",
 			input: watch.Event{
 				Type: watch.Modified,
 				Object: &v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "product-77d79cf64-59mjj",
+						Name:      "product-77d79cf64-59mjj",
+						Namespace: "dev",
 						Annotations: map[string]string{
 							"lunarway.com/controlled-by-release-manager": "true",
+							"lunarway.com/artifact-id":                   "master-7039119b9c-6a95af9e3f",
 						},
 					},
 					Status: v1.PodStatus{
 						Phase: v1.PodRunning,
+						ContainerStatuses: []v1.ContainerStatus{
+							{
+								State: v1.ContainerState{
+									Running: &v1.ContainerStateRunning{
+										StartedAt: metav1.Time{
+											Time: time.Now(),
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			},
 			successOutput: &PodEvent{
-				PodName: "product-77d79cf64-59mjj",
+				PodName:    "product-77d79cf64-59mjj",
+				Namespace:  "dev",
+				Status:     "success",
+				ArtifactID: "master-7039119b9c-6a95af9e3f",
+				Reason:     "",
+				Message:    "",
 			},
+			failureOutput: nil,
+		},
+		{
+			desc: "Pod in State: CrashLoopBackOff",
+			input: watch.Event{
+				Type: watch.Modified,
+				Object: &v1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "product-77d79cf64-59mjj",
+						Namespace: "dev",
+						Annotations: map[string]string{
+							"lunarway.com/controlled-by-release-manager": "true",
+							"lunarway.com/artifact-id":                   "master-7039119b9c-6a95af9e3f",
+						},
+					},
+					Status: v1.PodStatus{
+						Phase: v1.PodRunning,
+						ContainerStatuses: []v1.ContainerStatus{
+							{
+								State: v1.ContainerState{
+									Waiting: &v1.ContainerStateWaiting{
+										Message: "there should be something here",
+										Reason:  "CrashLoopBackOff",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			successOutput: nil,
+			failureOutput: &PodEvent{
+				PodName:    "product-77d79cf64-59mjj",
+				Namespace:  "dev",
+				Status:     "failure",
+				ArtifactID: "master-7039119b9c-6a95af9e3f",
+				Reason:     "CrashLoopBackOff",
+				Message:    "there should be something here",
+			},
+		},
+		{
+			desc: "Pod in State: Running with State.Waiting nil",
+			input: watch.Event{
+				Type: watch.Modified,
+				Object: &v1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "product-77d79cf64-59mjj",
+						Namespace: "dev",
+						Annotations: map[string]string{
+							"lunarway.com/controlled-by-release-manager": "true",
+							"lunarway.com/artifact-id":                   "master-7039119b9c-6a95af9e3f",
+						},
+					},
+					Status: v1.PodStatus{
+						Phase: v1.PodRunning,
+						ContainerStatuses: []v1.ContainerStatus{
+							{
+								State: v1.ContainerState{
+									Waiting: nil,
+								},
+							},
+						},
+					},
+				},
+			},
+			successOutput: nil,
+			failureOutput: nil,
 		},
 	}
 	for _, tC := range testCases {
@@ -53,9 +139,13 @@ func Test(t *testing.T) {
 			})
 			if tC.successOutput != nil {
 				assert.True(t, successCalled, "expected success callback to be called")
+			} else {
+				assert.False(t, successCalled, "expected success callback NOT to be called")
 			}
 			if tC.failureOutput != nil {
-				assert.True(t, failedCalled, "expected fail callback to be called")
+				assert.True(t, failedCalled, "expected failure callback to be called")
+			} else {
+				assert.False(t, failedCalled, "expected failure callback NOT to be called")
 			}
 		})
 	}

@@ -22,7 +22,6 @@ func StartDaemon() *cobra.Command {
 				//TODO: send event to release-manager
 				log.WithFields("namespace", event.Namespace,
 					"name", event.PodName,
-					"exitCode", event.ExitCode,
 					"reason", event.Reason,
 				).Infof("Success: pod=%s", event.PodName)
 				return nil
@@ -40,7 +39,6 @@ func StartDaemon() *cobra.Command {
 				//TODO: send event to release-manager
 				log.WithFields("namespace", event.Namespace,
 					"name", event.PodName,
-					"exitCode", event.ExitCode,
 					"reason", event.Reason,
 					"message", event.Message,
 				).Infof("Failure: pod=%s, reason=%s", event.PodName, event.Reason)

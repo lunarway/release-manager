@@ -70,7 +70,6 @@ func (c *Client) WatchPods(ctx context.Context, succeeded, failed NotifyFunc) er
 		select {
 		case e := <-watcher.ResultChan():
 			if e.Object == nil {
-				log.Errorf("Object not found: %v, type=%v", e.Object, e.Type)
 				continue
 			}
 			statusNotifier(e, succeeded, failed)
@@ -94,6 +93,14 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 		return
 	}
 
+	//
+	if pod.Annotations["lunarway.com/artifact-id"] == "" {
+		log.Errorf("artifact-id missing in deployment")
+		return
+	}
+
+	artifactId := pod.Annotations["lunarway.com/artifact-id"]
+
 	switch e.Type {
 	case watch.Modified:
 		switch pod.Status.Phase {
@@ -104,58 +111,68 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 			for _, cst := range pod.Status.ContainerStatuses {
 				if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CrashLoopBackOff" {
 					failed(&PodEvent{
-						Namespace: pod.Namespace,
-						PodName:   pod.Name,
-						Reason:    cst.State.Waiting.Reason,
-						Message:   cst.State.Waiting.Message,
+						Namespace:  pod.Namespace,
+						PodName:    pod.Name,
+						ArtifactID: artifactId,
+						Status:     "failure",
+						Reason:     cst.State.Waiting.Reason,
+						Message:    cst.State.Waiting.Message,
 					})
 					return
 				}
 
 				if cst.State.Running != nil {
 					succeeded(&PodEvent{
-						Namespace: pod.Namespace,
-						PodName:   pod.Name,
-						Reason:    "",
-						Message:   "",
+						Namespace:  pod.Namespace,
+						PodName:    pod.Name,
+						ArtifactID: artifactId,
+						Status:     "success",
+						Reason:     "",
+						Message:    "",
 					})
+					return
 				}
 			}
-		// PodFailed means that all containers in the pod have terminated, and at least one container has
-		// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
+			// PodFailed means that all containers in the pod have terminated, and at least one container has
+			// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
 		case v1.PodFailed:
 			failed(&PodEvent{
-				Namespace: pod.Namespace,
-				PodName:   pod.Name,
-				Reason:    pod.Status.Reason,
-				Message:   pod.Status.Message,
+				Namespace:  pod.Namespace,
+				PodName:    pod.Name,
+				ArtifactID: artifactId,
+				Reason:     pod.Status.Reason,
+				Message:    pod.Status.Message,
 			})
+			return
 
-		// PodPending means the pod has been accepted by the system, but one or more of the containers
-		// has not been started. This includes time before being bound to a node, as well as time spent
-		// pulling images onto the host.
+			// PodPending means the pod has been accepted by the system, but one or more of the containers
+			// has not been started. This includes time before being bound to a node, as well as time spent
+			// pulling images onto the host.
 		case v1.PodPending:
 			log.WithFields("pod", fmt.Sprintf("%v", pod)).Infof("PodPending: pod=%s, reason=%s, message=%s", pod.Name, pod.Status.Reason, pod.Status.Message)
 			for _, cst := range pod.Status.ContainerStatuses {
 				if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CreateContainerConfigError" {
 					failed(&PodEvent{
-						Namespace: pod.Namespace,
-						PodName:   pod.Name,
-						Reason:    cst.State.Waiting.Reason,
-						Message:   cst.State.Waiting.Message,
+						Namespace:  pod.Namespace,
+						PodName:    pod.Name,
+						ArtifactID: artifactId,
+						Reason:     cst.State.Waiting.Reason,
+						Message:    cst.State.Waiting.Message,
 					})
 					return
 				}
 			}
 
-		// PodUnknown means that for some reason the state of the pod could not be obtained, typically due
-		// to an error in communicating with the host of the pod.
+			// PodUnknown means that for some reason the state of the pod could not be obtained, typically due
+			// to an error in communicating with the host of the pod.
 		case v1.PodUnknown:
 			log.WithFields("pod", fmt.Sprintf("%v", pod)).Infof("PodUnknown: pod=%s, reason=%s, message=%s", pod.Name, pod.Status.Reason, pod.Status.Message)
+			return
 
-		// PodSucceeded means that all containers in the pod have voluntarily terminate	// with a container exit code of 0, and the system is not going to restart any of these containers.
+			// PodSucceeded means that all containers in the pod have voluntarily terminate	// with a container exit code of 0, and the system is not going to restart any of these containers.
 		case v1.PodSucceeded:
 			log.WithFields("pod", fmt.Sprintf("%v", pod)).Infof("PodSucceeded: pod=%s, reason=%s, message=%s", pod.Name, pod.Status.Reason, pod.Status.Message)
+			return
 		}
 	}
 }

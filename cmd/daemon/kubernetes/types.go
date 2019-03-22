@@ -1,18 +1,13 @@
 package kubernetes
 
-import (
-	"time"
-)
-
 // PodEvent represents Pod termination event
 type PodEvent struct {
-	Namespace  string
-	PodName    string
-	StartedAt  time.Time
-	FinishedAt time.Time
-	ExitCode   int
-	Reason     string
-	Message    string
+	Namespace  string `json:"namespace"`
+	PodName    string `json:"podName"`
+	Status     string `json:"status"`
+	Reason     string `json:"reason"`
+	Message    string `json:"message"`
+	ArtifactID string `json:"artifactId"`
 }
 
 // NotifyFunc represents callback function for Pod event

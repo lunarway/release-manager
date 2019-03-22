@@ -1,0 +1,14 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="go test lunar-way-product-service (no-cache)" type="GoTestRunConfiguration" factoryName="Go Test" nameIsGenerated="true">
+    <module name="lunar-way-product-service" />
+    <working_directory value="$PROJECT_DIR$" />
+    <go_parameters value="-count=1" />
+    <useCustomBuildTags value="true" />
+    <framework value="gotest" />
+    <kind value="DIRECTORY" />
+    <package value="bitbucket.org/LunarWay/lunar-way-product-service" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/" />
+    <method v="2" />
+  </configuration>
+</component>
