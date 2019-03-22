@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewPolicy(options *Options) *cobra.Command {
+func NewPolicy(client *client) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "policy",
 		Short: "Promote a service to a specific environment following promoting conventions.",

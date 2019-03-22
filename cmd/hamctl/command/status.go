@@ -1,9 +1,9 @@
 package command
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/lunarway/color"
@@ -11,44 +11,33 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewStatus(options *Options) *cobra.Command {
+func NewStatus(client *client) *cobra.Command {
 	var serviceName, configRepo, artifactFileName string
 	var command = &cobra.Command{
 		Use:   "status",
 		Short: "List the status of the environments",
 		RunE: func(c *cobra.Command, args []string) error {
-			url := options.httpBaseURL + "/status?service=" + serviceName
-
-			client := &http.Client{
-				Timeout: options.httpTimeout,
-			}
-
-			req, err := http.NewRequest("GET", url, nil)
+			var resp httpinternal.StatusResponse
+			params := url.Values{}
+			params.Add("service", serviceName)
+			path, err := client.urlWithQuery("status", params)
 			if err != nil {
 				return err
 			}
-			req.Header.Set("Authorization", "Bearer "+options.authToken)
-			resp, err := client.Do(req)
-			if err != nil {
-				return err
-			}
+			err = client.req(http.MethodGet, path, nil, &resp)
 
-			decoder := json.NewDecoder(resp.Body)
-			var r httpinternal.StatusResponse
-
-			err = decoder.Decode(&r)
 			if err != nil {
 				return err
 			}
 			fmt.Printf("\n")
 			color.Green("k8s.dev.lunarway.com\n")
-			printStatus(r.Dev)
+			printStatus(resp.Dev)
 
 			color.Green("k8s.staging.lunarway.com\n")
-			printStatus(r.Staging)
+			printStatus(resp.Staging)
 
 			color.Green("kubernetes.prod.lunarway.com\n")
-			printStatus(r.Prod)
+			printStatus(resp.Prod)
 			return nil
 		},
 	}
