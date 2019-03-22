@@ -137,7 +137,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 		case v1.PodPending:
 			log.WithFields("pod", fmt.Sprintf("%v", pod)).Infof("PodPending: pod=%s, reason=%s, message=%s", pod.Name, pod.Status.Reason, pod.Status.Message)
 			for _, cst := range pod.Status.ContainerStatuses {
-				if cst.State.Waiting.Reason == "CreateContainerConfigError" {
+				if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CreateContainerConfigError" {
 					failed(&PodEvent{
 						Namespace: pod.Namespace,
 						PodName:   pod.Name,
