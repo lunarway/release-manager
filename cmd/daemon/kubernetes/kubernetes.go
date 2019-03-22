@@ -7,8 +7,7 @@ import (
 	"io"
 
 	"github.com/lunarway/release-manager/internal/log"
-	"github.com/pkg/errors"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -71,8 +70,8 @@ func (c *Client) WatchPods(ctx context.Context, succeeded, failed NotifyFunc) er
 		select {
 		case e := <-watcher.ResultChan():
 			if e.Object == nil {
-				log.Errorf("Object not found: %v", e.Object)
-				return errors.New("object not found")
+				log.Errorf("Object not found: %v, type=%v", e.Object, e.Type)
+				continue
 			}
 			statusNotifier(e, succeeded, failed)
 
