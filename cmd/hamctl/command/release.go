@@ -1,8 +1,6 @@
 package command
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -12,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewRelease(options *Options) *cobra.Command {
+func NewRelease(client *client) *cobra.Command {
 	var serviceName, environment, branch, artifact string
 	var command = &cobra.Command{
 		Use:   "release",
@@ -31,62 +29,30 @@ Release latest artifact from branch 'master' of service 'product' into environem
 			if branch == "" && artifact == "" {
 				return errors.New("--branch or --artifact is required")
 			}
-			url := options.httpBaseURL + "/release"
-
-			client := &http.Client{
-				Timeout: options.httpTimeout,
-			}
-
 			committerName, committerEmail, err := git.CommitterDetails()
 			if err != nil {
 				return err
 			}
-
-			releaseRequest := httpinternal.ReleaseRequest{
+			var resp httpinternal.ReleaseResponse
+			path, err := client.url("release")
+			if err != nil {
+				return err
+			}
+			err = client.req(http.MethodPost, path, httpinternal.ReleaseRequest{
 				Service:        serviceName,
 				Environment:    environment,
 				Branch:         branch,
 				ArtifactID:     artifact,
 				CommitterName:  committerName,
 				CommitterEmail: committerEmail,
-			}
-
-			b := new(bytes.Buffer)
-			err = json.NewEncoder(b).Encode(releaseRequest)
+			}, &resp)
 			if err != nil {
 				return err
 			}
-
-			req, err := http.NewRequest(http.MethodPost, url, b)
-			if err != nil {
-				return err
-			}
-			req.Header.Set("Authorization", "Bearer "+options.authToken)
-			resp, err := client.Do(req)
-			if err != nil {
-				return err
-			}
-			decoder := json.NewDecoder(resp.Body)
-			if resp.StatusCode != http.StatusOK {
-				var r httpinternal.ErrorResponse
-				err = decoder.Decode(&r)
-				if err != nil {
-					return err
-				}
-				return errors.New(r.Message)
-			}
-
-			var r httpinternal.ReleaseResponse
-
-			err = decoder.Decode(&r)
-			if err != nil {
-				return errors.WithMessage(err, "decode HTTP response")
-			}
-
-			if r.Status != "" {
-				fmt.Printf("%s\n", r.Status)
+			if resp.Status != "" {
+				fmt.Printf("%s\n", resp.Status)
 			} else {
-				fmt.Printf("[✓] Release of %s to %s initialized\n", r.Tag, r.ToEnvironment)
+				fmt.Printf("[✓] Release of %s to %s initialized\n", resp.Tag, resp.ToEnvironment)
 			}
 
 			return nil

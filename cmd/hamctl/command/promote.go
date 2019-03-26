@@ -1,77 +1,43 @@
 package command
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
-func NewPromote(options *Options) *cobra.Command {
+func NewPromote(client *client) *cobra.Command {
 	var serviceName, environment, configRepo, artifactFileName string
 	var command = &cobra.Command{
 		Use:   "promote",
 		Short: "Promote a service to a specific environment following promoting conventions.",
 		RunE: func(c *cobra.Command, args []string) error {
-			url := options.httpBaseURL + "/promote"
-
-			client := &http.Client{
-				Timeout: options.httpTimeout,
-			}
-
 			committerName, committerEmail, err := git.CommitterDetails()
 			if err != nil {
 				return err
 			}
 
-			promReq := httpinternal.PromoteRequest{
+			var resp httpinternal.PromoteResponse
+			url, err := client.url("promote")
+			if err != nil {
+				return err
+			}
+			err = client.req(http.MethodPost, url, httpinternal.PromoteRequest{
 				Service:        serviceName,
 				Environment:    environment,
 				CommitterName:  committerName,
 				CommitterEmail: committerEmail,
-			}
-
-			b := new(bytes.Buffer)
-			err = json.NewEncoder(b).Encode(promReq)
+			}, &resp)
 			if err != nil {
 				return err
 			}
-
-			req, err := http.NewRequest(http.MethodPost, url, b)
-			if err != nil {
-				return err
-			}
-			req.Header.Set("Authorization", "Bearer "+options.authToken)
-			resp, err := client.Do(req)
-			if err != nil {
-				return err
-			}
-
-			decoder := json.NewDecoder(resp.Body)
-			if resp.StatusCode != http.StatusOK {
-				var r httpinternal.ErrorResponse
-				err = decoder.Decode(&r)
-				if err != nil {
-					return err
-				}
-				return errors.Errorf("Failed to promote: %s", r.Message)
-			}
-
-			var r httpinternal.PromoteResponse
-			err = decoder.Decode(&r)
-			if err != nil {
-				return err
-			}
-
-			if r.Status != "" {
-				fmt.Printf("%s\n", r.Status)
+			if resp.Status != "" {
+				fmt.Printf("%s\n", resp.Status)
 			} else {
-				fmt.Printf("[✓] Promotion of %s from %s to %s initialized\n", r.Tag, r.FromEnvironment, r.ToEnvironment)
+				fmt.Printf("[✓] Promotion of %s from %s to %s initialized\n", resp.Tag, resp.FromEnvironment, resp.ToEnvironment)
 			}
 
 			return nil
