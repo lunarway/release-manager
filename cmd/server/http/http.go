@@ -23,7 +23,8 @@ func NewServer(port int, timeout time.Duration, configRepo, artifactFileName, ss
 	mux.HandleFunc("/promote", promote(configRepo, artifactFileName, sshPrivateKeyPath))
 	mux.HandleFunc("/release", release(configRepo, artifactFileName, sshPrivateKeyPath))
 	mux.HandleFunc("/status", status(configRepo, artifactFileName, sshPrivateKeyPath))
-	mux.HandleFunc("/webhook", webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret))
+	mux.HandleFunc("/webhook/github", githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret))
+	mux.HandleFunc("/webhook/daemon", daemonWebhook())
 
 	s := http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
@@ -47,7 +48,7 @@ func ping(w http.ResponseWriter, r *http.Request) {
 
 func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		valid := validateToken(r.Header.Get("Authorization"))
+		valid := validateToken(r.Header.Get("Authorization"),"HAMCTL_AUTH_TOKEN")
 		if !valid {
 			http.Error(w, "not authorized", http.StatusUnauthorized)
 			return
@@ -121,7 +122,27 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 	}
 }
 
-func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret string) http.HandlerFunc {
+func daemonWebhook() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		valid := validateToken(r.Header.Get("Authorization"),"DAEMON_AUTH_TOKEN")
+		if !valid {
+			http.Error(w, "not authorized", http.StatusUnauthorized)
+			return
+		}
+		decoder := json.NewDecoder(r.Body)
+		var req httpinternal.PromoteRequest
+
+		err := decoder.Decode(&req)
+		if err != nil {
+			log.Errorf("Decode request body failed: %v", err)
+			http.Error(w, "Invalid payload", http.StatusBadRequest)
+			return
+		}
+
+	}
+}
+
+func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		hook, _ := github.New(github.Options.Secret(githubWebhookSecret))
 		payload, err := hook.Parse(r, github.PushEvent)
@@ -172,7 +193,7 @@ func webhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecre
 
 func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		valid := validateToken(r.Header.Get("Authorization"))
+		valid := validateToken(r.Header.Get("Authorization"),"HAMCTL_AUTH_TOKEN")
 		if !valid {
 			http.Error(w, "not authorized", http.StatusUnauthorized)
 			return
@@ -231,7 +252,7 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 
 func release(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		valid := validateToken(r.Header.Get("Authorization"))
+		valid := validateToken(r.Header.Get("Authorization"), "HAMCTL_AUTH_TOKEN")
 		if !valid {
 			Error(w, "not authorized", http.StatusUnauthorized)
 			return
@@ -297,8 +318,8 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 	}
 }
 
-func validateToken(reqToken string) bool {
-	serverToken := os.Getenv("RELEASE_MANAGER_AUTH_TOKEN")
+func validateToken(reqToken, tokenEnvVar string) bool {
+	serverToken := os.Getenv(tokenEnvVar)
 	token := strings.TrimPrefix(reqToken, "Bearer ")
 
 	if token == serverToken {
