@@ -48,7 +48,7 @@ func ping(w http.ResponseWriter, r *http.Request) {
 
 func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		valid := validateToken(r.Header.Get("Authorization"),"HAMCTL_AUTH_TOKEN")
+		valid := validateToken(r.Header.Get("Authorization"), "HAMCTL_AUTH_TOKEN")
 		if !valid {
 			http.Error(w, "not authorized", http.StatusUnauthorized)
 			return
@@ -124,9 +124,9 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 
 func daemonWebhook() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		valid := validateToken(r.Header.Get("Authorization"),"DAEMON_AUTH_TOKEN")
+		valid := validateToken(r.Header.Get("Authorization"), "DAEMON_AUTH_TOKEN")
 		if !valid {
-			http.Error(w, "not authorized", http.StatusUnauthorized)
+			Error(w, "not authorized", http.StatusUnauthorized)
 			return
 		}
 		decoder := json.NewDecoder(r.Body)
@@ -134,18 +134,18 @@ func daemonWebhook() http.HandlerFunc {
 
 		err := decoder.Decode(&req)
 		if err != nil {
-			log.Errorf("Decode request body failed: %v", err)
+			log.Errorf("daemon webhook failed: decode request body failed: %v", err)
 			http.Error(w, "Invalid payload", http.StatusBadRequest)
 			return
 		}
 
-		log.WithFields("pod",req.PodName,
+		log.WithFields("pod", req.PodName,
 			"namespace", req.Namespace,
 			"status", req.Status,
 			"message", req.Message,
 			"reason", req.Reason,
 			"artifactId", req.ArtifactID,
-			"logs", req.Logs).Infof("Pod event received: %s, status=%s",req.PodName, req.Status)
+			"logs", req.Logs).Infof("Pod event received: %s, status=%s", req.PodName, req.Status)
 	}
 }
 
@@ -200,7 +200,7 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 
 func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		valid := validateToken(r.Header.Get("Authorization"),"HAMCTL_AUTH_TOKEN")
+		valid := validateToken(r.Header.Get("Authorization"), "HAMCTL_AUTH_TOKEN")
 		if !valid {
 			http.Error(w, "not authorized", http.StatusUnauthorized)
 			return
