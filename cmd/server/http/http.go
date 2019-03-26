@@ -130,7 +130,7 @@ func daemonWebhook() http.HandlerFunc {
 			return
 		}
 		decoder := json.NewDecoder(r.Body)
-		var req httpinternal.PromoteRequest
+		var req httpinternal.StatusNotifyRequest
 
 		err := decoder.Decode(&req)
 		if err != nil {
@@ -139,6 +139,13 @@ func daemonWebhook() http.HandlerFunc {
 			return
 		}
 
+		log.WithFields("pod",req.PodName,
+			"namespace", req.Namespace,
+			"status", req.Status,
+			"message", req.Message,
+			"reason", req.Reason,
+			"artifactId", req.ArtifactID,
+			"logs", req.Logs).Infof("Pod event received")
 	}
 }
 
