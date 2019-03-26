@@ -140,6 +140,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 				Namespace:  pod.Namespace,
 				PodName:    pod.Name,
 				ArtifactID: artifactId,
+				Status:     "failure",
 				Reason:     pod.Status.Reason,
 				Message:    pod.Status.Message,
 			})
@@ -155,6 +156,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 					failed(&PodEvent{
 						Namespace:  pod.Namespace,
 						PodName:    pod.Name,
+						Status:     "failure",
 						ArtifactID: artifactId,
 						Reason:     cst.State.Waiting.Reason,
 						Message:    cst.State.Waiting.Message,

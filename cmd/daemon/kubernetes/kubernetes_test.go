@@ -24,14 +24,7 @@ func TestStatusNotifier(t *testing.T) {
 			input: watch.Event{
 				Type: watch.Modified,
 				Object: &v1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "product-77d79cf64-59mjj",
-						Namespace: "dev",
-						Annotations: map[string]string{
-							"lunarway.com/controlled-by-release-manager": "true",
-							"lunarway.com/artifact-id":                   "master-7039119b9c-6a95af9e3f",
-						},
-					},
+					ObjectMeta: defaultObjectMetaData(),
 					Status: v1.PodStatus{
 						Phase: v1.PodRunning,
 						ContainerStatuses: []v1.ContainerStatus{
@@ -59,18 +52,11 @@ func TestStatusNotifier(t *testing.T) {
 			failureOutput: nil,
 		},
 		{
-			desc: "Pod in State: CrashLoopBackOff",
+			desc: "Pod in State: Running with CrashLoopBackOff",
 			input: watch.Event{
 				Type: watch.Modified,
 				Object: &v1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "product-77d79cf64-59mjj",
-						Namespace: "dev",
-						Annotations: map[string]string{
-							"lunarway.com/controlled-by-release-manager": "true",
-							"lunarway.com/artifact-id":                   "master-7039119b9c-6a95af9e3f",
-						},
-					},
+					ObjectMeta: defaultObjectMetaData(),
 					Status: v1.PodStatus{
 						Phase: v1.PodRunning,
 						ContainerStatuses: []v1.ContainerStatus{
@@ -101,14 +87,7 @@ func TestStatusNotifier(t *testing.T) {
 			input: watch.Event{
 				Type: watch.Modified,
 				Object: &v1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "product-77d79cf64-59mjj",
-						Namespace: "dev",
-						Annotations: map[string]string{
-							"lunarway.com/controlled-by-release-manager": "true",
-							"lunarway.com/artifact-id":                   "master-7039119b9c-6a95af9e3f",
-						},
-					},
+					ObjectMeta: defaultObjectMetaData(),
 					Status: v1.PodStatus{
 						Phase: v1.PodRunning,
 						ContainerStatuses: []v1.ContainerStatus{
@@ -118,6 +97,109 @@ func TestStatusNotifier(t *testing.T) {
 								},
 							},
 						},
+					},
+				},
+			},
+			successOutput: nil,
+			failureOutput: nil,
+		},
+		{
+			desc: "Pod in State: Waiting with CreateContainerConfigError",
+			input: watch.Event{
+				Type: watch.Modified,
+				Object: &v1.Pod{
+					ObjectMeta: defaultObjectMetaData(),
+					Status: v1.PodStatus{
+						Phase: v1.PodPending,
+						ContainerStatuses: []v1.ContainerStatus{
+							{
+								State: v1.ContainerState{
+									Waiting: &v1.ContainerStateWaiting{
+										Message: "some config did not match",
+										Reason:  "CreateContainerConfigError",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			successOutput: nil,
+			failureOutput: &PodEvent{
+				PodName:    "product-77d79cf64-59mjj",
+				Namespace:  "dev",
+				Status:     "failure",
+				ArtifactID: "master-7039119b9c-6a95af9e3f",
+				Reason:     "CreateContainerConfigError",
+				Message:    "some config did not match",
+			},
+		},
+		{
+			desc: "Pod in State: Waiting with State.Waiting=nil",
+			input: watch.Event{
+				Type: watch.Modified,
+				Object: &v1.Pod{
+					ObjectMeta: defaultObjectMetaData(),
+					Status: v1.PodStatus{
+						Phase: v1.PodPending,
+						ContainerStatuses: []v1.ContainerStatus{
+							{
+								State: v1.ContainerState{
+									Waiting: nil,
+								},
+							},
+						},
+					},
+				},
+			},
+			successOutput: nil,
+			failureOutput: nil,
+		},
+		{
+			desc: "Pod in State: Failed",
+			input: watch.Event{
+				Type: watch.Modified,
+				Object: &v1.Pod{
+					ObjectMeta: defaultObjectMetaData(),
+					Status: v1.PodStatus{
+						Phase:   v1.PodFailed,
+						Message: "Some message",
+						Reason:  "Some reason",
+					},
+				},
+			},
+			successOutput: nil,
+			failureOutput: &PodEvent{
+				PodName:    "product-77d79cf64-59mjj",
+				Namespace:  "dev",
+				Status:     "failure",
+				ArtifactID: "master-7039119b9c-6a95af9e3f",
+				Reason:     "Some reason",
+				Message:    "Some message",
+			},
+		},
+		{
+			desc: "Pod in State: Unknown",
+			input: watch.Event{
+				Type: watch.Modified,
+				Object: &v1.Pod{
+					ObjectMeta: defaultObjectMetaData(),
+					Status: v1.PodStatus{
+						Phase: v1.PodUnknown,
+					},
+				},
+			},
+			successOutput: nil,
+			failureOutput: nil,
+		},
+		{
+			desc: "Pod in State: Succeeded",
+			input: watch.Event{
+				Type: watch.Modified,
+				Object: &v1.Pod{
+					ObjectMeta: defaultObjectMetaData(),
+					Status: v1.PodStatus{
+						Phase: v1.PodSucceeded,
 					},
 				},
 			},
@@ -148,5 +230,16 @@ func TestStatusNotifier(t *testing.T) {
 				assert.False(t, failedCalled, "expected failure callback NOT to be called")
 			}
 		})
+	}
+}
+
+func defaultObjectMetaData() metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      "product-77d79cf64-59mjj",
+		Namespace: "dev",
+		Annotations: map[string]string{
+			"lunarway.com/controlled-by-release-manager": "true",
+			"lunarway.com/artifact-id":                   "master-7039119b9c-6a95af9e3f",
+		},
 	}
 }
