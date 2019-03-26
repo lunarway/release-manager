@@ -145,7 +145,7 @@ func daemonWebhook() http.HandlerFunc {
 			"message", req.Message,
 			"reason", req.Reason,
 			"artifactId", req.ArtifactID,
-			"logs", req.Logs).Infof("Pod event received")
+			"logs", req.Logs).Infof("Pod event received: %s, status=%s",req.PodName, req.Status)
 	}
 }
 
