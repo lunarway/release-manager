@@ -175,6 +175,10 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 		case v1.PodSucceeded:
 			log.WithFields("pod", fmt.Sprintf("%v", pod)).Infof("PodSucceeded: pod=%s, reason=%s, message=%s", pod.Name, pod.Status.Reason, pod.Status.Message)
 			return
+
+		default:
+			log.WithFields("pod", fmt.Sprintf("%v", pod)).Infof("Default case: pod=%s, reason=%s, message=%s", pod.Name, pod.Status.Reason, pod.Status.Message)
+			return
 		}
 	}
 }
