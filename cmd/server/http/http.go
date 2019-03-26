@@ -13,6 +13,7 @@ import (
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
+	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 	"gopkg.in/go-playground/webhooks.v5/github"
@@ -24,13 +25,14 @@ type Options struct {
 	GithubWebhookSecret string
 	HamCtlAuthToken     string
 	DaemonAuthToken     string
+	SlackAuthToken      string
 
 	ConfigRepo        string
 	ArtifactFileName  string
 	SSHPrivateKeyPath string
 }
 
-func NewServer(opts *Options) error {
+func NewServer(opts *Options, client *slack.Client) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
 	mux.HandleFunc("/promote", authenticate(opts.HamCtlAuthToken, promote(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
@@ -38,7 +40,7 @@ func NewServer(opts *Options) error {
 	mux.HandleFunc("/status", authenticate(opts.HamCtlAuthToken, status(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
 	mux.HandleFunc("/policies", authenticate(opts.HamCtlAuthToken, policy(opts.ConfigRepo, opts.SSHPrivateKeyPath)))
 	mux.HandleFunc("/webhook/github", githubWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.GithubWebhookSecret))
-	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook()))
+	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, client)))
 
 	s := http.Server{
 		Addr:              fmt.Sprintf(":%d", opts.Port),
@@ -147,7 +149,7 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 	}
 }
 
-func daemonWebhook() http.HandlerFunc {
+func daemonWebhook(configRepo, artifactFileName, sshPrivateKeyPath string, slackClient *slack.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 		var req httpinternal.StatusNotifyRequest
@@ -156,6 +158,13 @@ func daemonWebhook() http.HandlerFunc {
 		if err != nil {
 			log.Errorf("daemon webhook failed: decode request body failed: %v", err)
 			http.Error(w, "Invalid payload", http.StatusBadRequest)
+			return
+		}
+
+		err = flow.NotifyCommitter(r.Context(), configRepo, artifactFileName, sshPrivateKeyPath, &req, slackClient)
+		if err != nil {
+			log.Errorf("notify committer failed: %v", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 

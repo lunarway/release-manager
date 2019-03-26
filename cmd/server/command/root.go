@@ -27,6 +27,7 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().StringVar(&options.ArtifactFileName, "artifact-filename", "artifact.json", "the filename of the artifact to be used")
 	command.PersistentFlags().StringVar(&options.SSHPrivateKeyPath, "ssh-private-key", "/etc/release-manager/ssh/identity", "ssh-private-key for the config repo")
 	command.PersistentFlags().StringVar(&options.GithubWebhookSecret, "github-webhook-secret", os.Getenv("GITHUB_WEBHOOK_SECRET"), "github webhook secret")
+	command.PersistentFlags().StringVar(&options.SlackAuthToken, "slack-token", os.Getenv("SLACK_TOKEN"), "token to be used to communicate with the slack api")
 
 	return command
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/lunarway/release-manager/cmd/server/http"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -18,9 +19,12 @@ func NewStart(options *http.Options) *cobra.Command {
 		Short: "start the release-manager",
 		RunE: func(c *cobra.Command, args []string) error {
 			done := make(chan error, 1)
-
+			client, err := slack.NewClient(options.SlackAuthToken)
+			if err != nil {
+				return err
+			}
 			go func() {
-				err := http.NewServer(options)
+				err := http.NewServer(options, client)
 				if err != nil {
 					done <- errors.WithMessage(err, "new http server")
 					return
@@ -36,7 +40,7 @@ func NewStart(options *http.Options) *cobra.Command {
 				}
 			}()
 
-			err := <-done
+			err = <-done
 			if err != nil {
 				log.Errorf("Exited unknown error: %v", err)
 				os.Exit(1)
@@ -45,6 +49,5 @@ func NewStart(options *http.Options) *cobra.Command {
 			return nil
 		},
 	}
-
 	return command
 }

@@ -42,7 +42,7 @@ test:
 	go test -v ./...
 
 server: build_server
-	RELEASE_MANAGER_AUTH_TOKEN=test ./dist/server start --ssh-private-key ~/.ssh/github
+	HAMCTL_AUTH_TOKEN=test DAEMON_AUTH_TOKEN=test ./dist/server start --ssh-private-key ~/.ssh/github --slack-token ${SLACK_TOKEN}
 
 release:
 	goreleaser --rm-dist --skip-publish
