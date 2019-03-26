@@ -57,3 +57,13 @@ type ReleaseResponse struct {
 	ToEnvironment string `json:"toEnvironment,omitempty"`
 	Tag           string `json:"tag,omitempty"`
 }
+
+type StatusNotifyRequest struct {
+	Namespace  string `json:"namespace,omitempty"`
+	PodName    string `json:"podName,omitempty"`
+	Status     string `json:"status,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	Message    string `json:"message,omitempty"`
+	ArtifactID string `json:"artifactId,omitempty"`
+	Logs string `json:"logs,omitempty"`
+}
