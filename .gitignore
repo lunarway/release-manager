@@ -2,3 +2,4 @@ dist/
 artifact-linux-amd64
 .tmp/
 .idea/
+/.vscode/
