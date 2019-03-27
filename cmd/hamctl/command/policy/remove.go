@@ -2,16 +2,18 @@ package policy
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
 
-func NewRemove() *cobra.Command {
+func NewRemove(service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "remove",
-		Short: "",
+		Short: "Remove policy",
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
-			fmt.Printf("Remove command")
+			fmt.Printf("Remove policies for %s: %s\n", *service, strings.Join(args, " "))
 			return nil
 		},
 	}

@@ -6,12 +6,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewList() *cobra.Command {
+func NewList(service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "list",
-		Short: "",
+		Short: "List current policies",
 		RunE: func(c *cobra.Command, args []string) error {
-			fmt.Printf("List command")
+			fmt.Printf("List policies for %s\n", *service)
 			return nil
 		},
 	}
