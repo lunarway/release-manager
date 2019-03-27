@@ -27,6 +27,57 @@ This is an example of adding an auto-release policy for the product service for 
 $ hamctl policy --service product add auto-release --branch master --env dev
 ```
 
+# Design
+
+The applications are basically utilities for moving files around a Git repository.
+The release manager is a server that can be instructed through an HTTP API to perform certain actions, e.g. promote a release, release an artifact.
+
+`hamctl` is a CLI for interacting with the server and `artifact` is a CLI for generating an artifact specification.
+
+## Directory structure
+
+Files are structured as shown below.
+
+Artifacts are stored in the `builds` directory.
+It contains artifacts based of Git branches on the application repositories and must contain resource definitions for the environments that it is able to be released to.
+
+In the root are folders for each environment, e.g. `dev`, `prod`.
+These folders contain a `releases` directory with kubernetes resource definitions of each namespace and their running applications.
+
+A `policies` directory holds all recorded release policies.
+These are stored as JSON files for each service.
+
+```
+.
+├── policies
+│   └── <service>.json
+├── builds
+│   └── <service>
+│       ├── <branches>
+│       └── master
+│           ├── artifact.json
+│           ├── <environment>
+│           └── dev
+│               ├── 01-configmap.yaml
+│               ├── 02-db-configmap.yaml
+│               ├── 40-deployment.yaml
+│               └── 50-service.yaml
+├── <environments>
+└── dev
+    ├── provisioning
+    └── releases
+        ├── <namespaces>
+        └── dev
+            └── <service>
+                ├── artifact.json
+                ├── 01-configmap.yaml
+                ├── 02-db-configmap.yaml
+                ├── 40-deployment.yaml
+                └── 50-service.yaml
+```
+
+# Installation
+
 ## Access to the config repository
 The release manager needs read/write permissions to the config repo.
 
@@ -40,7 +91,7 @@ This secret should be mounted to `/etc/release-manager/ssh`
 
 # Development
 
-The `Makefile` exposes targets for building, testing and deploying the release manager.
+The `Makefile` exposes targets for building, testing and deploying the release manager and its CLIs.
 See it for details.
 
 The most common operations are build and tests.
