@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
 
-func NewRemove(service *string) *cobra.Command {
+func NewRemove(client *httpinternal.Client, service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "remove",
 		Short: "Remove policy",

@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewRelease(client *client) *cobra.Command {
+func NewRelease(client *httpinternal.Client) *cobra.Command {
 	var serviceName, environment, branch, artifact string
 	var command = &cobra.Command{
 		Use:   "release",
@@ -34,11 +34,11 @@ Release latest artifact from branch 'master' of service 'product' into environem
 				return err
 			}
 			var resp httpinternal.ReleaseResponse
-			path, err := client.url("release")
+			path, err := client.URL("release")
 			if err != nil {
 				return err
 			}
-			err = client.req(http.MethodPost, path, httpinternal.ReleaseRequest{
+			err = client.Req(http.MethodPost, path, httpinternal.ReleaseRequest{
 				Service:        serviceName,
 				Environment:    environment,
 				Branch:         branch,

@@ -3,11 +3,13 @@ package policy
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
+	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
 
-func NewAdd(service *string) *cobra.Command {
+func NewAdd(client *httpinternal.Client, service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "add",
 		Short: "Add a release policy for a service. See available commands for specific policies.",
@@ -28,11 +30,11 @@ func NewAdd(service *string) *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(autoRelease(service))
+	command.AddCommand(autoRelease(client, service))
 	return command
 }
 
-func autoRelease(service *string) *cobra.Command {
+func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 	var branch, env string
 	var command = &cobra.Command{
 		Use:   "auto-release",

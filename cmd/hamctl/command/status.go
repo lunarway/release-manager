@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewStatus(client *client) *cobra.Command {
+func NewStatus(client *httpinternal.Client) *cobra.Command {
 	var serviceName, configRepo, artifactFileName string
 	var command = &cobra.Command{
 		Use:   "status",
@@ -20,11 +20,11 @@ func NewStatus(client *client) *cobra.Command {
 			var resp httpinternal.StatusResponse
 			params := url.Values{}
 			params.Add("service", serviceName)
-			path, err := client.urlWithQuery("status", params)
+			path, err := client.URLWithQuery("status", params)
 			if err != nil {
 				return err
 			}
-			err = client.req(http.MethodGet, path, nil, &resp)
+			err = client.Req(http.MethodGet, path, nil, &resp)
 
 			if err != nil {
 				return err

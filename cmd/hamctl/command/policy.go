@@ -2,11 +2,12 @@ package command
 
 import (
 	"github.com/lunarway/release-manager/cmd/hamctl/command/policy"
+	"github.com/lunarway/release-manager/internal/http"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
-func NewPolicy(client *client) *cobra.Command {
+func NewPolicy(client *http.Client) *cobra.Command {
 	var service string
 	var command = &cobra.Command{
 		Use:   "policy",
@@ -28,9 +29,9 @@ func NewPolicy(client *client) *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(policy.NewAdd(&service))
-	command.AddCommand(policy.NewList(&service))
-	command.AddCommand(policy.NewRemove(&service))
+	command.AddCommand(policy.NewAdd(client, &service))
+	command.AddCommand(policy.NewList(client, &service))
+	command.AddCommand(policy.NewRemove(client, &service))
 
 	command.PersistentFlags().StringVar(&service, "service", "", "Service to manage policies for (required)")
 	command.MarkPersistentFlagRequired("service")
