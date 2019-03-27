@@ -42,6 +42,22 @@ func Init() {
 //   { "message": "msg", "fields": { "hello": "world", "zapKey": "zapValue", "user": { "name": "alice" }}}
 func WithFields(args ...interface{}) *Logger {
 	args = append([]interface{}{zap.Namespace("fields")}, args...)
+	return With(args...)
+}
+
+// With returns a logger with custom structured fields added to the root of the log entries.
+// The arguments are passed to the underlying sugared zap logger. See the zap documentation for details.
+// If an argument is a zap.Field it is logged accordingly, otherwise the arguments are treated as key value pairs.
+//
+// For example,
+//   zlog.With(
+//     "hello", "world",
+//     zap.String("zapKey", "zapValue"),
+//     "user", User{Name: "alice"},
+//  ).Info("msg")
+// logs the following fields (some fields omitted)
+//   { "message": "msg", "hello": "world", "zapKey": "zapValue", "user": { "name": "alice" }}
+func With(args ...interface{}) *Logger {
 	return &Logger{sugar: logger.sugar.With(args...)}
 }
 
