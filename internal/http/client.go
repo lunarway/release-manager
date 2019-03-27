@@ -66,7 +66,7 @@ func (c *Client) Req(method string, path string, requestBody, responseBody inter
 	}
 
 	decoder := json.NewDecoder(resp.Body)
-	if resp.StatusCode > http.StatusBadRequest {
+	if resp.StatusCode >= http.StatusBadRequest {
 		var responseError ErrorResponse
 		err = decoder.Decode(&responseError)
 		if err != nil {
