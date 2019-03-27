@@ -65,5 +65,20 @@ type StatusNotifyRequest struct {
 	Reason     string `json:"reason,omitempty"`
 	Message    string `json:"message,omitempty"`
 	ArtifactID string `json:"artifactId,omitempty"`
-	Logs string `json:"logs,omitempty"`
+	Logs       string `json:"logs,omitempty"`
+}
+
+type AddAutoReleasePolicyRequest struct {
+	Service        string `json:"service,omitempty"`
+	Branch         string `json:"branch,omitempty"`
+	Environment    string `json:"environment,omitempty"`
+	CommitterName  string `json:"committerName,omitempty"`
+	CommitterEmail string `json:"committerEmail,omitempty"`
+}
+
+type AddPolicyResponse struct {
+	ID          string `json:"id,omitempty"`
+	Service     string `json:"service,omitempty"`
+	Branch      string `json:"branch,omitempty"`
+	Environment string `json:"environment,omitempty"`
 }

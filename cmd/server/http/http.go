@@ -23,6 +23,7 @@ func NewServer(port int, timeout time.Duration, configRepo, artifactFileName, ss
 	mux.HandleFunc("/promote", promote(configRepo, artifactFileName, sshPrivateKeyPath))
 	mux.HandleFunc("/release", release(configRepo, artifactFileName, sshPrivateKeyPath))
 	mux.HandleFunc("/status", status(configRepo, artifactFileName, sshPrivateKeyPath))
+	mux.HandleFunc("/policy", policy(configRepo, sshPrivateKeyPath))
 	mux.HandleFunc("/webhook/github", githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret))
 	mux.HandleFunc("/webhook/daemon", daemonWebhook())
 
@@ -337,17 +338,4 @@ func validateToken(reqToken, tokenEnvVar string) bool {
 
 func convertTimeToEpoch(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
-}
-
-func Error(w http.ResponseWriter, message string, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	err := json.NewEncoder(w).Encode(httpinternal.ErrorResponse{
-		Message: message,
-	})
-	if err != nil {
-		log.Errorf("json encoding failed in error response: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
 }

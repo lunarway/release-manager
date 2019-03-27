@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
@@ -40,7 +41,28 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 		Use:   "auto-release",
 		Short: "Auto-release policy for releasing branch artifacts to an environment",
 		RunE: func(c *cobra.Command, args []string) error {
-			fmt.Printf("auto-release %s from %s to %s\n", *service, branch, env)
+			committerName, committerEmail, err := git.CommitterDetails()
+			if err != nil {
+				return err
+			}
+
+			var resp httpinternal.AddPolicyResponse
+			path, err := client.URL("policy")
+			if err != nil {
+				return err
+			}
+			err = client.Req(http.MethodPatch, path, httpinternal.AddAutoReleasePolicyRequest{
+				Service:        *service,
+				Branch:         branch,
+				Environment:    env,
+				CommitterEmail: committerEmail,
+				CommitterName:  committerName,
+			}, &resp)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("[✓] Added auto-release policy '%s' to service '%s'\n", resp.ID, resp.Service)
 			return nil
 		},
 	}
