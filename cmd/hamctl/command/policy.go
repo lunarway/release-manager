@@ -24,14 +24,14 @@ func NewPolicy(client *http.Client) *cobra.Command {
 			}
 			return nil
 		},
-		ValidArgs: []string{"add", "list", "remove"},
+		ValidArgs: []string{"apply", "list", "delete"},
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(policy.NewAdd(client, &service))
+	command.AddCommand(policy.NewApply(client, &service))
 	command.AddCommand(policy.NewList(client, &service))
-	command.AddCommand(policy.NewRemove(client, &service))
+	command.AddCommand(policy.NewDelete(client, &service))
 
 	command.PersistentFlags().StringVar(&service, "service", "", "Service to manage policies for (required)")
 	command.MarkPersistentFlagRequired("service")

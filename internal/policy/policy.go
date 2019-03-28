@@ -26,9 +26,9 @@ var (
 	ErrUnknownFields = errors.New("policies contains unknown fields")
 )
 
-// AddAutoRelease adds an auto-release policy for service svc from branch
+// ApplyAutoRelease applies an auto-release policy for service svc from branch
 // to environment env.
-func AddAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc, branch, env, committerName, committerEmail string) (string, error) {
+func ApplyAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc, branch, env, committerName, committerEmail string) (string, error) {
 	log.Debugf("internal/policy: clone config repository")
 	repo, err := git.CloneDepth(ctx, configRepoURL, configRepoPath, sshPrivateKeyPath, 1)
 	if err != nil {
@@ -85,7 +85,7 @@ func AddAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath string
 	commitMsg := fmt.Sprintf("[%s] policy update: set auto-release from '%s' to '%s'", svc, branch, env)
 	err = git.Commit(ctx, repo, path.Join(".", "policies"), committerName, committerEmail, committerName, committerEmail, commitMsg, sshPrivateKeyPath)
 	if err != nil {
-		// indicates that the policy to be added was already in set
+		// indicates that the applied policy was already set
 		if err == git.ErrNothingToCommit {
 			return policyID, nil
 		}

@@ -10,10 +10,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewAdd(client *httpinternal.Client, service *string) *cobra.Command {
+func NewApply(client *httpinternal.Client, service *string) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "add",
-		Short: "Add a release policy for a service. See available commands for specific policies.",
+		Use:   "apply",
+		Short: "Apply a release policy for a service. See available commands for specific policies.",
 		// make sure that only valid args are applied and that at least one
 		// command is specified
 		Args: func(c *cobra.Command, args []string) error {
@@ -46,12 +46,12 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 				return err
 			}
 
-			var resp httpinternal.AddPolicyResponse
+			var resp httpinternal.ApplyPolicyResponse
 			path, err := client.URL("policy")
 			if err != nil {
 				return err
 			}
-			err = client.Req(http.MethodPatch, path, httpinternal.AddAutoReleasePolicyRequest{
+			err = client.Req(http.MethodPatch, path, httpinternal.ApplyAutoReleasePolicyRequest{
 				Service:        *service,
 				Branch:         branch,
 				Environment:    env,
@@ -62,7 +62,7 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("[✓] Added auto-release policy '%s' to service '%s'\n", resp.ID, resp.Service)
+			fmt.Printf("[✓] Applied auto-release policy '%s' to service '%s'\n", resp.ID, resp.Service)
 			return nil
 		},
 	}

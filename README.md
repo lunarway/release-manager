@@ -5,26 +5,26 @@ GitOps release manager for kubernetes configuration reposistories.
 
 It is possible to configure policies for releases with `hamctl`'s `policy` command.
 
-You can `add`, `remove` and `list` policies for a specific service like below.
+You can `list`, `apply` and `delete` policies for a specific service like below.
 
 ```
 $ hamctl policy --service <service> list
-$ hamctl policy --service <service> add <policy>
-$ hamctl policy --service <service> remove <policy-id> [<policy-id>]
+$ hamctl policy --service <service> apply <policy>
+$ hamctl policy --service <service> delete <policy-id> [<policy-id>]
 ```
 
-See below for details on how to add specific policies.
+See below for details on how to apply specific policies.
 
-### Auto-release artifacts from branch to environments
+### Auto-release artifacts from branches to environments
 
 An `auto-release` policy instructs the release manager to deploy new artifacts from a specific branch into an environment.
 
-Multiple policies can be added for the same branch to different environments, e.g. release `master` artifacts to `dev` and `staging`.
+Multiple policies can be applied for the same branch to different environments, e.g. release `master` artifacts to `dev` and `staging`.
 
-This is an example of adding an auto-release policy for the product service for the `master` branch and `dev` environment.
+This is an example of applying an auto-release policy for the product service for the `master` branch and `dev` environment.
 
 ```
-$ hamctl policy --service product add auto-release --branch master --env dev
+$ hamctl policy --service product apply auto-release --branch master --env dev
 ```
 
 # Design

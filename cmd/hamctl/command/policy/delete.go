@@ -8,13 +8,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewRemove(client *httpinternal.Client, service *string) *cobra.Command {
+func NewDelete(client *httpinternal.Client, service *string) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "remove",
-		Short: "Remove policy",
+		Use:   "delete",
+		Short: "Delete one or more policies",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
-			fmt.Printf("Remove policies for %s: %s\n", *service, strings.Join(args, " "))
+			fmt.Printf("Delete policies for %s: %s\n", *service, strings.Join(args, " "))
 			return nil
 		},
 	}

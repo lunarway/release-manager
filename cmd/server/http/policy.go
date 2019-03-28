@@ -19,7 +19,7 @@ func policy(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 		switch r.Method {
 		case http.MethodPatch:
 			// TODO: detect what policy type is added based on path or payload
-			addAutoReleasePolicy(configRepo, sshPrivateKeyPath)(w, r)
+			applyAutoReleasePolicy(configRepo, sshPrivateKeyPath)(w, r)
 			return
 		default:
 			Error(w, "not found", http.StatusNotFound)
@@ -28,10 +28,10 @@ func policy(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 	}
 }
 
-func addAutoReleasePolicy(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
+func applyAutoReleasePolicy(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
-		var req httpinternal.AddAutoReleasePolicyRequest
+		var req httpinternal.ApplyAutoReleasePolicyRequest
 		err := decoder.Decode(&req)
 		if err != nil {
 			log.Errorf("Decode request body failed: %v", err)
@@ -59,24 +59,24 @@ func addAutoReleasePolicy(configRepo, sshPrivateKeyPath string) http.HandlerFunc
 			return
 		}
 
-		log.Infof("http add auto-release policy started: service '%s' branch '%s' environment '%s'", req.Service, req.Branch, req.Environment)
-		id, err := policyinternal.AddAutoRelease(r.Context(), configRepo, sshPrivateKeyPath, req.Service, req.Branch, req.Environment, req.CommitterName, req.CommitterEmail)
+		log.Infof("http apply auto-release policy started: service '%s' branch '%s' environment '%s'", req.Service, req.Branch, req.Environment)
+		id, err := policyinternal.ApplyAutoRelease(r.Context(), configRepo, sshPrivateKeyPath, req.Service, req.Branch, req.Environment, req.CommitterName, req.CommitterEmail)
 		if err != nil {
-			log.Errorf("http add auto-release policy failed: config repo '%s' service '%s' branch '%s' environment '%s': %v", configRepo, req.Service, req.Branch, req.Environment, err)
+			log.Errorf("http apply auto-release policy failed: config repo '%s' service '%s' branch '%s' environment '%s': %v", configRepo, req.Service, req.Branch, req.Environment, err)
 			Error(w, "unknown error", http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		err = json.NewEncoder(w).Encode(httpinternal.AddPolicyResponse{
+		err = json.NewEncoder(w).Encode(httpinternal.ApplyPolicyResponse{
 			ID:          id,
 			Service:     req.Service,
 			Branch:      req.Branch,
 			Environment: req.Environment,
 		})
 		if err != nil {
-			log.Errorf("http add auto-release policy failed: config repo '%s' service '%s' branch '%s' environment '%s': encode response: %v", configRepo, req.Service, req.Branch, req.Environment, err)
+			log.Errorf("http apply auto-release policy failed: config repo '%s' service '%s' branch '%s' environment '%s': encode response: %v", configRepo, req.Service, req.Branch, req.Environment, err)
 			Error(w, "unknown error", http.StatusInternalServerError)
 			return
 		}

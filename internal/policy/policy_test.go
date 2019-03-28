@@ -62,7 +62,7 @@ func TestParse(t *testing.T) {
 	}
 }
 
-func TestPolicies_AddAutoRelease(t *testing.T) {
+func TestPolicies_SetAutoRelease(t *testing.T) {
 	// helper func to create auto release
 	// variadic arguments are parsed in {branch,env} pairs
 	policy := func(args ...string) Policies {

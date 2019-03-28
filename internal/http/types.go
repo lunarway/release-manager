@@ -68,7 +68,7 @@ type StatusNotifyRequest struct {
 	Logs       string `json:"logs,omitempty"`
 }
 
-type AddAutoReleasePolicyRequest struct {
+type ApplyAutoReleasePolicyRequest struct {
 	Service        string `json:"service,omitempty"`
 	Branch         string `json:"branch,omitempty"`
 	Environment    string `json:"environment,omitempty"`
@@ -76,7 +76,7 @@ type AddAutoReleasePolicyRequest struct {
 	CommitterEmail string `json:"committerEmail,omitempty"`
 }
 
-type AddPolicyResponse struct {
+type ApplyPolicyResponse struct {
 	ID          string `json:"id,omitempty"`
 	Service     string `json:"service,omitempty"`
 	Branch      string `json:"branch,omitempty"`
