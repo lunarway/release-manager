@@ -110,7 +110,6 @@ func parse(r io.Reader) (Policies, error) {
 	err := decoder.Decode(&p)
 	if err != nil {
 		if err == io.EOF {
-			log.Debugf("empty file")
 			return Policies{}, nil
 		}
 		_, ok := err.(*json.SyntaxError)
