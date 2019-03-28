@@ -7,6 +7,7 @@ import (
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
+	"github.com/pkg/errors"
 )
 
 func policy(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
@@ -20,6 +21,9 @@ func policy(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 		case http.MethodPatch:
 			// TODO: detect what policy type is added based on path or payload
 			applyAutoReleasePolicy(configRepo, sshPrivateKeyPath)(w, r)
+			return
+		case http.MethodGet:
+			listPolicies(configRepo, sshPrivateKeyPath)(w, r)
 			return
 		default:
 			Error(w, "not found", http.StatusNotFound)
@@ -81,4 +85,45 @@ func applyAutoReleasePolicy(configRepo, sshPrivateKeyPath string) http.HandlerFu
 			return
 		}
 	}
+}
+
+func listPolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		values := r.URL.Query()
+		service := values.Get("service")
+		if len(service) == 0 {
+			requiredQueryError(w, "service")
+			return
+		}
+
+		policies, err := policyinternal.Get(r.Context(), configRepo, sshPrivateKeyPath, service)
+		if err != nil {
+			if errors.Cause(err) == policyinternal.ErrNotFound {
+				Error(w, "no policies exist", http.StatusNotFound)
+				return
+			}
+			log.Errorf("http list policies failed: config repo '%s' service '%s': %v", configRepo, service, err)
+			Error(w, "unknown error", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		err = json.NewEncoder(w).Encode(httpinternal.ListPoliciesResponse{
+			Service:      policies.Service,
+			AutoReleases: mapAutoReleasePolicies(policies.AutoReleases),
+		})
+	}
+}
+
+func mapAutoReleasePolicies(policies []policyinternal.AutoReleasePolicy) []httpinternal.AutoReleasePolicy {
+	h := make([]httpinternal.AutoReleasePolicy, len(policies))
+	for i, p := range policies {
+		h[i] = httpinternal.AutoReleasePolicy{
+			ID:          p.ID,
+			Branch:      p.Branch,
+			Environment: p.Environment,
+		}
+	}
+	return h
 }

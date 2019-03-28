@@ -13,6 +13,7 @@ func Error(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	err := json.NewEncoder(w).Encode(httpinternal.ErrorResponse{
+		Status:  statusCode,
 		Message: message,
 	})
 	if err != nil {
@@ -24,4 +25,8 @@ func Error(w http.ResponseWriter, message string, statusCode int) {
 
 func requiredFieldError(w http.ResponseWriter, field string) {
 	Error(w, fmt.Sprintf("field %s required but was empty", field), http.StatusBadRequest)
+}
+
+func requiredQueryError(w http.ResponseWriter, field string) {
+	Error(w, fmt.Sprintf("query param %s required but was empty", field), http.StatusBadRequest)
 }

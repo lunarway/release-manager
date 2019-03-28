@@ -24,7 +24,40 @@ var (
 	ErrNotParsable = errors.New("policies not parsable")
 	// ErrUnknownFields indicates that a policies file contains an unknown field.
 	ErrUnknownFields = errors.New("policies contains unknown fields")
+	// ErrNotFound indicates that policies are not found for a service.
+	ErrNotFound = errors.New("not found")
 )
+
+// Get gets stored policies for service svc. If no policies are stored ErrNotFound is returned.
+func Get(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc string) (Policies, error) {
+	_, err := git.CloneDepth(ctx, configRepoURL, configRepoPath, sshPrivateKeyPath, 1)
+	if err != nil {
+		return Policies{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, configRepoPath))
+	}
+
+	// make sure policy directory exists
+	err = os.MkdirAll(path.Join(configRepoPath, "policies"), os.ModePerm)
+	if err != nil {
+		return Policies{}, errors.WithMessage(err, "make policies directory")
+	}
+
+	policiesPath := path.Join(configRepoPath, "policies", fmt.Sprintf("%s.json", svc))
+	policiesFile, err := os.OpenFile(policiesPath, os.O_RDONLY, os.ModePerm)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return Policies{}, ErrNotFound
+		}
+		return Policies{}, errors.WithMessagef(err, "open policies in '%s'", policiesPath)
+	}
+	defer policiesFile.Close()
+
+	policies, err := parse(policiesFile)
+	if err != nil {
+		policiesFile.Close()
+		return Policies{}, errors.WithMessagef(err, "parse policies in '%s'", policiesPath)
+	}
+	return policies, nil
+}
 
 // ApplyAutoRelease applies an auto-release policy for service svc from branch
 // to environment env.
@@ -44,7 +77,7 @@ func ApplyAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath stri
 
 	policiesPath := path.Join(configRepoPath, "policies", fmt.Sprintf("%s.json", svc))
 	log.Debugf("internal/policy: open policies file '%s'", policiesPath)
-	policiesFile, err := openFile(policiesPath)
+	policiesFile, err := os.OpenFile(policiesPath, os.O_CREATE|os.O_RDWR, os.ModePerm)
 	if err != nil {
 		return "", errors.WithMessagef(err, "open policies in '%s'", policiesPath)
 	}
@@ -93,14 +126,6 @@ func ApplyAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath stri
 	}
 	log.Infof("internal/policy: policy committed: %s, Author: %[2]s <%[3]s>, Committer: %[2]s <%[3]s>", commitMsg, committerName, committerEmail)
 	return policyID, nil
-}
-
-func openFile(path string) (*os.File, error) {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, os.ModePerm)
-	if err != nil {
-		return nil, errors.WithMessage(err, "open or create policy file")
-	}
-	return f, nil
 }
 
 func parse(r io.Reader) (Policies, error) {

@@ -72,7 +72,7 @@ func (c *Client) Req(method string, path string, requestBody, responseBody inter
 		if err != nil {
 			return errors.WithMessagef(err, "response status %s: unmarshal error response", resp.Status)
 		}
-		return errors.New(responseError.Message)
+		return &responseError
 	}
 	err = decoder.Decode(responseBody)
 	if err != nil {
