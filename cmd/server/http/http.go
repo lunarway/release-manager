@@ -28,7 +28,7 @@ func NewServer(port int, timeout time.Duration, configRepo, artifactFileName, ss
 
 	s := http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
-		Handler:           mux,
+		Handler:           reqrespLogger(mux),
 		ReadTimeout:       timeout,
 		WriteTimeout:      timeout,
 		IdleTimeout:       timeout,
