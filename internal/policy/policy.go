@@ -85,6 +85,10 @@ func AddAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath string
 	commitMsg := fmt.Sprintf("[%s] policy update: set auto-release from '%s' to '%s'", svc, branch, env)
 	err = git.Commit(ctx, repo, path.Join(".", "policies"), committerName, committerEmail, committerName, committerEmail, commitMsg, sshPrivateKeyPath)
 	if err != nil {
+		// indicates that the policy to be added was already in set
+		if err == git.ErrNothingToCommit {
+			return policyID, nil
+		}
 		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", policiesPath))
 	}
 	log.Infof("internal/policy: policy committed: %s, Author: %[2]s <%[3]s>, Committer: %[2]s <%[3]s>", commitMsg, committerName, committerEmail)
