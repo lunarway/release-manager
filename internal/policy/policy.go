@@ -28,6 +28,25 @@ var (
 	ErrNotFound = errors.New("not found")
 )
 
+// GetAutoReleases gets stored auto-release policies for service svc. If no
+// policies are found a nil slice is returned.
+func GetAutoReleases(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc, branch string) ([]AutoReleasePolicy, error) {
+	policies, err := Get(ctx, configRepoURL, sshPrivateKeyPath, svc)
+	if err != nil {
+		if errors.Cause(err) == ErrNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var autoReleases []AutoReleasePolicy
+	for i := range policies.AutoReleases {
+		if policies.AutoReleases[i].Branch == branch {
+			autoReleases = append(autoReleases, policies.AutoReleases[i])
+		}
+	}
+	return autoReleases, nil
+}
+
 // Get gets stored policies for service svc. If no policies are stored ErrNotFound is returned.
 func Get(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc string) (Policies, error) {
 	_, err := git.CloneDepth(ctx, configRepoURL, configRepoPath, sshPrivateKeyPath, 1)

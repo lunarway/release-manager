@@ -60,3 +60,21 @@ deploy-jenkins-prod:
 install-hamctl: build_hamctl
 	chmod +x cmd/hamctl
 	cp dist/hamctl /usr/local/bin/hamctl
+
+# posts a github push webhook to localhost:8080 for a product build commit
+github-webhook:
+	curl -H 'X-GitHub-Event: push' \
+	-d '{ \
+		"ref": "refs/heads/master", \
+		"head_commit": { \
+			"id": "sha", \
+			"message": "[product] build something", \
+			"modified": [ \
+				"builds/product/master/artifact.json", \
+				"builds/product/master/dev/40-deployment.yaml", \
+				"builds/product/master/prod/40-deployment.yaml", \
+				"builds/product/master/staging/40-deployment.yaml" \
+			] \
+		} \
+	}' \
+	localhost:8080/webhook/github
