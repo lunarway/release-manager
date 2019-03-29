@@ -56,6 +56,11 @@ func Get(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc strin
 		policiesFile.Close()
 		return Policies{}, errors.WithMessagef(err, "parse policies in '%s'", policiesPath)
 	}
+	// a policy file might exist, but if all policies have been removed from it
+	// we can just act as if it didn't exist
+	if !policies.HasPolicies() {
+		return Policies{}, ErrNotFound
+	}
 	return policies, nil
 }
 
@@ -192,6 +197,11 @@ type AutoReleasePolicy struct {
 	ID          string `json:"id,omitempty"`
 	Branch      string `json:"branch,omitempty"`
 	Environment string `json:"environment,omitempty"`
+}
+
+// HasPolicies returns whether any policies are applied.
+func (p *Policies) HasPolicies() bool {
+	return len(p.AutoReleases) != 0
 }
 
 // SetAutoRelease sets an auto-release policy for specified branch and
