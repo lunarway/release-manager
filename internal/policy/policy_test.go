@@ -157,3 +157,96 @@ func TestPolicies_SetAutoRelease(t *testing.T) {
 		})
 	}
 }
+
+func TestPolicies_Delete(t *testing.T) {
+	policy := func(ids ...string) Policies {
+		p := Policies{}
+		for _, id := range ids {
+			p.AutoReleases = append(p.AutoReleases, AutoReleasePolicy{
+				ID: id,
+			})
+		}
+		return p
+	}
+	ids := func(ids ...string) []string {
+		return ids
+	}
+	type input struct {
+		policies Policies
+		ids      []string
+	}
+	type output struct {
+		policies Policies
+		count    int
+	}
+	tt := []struct {
+		name   string
+		input  input
+		output output
+	}{
+		{
+			name: "empty policies no ids",
+			input: input{
+				policies: policy(),
+				ids:      ids(),
+			},
+			output: output{
+				policies: policy(),
+				count:    0,
+			},
+		},
+		{
+			name: "empty policies nil ids",
+			input: input{
+				policies: policy(),
+				ids:      nil,
+			},
+			output: output{
+				policies: policy(),
+				count:    0,
+			},
+		},
+		{
+			name: "no matching ids",
+			input: input{
+				policies: policy("id-1", "id-2"),
+				ids:      ids("id-3", "id-4"),
+			},
+			output: output{
+				policies: policy("id-1", "id-2"),
+				count:    0,
+			},
+		},
+		{
+			name: "single matching id",
+			input: input{
+				policies: policy("id-1", "id-2"),
+				ids:      ids("id-1"),
+			},
+			output: output{
+				policies: policy("id-2"),
+				count:    1,
+			},
+		},
+		{
+			name: "all matching ids",
+			input: input{
+				policies: policy("id-1", "id-2"),
+				ids:      ids("id-2", "id-1"),
+			},
+			output: output{
+				policies: policy(),
+				count:    2,
+			},
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Logf("input: %v", tc.input.policies.AutoReleases)
+			count := tc.input.policies.Delete(tc.input.ids...)
+			t.Logf("output: %v", tc.input.policies.AutoReleases)
+			assert.Equal(t, tc.output.count, count, "deleted count not as expected")
+			assert.Equal(t, tc.output.policies, tc.input.policies, "policies not as expected")
+		})
+	}
+}

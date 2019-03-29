@@ -102,11 +102,13 @@ type ApplyPolicyResponse struct {
 }
 
 type DeletePolicyRequest struct {
-	Service   string   `json:"service,omitempty"`
-	PolicyIDs []string `json:"policyIds,omitempty"`
+	Service        string   `json:"service,omitempty"`
+	PolicyIDs      []string `json:"policyIds,omitempty"`
+	CommitterName  string   `json:"committerName,omitempty"`
+	CommitterEmail string   `json:"committerEmail,omitempty"`
 }
 
 type DeletePolicyResponse struct {
-	Service          string   `json:"service,omitempty"`
-	DeletedPolicyIDs []string `json:"deletedPolicyIds,omitempty"`
+	Service string `json:"service,omitempty"`
+	Count   int    `json:"count,omitempty"`
 }

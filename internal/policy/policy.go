@@ -62,24 +62,49 @@ func Get(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc strin
 // ApplyAutoRelease applies an auto-release policy for service svc from branch
 // to environment env.
 func ApplyAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc, branch, env, committerName, committerEmail string) (string, error) {
+	commitMsg := fmt.Sprintf("[%s] policy update: set auto-release from '%s' to '%s'", svc, branch, env)
+	var policyID string
+	err := updatePolicies(ctx, configRepoURL, sshPrivateKeyPath, svc, commitMsg, committerName, committerEmail, func(p *Policies) {
+		policyID = p.SetAutoRelease(branch, env)
+	})
+	if err != nil {
+		return "", err
+	}
+	return policyID, nil
+}
+
+// Delete deletes policies by ID for service svc.
+func Delete(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc string, ids []string, committerName, committerEmail string) (int, error) {
+	commitMsg := fmt.Sprintf("[%s] policy update: delete policies", svc)
+	var deleted int
+	err := updatePolicies(ctx, configRepoURL, sshPrivateKeyPath, svc, commitMsg, committerName, committerEmail, func(p *Policies) {
+		deleted = p.Delete(ids...)
+	})
+	if err != nil {
+		return 0, err
+	}
+	return deleted, nil
+}
+
+func updatePolicies(ctx context.Context, configRepoURL, sshPrivateKeyPath, svc, commitMsg, committerName, committerEmail string, f func(p *Policies)) error {
 	log.Debugf("internal/policy: clone config repository")
 	repo, err := git.CloneDepth(ctx, configRepoURL, configRepoPath, sshPrivateKeyPath, 1)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, configRepoPath))
+		return errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, configRepoPath))
 	}
 
 	// make sure policy directory exists
 	log.Debugf("internal/policy: ensure policies directory")
 	err = os.MkdirAll(path.Join(configRepoPath, "policies"), os.ModePerm)
 	if err != nil {
-		return "", errors.WithMessage(err, "make policies directory")
+		return errors.WithMessage(err, "make policies directory")
 	}
 
 	policiesPath := path.Join(configRepoPath, "policies", fmt.Sprintf("%s.json", svc))
 	log.Debugf("internal/policy: open policies file '%s'", policiesPath)
 	policiesFile, err := os.OpenFile(policiesPath, os.O_CREATE|os.O_RDWR, os.ModePerm)
 	if err != nil {
-		return "", errors.WithMessagef(err, "open policies in '%s'", policiesPath)
+		return errors.WithMessagef(err, "open policies in '%s'", policiesPath)
 	}
 	defer policiesFile.Close()
 
@@ -87,13 +112,12 @@ func ApplyAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath stri
 	log.Debugf("internal/policy: parse policies file '%s'", policiesPath)
 	policies, err := parse(policiesFile)
 	if err != nil {
-		return "", errors.WithMessagef(err, "parse policies in '%s'", policiesPath)
+		return errors.WithMessagef(err, "parse policies in '%s'", policiesPath)
 	}
 	log.Debugf("internal/policy: parseed policy: %+v", policies)
 
-	// set auto-release policy
 	policies.Service = svc
-	policyID := policies.SetAutoRelease(branch, env)
+	f(&policies)
 
 	// store file
 
@@ -101,31 +125,29 @@ func ApplyAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath stri
 	// to overwrite the contents
 	err = policiesFile.Truncate(0)
 	if err != nil {
-		return "", errors.WithMessagef(err, "truncate file '%s'", policiesPath)
+		return errors.WithMessagef(err, "truncate file '%s'", policiesPath)
 	}
 	_, err = policiesFile.Seek(0, 0)
 	if err != nil {
-		return "", errors.WithMessagef(err, "reset seek on '%s'", policiesPath)
+		return errors.WithMessagef(err, "reset seek on '%s'", policiesPath)
 	}
 	log.Debugf("internal/policy: persist policies file '%s'", policiesPath)
 	err = persist(policiesFile, policies)
 	if err != nil {
-		return "", errors.WithMessagef(err, "write policies in '%s'", policiesPath)
+		return errors.WithMessagef(err, "write policies in '%s'", policiesPath)
 	}
 
 	// commit changes
 	log.Debugf("internal/policy: commit policies file '%s'", policiesPath)
-	commitMsg := fmt.Sprintf("[%s] policy update: set auto-release from '%s' to '%s'", svc, branch, env)
 	err = git.Commit(ctx, repo, path.Join(".", "policies"), committerName, committerEmail, committerName, committerEmail, commitMsg, sshPrivateKeyPath)
 	if err != nil {
 		// indicates that the applied policy was already set
 		if err == git.ErrNothingToCommit {
-			return policyID, nil
+			return nil
 		}
-		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", policiesPath))
+		return errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", policiesPath))
 	}
-	log.Infof("internal/policy: policy committed: %s, Author: %[2]s <%[3]s>, Committer: %[2]s <%[3]s>", commitMsg, committerName, committerEmail)
-	return policyID, nil
+	return nil
 }
 
 func parse(r io.Reader) (Policies, error) {
@@ -198,4 +220,21 @@ func (p *Policies) SetAutoRelease(branch, env string) string {
 	}
 	p.AutoReleases = newPolicies
 	return id
+}
+
+// Delete deletes any policies with a matching id.
+func (p *Policies) Delete(ids ...string) int {
+	var deleted int
+	for _, id := range ids {
+		var filtered []AutoReleasePolicy
+		for i := range p.AutoReleases {
+			if p.AutoReleases[i].ID != id {
+				filtered = append(filtered, p.AutoReleases[i])
+				continue
+			}
+			deleted++
+		}
+		p.AutoReleases = filtered
+	}
+	return deleted
 }
