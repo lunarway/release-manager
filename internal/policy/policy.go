@@ -111,20 +111,24 @@ func Delete(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc st
 }
 
 func updatePolicies(ctx context.Context, configRepoURL, sshPrivateKeyPath, svc, commitMsg, committerName, committerEmail string, f func(p *Policies)) error {
+	// read part of this code is the same as the Get function but differs in the
+	// file flags used. This is to avoid opening and closing to file multiple
+	// times during the operation.
 	log.Debugf("internal/policy: clone config repository")
 	repo, err := git.CloneDepth(ctx, configRepoURL, configRepoPath, sshPrivateKeyPath, 1)
 	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, configRepoPath))
+		return errors.WithMessage(err, fmt.Sprintf("clone to '%s'", configRepoPath))
 	}
 
 	// make sure policy directory exists
 	log.Debugf("internal/policy: ensure policies directory")
-	err = os.MkdirAll(path.Join(configRepoPath, "policies"), os.ModePerm)
+	policiesDir := path.Join(configRepoPath, "policies")
+	err = os.MkdirAll(policiesDir, os.ModePerm)
 	if err != nil {
-		return errors.WithMessage(err, "make policies directory")
+		return errors.WithMessagef(err, "make policies directory '%s'", policiesDir)
 	}
 
-	policiesPath := path.Join(configRepoPath, "policies", fmt.Sprintf("%s.json", svc))
+	policiesPath := path.Join(policiesDir, fmt.Sprintf("%s.json", svc))
 	log.Debugf("internal/policy: open policies file '%s'", policiesPath)
 	policiesFile, err := os.OpenFile(policiesPath, os.O_CREATE|os.O_RDWR, os.ModePerm)
 	if err != nil {
