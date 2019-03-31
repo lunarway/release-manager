@@ -152,29 +152,29 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 func daemonWebhook(configRepo, artifactFileName, sshPrivateKeyPath string, slackClient *slack.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
-		var req httpinternal.StatusNotifyRequest
+		var podNotify httpinternal.PodNotifyRequest
 
-		err := decoder.Decode(&req)
+		err := decoder.Decode(&podNotify)
 		if err != nil {
 			log.Errorf("daemon webhook failed: decode request body failed: %v", err)
 			http.Error(w, "Invalid payload", http.StatusBadRequest)
 			return
 		}
 
-		err = flow.NotifyCommitter(r.Context(), configRepo, artifactFileName, sshPrivateKeyPath, &req, slackClient)
+		err = flow.NotifyCommitter(r.Context(), configRepo, artifactFileName, sshPrivateKeyPath, &podNotify, slackClient)
 		if err != nil {
 			log.Errorf("notify committer failed: %v", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		log.WithFields("pod", req.PodName,
-			"namespace", req.Namespace,
-			"status", req.Status,
-			"message", req.Message,
-			"reason", req.Reason,
-			"artifactId", req.ArtifactID,
-			"logs", req.Logs).Infof("Pod event received: %s, status=%s", req.PodName, req.Status)
+		log.WithFields("pod", podNotify.Name,
+			"namespace", podNotify.Namespace,
+			"status", podNotify.State,
+			"message", podNotify.Message,
+			"reason", podNotify.Reason,
+			"artifactId", podNotify.ArtifactID,
+			"logs", podNotify.Logs).Infof("Pod event received: %s, status=%s", podNotify.Name, podNotify.State)
 	}
 }
 

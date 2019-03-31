@@ -61,12 +61,13 @@ func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, a
 	}
 
 	b := &bytes.Buffer{}
-	err := json.NewEncoder(b).Encode(httpinternal.StatusNotifyRequest{
-		PodName:    event.Name,
+	err := json.NewEncoder(b).Encode(httpinternal.PodNotifyRequest{
+		Name:       event.Name,
 		Namespace:  event.Namespace,
 		Message:    event.Message,
 		Reason:     event.Reason,
-		Status:     event.State,
+		State:      event.State,
+		Containers: event.Containers,
 		ArtifactID: event.ArtifactID,
 		Logs:       logs,
 	})
@@ -79,14 +80,14 @@ func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, a
 	url := releaseManagerUrl + "/webhook/daemon"
 	req, err := http.NewRequest(http.MethodPost, url, b)
 	if err != nil {
-		log.Errorf("error generating StatusNotifyRequest to %s", url)
+		log.Errorf("error generating PodNotifyRequest to %s", url)
 		return
 	}
 
 	req.Header.Set("Authorization", "Bearer "+authToken)
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Errorf("error posting StatusNotifyRequest to %s", url)
+		log.Errorf("error posting PodNotifyRequest to %s", url)
 		return
 	}
 	if resp.StatusCode != 200 {

@@ -28,21 +28,31 @@ func (c *Client) GetSlackIdByEmail(email string) (string, error) {
 	return user.ID, nil
 }
 
-func (c *Client) PostPrivateMessage(userID, env, service string, artifact spec.Spec, request *http.StatusNotifyRequest) error {
+func (c *Client) PostPrivateMessage(userID, env, service string, artifact spec.Spec, podNotify *http.PodNotifyRequest) error {
 	asUser := slack.MsgOptionAsUser(true)
 	podField := slack.AttachmentField{
 		Title: "Pod",
-		Value: request.PodName,
+		Value: podNotify.Name,
 		Short: true,
 	}
 	statusField := slack.AttachmentField{
 		Title: "Status",
-		Value: request.Status,
+		Value: podNotify.State,
+		Short: true,
+	}
+	namespaceField := slack.AttachmentField{
+		Title: "Namespace",
+		Value: podNotify.Namespace,
+		Short: true,
+	}
+	containersField := slack.AttachmentField{
+		Title: "Containers",
+		Value: string(len(podNotify.Containers)),
 		Short: true,
 	}
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
-		Title:  fmt.Sprintf("Pod status changed for %s in %s (artifact id: %s)", service, env, artifact.ID),
-		Fields: []slack.AttachmentField{podField, statusField},
+		Title:  fmt.Sprintf("%s (artifact: %s)", service, artifact.ID),
+		Fields: []slack.AttachmentField{podField, namespaceField, statusField, containersField},
 	})
 
 	_, _, err := c.client.PostMessage(userID, asUser, attachments)

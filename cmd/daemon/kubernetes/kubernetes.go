@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -108,27 +109,27 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 		// PodRunning means the pod has been bound to a node and all of the containers have been started.
 		// At least one container is still running or is in the process of being restarted.
 		case v1.PodRunning:
-			var containers []Container
+			var containers []httpinternal.Container
 			message := ""
 			reason := ""
 			discard := false
 			for _, cst := range pod.Status.ContainerStatuses {
 				// Container is in Waiting state and CrashLoopBackOff
 				if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CrashLoopBackOff" {
-					containers = append(containers, Container{Name: cst.Name, State: cst.State.Waiting.Reason})
+					containers = append(containers, httpinternal.Container{Name: cst.Name, State: cst.State.Waiting.Reason})
 					message = cst.State.Waiting.Message
 					reason = cst.State.Waiting.Reason
 					continue
 				}
 				// Container is Running and responding to Readiness checks
 				if cst.State.Running != nil && cst.Ready {
-					containers = append(containers, Container{Name: cst.Name, State: "Ready"})
+					containers = append(containers, httpinternal.Container{Name: cst.Name, State: "Ready"})
 					continue
 				}
 
 				// Container is Running but the container is not responding to Readiness checks
 				if cst.State.Running != nil && !cst.Ready {
-					containers = append(containers, Container{Name: cst.Name, State: "Running"})
+					containers = append(containers, httpinternal.Container{Name: cst.Name, State: "Running"})
 					continue
 				}
 				discard = true
@@ -178,27 +179,27 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 			// has not been started. This includes time before being bound to a node, as well as time spent
 			// pulling images onto the host.
 		case v1.PodPending:
-			var containers []Container
+			var containers []httpinternal.Container
 			message := ""
 			reason := ""
 			discard := false
 			for _, cst := range pod.Status.ContainerStatuses {
 				// Container is in Waiting state and CreateContainerConfigError
 				if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CreateContainerConfigError" {
-					containers = append(containers, Container{Name: cst.Name, State: cst.State.Waiting.Reason})
+					containers = append(containers, httpinternal.Container{Name: cst.Name, State: cst.State.Waiting.Reason})
 					message = cst.State.Waiting.Message
 					reason = cst.State.Waiting.Reason
 					continue
 				}
 				// Container is Running and responding to Readiness checks
 				if cst.State.Running != nil && cst.Ready {
-					containers = append(containers, Container{Name: cst.Name, State: "Ready"})
+					containers = append(containers, httpinternal.Container{Name: cst.Name, State: "Ready"})
 					continue
 				}
 
 				// Container is Running but the container is not responding to Readiness checks
 				if cst.State.Running != nil && !cst.Ready {
-					containers = append(containers, Container{Name: cst.Name, State: "Running"})
+					containers = append(containers, httpinternal.Container{Name: cst.Name, State: "Running"})
 					continue
 				}
 				discard = true
@@ -249,7 +250,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 	}
 }
 
-func Contains(c []Container, x string) bool {
+func Contains(c []httpinternal.Container, x string) bool {
 	for _, n := range c {
 		if x == n.State {
 			return true
