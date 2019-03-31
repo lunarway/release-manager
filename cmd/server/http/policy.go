@@ -20,7 +20,7 @@ func policy(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 		}
 		switch r.Method {
 		case http.MethodPatch:
-			// TODO: detect what policy type is added based on path or payload
+			// only auto-release policies are available so no other validtion is required here
 			applyAutoReleasePolicy(configRepo, sshPrivateKeyPath)(w, r)
 			return
 		case http.MethodGet:
