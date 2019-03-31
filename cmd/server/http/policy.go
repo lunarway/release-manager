@@ -42,23 +42,23 @@ func applyAutoReleasePolicy(configRepo, sshPrivateKeyPath string) http.HandlerFu
 			Error(w, "invalid payload", http.StatusBadRequest)
 			return
 		}
-		if len(req.Service) == 0 {
+		if emptyString(req.Service) {
 			requiredFieldError(w, "service")
 			return
 		}
-		if len(req.Branch) == 0 {
+		if emptyString(req.Branch) {
 			requiredFieldError(w, "branch")
 			return
 		}
-		if len(req.Environment) == 0 {
+		if emptyString(req.Environment) {
 			requiredFieldError(w, "environment")
 			return
 		}
-		if len(req.CommitterName) == 0 {
+		if emptyString(req.CommitterName) {
 			requiredFieldError(w, "committerName")
 			return
 		}
-		if len(req.CommitterEmail) == 0 {
+		if emptyString(req.CommitterEmail) {
 			requiredFieldError(w, "committerEmail")
 			return
 		}
@@ -91,7 +91,7 @@ func listPolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		values := r.URL.Query()
 		service := values.Get("service")
-		if len(service) == 0 {
+		if emptyString(service) {
 			requiredQueryError(w, "service")
 			return
 		}
