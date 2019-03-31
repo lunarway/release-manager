@@ -38,7 +38,14 @@ type PromoteResponse struct {
 }
 
 type ErrorResponse struct {
+	Status  int    `json:"status,omitempty"`
 	Message string `json:"message,omitempty"`
+}
+
+var _ error = &ErrorResponse{}
+
+func (e *ErrorResponse) Error() string {
+	return e.Message
 }
 
 type ReleaseRequest struct {
@@ -65,5 +72,43 @@ type StatusNotifyRequest struct {
 	Reason     string `json:"reason,omitempty"`
 	Message    string `json:"message,omitempty"`
 	ArtifactID string `json:"artifactId,omitempty"`
-	Logs string `json:"logs,omitempty"`
+	Logs       string `json:"logs,omitempty"`
+}
+
+type ListPoliciesResponse struct {
+	Service      string              `json:"service,omitempty"`
+	AutoReleases []AutoReleasePolicy `json:"autoReleases,omitempty"`
+}
+
+type AutoReleasePolicy struct {
+	ID          string `json:"id,omitempty"`
+	Branch      string `json:"branch,omitempty"`
+	Environment string `json:"environment,omitempty"`
+}
+
+type ApplyAutoReleasePolicyRequest struct {
+	Service        string `json:"service,omitempty"`
+	Branch         string `json:"branch,omitempty"`
+	Environment    string `json:"environment,omitempty"`
+	CommitterName  string `json:"committerName,omitempty"`
+	CommitterEmail string `json:"committerEmail,omitempty"`
+}
+
+type ApplyPolicyResponse struct {
+	ID          string `json:"id,omitempty"`
+	Service     string `json:"service,omitempty"`
+	Branch      string `json:"branch,omitempty"`
+	Environment string `json:"environment,omitempty"`
+}
+
+type DeletePolicyRequest struct {
+	Service        string   `json:"service,omitempty"`
+	PolicyIDs      []string `json:"policyIds,omitempty"`
+	CommitterName  string   `json:"committerName,omitempty"`
+	CommitterEmail string   `json:"committerEmail,omitempty"`
+}
+
+type DeletePolicyResponse struct {
+	Service string `json:"service,omitempty"`
+	Count   int    `json:"count,omitempty"`
 }

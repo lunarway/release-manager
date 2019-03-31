@@ -13,7 +13,9 @@ import (
 	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
+	policyinternal "github.com/lunarway/release-manager/internal/policy"
 	"github.com/pkg/errors"
+	"go.uber.org/multierr"
 	"gopkg.in/go-playground/webhooks.v5/github"
 )
 
@@ -23,6 +25,7 @@ func NewServer(port int, timeout time.Duration, configRepo, artifactFileName, ss
 	mux.HandleFunc("/promote", promote(configRepo, artifactFileName, sshPrivateKeyPath))
 	mux.HandleFunc("/release", release(configRepo, artifactFileName, sshPrivateKeyPath))
 	mux.HandleFunc("/status", status(configRepo, artifactFileName, sshPrivateKeyPath))
+	mux.HandleFunc("/policies", policy(configRepo, sshPrivateKeyPath))
 	mux.HandleFunc("/webhook/github", githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret))
 	mux.HandleFunc("/webhook/daemon", daemonWebhook())
 
@@ -154,6 +157,7 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 		hook, _ := github.New(github.Options.Secret(githubWebhookSecret))
 		payload, err := hook.Parse(r, github.PushEvent)
 		if err != nil {
+			log.Debugf("webhook: parse webhook: %v", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -161,6 +165,10 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 
 		case github.PushPayload:
 			push := payload.(github.PushPayload)
+			if !isBranchPush(push.Ref) {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
 			rgx := regexp.MustCompile(`\[(.*?)\]`)
 			matches := rgx.FindStringSubmatch(push.HeadCommit.Message)
 			if len(matches) < 2 {
@@ -170,32 +178,80 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 			}
 			serviceName := matches[1]
 
-			branch := "master"
-			toEnvironment := "dev"
-			for _, f := range push.HeadCommit.Modified {
-				if !strings.Contains(f, branch) || !strings.Contains(f, artifactFileName) {
-					continue
-				}
-				releaseID, err := flow.Promote(r.Context(), configRepo, artifactFileName, serviceName, toEnvironment, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath)
-				if err != nil {
-					log.Errorf("webhook: promote failed: %v", err)
-					http.Error(w, "internal error", http.StatusInternalServerError)
-					return
-				}
-				log.WithFields("service", serviceName,
-					"environment", toEnvironment,
-					"commit", push.HeadCommit).Infof("auto-release of %s to %s", releaseID, toEnvironment)
+			// locate branch of commit
+			branch, ok := branchName(push.HeadCommit.Modified, artifactFileName, serviceName)
+			if !ok {
+				log.Debugf("webhook: branch name not found: service '%s'", serviceName)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			w.WriteHeader(http.StatusOK)
 
+			// lookup policies for branch
+			autoReleases, err := policyinternal.GetAutoReleases(r.Context(), configRepo, sshPrivateKeyPath, serviceName, branch)
+			if err != nil {
+				log.Errorf("webhook: get auto release policies: service '%s' branch '%s': %v", serviceName, branch, err)
+				Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			log.Debugf("webhook: found %d release policies: service '%s' branch '%s'", len(autoReleases), serviceName, branch)
+			var errs error
+			for _, autoRelease := range autoReleases {
+				releaseID, err := flow.ReleaseBranch(r.Context(), configRepo, artifactFileName, serviceName, autoRelease.Environment, autoRelease.Branch, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath)
+				if err != nil {
+					if errors.Cause(err) != git.ErrNothingToCommit {
+						errs = multierr.Append(errs, err)
+						continue
+					}
+					log.WithFields("service", serviceName,
+						"branch", branch,
+						"environment", autoRelease.Environment).
+						Infof("webhook: auto-release service '%s' from policy '%s' to '%s': nothing to commit", serviceName, autoRelease.ID, autoRelease.Environment)
+					continue
+				}
+				log.WithFields("service", serviceName,
+					"branch", branch,
+					"environment", autoRelease.Environment,
+					"commit", push.HeadCommit).
+					Infof("webhook: auto-release service '%s' from policy '%s' of %s to %s", serviceName, autoRelease.ID, releaseID, autoRelease.Environment)
+			}
+			if errs != nil {
+				log.Errorf("webhook: auto-release failed with one or more errors: service '%s' branch '%s' commit '%s': %v", serviceName, branch, push.HeadCommit.ID, errs)
+				Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			log.Infof("webhook: handled succesfully: service '%s' branch '%s' commit '%s'", serviceName, branch, push.HeadCommit.ID)
+			w.WriteHeader(http.StatusOK)
+			return
 		default:
 			log.Infof("webhook: payload type: default case hit: %v", payload)
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 	}
+}
+
+func isBranchPush(ref string) bool {
+	return strings.HasPrefix(ref, "refs/heads/")
+}
+
+// branchName returns the branch name and a bool indicating one is found from a
+// list of modified file paths.
+//
+// It only handles files that originates from a build operation, ie. non-build
+// commits cannot be extracted.
+func branchName(modifiedFiles []string, artifactFileName, svc string) (string, bool) {
+	var branch string
+	for _, f := range modifiedFiles {
+		if !strings.Contains(f, artifactFileName) {
+			continue
+		}
+		branch = strings.TrimPrefix(f, fmt.Sprintf("builds/%s/", svc))
+		break
+	}
+	if len(branch) == 0 {
+		return "", false
+	}
+	return strings.TrimSuffix(branch, fmt.Sprintf("/%s", artifactFileName)), true
 }
 
 func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
@@ -337,17 +393,4 @@ func validateToken(reqToken, tokenEnvVar string) bool {
 
 func convertTimeToEpoch(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
-}
-
-func Error(w http.ResponseWriter, message string, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	err := json.NewEncoder(w).Encode(httpinternal.ErrorResponse{
-		Message: message,
-	})
-	if err != nil {
-		log.Errorf("json encoding failed in error response: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
 }

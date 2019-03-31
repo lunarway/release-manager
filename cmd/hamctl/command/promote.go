@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewPromote(client *client) *cobra.Command {
+func NewPromote(client *httpinternal.Client) *cobra.Command {
 	var serviceName, environment, configRepo, artifactFileName string
 	var command = &cobra.Command{
 		Use:   "promote",
@@ -21,11 +21,11 @@ func NewPromote(client *client) *cobra.Command {
 			}
 
 			var resp httpinternal.PromoteResponse
-			url, err := client.url("promote")
+			url, err := client.URL("promote")
 			if err != nil {
 				return err
 			}
-			err = client.req(http.MethodPost, url, httpinternal.PromoteRequest{
+			err = client.Do(http.MethodPost, url, httpinternal.PromoteRequest{
 				Service:        serviceName,
 				Environment:    environment,
 				CommitterName:  committerName,
