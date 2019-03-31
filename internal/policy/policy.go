@@ -73,7 +73,6 @@ func Get(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc strin
 
 	policies, err := parse(policiesFile)
 	if err != nil {
-		policiesFile.Close()
 		return Policies{}, errors.WithMessagef(err, "parse policies in '%s'", policiesPath)
 	}
 	// a policy file might exist, but if all policies have been removed from it
