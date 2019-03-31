@@ -47,7 +47,7 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 			}
 
 			var resp httpinternal.ApplyPolicyResponse
-			path, err := client.URL("policy")
+			path, err := client.URL(path)
 			if err != nil {
 				return err
 			}

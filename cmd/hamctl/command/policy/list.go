@@ -17,7 +17,7 @@ func NewList(client *httpinternal.Client, service *string) *cobra.Command {
 			var resp httpinternal.ListPoliciesResponse
 			params := url.Values{}
 			params.Add("service", *service)
-			path, err := client.URLWithQuery("policy", params)
+			path, err := client.URLWithQuery(path, params)
 			if err != nil {
 				return err
 			}

@@ -25,7 +25,7 @@ func NewServer(port int, timeout time.Duration, configRepo, artifactFileName, ss
 	mux.HandleFunc("/promote", promote(configRepo, artifactFileName, sshPrivateKeyPath))
 	mux.HandleFunc("/release", release(configRepo, artifactFileName, sshPrivateKeyPath))
 	mux.HandleFunc("/status", status(configRepo, artifactFileName, sshPrivateKeyPath))
-	mux.HandleFunc("/policy", policy(configRepo, sshPrivateKeyPath))
+	mux.HandleFunc("/policies", policy(configRepo, sshPrivateKeyPath))
 	mux.HandleFunc("/webhook/github", githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret))
 	mux.HandleFunc("/webhook/daemon", daemonWebhook())
 
