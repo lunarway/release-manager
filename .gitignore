@@ -1,4 +1,3 @@
-*artifact.json
 dist/
 artifact-linux-amd64
 .tmp/
