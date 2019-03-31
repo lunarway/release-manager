@@ -86,7 +86,7 @@ func Get(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc strin
 // ApplyAutoRelease applies an auto-release policy for service svc from branch
 // to environment env.
 func ApplyAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc, branch, env, committerName, committerEmail string) (string, error) {
-	commitMsg := fmt.Sprintf("[%s] policy update: set auto-release from '%s' to '%s'", svc, branch, env)
+	commitMsg := fmt.Sprintf("[%s] policy update: apply auto-release from '%s' to '%s'", svc, branch, env)
 	var policyID string
 	err := updatePolicies(ctx, configRepoURL, sshPrivateKeyPath, svc, commitMsg, committerName, committerEmail, func(p *Policies) {
 		policyID = p.SetAutoRelease(branch, env)
