@@ -22,15 +22,12 @@ func policy(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 		case http.MethodPatch:
 			// only auto-release policies are available so no other validtion is required here
 			applyAutoReleasePolicy(configRepo, sshPrivateKeyPath)(w, r)
-			return
 		case http.MethodGet:
 			listPolicies(configRepo, sshPrivateKeyPath)(w, r)
-			return
 		case http.MethodDelete:
 			deletePolicies(configRepo, sshPrivateKeyPath)(w, r)
 		default:
 			Error(w, "not found", http.StatusNotFound)
-			return
 		}
 	}
 }
