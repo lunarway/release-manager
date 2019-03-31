@@ -51,7 +51,7 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = client.Req(http.MethodPatch, path, httpinternal.ApplyAutoReleasePolicyRequest{
+			err = client.Do(http.MethodPatch, path, httpinternal.ApplyAutoReleasePolicyRequest{
 				Service:        *service,
 				Branch:         branch,
 				Environment:    env,

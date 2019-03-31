@@ -21,7 +21,7 @@ func NewList(client *httpinternal.Client, service *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = client.Req(http.MethodGet, path, nil, &resp)
+			err = client.Do(http.MethodGet, path, nil, &resp)
 			if err != nil {
 				responseErr, ok := err.(*httpinternal.ErrorResponse)
 				if !ok || responseErr.Status != http.StatusNotFound {

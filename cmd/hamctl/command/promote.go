@@ -25,7 +25,7 @@ func NewPromote(client *httpinternal.Client) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = client.Req(http.MethodPost, url, httpinternal.PromoteRequest{
+			err = client.Do(http.MethodPost, url, httpinternal.PromoteRequest{
 				Service:        serviceName,
 				Environment:    environment,
 				CommitterName:  committerName,

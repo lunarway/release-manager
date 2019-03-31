@@ -38,7 +38,7 @@ Release latest artifact from branch 'master' of service 'product' into environem
 			if err != nil {
 				return err
 			}
-			err = client.Req(http.MethodPost, path, httpinternal.ReleaseRequest{
+			err = client.Do(http.MethodPost, path, httpinternal.ReleaseRequest{
 				Service:        serviceName,
 				Environment:    environment,
 				Branch:         branch,

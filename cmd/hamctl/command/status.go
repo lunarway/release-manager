@@ -24,7 +24,7 @@ func NewStatus(client *httpinternal.Client) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = client.Req(http.MethodGet, path, nil, &resp)
+			err = client.Do(http.MethodGet, path, nil, &resp)
 
 			if err != nil {
 				return err

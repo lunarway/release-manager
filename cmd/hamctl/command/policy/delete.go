@@ -25,7 +25,7 @@ func NewDelete(client *httpinternal.Client, service *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = client.Req(http.MethodDelete, path, httpinternal.DeletePolicyRequest{
+			err = client.Do(http.MethodDelete, path, httpinternal.DeletePolicyRequest{
 				Service:        *service,
 				PolicyIDs:      args,
 				CommitterName:  committerName,

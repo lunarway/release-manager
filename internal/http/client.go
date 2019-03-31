@@ -36,13 +36,13 @@ func (c *Client) URLWithQuery(path string, queryParams url.Values) (string, erro
 	return c.URL(path)
 }
 
-// Req executes an HTTP request defined by the provided method and path. The
-// base URL is prefixed on the provided path.
+// Do sends an HTTP request defined by the provided method and path. The base
+// URL is prefixed on the provided path.
 //
 // Request and response bodies are marshalled and unmarshalled as JSON and if
 // the server returns a status code above 399 the response is parsed as an
-// ErrorResponse object and the Message field is returned as an error.
-func (c *Client) Req(method string, path string, requestBody, responseBody interface{}) error {
+// ErrorResponse object and returned as the error.
+func (c *Client) Do(method string, path string, requestBody, responseBody interface{}) error {
 	client := &http.Client{
 		Timeout: c.Timeout,
 	}
