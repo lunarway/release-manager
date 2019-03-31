@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewStart(options *Options) *cobra.Command {
+func NewStart(options *http.Options) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-manager",
@@ -20,7 +20,7 @@ func NewStart(options *Options) *cobra.Command {
 			done := make(chan error, 1)
 
 			go func() {
-				err := http.NewServer(options.httpPort, options.timeout, options.configRepo, options.artifactFileName, options.sshPrivateKeyPath, options.githubWebhookSecret)
+				err := http.NewServer(options)
 				if err != nil {
 					done <- errors.WithMessage(err, "new http server")
 					return
