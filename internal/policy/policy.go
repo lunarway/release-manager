@@ -51,16 +51,17 @@ func GetAutoReleases(ctx context.Context, configRepoURL, sshPrivateKeyPath strin
 func Get(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc string) (Policies, error) {
 	_, err := git.CloneDepth(ctx, configRepoURL, configRepoPath, sshPrivateKeyPath, 1)
 	if err != nil {
-		return Policies{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, configRepoPath))
+		return Policies{}, errors.WithMessage(err, fmt.Sprintf("clone to path '%s'", configRepoPath))
 	}
 
 	// make sure policy directory exists
-	err = os.MkdirAll(path.Join(configRepoPath, "policies"), os.ModePerm)
+	policiesDir := path.Join(configRepoPath, "policies")
+	err = os.MkdirAll(policiesDir, os.ModePerm)
 	if err != nil {
-		return Policies{}, errors.WithMessage(err, "make policies directory")
+		return Policies{}, errors.WithMessagef(err, "make policies directory '%s'", policiesDir)
 	}
 
-	policiesPath := path.Join(configRepoPath, "policies", fmt.Sprintf("%s.json", svc))
+	policiesPath := path.Join(policiesDir, fmt.Sprintf("%s.json", svc))
 	policiesFile, err := os.OpenFile(policiesPath, os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		if os.IsNotExist(err) {
