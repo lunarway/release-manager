@@ -32,7 +32,7 @@ func StartDaemon() *cobra.Command {
 
 			failedFunc := func(event *kubernetes.PodEvent) error {
 				if event.Reason == "CrashLoopBackOff" {
-					logs, err := kubectl.GetLogs(event.PodName, event.Namespace)
+					logs, err := kubectl.GetLogs(event.Name, event.Namespace)
 					if err != nil {
 						return err
 					}
@@ -62,11 +62,11 @@ func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, a
 
 	b := &bytes.Buffer{}
 	err := json.NewEncoder(b).Encode(httpinternal.StatusNotifyRequest{
-		PodName:    event.PodName,
+		PodName:    event.Name,
 		Namespace:  event.Namespace,
 		Message:    event.Message,
 		Reason:     event.Reason,
-		Status:     event.Status,
+		Status:     event.State,
 		ArtifactID: event.ArtifactID,
 		Logs:       logs,
 	})
