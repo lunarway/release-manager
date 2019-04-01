@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -19,30 +18,59 @@ import (
 	"gopkg.in/go-playground/webhooks.v5/github"
 )
 
-func NewServer(port int, timeout time.Duration, configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret string) error {
+type Options struct {
+	Port                int
+	Timeout             time.Duration
+	GithubWebhookSecret string
+	HamCtlAuthToken     string
+	DaemonAuthToken     string
+
+	ConfigRepo        string
+	ArtifactFileName  string
+	SSHPrivateKeyPath string
+}
+
+func NewServer(opts *Options) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
-	mux.HandleFunc("/promote", promote(configRepo, artifactFileName, sshPrivateKeyPath))
-	mux.HandleFunc("/release", release(configRepo, artifactFileName, sshPrivateKeyPath))
-	mux.HandleFunc("/status", status(configRepo, artifactFileName, sshPrivateKeyPath))
-	mux.HandleFunc("/policies", policy(configRepo, sshPrivateKeyPath))
-	mux.HandleFunc("/webhook/github", githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret))
-	mux.HandleFunc("/webhook/daemon", daemonWebhook())
+	mux.HandleFunc("/promote", authenticate(opts.HamCtlAuthToken, promote(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
+	mux.HandleFunc("/release", authenticate(opts.HamCtlAuthToken, release(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
+	mux.HandleFunc("/status", authenticate(opts.HamCtlAuthToken, status(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
+	mux.HandleFunc("/policies", authenticate(opts.HamCtlAuthToken, policy(opts.ConfigRepo, opts.SSHPrivateKeyPath)))
+	mux.HandleFunc("/webhook/github", githubWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.GithubWebhookSecret))
+	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook()))
 
 	s := http.Server{
-		Addr:              fmt.Sprintf(":%d", port),
+		Addr:              fmt.Sprintf(":%d", opts.Port),
 		Handler:           reqrespLogger(mux),
-		ReadTimeout:       timeout,
-		WriteTimeout:      timeout,
-		IdleTimeout:       timeout,
-		ReadHeaderTimeout: timeout,
+		ReadTimeout:       opts.Timeout,
+		WriteTimeout:      opts.Timeout,
+		IdleTimeout:       opts.Timeout,
+		ReadHeaderTimeout: opts.Timeout,
 	}
-	log.Infof("Initializing HTTP Server on port %d", port)
+	log.Infof("Initializing HTTP Server on port %d", opts.Port)
 	err := s.ListenAndServe()
 	if err != nil {
 		return errors.WithMessage(err, "listen and server")
 	}
 	return nil
+}
+
+// authenticate authenticates the handler against a Bearer token.
+//
+// If authentication fails a 401 Unauthorized HTTP status is returned with an
+// ErrorResponse body.
+func authenticate(token string, h http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authorization := r.Header.Get("Authorization")
+		t := strings.TrimPrefix(authorization, "Bearer ")
+		t = strings.TrimSpace(t)
+		if t != token {
+			Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
+			return
+		}
+		h(w, r)
+	})
 }
 
 func ping(w http.ResponseWriter, r *http.Request) {
@@ -51,12 +79,6 @@ func ping(w http.ResponseWriter, r *http.Request) {
 
 func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		valid := validateToken(r.Header.Get("Authorization"), "HAMCTL_AUTH_TOKEN")
-		if !valid {
-			http.Error(w, "not authorized", http.StatusUnauthorized)
-			return
-		}
-
 		services, ok := r.URL.Query()["service"]
 		if !ok || len(services[0]) == 0 {
 			log.Errorf("query param service is missing for /status endpoint")
@@ -127,11 +149,6 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 
 func daemonWebhook() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		valid := validateToken(r.Header.Get("Authorization"), "DAEMON_AUTH_TOKEN")
-		if !valid {
-			Error(w, "not authorized", http.StatusUnauthorized)
-			return
-		}
 		decoder := json.NewDecoder(r.Body)
 		var req httpinternal.StatusNotifyRequest
 
@@ -256,11 +273,6 @@ func branchName(modifiedFiles []string, artifactFileName, svc string) (string, b
 
 func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		valid := validateToken(r.Header.Get("Authorization"), "HAMCTL_AUTH_TOKEN")
-		if !valid {
-			http.Error(w, "not authorized", http.StatusUnauthorized)
-			return
-		}
 		decoder := json.NewDecoder(r.Body)
 		var req httpinternal.PromoteRequest
 
@@ -315,11 +327,6 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 
 func release(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		valid := validateToken(r.Header.Get("Authorization"), "HAMCTL_AUTH_TOKEN")
-		if !valid {
-			Error(w, "not authorized", http.StatusUnauthorized)
-			return
-		}
 		decoder := json.NewDecoder(r.Body)
 		var req httpinternal.ReleaseRequest
 
@@ -379,16 +386,6 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 			Error(w, "unknown error", http.StatusInternalServerError)
 		}
 	}
-}
-
-func validateToken(reqToken, tokenEnvVar string) bool {
-	serverToken := os.Getenv(tokenEnvVar)
-	token := strings.TrimPrefix(reqToken, "Bearer ")
-
-	if token == serverToken {
-		return true
-	}
-	return false
 }
 
 func convertTimeToEpoch(t time.Time) int64 {

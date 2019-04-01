@@ -13,11 +13,6 @@ import (
 
 func policy(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		valid := validateToken(r.Header.Get("Authorization"), "HAMCTL_AUTH_TOKEN")
-		if !valid {
-			Error(w, "not authorized", http.StatusUnauthorized)
-			return
-		}
 		switch r.Method {
 		case http.MethodPatch:
 			// only auto-release policies are available so no other validtion is required here
