@@ -170,11 +170,11 @@ func daemonWebhook(configRepo, artifactFileName, sshPrivateKeyPath string, slack
 
 		log.WithFields("pod", podNotify.Name,
 			"namespace", podNotify.Namespace,
-			"status", podNotify.State,
+			"state", podNotify.State,
 			"message", podNotify.Message,
 			"reason", podNotify.Reason,
 			"artifactId", podNotify.ArtifactID,
-			"logs", podNotify.Logs).Infof("Pod event received: %s, status=%s", podNotify.Name, podNotify.State)
+			"logs", podNotify.Logs).Infof("Pod event received: %s, state=%s", podNotify.Name, podNotify.State)
 	}
 }
 
