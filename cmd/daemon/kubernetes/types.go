@@ -22,3 +22,11 @@ type Container struct {
 
 // NotifyFunc represents callback function for Pod event
 type NotifyFunc = func(event *PodEvent) error
+
+//type ReleaseState string
+//
+//const (
+//	Released ReleaseState = "released"
+//	Deployed ReleaseState = "deployed"
+//	Failed   ReleaseState = "failed"
+//)

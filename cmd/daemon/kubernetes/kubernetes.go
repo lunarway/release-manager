@@ -37,7 +37,7 @@ func NewClient() (*Client, error) {
 	return &client, nil
 }
 func (c *Client) GetLogs(podName, namespace string) (string, error) {
-	numberOfLogLines := int64(50)
+	numberOfLogLines := int64(25)
 	podLogOpts := v1.PodLogOptions{
 		TailLines: &numberOfLogLines,
 	}
@@ -103,6 +103,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 
 	switch e.Type {
 	case watch.Modified:
+		log.WithFields("pod", pod).Infof("Pod object: %s", pod.Name)
 		switch pod.Status.Phase {
 
 		// PodRunning means the pod has been bound to a node and all of the containers have been started.
@@ -146,9 +147,20 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 					Namespace:  pod.Namespace,
 					Name:       pod.Name,
 					ArtifactID: artifactId,
-					State:      string(v1.PodRunning),
+					State:      "CrashLoopBackOff",
 					Containers: containers,
 					Reason:     "CrashLoopBackOff",
+					Message:    message,
+				})
+				return
+			} else if allContainersReady(containers) {
+				succeeded(&PodEvent{
+					Namespace:  pod.Namespace,
+					Name:       pod.Name,
+					ArtifactID: artifactId,
+					State:      "Ready",
+					Containers: containers,
+					Reason:     "",
 					Message:    message,
 				})
 				return
@@ -214,27 +226,17 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 			}
 
 			if containsState(containers, "CreateContainerConfigError") {
-
 				failed(&PodEvent{
 					Namespace:  pod.Namespace,
 					Name:       pod.Name,
 					ArtifactID: artifactId,
-					State:      string(v1.PodPending),
+					State:      "CreateContainerConfigError",
 					Containers: containers,
 					Reason:     "CreateContainerConfigError",
 					Message:    message,
 				})
 				return
 			}
-			succeeded(&PodEvent{
-				Namespace:  pod.Namespace,
-				Name:       pod.Name,
-				ArtifactID: artifactId,
-				State:      string(v1.PodPending),
-				Containers: containers,
-				Reason:     "",
-				Message:    message,
-			})
 			return
 
 			// PodUnknown means that for some reason the state of the pod could not be obtained, typically due
@@ -262,4 +264,14 @@ func containsState(c []Container, x string) bool {
 		}
 	}
 	return false
+}
+
+func allContainersReady(c []Container) bool {
+	ready := 0
+	for _, n := range c {
+		if n.Ready {
+			ready += 1
+		}
+	}
+	return len(c) == ready
 }
