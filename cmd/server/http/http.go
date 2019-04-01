@@ -163,8 +163,8 @@ func daemonWebhook(configRepo, artifactFileName, sshPrivateKeyPath string, slack
 
 		err = flow.NotifyCommitter(r.Context(), configRepo, artifactFileName, sshPrivateKeyPath, &podNotify, slackClient)
 		if err != nil {
-			log.Errorf("notify committer failed: %v", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			log.Errorf("daemon webhook failed: notify committer: %v", err)
+			Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
