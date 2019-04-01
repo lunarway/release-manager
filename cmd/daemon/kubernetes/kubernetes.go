@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,7 +96,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 
 	// Just discard the event if there's no artifact id
 	if pod.Annotations["lunarway.com/artifact-id"] == "" {
-		log.Errorf("artifact-id missing in deployment")
+		log.Errorf("artifact-id missing in deployment: namespace '%s' pod '%s'", pod.Namespace, pod.Name)
 		return
 	}
 
@@ -109,27 +109,30 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 		// PodRunning means the pod has been bound to a node and all of the containers have been started.
 		// At least one container is still running or is in the process of being restarted.
 		case v1.PodRunning:
-			var containers []httpinternal.Container
+			var containers []http.Container
 			message := ""
-			reason := ""
 			discard := false
-			for _, cst := range pod.Status.ContainerStatuses {
+			for i, cst := range pod.Status.ContainerStatuses {
 				// Container is in Waiting state and CrashLoopBackOff
 				if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CrashLoopBackOff" {
-					containers = append(containers, httpinternal.Container{Name: cst.Name, State: cst.State.Waiting.Reason})
-					message = cst.State.Waiting.Message
-					reason = cst.State.Waiting.Reason
+					containers = append(containers, http.Container{Name: cst.Name, State: cst.State.Waiting.Reason, Reason: cst.State.Waiting.Reason, Message: cst.State.Waiting.Message, Ready: cst.Ready, RestartCount: cst.RestartCount})
+					if i == 0 {
+						message += cst.Name + ": " + cst.State.Waiting.Message
+					} else {
+						message += ", " + cst.Name + ": " + cst.State.Waiting.Message
+					}
+
 					continue
 				}
 				// Container is Running and responding to Readiness checks
 				if cst.State.Running != nil && cst.Ready {
-					containers = append(containers, httpinternal.Container{Name: cst.Name, State: "Ready"})
+					containers = append(containers, http.Container{Name: cst.Name, State: "Ready", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
 					continue
 				}
 
 				// Container is Running but the container is not responding to Readiness checks
 				if cst.State.Running != nil && !cst.Ready {
-					containers = append(containers, httpinternal.Container{Name: cst.Name, State: "Running"})
+					containers = append(containers, http.Container{Name: cst.Name, State: "Running", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
 					continue
 				}
 				discard = true
@@ -146,7 +149,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 					ArtifactID: artifactId,
 					State:      string(v1.PodRunning),
 					Containers: containers,
-					Reason:     reason,
+					Reason:     "CrashLoopBackOff",
 					Message:    message,
 				})
 				return
@@ -158,7 +161,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 				State:      string(v1.PodRunning),
 				Containers: containers,
 				Reason:     "",
-				Message:    "",
+				Message:    message,
 			})
 			return
 
@@ -179,27 +182,29 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 			// has not been started. This includes time before being bound to a node, as well as time spent
 			// pulling images onto the host.
 		case v1.PodPending:
-			var containers []httpinternal.Container
-			message := ""
-			reason := ""
+			var containers []http.Container
 			discard := false
-			for _, cst := range pod.Status.ContainerStatuses {
+			message := ""
+			for i, cst := range pod.Status.ContainerStatuses {
 				// Container is in Waiting state and CreateContainerConfigError
 				if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CreateContainerConfigError" {
-					containers = append(containers, httpinternal.Container{Name: cst.Name, State: cst.State.Waiting.Reason})
-					message = cst.State.Waiting.Message
-					reason = cst.State.Waiting.Reason
+					containers = append(containers, http.Container{Name: cst.Name, State: cst.State.Waiting.Reason, Reason: cst.State.Waiting.Reason, Message: cst.State.Waiting.Message, Ready: cst.Ready, RestartCount: cst.RestartCount})
+					if i == 0 {
+						message += cst.Name + ": " + cst.State.Waiting.Message
+					} else {
+						message += ", " + cst.Name + ": " + cst.State.Waiting.Message
+					}
 					continue
 				}
 				// Container is Running and responding to Readiness checks
 				if cst.State.Running != nil && cst.Ready {
-					containers = append(containers, httpinternal.Container{Name: cst.Name, State: "Ready"})
+					containers = append(containers, http.Container{Name: cst.Name, State: "Ready", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
 					continue
 				}
 
 				// Container is Running but the container is not responding to Readiness checks
 				if cst.State.Running != nil && !cst.Ready {
-					containers = append(containers, httpinternal.Container{Name: cst.Name, State: "Running"})
+					containers = append(containers, http.Container{Name: cst.Name, State: "Running", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
 					continue
 				}
 				discard = true
@@ -210,13 +215,14 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 			}
 
 			if Contains(containers, "CreateContainerConfigError") {
+
 				failed(&PodEvent{
 					Namespace:  pod.Namespace,
 					Name:       pod.Name,
 					ArtifactID: artifactId,
 					State:      string(v1.PodPending),
 					Containers: containers,
-					Reason:     reason,
+					Reason:     "CreateContainerConfigError",
 					Message:    message,
 				})
 				return
@@ -228,7 +234,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 				State:      string(v1.PodPending),
 				Containers: containers,
 				Reason:     "",
-				Message:    "",
+				Message:    message,
 			})
 			return
 
@@ -250,7 +256,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 	}
 }
 
-func Contains(c []httpinternal.Container, x string) bool {
+func Contains(c []http.Container, x string) bool {
 	for _, n := range c {
 		if x == n.State {
 			return true

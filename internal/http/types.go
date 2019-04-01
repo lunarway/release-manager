@@ -76,8 +76,12 @@ type PodNotifyRequest struct {
 	Logs       string      `json:"logs"`
 }
 type Container struct {
-	Name  string `json:"name"`
-	State string `json:"state"`
+	Name         string `json:"name"`
+	State        string `json:"state"`
+	Reason       string `json:"reason"`
+	Message      string `json:"message"`
+	Ready        bool   `json:"ready"`
+	RestartCount int32  `json:"restartCount"`
 }
 
 type ListPoliciesResponse struct {

@@ -5,6 +5,7 @@ import (
 
 	"time"
 
+	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -21,7 +22,7 @@ func TestStatusNotifier(t *testing.T) {
 		failureOutput *PodEvent
 	}{
 		{
-			desc: "Pod with 2 containers in State: Running",
+			desc: "Pod with 2 containers in State: Running and NOT Ready",
 			input: watch.Event{
 				Type: watch.Modified,
 				Object: &v1.Pod{
@@ -60,14 +61,16 @@ func TestStatusNotifier(t *testing.T) {
 				Namespace:  "dev",
 				State:      "Running",
 				ArtifactID: "master-7039119b9c-6a95af9e3f",
-				Containers: []Container{
+				Containers: []http.Container{
 					{
 						Name:  "container1",
 						State: "Running",
+						Ready: false,
 					},
 					{
 						Name:  "container2",
 						State: "Running",
+						Ready: false,
 					},
 				},
 				Reason:  "",
@@ -115,14 +118,16 @@ func TestStatusNotifier(t *testing.T) {
 				Namespace:  "dev",
 				State:      "Running",
 				ArtifactID: "master-7039119b9c-6a95af9e3f",
-				Containers: []Container{
+				Containers: []http.Container{
 					{
 						Name:  "container1",
 						State: "Ready",
+						Ready: true,
 					},
 					{
 						Name:  "container2",
 						State: "Ready",
+						Ready: true,
 					},
 				},
 				Reason:  "",
@@ -159,7 +164,7 @@ func TestStatusNotifier(t *testing.T) {
 				Namespace:  "dev",
 				State:      "Running",
 				ArtifactID: "master-7039119b9c-6a95af9e3f",
-				Containers: []Container{
+				Containers: []http.Container{
 					{
 						Name:  "container1",
 						State: "Running",
@@ -197,15 +202,17 @@ func TestStatusNotifier(t *testing.T) {
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
 				State:     "Running",
-				Containers: []Container{
+				Containers: []http.Container{
 					{
-						Name:  "crash",
-						State: "CrashLoopBackOff",
+						Name:    "crash",
+						State:   "CrashLoopBackOff",
+						Reason:  "CrashLoopBackOff",
+						Message: "there should be something here",
 					},
 				},
 				ArtifactID: "master-7039119b9c-6a95af9e3f",
 				Reason:     "CrashLoopBackOff",
-				Message:    "there should be something here",
+				Message:    "crash: there should be something here",
 			},
 		},
 		{
@@ -245,10 +252,12 @@ func TestStatusNotifier(t *testing.T) {
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
 				State:     string(v1.PodRunning),
-				Containers: []Container{
+				Containers: []http.Container{
 					{
-						Name:  "crash",
-						State: "CrashLoopBackOff",
+						Name:    "crash",
+						State:   "CrashLoopBackOff",
+						Reason:  "CrashLoopBackOff",
+						Message: "there should be something here",
 					},
 					{
 						Name:  "container2",
@@ -257,7 +266,62 @@ func TestStatusNotifier(t *testing.T) {
 				},
 				ArtifactID: "master-7039119b9c-6a95af9e3f",
 				Reason:     "CrashLoopBackOff",
-				Message:    "there should be something here",
+				Message:    "crash: there should be something here",
+			},
+		},
+		{
+			desc: "Pod with 2 containers in State: Running with both containers in CrashLoopBackOff",
+			input: watch.Event{
+				Type: watch.Modified,
+				Object: &v1.Pod{
+					ObjectMeta: defaultObjectMetaData(),
+					Status: v1.PodStatus{
+						Phase: v1.PodRunning,
+						ContainerStatuses: []v1.ContainerStatus{
+							{
+								Name: "crash",
+								State: v1.ContainerState{
+									Waiting: &v1.ContainerStateWaiting{
+										Message: "there should be something here",
+										Reason:  "CrashLoopBackOff",
+									},
+								},
+							},
+							{
+								Name: "crash1",
+								State: v1.ContainerState{
+									Waiting: &v1.ContainerStateWaiting{
+										Message: "there should be something here as well",
+										Reason:  "CrashLoopBackOff",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			successOutput: nil,
+			failureOutput: &PodEvent{
+				Name:      "product-77d79cf64-59mjj",
+				Namespace: "dev",
+				State:     string(v1.PodRunning),
+				Containers: []http.Container{
+					{
+						Name:    "crash",
+						State:   "CrashLoopBackOff",
+						Reason:  "CrashLoopBackOff",
+						Message: "there should be something here",
+					},
+					{
+						Name:    "crash1",
+						State:   "CrashLoopBackOff",
+						Reason:  "CrashLoopBackOff",
+						Message: "there should be something here as well",
+					},
+				},
+				ArtifactID: "master-7039119b9c-6a95af9e3f",
+				Reason:     "CrashLoopBackOff",
+				Message:    "crash: there should be something here, crash1: there should be something here as well",
 			},
 		},
 		{
@@ -308,15 +372,17 @@ func TestStatusNotifier(t *testing.T) {
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
 				State:     string(v1.PodPending),
-				Containers: []Container{
+				Containers: []http.Container{
 					{
-						Name:  "error",
-						State: "CreateContainerConfigError",
+						Name:    "error",
+						State:   "CreateContainerConfigError",
+						Reason:  "CreateContainerConfigError",
+						Message: "some config did not match",
 					},
 				},
 				ArtifactID: "master-7039119b9c-6a95af9e3f",
 				Reason:     "CreateContainerConfigError",
-				Message:    "some config did not match",
+				Message:    "error: some config did not match",
 			},
 		},
 		{
@@ -356,10 +422,12 @@ func TestStatusNotifier(t *testing.T) {
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
 				State:     string(v1.PodPending),
-				Containers: []Container{
+				Containers: []http.Container{
 					{
-						Name:  "error",
-						State: "CreateContainerConfigError",
+						Name:    "error",
+						State:   "CreateContainerConfigError",
+						Reason:  "CreateContainerConfigError",
+						Message: "some config did not match",
 					},
 					{
 						Name:  "running",
@@ -368,7 +436,7 @@ func TestStatusNotifier(t *testing.T) {
 				},
 				ArtifactID: "master-7039119b9c-6a95af9e3f",
 				Reason:     "CreateContainerConfigError",
-				Message:    "some config did not match",
+				Message:    "error: some config did not match",
 			},
 		},
 		{
