@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"github.com/lunarway/release-manager/internal/log"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -93,9 +93,9 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 		return
 	}
 
-	//
+	// Just discard the event if there's no artifact id
 	if pod.Annotations["lunarway.com/artifact-id"] == "" {
-		log.Errorf("artifact-id missing in deployment")
+		log.Errorf("artifact-id missing in deployment: namespace '%s' pod '%s'", pod.Namespace, pod.Name)
 		return
 	}
 
@@ -108,39 +108,70 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 		// PodRunning means the pod has been bound to a node and all of the containers have been started.
 		// At least one container is still running or is in the process of being restarted.
 		case v1.PodRunning:
-			for _, cst := range pod.Status.ContainerStatuses {
+			var containers []Container
+			message := ""
+			discard := false
+			for i, cst := range pod.Status.ContainerStatuses {
+				// Container is in Waiting state and CrashLoopBackOff
 				if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CrashLoopBackOff" {
-					failed(&PodEvent{
-						Namespace:  pod.Namespace,
-						PodName:    pod.Name,
-						ArtifactID: artifactId,
-						Status:     "failure",
-						Reason:     cst.State.Waiting.Reason,
-						Message:    cst.State.Waiting.Message,
-					})
-					return
+					containers = append(containers, Container{Name: cst.Name, State: cst.State.Waiting.Reason, Reason: cst.State.Waiting.Reason, Message: cst.State.Waiting.Message, Ready: cst.Ready, RestartCount: cst.RestartCount})
+					if i == 0 {
+						message += cst.Name + ": " + cst.State.Waiting.Message
+					} else {
+						message += ", " + cst.Name + ": " + cst.State.Waiting.Message
+					}
+
+					continue
+				}
+				// Container is Running and responding to Readiness checks
+				if cst.State.Running != nil && cst.Ready {
+					containers = append(containers, Container{Name: cst.Name, State: "Ready", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
+					continue
 				}
 
-				if cst.State.Running != nil {
-					succeeded(&PodEvent{
-						Namespace:  pod.Namespace,
-						PodName:    pod.Name,
-						ArtifactID: artifactId,
-						Status:     "success",
-						Reason:     "",
-						Message:    "",
-					})
-					return
+				// Container is Running but the container is not responding to Readiness checks
+				if cst.State.Running != nil && !cst.Ready {
+					containers = append(containers, Container{Name: cst.Name, State: "Running", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
+					continue
 				}
+				discard = true
 			}
+
+			if discard && len(containers) == 0 {
+				return
+			}
+
+			if containsState(containers, "CrashLoopBackOff") {
+				failed(&PodEvent{
+					Namespace:  pod.Namespace,
+					Name:       pod.Name,
+					ArtifactID: artifactId,
+					State:      string(v1.PodRunning),
+					Containers: containers,
+					Reason:     "CrashLoopBackOff",
+					Message:    message,
+				})
+				return
+			}
+			succeeded(&PodEvent{
+				Namespace:  pod.Namespace,
+				Name:       pod.Name,
+				ArtifactID: artifactId,
+				State:      string(v1.PodRunning),
+				Containers: containers,
+				Reason:     "",
+				Message:    message,
+			})
+			return
+
 			// PodFailed means that all containers in the pod have terminated, and at least one container has
 			// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
 		case v1.PodFailed:
 			failed(&PodEvent{
 				Namespace:  pod.Namespace,
-				PodName:    pod.Name,
+				Name:       pod.Name,
 				ArtifactID: artifactId,
-				Status:     "failure",
+				State:      string(v1.PodFailed),
 				Reason:     pod.Status.Reason,
 				Message:    pod.Status.Message,
 			})
@@ -150,20 +181,61 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 			// has not been started. This includes time before being bound to a node, as well as time spent
 			// pulling images onto the host.
 		case v1.PodPending:
-			log.WithFields("pod", fmt.Sprintf("%v", pod)).Infof("PodPending: pod=%s, reason=%s, message=%s", pod.Name, pod.Status.Reason, pod.Status.Message)
-			for _, cst := range pod.Status.ContainerStatuses {
+			var containers []Container
+			discard := false
+			message := ""
+			for i, cst := range pod.Status.ContainerStatuses {
+				// Container is in Waiting state and CreateContainerConfigError
 				if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CreateContainerConfigError" {
-					failed(&PodEvent{
-						Namespace:  pod.Namespace,
-						PodName:    pod.Name,
-						Status:     "failure",
-						ArtifactID: artifactId,
-						Reason:     cst.State.Waiting.Reason,
-						Message:    cst.State.Waiting.Message,
-					})
-					return
+					containers = append(containers, Container{Name: cst.Name, State: cst.State.Waiting.Reason, Reason: cst.State.Waiting.Reason, Message: cst.State.Waiting.Message, Ready: cst.Ready, RestartCount: cst.RestartCount})
+					if i == 0 {
+						message += cst.Name + ": " + cst.State.Waiting.Message
+					} else {
+						message += ", " + cst.Name + ": " + cst.State.Waiting.Message
+					}
+					continue
 				}
+				// Container is Running and responding to Readiness checks
+				if cst.State.Running != nil && cst.Ready {
+					containers = append(containers, Container{Name: cst.Name, State: "Ready", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
+					continue
+				}
+
+				// Container is Running but the container is not responding to Readiness checks
+				if cst.State.Running != nil && !cst.Ready {
+					containers = append(containers, Container{Name: cst.Name, State: "Running", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
+					continue
+				}
+				discard = true
 			}
+
+			if discard && len(containers) == 0 {
+				return
+			}
+
+			if containsState(containers, "CreateContainerConfigError") {
+
+				failed(&PodEvent{
+					Namespace:  pod.Namespace,
+					Name:       pod.Name,
+					ArtifactID: artifactId,
+					State:      string(v1.PodPending),
+					Containers: containers,
+					Reason:     "CreateContainerConfigError",
+					Message:    message,
+				})
+				return
+			}
+			succeeded(&PodEvent{
+				Namespace:  pod.Namespace,
+				Name:       pod.Name,
+				ArtifactID: artifactId,
+				State:      string(v1.PodPending),
+				Containers: containers,
+				Reason:     "",
+				Message:    message,
+			})
+			return
 
 			// PodUnknown means that for some reason the state of the pod could not be obtained, typically due
 			// to an error in communicating with the host of the pod.
@@ -181,4 +253,13 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 			return
 		}
 	}
+}
+
+func containsState(c []Container, x string) bool {
+	for _, n := range c {
+		if x == n.State {
+			return true
+		}
+	}
+	return false
 }

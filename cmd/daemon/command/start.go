@@ -32,7 +32,7 @@ func StartDaemon() *cobra.Command {
 
 			failedFunc := func(event *kubernetes.PodEvent) error {
 				if event.Reason == "CrashLoopBackOff" {
-					logs, err := kubectl.GetLogs(event.PodName, event.Namespace)
+					logs, err := kubectl.GetLogs(event.Name, event.Namespace)
 					if err != nil {
 						return err
 					}
@@ -61,12 +61,13 @@ func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, a
 	}
 
 	b := &bytes.Buffer{}
-	err := json.NewEncoder(b).Encode(httpinternal.StatusNotifyRequest{
-		PodName:    event.PodName,
+	err := json.NewEncoder(b).Encode(httpinternal.PodNotifyRequest{
+		Name:       event.Name,
 		Namespace:  event.Namespace,
 		Message:    event.Message,
 		Reason:     event.Reason,
-		Status:     event.Status,
+		State:      event.State,
+		Containers: mapContainers(event.Containers),
 		ArtifactID: event.ArtifactID,
 		Logs:       logs,
 	})
@@ -79,18 +80,33 @@ func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, a
 	url := releaseManagerUrl + "/webhook/daemon"
 	req, err := http.NewRequest(http.MethodPost, url, b)
 	if err != nil {
-		log.Errorf("error generating StatusNotifyRequest to %s", url)
+		log.Errorf("error generating PodNotifyRequest to %s", url)
 		return
 	}
 
 	req.Header.Set("Authorization", "Bearer "+authToken)
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Errorf("error posting StatusNotifyRequest to %s", url)
+		log.Errorf("error posting PodNotifyRequest to %s", url)
 		return
 	}
 	if resp.StatusCode != 200 {
 		log.Errorf("release-manager returned status-code in notify webhook: %d", resp.Status)
 		return
 	}
+}
+
+func mapContainers(containers []kubernetes.Container) []httpinternal.Container {
+	h := make([]httpinternal.Container, len(containers))
+	for i, c := range containers {
+		h[i] = httpinternal.Container{
+			Name:         c.Name,
+			State:        c.State,
+			Reason:       c.Reason,
+			Message:      c.Message,
+			Ready:        c.Ready,
+			RestartCount: c.RestartCount,
+		}
+	}
+	return h
 }
