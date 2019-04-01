@@ -215,7 +215,7 @@ func TestStatusNotifier(t *testing.T) {
 			},
 		},
 		{
-			desc: "Pod with 2 containers in State: Running with 1 container in CrashLoopBackOff",
+			desc: "Pod with 2 containers in State: Running with 1 container in CrashLoopBackOff and 1 container Running",
 			input: watch.Event{
 				Type: watch.Modified,
 				Object: &v1.Pod{
