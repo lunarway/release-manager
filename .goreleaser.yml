@@ -18,10 +18,6 @@ builds:
   - linux
 - binary: server
   main: ./cmd/server/main.go
-  dockers:
-  - dockerfile: Dockerfile
-    image_templates:
-    - "quay.io/lunarway/release-manager:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
   goarch:
   - amd64
   goos:
@@ -29,15 +25,18 @@ builds:
   - linux
 - binary: daemon
   main: ./cmd/daemon/main.go
-  dockers:
-  - dockerfile: Dockerfile-daemon
-    image_templates:
-    - "quay.io/lunarway/release-daemon:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
   goarch:
   - amd64
   goos:
   - darwin
   - linux
+dockers:
+- dockerfile: Dockerfile
+  image_templates:
+  - "quay.io/lunarway/release-manager:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
+- dockerfile: Dockerfile
+  image_templates:
+  - "quay.io/lunarway/release-manager:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
 
 checksum:
   name_template: '{{ .ProjectName }}-checksums.txt'
