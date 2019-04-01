@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -60,7 +59,7 @@ func TestStatusNotifier(t *testing.T) {
 				Namespace:  "dev",
 				State:      "Running",
 				ArtifactID: "master-7039119b9c-6a95af9e3f",
-				Containers: []http.Container{
+				Containers: []Container{
 					{
 						Name:  "container1",
 						State: "Running",
@@ -117,7 +116,7 @@ func TestStatusNotifier(t *testing.T) {
 				Namespace:  "dev",
 				State:      "Running",
 				ArtifactID: "master-7039119b9c-6a95af9e3f",
-				Containers: []http.Container{
+				Containers: []Container{
 					{
 						Name:  "container1",
 						State: "Ready",
@@ -163,7 +162,7 @@ func TestStatusNotifier(t *testing.T) {
 				Namespace:  "dev",
 				State:      "Running",
 				ArtifactID: "master-7039119b9c-6a95af9e3f",
-				Containers: []http.Container{
+				Containers: []Container{
 					{
 						Name:  "container1",
 						State: "Running",
@@ -201,7 +200,7 @@ func TestStatusNotifier(t *testing.T) {
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
 				State:     "Running",
-				Containers: []http.Container{
+				Containers: []Container{
 					{
 						Name:    "crash",
 						State:   "CrashLoopBackOff",
@@ -251,7 +250,7 @@ func TestStatusNotifier(t *testing.T) {
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
 				State:     string(v1.PodRunning),
-				Containers: []http.Container{
+				Containers: []Container{
 					{
 						Name:    "crash",
 						State:   "CrashLoopBackOff",
@@ -304,7 +303,7 @@ func TestStatusNotifier(t *testing.T) {
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
 				State:     string(v1.PodRunning),
-				Containers: []http.Container{
+				Containers: []Container{
 					{
 						Name:    "crash",
 						State:   "CrashLoopBackOff",
@@ -371,7 +370,7 @@ func TestStatusNotifier(t *testing.T) {
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
 				State:     string(v1.PodPending),
-				Containers: []http.Container{
+				Containers: []Container{
 					{
 						Name:    "error",
 						State:   "CreateContainerConfigError",
@@ -421,7 +420,7 @@ func TestStatusNotifier(t *testing.T) {
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
 				State:     string(v1.PodPending),
-				Containers: []http.Container{
+				Containers: []Container{
 					{
 						Name:    "error",
 						State:   "CreateContainerConfigError",

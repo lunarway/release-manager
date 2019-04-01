@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -109,13 +108,13 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 		// PodRunning means the pod has been bound to a node and all of the containers have been started.
 		// At least one container is still running or is in the process of being restarted.
 		case v1.PodRunning:
-			var containers []http.Container
+			var containers []Container
 			message := ""
 			discard := false
 			for i, cst := range pod.Status.ContainerStatuses {
 				// Container is in Waiting state and CrashLoopBackOff
 				if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CrashLoopBackOff" {
-					containers = append(containers, http.Container{Name: cst.Name, State: cst.State.Waiting.Reason, Reason: cst.State.Waiting.Reason, Message: cst.State.Waiting.Message, Ready: cst.Ready, RestartCount: cst.RestartCount})
+					containers = append(containers, Container{Name: cst.Name, State: cst.State.Waiting.Reason, Reason: cst.State.Waiting.Reason, Message: cst.State.Waiting.Message, Ready: cst.Ready, RestartCount: cst.RestartCount})
 					if i == 0 {
 						message += cst.Name + ": " + cst.State.Waiting.Message
 					} else {
@@ -126,13 +125,13 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 				}
 				// Container is Running and responding to Readiness checks
 				if cst.State.Running != nil && cst.Ready {
-					containers = append(containers, http.Container{Name: cst.Name, State: "Ready", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
+					containers = append(containers, Container{Name: cst.Name, State: "Ready", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
 					continue
 				}
 
 				// Container is Running but the container is not responding to Readiness checks
 				if cst.State.Running != nil && !cst.Ready {
-					containers = append(containers, http.Container{Name: cst.Name, State: "Running", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
+					containers = append(containers, Container{Name: cst.Name, State: "Running", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
 					continue
 				}
 				discard = true
@@ -182,13 +181,13 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 			// has not been started. This includes time before being bound to a node, as well as time spent
 			// pulling images onto the host.
 		case v1.PodPending:
-			var containers []http.Container
+			var containers []Container
 			discard := false
 			message := ""
 			for i, cst := range pod.Status.ContainerStatuses {
 				// Container is in Waiting state and CreateContainerConfigError
 				if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CreateContainerConfigError" {
-					containers = append(containers, http.Container{Name: cst.Name, State: cst.State.Waiting.Reason, Reason: cst.State.Waiting.Reason, Message: cst.State.Waiting.Message, Ready: cst.Ready, RestartCount: cst.RestartCount})
+					containers = append(containers, Container{Name: cst.Name, State: cst.State.Waiting.Reason, Reason: cst.State.Waiting.Reason, Message: cst.State.Waiting.Message, Ready: cst.Ready, RestartCount: cst.RestartCount})
 					if i == 0 {
 						message += cst.Name + ": " + cst.State.Waiting.Message
 					} else {
@@ -198,13 +197,13 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 				}
 				// Container is Running and responding to Readiness checks
 				if cst.State.Running != nil && cst.Ready {
-					containers = append(containers, http.Container{Name: cst.Name, State: "Ready", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
+					containers = append(containers, Container{Name: cst.Name, State: "Ready", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
 					continue
 				}
 
 				// Container is Running but the container is not responding to Readiness checks
 				if cst.State.Running != nil && !cst.Ready {
-					containers = append(containers, http.Container{Name: cst.Name, State: "Running", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
+					containers = append(containers, Container{Name: cst.Name, State: "Running", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
 					continue
 				}
 				discard = true
@@ -256,7 +255,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 	}
 }
 
-func containsState(c []http.Container, x string) bool {
+func containsState(c []Container, x string) bool {
 	for _, n := range c {
 		if x == n.State {
 			return true

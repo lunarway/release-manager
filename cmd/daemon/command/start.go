@@ -67,7 +67,7 @@ func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, a
 		Message:    event.Message,
 		Reason:     event.Reason,
 		State:      event.State,
-		Containers: event.Containers,
+		Containers: mapContainers(event.Containers),
 		ArtifactID: event.ArtifactID,
 		Logs:       logs,
 	})
@@ -94,4 +94,19 @@ func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, a
 		log.Errorf("release-manager returned status-code in notify webhook: %d", resp.Status)
 		return
 	}
+}
+
+func mapContainers(containers []kubernetes.Container) []httpinternal.Container {
+	h := make([]httpinternal.Container, len(containers))
+	for i, c := range containers {
+		h[i] = httpinternal.Container{
+			Name:         c.Name,
+			State:        c.State,
+			Reason:       c.Reason,
+			Message:      c.Message,
+			Ready:        c.Ready,
+			RestartCount: c.RestartCount,
+		}
+	}
+	return h
 }
