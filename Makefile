@@ -78,3 +78,58 @@ github-webhook:
 		} \
 	}' \
 	localhost:8080/webhook/github
+
+daemon-webhook-success:
+	curl -X POST \
+	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer test" \
+	-d '{ \
+	  "name": "product-f4fd84588-62789", \
+	  "namespace": "dev", \
+	  "state": "Running", \
+	  "artifactId": "master-a9aad46188-f41b35775e", \
+	  "reason": "test", \
+	  "message": "test", \
+	  "containers": [ \
+		{ "name": "container1", "state": "Running" }, \
+		{ "name": "container2", "state": "Running" } \
+	  ] \
+	}' \
+	localhost:8080/webhook/daemon
+
+daemon-webhook-crashloop:
+	curl -X POST \
+	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer test" \
+	-d '{ \
+	  "name": "product-f4fd84588-62789", \
+	  "namespace": "dev", \
+	  "state": "CrashLoopBackOff", \
+	  "artifactId": "master-a9aad46188-f41b35775e", \
+	  "reason": "CrashLoopBackOff", \
+	  "message": "test", \
+	  "logs": "some error logs here", \
+	  "containers": [ \
+		{ "name": "container1", "state": "CrashLoopBackOff" }, \
+		{ "name": "container2", "state": "Running" } \
+	  ] \
+	}' \
+	localhost:8080/webhook/daemon
+
+daemon-webhook-configerror:
+	curl -X POST \
+	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer test" \
+	-d '{ \
+	  "name": "product-f4fd84588-62789", \
+	  "namespace": "dev", \
+	  "state": "CreateContainerConfigError", \
+	  "artifactId": "master-a9aad46188-f41b35775e", \
+	  "reason": "CreateContainerConfigError", \
+	  "message": "Config error. 'secret/log.debug' not set", \
+	  "containers": [ \
+		{ "name": "container1", "state": "CreateContainerConfigError" }, \
+		{ "name": "container2", "state": "Running" } \
+	  ] \
+	}' \
+	localhost:8080/webhook/daemon
