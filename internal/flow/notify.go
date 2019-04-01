@@ -4,6 +4,8 @@ import (
 	"context"
 	"regexp"
 
+	"strings"
+
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
@@ -47,6 +49,10 @@ func NotifyCommitter(ctx context.Context, configRepoURL, artifactFileName, sshPr
 
 	log.Infof("Commit: %+v", commit)
 
+	if !isValidEmail(commit.Author.Email) {
+		return errors.WithMessagef(err, "%s is not a Lunar Way email", commit.Author.Email)
+	}
+
 	slackUserId, err := client.GetSlackIdByEmail(commit.Author.Email)
 	if err != nil {
 		return errors.WithMessage(err, "locate slack userId")
@@ -58,4 +64,8 @@ func NotifyCommitter(ctx context.Context, configRepoURL, artifactFileName, sshPr
 	}
 
 	return nil
+}
+
+func isValidEmail(email string) bool {
+	return strings.Contains(email, "@lunarway.com")
 }
