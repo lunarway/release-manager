@@ -16,6 +16,20 @@ builds:
   goos:
   - darwin
   - linux
+- binary: server
+  main: ./cmd/server/main.go
+  goarch:
+  - amd64
+  goos:
+  - darwin
+  - linux
+- binary: daemon
+  main: ./cmd/daemon/main.go
+  goarch:
+  - amd64
+  goos:
+  - darwin
+  - linux
 
 checksum:
   name_template: '{{ .ProjectName }}-checksums.txt'
