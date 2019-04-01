@@ -30,7 +30,7 @@ func NotifyCommitter(ctx context.Context, configRepoURL, artifactFileName, sshPr
 
 	commit, err := sourceRepo.CommitObject(hash)
 	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("locate commit object"))
+		return errors.WithMessage(err, "locate commit object")
 	}
 
 	rgx := regexp.MustCompile(`\[(.*?)\/(.*?)\]`)
@@ -43,19 +43,19 @@ func NotifyCommitter(ctx context.Context, configRepoURL, artifactFileName, sshPr
 
 	sourceSpec, err := sourceSpec(sourceConfigRepoPath, artifactFileName, service, env)
 	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("locate source spec"))
+		return errors.WithMessage(err, "locate source spec")
 	}
 
 	log.Infof("Commit: %+v", commit)
 
 	slackUserId, err := client.GetSlackIdByEmail(commit.Author.Email)
 	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("locate slack userId"))
+		return errors.WithMessage(err, "locate slack userId")
 	}
 
 	err = client.PostPrivateMessage(slackUserId, env, service, sourceSpec, event)
 	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("post private message"))
+		return errors.WithMessage(err, "post private message")
 	}
 
 	return nil
