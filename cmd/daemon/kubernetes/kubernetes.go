@@ -142,7 +142,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 				return
 			}
 
-			if Contains(containers, "CrashLoopBackOff") {
+			if containsState(containers, "CrashLoopBackOff") {
 				failed(&PodEvent{
 					Namespace:  pod.Namespace,
 					Name:       pod.Name,
@@ -214,7 +214,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 				return
 			}
 
-			if Contains(containers, "CreateContainerConfigError") {
+			if containsState(containers, "CreateContainerConfigError") {
 
 				failed(&PodEvent{
 					Namespace:  pod.Namespace,
@@ -256,7 +256,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 	}
 }
 
-func Contains(c []http.Container, x string) bool {
+func containsState(c []http.Container, x string) bool {
 	for _, n := range c {
 		if x == n.State {
 			return true
