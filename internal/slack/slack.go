@@ -71,7 +71,7 @@ func successMessage(env, service string, artifact spec.Spec, podNotify *http.Pod
 	}
 	containersField := slack.AttachmentField{
 		Title: "Containers",
-		Value: string(len(podNotify.Containers)),
+		Value: fmt.Sprintf("%d", len(podNotify.Containers)),
 		Short: true,
 	}
 	return slack.MsgOptionAttachments(slack.Attachment{
@@ -100,7 +100,7 @@ func createConfigErrorMessage(env, service string, artifact spec.Spec, podNotify
 	}
 	containersField := slack.AttachmentField{
 		Title: "Containers",
-		Value: string(len(podNotify.Containers)),
+		Value: fmt.Sprintf("%d", len(podNotify.Containers)),
 		Short: true,
 	}
 	messageField := slack.AttachmentField{
