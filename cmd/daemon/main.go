@@ -1,9 +1,8 @@
 package main
 
 import (
-	"os"
-
 	"fmt"
+	"os"
 
 	"github.com/lunarway/release-manager/cmd/daemon/command"
 	"github.com/lunarway/release-manager/internal/log"

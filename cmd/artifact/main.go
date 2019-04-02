@@ -1,9 +1,8 @@
 package main
 
 import (
-	"os"
-
 	"fmt"
+	"os"
 
 	"github.com/lunarway/release-manager/cmd/artifact/command"
 	"github.com/spf13/cobra"
