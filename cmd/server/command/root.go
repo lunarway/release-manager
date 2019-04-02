@@ -23,7 +23,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().DurationVar(&options.Timeout, "timeout", 20*time.Second, "HTTP server timeout for incomming requests")
 	command.PersistentFlags().StringVar(&options.HamCtlAuthToken, "hamctl-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "hamctl authentication token")
 	command.PersistentFlags().StringVar(&options.DaemonAuthToken, "daemon-auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "daemon webhook authentication token")
-	command.PersistentFlags().StringVar(&options.ConfigRepo, "config-repo", "git@github.com:lunarway/k8s-cluster-config.git", "ssh url for the git config repository")
+	command.PersistentFlags().StringVar(&options.ConfigRepo, "config-repo", os.Getenv("CONFIG_REPO"), "ssh url for the git config repository")
 	command.PersistentFlags().StringVar(&options.ArtifactFileName, "artifact-filename", "artifact.json", "the filename of the artifact to be used")
 	command.PersistentFlags().StringVar(&options.SSHPrivateKeyPath, "ssh-private-key", "/etc/release-manager/ssh/identity", "ssh-private-key for the config repo")
 	command.PersistentFlags().StringVar(&options.GithubWebhookSecret, "github-webhook-secret", os.Getenv("GITHUB_WEBHOOK_SECRET"), "github webhook secret")
