@@ -12,7 +12,7 @@ import (
 )
 
 func NewStatus(client *httpinternal.Client) *cobra.Command {
-	var serviceName, configRepo, artifactFileName string
+	var serviceName string
 	var command = &cobra.Command{
 		Use:   "status",
 		Short: "List the status of the environments",
@@ -43,8 +43,6 @@ func NewStatus(client *httpinternal.Client) *cobra.Command {
 	}
 	command.Flags().StringVar(&serviceName, "service", "", "service to output current status for")
 	command.MarkFlagRequired("service")
-	command.Flags().StringVar(&configRepo, "config-repo", "git@github.com:lunarway/k8s-cluster-config.git", "Kubernetes cluster configuration repository.")
-	command.Flags().StringVar(&artifactFileName, "file", "artifact.json", "")
 	return command
 }
 
