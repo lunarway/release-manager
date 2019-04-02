@@ -25,6 +25,9 @@ func reqrespLogger(h http.Handler) http.Handler {
 		lrw := &loggingResponseWriter{w, http.StatusOK}
 		start := time.Now()
 		h.ServeHTTP(lrw, r)
+		if r.URL.Path == "/ping" {
+			return
+		}
 		// request duration in miliseconds
 		duration := time.Since(start).Nanoseconds() / 1e6
 		statusCode := lrw.statusCode
