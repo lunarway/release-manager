@@ -8,7 +8,7 @@ type Options struct {
 }
 
 // NewCommand returns a new instance of a rm-gen-spec command.
-func NewCommand() *cobra.Command {
+func NewCommand() (*cobra.Command, error) {
 	var options Options
 	var command = &cobra.Command{
 		Use:   "artifact",
@@ -22,5 +22,5 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(initCommand(&options))
 	command.AddCommand(endCommand(&options))
 	command.AddCommand(addCommand(&options))
-	return command
+	return command, nil
 }

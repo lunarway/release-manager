@@ -9,7 +9,7 @@ import (
 )
 
 // NewCommand returns a new instance of a hamctl command.
-func NewCommand() *cobra.Command {
+func NewCommand() (*cobra.Command, error) {
 	var options http.Options
 	var command = &cobra.Command{
 		Use:   "server",
@@ -29,5 +29,5 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().StringVar(&options.GithubWebhookSecret, "github-webhook-secret", os.Getenv("GITHUB_WEBHOOK_SECRET"), "github webhook secret")
 	command.PersistentFlags().StringVar(&options.SlackAuthToken, "slack-token", os.Getenv("SLACK_TOKEN"), "token to be used to communicate with the slack api")
 
-	return command
+	return command, nil
 }
