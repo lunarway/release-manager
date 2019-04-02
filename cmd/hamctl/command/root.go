@@ -9,7 +9,7 @@ import (
 )
 
 // NewCommand returns a new instance of a hamctl command.
-func NewCommand() *cobra.Command {
+func NewCommand() (*cobra.Command, error) {
 	var client http.Client
 	var command = &cobra.Command{
 		Use:   "hamctl",
@@ -25,5 +25,5 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().DurationVar(&client.Timeout, "http-timeout", 20*time.Second, "HTTP request timeout")
 	command.PersistentFlags().StringVar(&client.BaseURL, "http-base-url", "https://release-manager.dev.lunarway.com", "address of the http release manager server")
 	command.PersistentFlags().StringVar(&client.AuthToken, "http-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "auth token for the http service")
-	return command
+	return command, nil
 }

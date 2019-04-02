@@ -38,6 +38,35 @@ dockers:
   image_templates:
   - "quay.io/lunarway/release-manager:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
 
+dockers:
+  - dockerfile: Dockerfile-server-goreleaser
+    binaries:
+    - server
+    image_templates:
+    - "quay.io/lunarway/release-manager:latest"
+    - "quay.io/lunarway/release-manager:v{{ .Major }}"
+    - "quay.io/lunarway/release-manager:v{{ .Major }}.{{ .Minor }}"
+    - "quay.io/lunarway/release-manager:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
+    extra_files:
+    - ssh_config
+  - dockerfile: Dockerfile-daemon-goreleaser
+    binaries:
+    - daemon
+    image_templates:
+    - "quay.io/lunarway/release-daemon:latest"
+    - "quay.io/lunarway/release-daemon:v{{ .Major }}"
+    - "quay.io/lunarway/release-daemon:v{{ .Major }}.{{ .Minor }}"
+    - "quay.io/lunarway/release-daemon:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
+
+archive:
+  format: binary
+  name_template: "{{ .Binary }}-{{ .Os }}-{{ .Arch }}"
+  replacements:
+    darwin: darwin
+    linux: linux
+    windows: windows
+    386: i386
+
 checksum:
   name_template: '{{ .ProjectName }}-checksums.txt'
 
