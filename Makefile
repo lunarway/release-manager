@@ -30,7 +30,7 @@ build_server_docker:
 ifeq ($(TAG),)
 	@echo "TAG is required for this target" && exit 1
 endif
-	docker build -t $(IMAGE):${TAG} .
+	docker build -f Dockerfile-server -t $(IMAGE):${TAG} .
 
 push_server_docker:
 ifeq ($(TAG),)
