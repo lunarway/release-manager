@@ -1,0 +1,18 @@
+    
+language: go
+go:
+- "1.12.x"
+script:
+- go build ./...
+- go test ./...
+services:
+- docker
+after_success:
+- test -n "$TRAVIS_TAG" && docker login -u="lunarway+travis_ci" -p="$QUAY_TOKEN" quay.io
+deploy:
+- provider: script
+  skip_cleanup: true
+  script: curl -sL https://git.io/goreleaser | bash
+  on:
+    tags: true
+    condition: $TRAVIS_OS_NAME = linux
