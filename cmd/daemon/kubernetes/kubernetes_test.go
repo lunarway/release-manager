@@ -114,7 +114,7 @@ func TestStatusNotifier(t *testing.T) {
 			successOutput: &PodEvent{
 				Name:       "product-77d79cf64-59mjj",
 				Namespace:  "dev",
-				State:      "Running",
+				State:      "Ready",
 				ArtifactID: "master-7039119b9c-6a95af9e3f",
 				Containers: []Container{
 					{
@@ -199,7 +199,7 @@ func TestStatusNotifier(t *testing.T) {
 			failureOutput: &PodEvent{
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
-				State:     "Running",
+				State:     "CrashLoopBackOff",
 				Containers: []Container{
 					{
 						Name:    "crash",
@@ -249,7 +249,7 @@ func TestStatusNotifier(t *testing.T) {
 			failureOutput: &PodEvent{
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
-				State:     string(v1.PodRunning),
+				State:     "CrashLoopBackOff",
 				Containers: []Container{
 					{
 						Name:    "crash",
@@ -302,7 +302,7 @@ func TestStatusNotifier(t *testing.T) {
 			failureOutput: &PodEvent{
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
-				State:     string(v1.PodRunning),
+				State:     "CrashLoopBackOff",
 				Containers: []Container{
 					{
 						Name:    "crash",
@@ -369,7 +369,7 @@ func TestStatusNotifier(t *testing.T) {
 			failureOutput: &PodEvent{
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
-				State:     string(v1.PodPending),
+				State:     "CreateContainerConfigError",
 				Containers: []Container{
 					{
 						Name:    "error",
@@ -419,7 +419,7 @@ func TestStatusNotifier(t *testing.T) {
 			failureOutput: &PodEvent{
 				Name:      "product-77d79cf64-59mjj",
 				Namespace: "dev",
-				State:     string(v1.PodPending),
+				State:     "CreateContainerConfigError",
 				Containers: []Container{
 					{
 						Name:    "error",
