@@ -37,6 +37,8 @@ dockers:
     - server
     image_templates:
     - "quay.io/lunarway/release-manager:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
+    extra_files:
+    - ssh_config
 
 
 checksum:
