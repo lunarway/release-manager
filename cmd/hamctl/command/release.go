@@ -15,11 +15,11 @@ func NewRelease(client *httpinternal.Client) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "release",
 		Short: `Release a specific artifact or latest artifact from a branch into a specific environment.`,
-		Example: `Release artifact 'master-482c9d808e-3bf40478e5' from service 'product' into environemnt 'dev':
+		Example: `Release artifact 'master-482c9d808e-3bf40478e5' from service 'product' into environment 'dev':
 
   hamctl release --service product --env dev --artifact master-482c9d808e-3bf40478e5
 
-Release latest artifact from branch 'master' of service 'product' into environemnt 'dev':
+Release latest artifact from branch 'master' of service 'product' into environment 'dev':
 
   hamctl release --service product --env dev --branch master`,
 		RunE: func(c *cobra.Command, args []string) error {
