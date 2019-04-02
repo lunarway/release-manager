@@ -10,7 +10,7 @@ import (
 )
 
 func NewPromote(client *httpinternal.Client) *cobra.Command {
-	var serviceName, environment, configRepo, artifactFileName string
+	var serviceName, environment string
 	var command = &cobra.Command{
 		Use:   "promote",
 		Short: "Promote a service to a specific environment following promoting conventions.",
@@ -47,7 +47,5 @@ func NewPromote(client *httpinternal.Client) *cobra.Command {
 	command.MarkFlagRequired("service")
 	command.Flags().StringVar(&environment, "env", "", "Environment to promote to (required)")
 	command.MarkFlagRequired("env")
-	command.Flags().StringVar(&configRepo, "config-repo", "git@github.com:lunarway/k8s-cluster-config.git", "Kubernetes cluster configuration repository.")
-	command.Flags().StringVar(&artifactFileName, "file", "artifact.json", "")
 	return command
 }
