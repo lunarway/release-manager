@@ -34,9 +34,9 @@ dockers:
 - dockerfile: Dockerfile
   image_templates:
   - "quay.io/lunarway/release-manager:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
-- dockerfile: Dockerfile
+- dockerfile: Dockerfile-daemon
   image_templates:
-  - "quay.io/lunarway/release-manager:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
+  - "quay.io/lunarway/release-daemon:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
 
 checksum:
   name_template: '{{ .ProjectName }}-checksums.txt'
