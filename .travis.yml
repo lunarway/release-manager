@@ -5,6 +5,9 @@ go:
 script:
 - go build ./...
 - go test ./...
+env:
+  global:
+  - GO111MODULE=on
 services:
 - docker
 after_success:
