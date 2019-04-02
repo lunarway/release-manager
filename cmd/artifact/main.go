@@ -25,5 +25,8 @@ func main() {
 		},
 	}
 	c.AddCommand(versionCmd)
-	c.Execute()
+	err = c.Execute()
+	if err != nil {
+		os.Exit(1)
+	}
 }
