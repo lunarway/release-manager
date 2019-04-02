@@ -30,13 +30,13 @@ func NewStatus(client *httpinternal.Client) *cobra.Command {
 				return err
 			}
 			fmt.Printf("\n")
-			color.Green("k8s.dev.lunarway.com\n")
+			color.Green("dev:\n")
 			printStatus(resp.Dev)
 
-			color.Green("k8s.staging.lunarway.com\n")
+			color.Green("staging:\n")
 			printStatus(resp.Staging)
 
-			color.Green("kubernetes.prod.lunarway.com\n")
+			color.Green("prod:\n")
 			printStatus(resp.Prod)
 			return nil
 		},
