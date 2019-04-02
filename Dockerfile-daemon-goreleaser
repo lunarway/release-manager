@@ -1,0 +1,10 @@
+FROM alpine:3.9 as builder
+
+RUN apk update
+RUN apk add ca-certificates
+ 
+FROM scratch
+ENTRYPOINT [ "/daemon", "start" ]
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY daemon /
