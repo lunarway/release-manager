@@ -30,13 +30,6 @@ builds:
   goos:
   - darwin
   - linux
-dockers:
-- dockerfile: Dockerfile
-  image_templates:
-  - "quay.io/lunarway/release-manager:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
-- dockerfile: Dockerfile
-  image_templates:
-  - "quay.io/lunarway/release-manager:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
 
 dockers:
   - dockerfile: Dockerfile-server-goreleaser
