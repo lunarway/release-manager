@@ -4,7 +4,7 @@ RUN   apk update && \
       openssh-keygen bash openssh-client git ca-certificates
 RUN ssh-keyscan github.com bitbucket.org >> /etc/ssh/ssh_known_hosts
 
-COPY ./ssh_config /etc/ssh/ssh_config
+COPY ssh_config /etc/ssh/ssh_config
 
 ENTRYPOINT [ "/server", "start" ]
 
