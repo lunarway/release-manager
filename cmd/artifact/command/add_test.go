@@ -24,7 +24,7 @@ func Test(t *testing.T) {
 			},
 			output: spec.Spec{
 				Stages: []spec.Stage{
-					spec.Stage{
+					{
 						ID: "test",
 					},
 				},
@@ -34,7 +34,7 @@ func Test(t *testing.T) {
 			desc: "stage already created",
 			spec: spec.Spec{
 				Stages: []spec.Stage{
-					spec.Stage{
+					{
 						ID: "test",
 					},
 				},
@@ -44,7 +44,7 @@ func Test(t *testing.T) {
 			},
 			output: spec.Spec{
 				Stages: []spec.Stage{
-					spec.Stage{
+					{
 						ID: "test",
 					},
 				},
@@ -54,10 +54,10 @@ func Test(t *testing.T) {
 			desc: "multiple stages present",
 			spec: spec.Spec{
 				Stages: []spec.Stage{
-					spec.Stage{
+					{
 						ID: "test",
 					},
-					spec.Stage{
+					{
 						ID: "build",
 					},
 				},
@@ -68,11 +68,11 @@ func Test(t *testing.T) {
 			},
 			output: spec.Spec{
 				Stages: []spec.Stage{
-					spec.Stage{
+					{
 						ID:   "test",
 						Name: "New",
 					},
-					spec.Stage{
+					{
 						ID: "build",
 					},
 				},
@@ -82,10 +82,10 @@ func Test(t *testing.T) {
 			desc: "another stage already present",
 			spec: spec.Spec{
 				Stages: []spec.Stage{
-					spec.Stage{
+					{
 						ID: "test",
 					},
-					spec.Stage{
+					{
 						ID: "build",
 					},
 				},
@@ -95,13 +95,13 @@ func Test(t *testing.T) {
 			},
 			output: spec.Spec{
 				Stages: []spec.Stage{
-					spec.Stage{
+					{
 						ID: "test",
 					},
-					spec.Stage{
+					{
 						ID: "build",
 					},
-					spec.Stage{
+					{
 						ID: "push",
 					},
 				},

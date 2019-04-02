@@ -108,6 +108,11 @@ func listPolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 			Service:      policies.Service,
 			AutoReleases: mapAutoReleasePolicies(policies.AutoReleases),
 		})
+		if err != nil {
+			log.Errorf("http list policies failed: config repo '%s' service '%s': encode response: %v", configRepo, service, err)
+			Error(w, "unknown error", http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
@@ -157,7 +162,7 @@ func deletePolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 				Error(w, "no policies exist", http.StatusNotFound)
 				return
 			}
-			log.Errorf("http list policies failed: config repo '%s' service '%s': %v", configRepo, req.Service, err)
+			log.Errorf("http delete policies failed: config repo '%s' service '%s' ids %v: %v", configRepo, req.Service, ids, err)
 			Error(w, "unknown error", http.StatusInternalServerError)
 			return
 		}
@@ -168,6 +173,11 @@ func deletePolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 			Service: req.Service,
 			Count:   deleted,
 		})
+		if err != nil {
+			log.Errorf("http delete policies failed: config repo '%s' service '%s' ids %v: encode response: %v", configRepo, req.Service, ids, err)
+			Error(w, "unknown error", http.StatusInternalServerError)
+			return
+		}
 	}
 }
 

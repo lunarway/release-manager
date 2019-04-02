@@ -245,7 +245,7 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 				Error(w, "internal error", http.StatusInternalServerError)
 				return
 			}
-			log.Infof("webhook: handled succesfully: service '%s' branch '%s' commit '%s'", serviceName, branch, push.HeadCommit.ID)
+			log.Infof("webhook: handled successfully: service '%s' branch '%s' commit '%s'", serviceName, branch, push.HeadCommit.ID)
 			w.WriteHeader(http.StatusOK)
 			return
 		default:

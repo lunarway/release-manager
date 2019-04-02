@@ -79,7 +79,6 @@ func (c *Client) WatchPods(ctx context.Context, succeeded, failed NotifyFunc) er
 			return ctx.Err()
 		}
 	}
-	return nil
 }
 
 func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {

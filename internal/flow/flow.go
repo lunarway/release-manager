@@ -108,7 +108,7 @@ func Status(ctx context.Context, configRepoURL, artifactFileName, service, sshPr
 }
 
 func calculateTotalVulnerabilties(severity string, s spec.Spec) int64 {
-	var result float64 = 0
+	result := float64(0)
 	for _, stage := range s.Stages {
 		if stage.ID == "snyk-code" {
 			data := stage.Data.(map[string]interface{})
