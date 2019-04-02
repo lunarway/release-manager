@@ -15,7 +15,7 @@ func TestFlattenHeaders(t *testing.T) {
 		{
 			name: "single value header",
 			input: map[string][]string{
-				"User-Agent": []string{"curl"},
+				"User-Agent": {"curl"},
 			},
 			output: map[string]string{
 				"User-Agent": "curl",
@@ -24,7 +24,7 @@ func TestFlattenHeaders(t *testing.T) {
 		{
 			name: "multi value header",
 			input: map[string][]string{
-				"User-Agent": []string{"curl", "1.2.3"},
+				"User-Agent": {"curl", "1.2.3"},
 			},
 			output: map[string]string{
 				"User-Agent": "curl,1.2.3",
@@ -33,8 +33,8 @@ func TestFlattenHeaders(t *testing.T) {
 		{
 			name: "multiple mixed headers",
 			input: map[string][]string{
-				"Authoriztaion": []string{"Bearer token"},
-				"User-Agent":    []string{"curl", "1.2.3"},
+				"Authoriztaion": {"Bearer token"},
+				"User-Agent":    {"curl", "1.2.3"},
 			},
 			output: map[string]string{
 				"Authoriztaion": "Bearer token",
