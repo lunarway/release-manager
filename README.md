@@ -1,5 +1,5 @@
 # Release Manager
-GitOps release manager for kubernetes configuration reposistories.
+GitOps release manager for kubernetes configuration repositories.
 
 This project is used as an internal project at Lunar Way and it therefore contains some assumptions on our setup. This includes environment naming (dev, staging, prod), and also a specific check for @lunarway domains. Further it is build around assumptions made by our OSS project `shuttle`, and id's for releases are a combination of branch name, git-sha from source repo, and git-sha from shuttle plan repo. Our initial intent is not to support this as an open source project. 
 
