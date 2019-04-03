@@ -223,6 +223,7 @@ It contains artifacts based of Git branches on the application repositories and 
 
 In the root are folders for each environment, e.g. `dev`, `prod`.
 These folders contain a `releases` directory with kubernetes resource definitions of each namespace and their running applications.
+Provisioning setup resources are like wise stored here, e.g. kops yaml resources.
 
 A `policies` directory holds all recorded release policies.
 These are stored as JSON files for each service.
@@ -254,6 +255,18 @@ These are stored as JSON files for each service.
                 ├── 02-db-configmap.yaml
                 ├── 40-deployment.yaml
                 └── 50-service.yaml
+```
+
+When running `kubectl apply` files are applied to the cluster alphabetically so the following convention should be used by configuration generators.
+
+```
+01-09 configmaps
+10-19 secrets
+20-29 volumes
+30-39 rbac
+40-49 deployments/daemonsets
+50-59 service
+60-69 ingress
 ```
 
 # Installation
