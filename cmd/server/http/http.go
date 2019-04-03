@@ -271,7 +271,7 @@ func branchName(modifiedFiles []string, artifactFileName, svc string) (string, b
 		if !strings.Contains(f, artifactFileName) {
 			continue
 		}
-		branch = strings.TrimPrefix(f, fmt.Sprintf("builds/%s/", svc))
+		branch = strings.TrimPrefix(f, fmt.Sprintf("artifacts/%s/", svc))
 		break
 	}
 	if len(branch) == 0 {
@@ -345,15 +345,15 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 			Error(w, "Invalid payload", http.StatusBadRequest)
 			return
 		}
-		log.Infof("http release: service '%s' environment '%s' branch '%s' build id '%s'", req.Service, req.Environment, req.Branch, req.ArtifactID)
+		log.Infof("http release: service '%s' environment '%s' branch '%s' artifact id '%s'", req.Service, req.Environment, req.Branch, req.ArtifactID)
 		ctx := r.Context()
 		var releaseID string
 		switch {
 		case req.Branch != "" && req.ArtifactID != "":
-			Error(w, "Branch and build id cannot both be specified. Pick one", http.StatusBadRequest)
+			Error(w, "Branch and artifact id cannot both be specified. Pick one", http.StatusBadRequest)
 			return
 		case req.Branch == "" && req.ArtifactID == "":
-			Error(w, "Branch or build id must be specified.", http.StatusBadRequest)
+			Error(w, "Branch or artifact id must be specified.", http.StatusBadRequest)
 			return
 		case req.Branch != "":
 			log.Infof("Release '%s' from branch '%s' to '%s'", req.Service, req.Branch, req.Environment)
@@ -361,7 +361,7 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 		case req.ArtifactID != "":
 			releaseID, err = flow.ReleaseArtifactID(ctx, configRepo, artifactFileName, req.Service, req.Environment, req.ArtifactID, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath)
 		default:
-			Error(w, "Either branch or build id must be specified", http.StatusBadRequest)
+			Error(w, "Either branch or artifact id must be specified", http.StatusBadRequest)
 			return
 		}
 		var statusString string
@@ -371,7 +371,7 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 			case git.ErrNothingToCommit:
 				statusString = "Environment is already up-to-date"
 				log.Info("release: nothing to commit")
-			case git.ErrBuildNotFound:
+			case git.ErrArtifactNotFound:
 				Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
 				return
 			default:

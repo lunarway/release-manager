@@ -70,10 +70,10 @@ github-webhook:
 			"id": "sha", \
 			"message": "[product] build something", \
 			"modified": [ \
-				"builds/product/master/artifact.json", \
-				"builds/product/master/dev/40-deployment.yaml", \
-				"builds/product/master/prod/40-deployment.yaml", \
-				"builds/product/master/staging/40-deployment.yaml" \
+				"artifacts/product/master/artifact.json", \
+				"artifacts/product/master/dev/40-deployment.yaml", \
+				"artifacts/product/master/prod/40-deployment.yaml", \
+				"artifacts/product/master/staging/40-deployment.yaml" \
 			] \
 		} \
 	}' \

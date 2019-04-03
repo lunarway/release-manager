@@ -3,7 +3,7 @@ package command
 import (
 	"path"
 
-	"github.com/lunarway/release-manager/internal/spec"
+	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/spf13/cobra"
 )
 
@@ -26,14 +26,14 @@ func addCommand(options *Options) *cobra.Command {
 }
 
 func appendTestSubCommand(options *Options) *cobra.Command {
-	var testData spec.TestData
-	var stage spec.Stage
+	var testData artifact.TestData
+	var stage artifact.Stage
 	command := &cobra.Command{
 		Use:   "test",
 		Short: "",
 		Long:  "",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return spec.Update(path.Join(options.RootPath, options.FileName), func(s spec.Spec) spec.Spec {
+			return artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Test"
 				stage.ID = "test"
 				stage.Data = testData
@@ -52,14 +52,14 @@ func appendTestSubCommand(options *Options) *cobra.Command {
 }
 
 func appendBuildSubCommand(options *Options) *cobra.Command {
-	var buildData spec.BuildData
-	var stage spec.Stage
+	var buildData artifact.BuildData
+	var stage artifact.Stage
 	command := &cobra.Command{
 		Use:   "build",
 		Short: "",
 		Long:  "",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return spec.Update(path.Join(options.RootPath, options.FileName), func(s spec.Spec) spec.Spec {
+			return artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Build"
 				stage.ID = "build"
 				stage.Data = buildData
@@ -78,14 +78,14 @@ func appendBuildSubCommand(options *Options) *cobra.Command {
 }
 
 func appendSnykDockerSubCommand(options *Options) *cobra.Command {
-	var snykDockerData spec.SnykDockerData
-	var stage spec.Stage
+	var snykDockerData artifact.SnykDockerData
+	var stage artifact.Stage
 	command := &cobra.Command{
 		Use:   "snyk-docker",
 		Short: "",
 		Long:  "",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return spec.Update(path.Join(options.RootPath, options.FileName), func(s spec.Spec) spec.Spec {
+			return artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Security Scan - Docker"
 				stage.ID = "snyk-docker"
 				stage.Data = snykDockerData
@@ -105,14 +105,14 @@ func appendSnykDockerSubCommand(options *Options) *cobra.Command {
 }
 
 func appendSnykCodeSubCommand(options *Options) *cobra.Command {
-	var snykCodeData spec.SnykCodeData
-	var stage spec.Stage
+	var snykCodeData artifact.SnykCodeData
+	var stage artifact.Stage
 	command := &cobra.Command{
 		Use:   "snyk-code",
 		Short: "",
 		Long:  "",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return spec.Update(path.Join(options.RootPath, options.FileName), func(s spec.Spec) spec.Spec {
+			return artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Security Scan - Code"
 				stage.ID = "snyk-code"
 				stage.Data = snykCodeData
@@ -131,14 +131,14 @@ func appendSnykCodeSubCommand(options *Options) *cobra.Command {
 }
 
 func appendPushSubCommand(options *Options) *cobra.Command {
-	var pushData spec.PushData
-	var stage spec.Stage
+	var pushData artifact.PushData
+	var stage artifact.Stage
 	command := &cobra.Command{
 		Use:   "push",
 		Short: "",
 		Long:  "",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return spec.Update(path.Join(options.RootPath, options.FileName), func(s spec.Spec) spec.Spec {
+			return artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Push"
 				stage.ID = "push"
 				stage.Data = pushData
@@ -156,8 +156,8 @@ func appendPushSubCommand(options *Options) *cobra.Command {
 	return command
 }
 
-func setStage(s spec.Spec, stage spec.Stage) spec.Spec {
-	var updatedStages []spec.Stage
+func setStage(s artifact.Spec, stage artifact.Stage) artifact.Spec {
+	var updatedStages []artifact.Stage
 	var replaced bool
 
 	for i := range s.Stages {

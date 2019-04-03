@@ -44,10 +44,10 @@ func TestBranchName(t *testing.T) {
 			name: "files from a build from master",
 			input: input{
 				files: []string{
-					"builds/product/master/artifact.json",
-					"builds/product/master/dev/40-deployment.yaml",
-					"builds/product/master/prod/40-deployment.yaml",
-					"builds/product/master/staging/40-deployment.yaml",
+					"artifacts/product/master/artifact.json",
+					"artifacts/product/master/dev/40-deployment.yaml",
+					"artifacts/product/master/prod/40-deployment.yaml",
+					"artifacts/product/master/staging/40-deployment.yaml",
 				},
 				artifactFileName: "artifact.json",
 				service:          "product",
@@ -59,10 +59,10 @@ func TestBranchName(t *testing.T) {
 			name: "files from a build on a branch with slashes",
 			input: input{
 				files: []string{
-					"builds/product/feature/something-new/artifact.json",
-					"builds/product/feature/something-new/dev/40-deployment.yaml",
-					"builds/product/feature/something-new/prod/40-deployment.yaml",
-					"builds/product/feature/something-new/staging/40-deployment.yaml",
+					"artifacts/product/feature/something-new/artifact.json",
+					"artifacts/product/feature/something-new/dev/40-deployment.yaml",
+					"artifacts/product/feature/something-new/prod/40-deployment.yaml",
+					"artifacts/product/feature/something-new/staging/40-deployment.yaml",
 				},
 				artifactFileName: "artifact.json",
 				service:          "product",
@@ -74,9 +74,9 @@ func TestBranchName(t *testing.T) {
 			name: "files from a build on master but no artifact.json",
 			input: input{
 				files: []string{
-					"builds/product/feature/something-new/dev/40-deployment.yaml",
-					"builds/product/feature/something-new/prod/40-deployment.yaml",
-					"builds/product/feature/something-new/staging/40-deployment.yaml",
+					"artifacts/product/feature/something-new/dev/40-deployment.yaml",
+					"artifacts/product/feature/something-new/prod/40-deployment.yaml",
+					"artifacts/product/feature/something-new/staging/40-deployment.yaml",
 				},
 				artifactFileName: "artifact.json",
 				service:          "product",

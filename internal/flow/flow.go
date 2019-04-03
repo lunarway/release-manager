@@ -7,9 +7,9 @@ import (
 	"path"
 	"time"
 
+	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
-	"github.com/lunarway/release-manager/internal/spec"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 )
@@ -49,7 +49,7 @@ func Status(ctx context.Context, configRepoURL, artifactFileName, service, sshPr
 	devSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "dev")
 	if err != nil {
 		cause := errors.Cause(err)
-		if cause != spec.ErrFileNotFound && cause != spec.ErrNotParsable && cause != spec.ErrUnknownFields {
+		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
 			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env dev")
 		}
 	}
@@ -57,7 +57,7 @@ func Status(ctx context.Context, configRepoURL, artifactFileName, service, sshPr
 	stagingSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "staging")
 	if err != nil {
 		cause := errors.Cause(err)
-		if cause != spec.ErrFileNotFound && cause != spec.ErrNotParsable && cause != spec.ErrUnknownFields {
+		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
 			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env staging")
 		}
 	}
@@ -65,7 +65,7 @@ func Status(ctx context.Context, configRepoURL, artifactFileName, service, sshPr
 	prodSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "prod")
 	if err != nil {
 		cause := errors.Cause(err)
-		if cause != spec.ErrFileNotFound && cause != spec.ErrNotParsable && cause != spec.ErrUnknownFields {
+		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
 			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env prod")
 		}
 	}
@@ -107,7 +107,7 @@ func Status(ctx context.Context, configRepoURL, artifactFileName, service, sshPr
 	}, nil
 }
 
-func calculateTotalVulnerabilties(severity string, s spec.Spec) int64 {
+func calculateTotalVulnerabilties(severity string, s artifact.Spec) int64 {
 	result := float64(0)
 	for _, stage := range s.Stages {
 		if stage.ID == "snyk-code" {
@@ -138,7 +138,7 @@ func calculateTotalVulnerabilties(severity string, s spec.Spec) int64 {
 //
 // Checkout the current kubernetes configuration status and find the
 // artifact.json spec for the service and previous environment.
-// Use the artifact ID as a key for locating the build.
+// Use the artifact ID as a key for locating the artifacts.
 //
 // Find the commit with the artifact ID and checkout the config repository at
 // this point.
@@ -214,33 +214,33 @@ func Promote(ctx context.Context, configRepoURL, artifactFileName, service, env,
 	return release, nil
 }
 
-func envSpec(root, artifactFileName, service, env string) (spec.Spec, error) {
-	return spec.Get(path.Join(releasePath(root, service, env), artifactFileName))
+func envSpec(root, artifactFileName, service, env string) (artifact.Spec, error) {
+	return artifact.Get(path.Join(releasePath(root, service, env), artifactFileName))
 }
 
 // sourceSpec returns the Spec of the current release.
-func sourceSpec(root, artifactFileName, service, env string) (spec.Spec, error) {
+func sourceSpec(root, artifactFileName, service, env string) (artifact.Spec, error) {
 	var specPath string
 	switch env {
 	case "dev":
-		specPath = path.Join(buildPath(root, service, "master"), artifactFileName)
+		specPath = path.Join(artifactPath(root, service, "master"), artifactFileName)
 	case "staging":
 		specPath = path.Join(releasePath(root, service, "dev"), artifactFileName)
 	case "prod":
 		specPath = path.Join(releasePath(root, service, "staging"), artifactFileName)
 	default:
-		return spec.Spec{}, ErrUnknownEnvironment
+		return artifact.Spec{}, ErrUnknownEnvironment
 	}
 	log.Debugf("Get artifact spec from %s\n", specPath)
-	return spec.Get(specPath)
+	return artifact.Get(specPath)
 }
 
 func srcPath(root, service, branch, env string) string {
-	return path.Join(buildPath(root, service, branch), env)
+	return path.Join(artifactPath(root, service, branch), env)
 }
 
-func buildPath(root, service, branch string) string {
-	return path.Join(root, "builds", service, branch)
+func artifactPath(root, service, branch string) string {
+	return path.Join(root, "artifacts", service, branch)
 }
 
 func releasePath(root, service, env string) string {
@@ -255,26 +255,26 @@ func releasePath(root, service, env string) string {
 // Checkout the current kubernetes configuration status and find the
 // artifact spec for the service and branch.
 //
-// Copy artifacts from the build into the environment and commit the changes.
+// Copy artifacts from the artifacts into the environment and commit the changes.
 func ReleaseBranch(ctx context.Context, configRepoURL, artifactFileName, service, env, branch, committerName, committerEmail, sshPrivateKeyPath string) (string, error) {
 	repo, err := git.CloneDepth(ctx, configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath, 1)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
 	}
-	// repo/builds/{service}/{branch}/{artifactFileName}
-	buildArtifactPath := path.Join(buildPath(sourceConfigRepoPath, service, branch), artifactFileName)
-	buildSpec, err := spec.Get(buildArtifactPath)
+	// repo/artifacts/{service}/{branch}/{artifactFileName}
+	artifactSpecPath := path.Join(artifactPath(sourceConfigRepoPath, service, branch), artifactFileName)
+	artifactSpec, err := artifact.Get(artifactSpecPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 	}
-	log.Infof("flow: ReleaseBranch: release branch: id '%s'", buildSpec.ID)
+	log.Infof("flow: ReleaseBranch: release branch: id '%s'", artifactSpec.ID)
 
-	// release service to env from the build path
-	// repo/builds/{service}/{branch}/{env}
-	buildPath := srcPath(sourceConfigRepoPath, service, branch, env)
+	// release service to env from the artifact path
+	// repo/artifacts/{service}/{branch}/{env}
+	artifactPath := srcPath(sourceConfigRepoPath, service, branch, env)
 	// repo/{env}/releases/{ns}/{service}
 	destinationPath := releasePath(sourceConfigRepoPath, service, env)
-	log.Infof("flow: ReleaseBranch: copy resources from %s to %s", buildPath, destinationPath)
+	log.Infof("flow: ReleaseBranch: copy resources from %s to %s", artifactPath, destinationPath)
 
 	// empty existing resources in destination
 	err = os.RemoveAll(destinationPath)
@@ -285,23 +285,23 @@ func ReleaseBranch(ctx context.Context, configRepoURL, artifactFileName, service
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
 	}
-	// copy build files into destination
-	err = copy.Copy(buildPath, destinationPath)
+	// copy artifact files into destination
+	err = copy.Copy(artifactPath, destinationPath)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", buildPath, destinationPath))
+		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", artifactPath, destinationPath))
 	}
 	// copy artifact spec
 	// repo/{env}/releases/{ns}/{service}/{artifactFileName}
 	artifactDestinationPath := path.Join(releasePath(sourceConfigRepoPath, service, env), artifactFileName)
-	log.Infof("flow: ReleaseBranch: copy artifact from %s to %s", buildArtifactPath, artifactDestinationPath)
-	err = copy.Copy(buildArtifactPath, artifactDestinationPath)
+	log.Infof("flow: ReleaseBranch: copy artifact from %s to %s", artifactSpecPath, artifactDestinationPath)
+	err = copy.Copy(artifactSpecPath, artifactDestinationPath)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", buildArtifactPath, artifactDestinationPath))
+		return "", errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSpecPath, artifactDestinationPath))
 	}
 
-	authorName := buildSpec.Application.AuthorName
-	authorEmail := buildSpec.Application.AuthorEmail
-	artifactID := buildSpec.ID
+	authorName := artifactSpec.Application.AuthorName
+	authorEmail := artifactSpec.Application.AuthorEmail
+	artifactID := artifactSpec.ID
 	releaseMessage := fmt.Sprintf("[%s/%s] release %s", env, service, artifactID)
 	err = git.Commit(ctx, repo, releasePath(".", service, env), authorName, authorEmail, committerName, committerEmail, releaseMessage, sshPrivateKeyPath)
 	if err != nil {
@@ -326,7 +326,7 @@ func ReleaseArtifactID(ctx context.Context, configRepoURL, artifactFileName, ser
 		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
 	}
 
-	hash, err := git.LocateBuild(sourceRepo, artifactID)
+	hash, err := git.LocateArtifact(sourceRepo, artifactID)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("locate release '%s' from '%s'", artifactID, configRepoURL))
 	}

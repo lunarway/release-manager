@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/lunarway/release-manager/internal/http"
-	"github.com/lunarway/release-manager/internal/spec"
+	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/nlopes/slack"
 	"github.com/pkg/errors"
 )
@@ -29,7 +29,7 @@ func (c *Client) GetSlackIdByEmail(email string) (string, error) {
 	return user.ID, nil
 }
 
-func (c *Client) PostPrivateMessage(userID, env, service string, artifact spec.Spec, podNotify *http.PodNotifyRequest) error {
+func (c *Client) PostPrivateMessage(userID, env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) error {
 	asUser := slack.MsgOptionAsUser(true)
 	switch podNotify.State {
 	case "CrashLoopBackOff":
@@ -53,7 +53,7 @@ func (c *Client) PostPrivateMessage(userID, env, service string, artifact spec.S
 	return nil
 }
 
-func successMessage(env, service string, artifact spec.Spec, podNotify *http.PodNotifyRequest) slack.MsgOption {
+func successMessage(env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) slack.MsgOption {
 	podField := slack.AttachmentField{
 		Title: "Pod",
 		Value: podNotify.Name,
@@ -82,7 +82,7 @@ func successMessage(env, service string, artifact spec.Spec, podNotify *http.Pod
 	})
 }
 
-func createConfigErrorMessage(env, service string, artifact spec.Spec, podNotify *http.PodNotifyRequest) slack.MsgOption {
+func createConfigErrorMessage(env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) slack.MsgOption {
 	podField := slack.AttachmentField{
 		Title: "Pod",
 		Value: podNotify.Name,
@@ -116,7 +116,7 @@ func createConfigErrorMessage(env, service string, artifact spec.Spec, podNotify
 	})
 }
 
-func crashLoopBackOffErrorMessage(env, service string, artifact spec.Spec, podNotify *http.PodNotifyRequest) slack.MsgOption {
+func crashLoopBackOffErrorMessage(env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) slack.MsgOption {
 	fmt.Printf("%+v", podNotify)
 	podField := slack.AttachmentField{
 		Title: "Pod",

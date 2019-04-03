@@ -3,27 +3,27 @@ package command
 import (
 	"testing"
 
-	"github.com/lunarway/release-manager/internal/spec"
+	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test(t *testing.T) {
 	testCases := []struct {
 		desc   string
-		spec   spec.Spec
-		stage  spec.Stage
-		output spec.Spec
+		spec   artifact.Spec
+		stage  artifact.Stage
+		output artifact.Spec
 	}{
 		{
 			desc: "empty stages",
-			spec: spec.Spec{
+			spec: artifact.Spec{
 				Stages: nil,
 			},
-			stage: spec.Stage{
+			stage: artifact.Stage{
 				ID: "test",
 			},
-			output: spec.Spec{
-				Stages: []spec.Stage{
+			output: artifact.Spec{
+				Stages: []artifact.Stage{
 					{
 						ID: "test",
 					},
@@ -32,18 +32,18 @@ func Test(t *testing.T) {
 		},
 		{
 			desc: "stage already created",
-			spec: spec.Spec{
-				Stages: []spec.Stage{
+			spec: artifact.Spec{
+				Stages: []artifact.Stage{
 					{
 						ID: "test",
 					},
 				},
 			},
-			stage: spec.Stage{
+			stage: artifact.Stage{
 				ID: "test",
 			},
-			output: spec.Spec{
-				Stages: []spec.Stage{
+			output: artifact.Spec{
+				Stages: []artifact.Stage{
 					{
 						ID: "test",
 					},
@@ -52,8 +52,8 @@ func Test(t *testing.T) {
 		},
 		{
 			desc: "multiple stages present",
-			spec: spec.Spec{
-				Stages: []spec.Stage{
+			spec: artifact.Spec{
+				Stages: []artifact.Stage{
 					{
 						ID: "test",
 					},
@@ -62,12 +62,12 @@ func Test(t *testing.T) {
 					},
 				},
 			},
-			stage: spec.Stage{
+			stage: artifact.Stage{
 				ID:   "test",
 				Name: "New",
 			},
-			output: spec.Spec{
-				Stages: []spec.Stage{
+			output: artifact.Spec{
+				Stages: []artifact.Stage{
 					{
 						ID:   "test",
 						Name: "New",
@@ -80,8 +80,8 @@ func Test(t *testing.T) {
 		},
 		{
 			desc: "another stage already present",
-			spec: spec.Spec{
-				Stages: []spec.Stage{
+			spec: artifact.Spec{
+				Stages: []artifact.Stage{
 					{
 						ID: "test",
 					},
@@ -90,11 +90,11 @@ func Test(t *testing.T) {
 					},
 				},
 			},
-			stage: spec.Stage{
+			stage: artifact.Stage{
 				ID: "push",
 			},
-			output: spec.Spec{
-				Stages: []spec.Stage{
+			output: artifact.Spec{
+				Stages: []artifact.Stage{
 					{
 						ID: "test",
 					},

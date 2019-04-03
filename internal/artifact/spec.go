@@ -1,4 +1,4 @@
-package spec
+package artifact
 
 import (
 	"encoding/json"
