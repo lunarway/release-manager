@@ -3,8 +3,8 @@ package slack
 import (
 	"fmt"
 
-	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/http"
 	"github.com/nlopes/slack"
 	"github.com/pkg/errors"
 )
