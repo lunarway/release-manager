@@ -5,17 +5,21 @@ builds:
 - binary: artifact
   main: ./cmd/artifact/main.go
   goarch:
-  - amd64    
+  - amd64
   goos:
   - darwin
   - linux
+  env:
+    - CGO_ENABLED=0
 - binary: hamctl
   main: ./cmd/hamctl/main.go
   goarch:
-  - amd64    
+  - amd64
   goos:
   - darwin
   - linux
+  env:
+    - CGO_ENABLED=0
 - binary: server
   main: ./cmd/server/main.go
   goarch:
@@ -23,6 +27,8 @@ builds:
   goos:
   - darwin
   - linux
+  env:
+    - CGO_ENABLED=0
 - binary: daemon
   main: ./cmd/daemon/main.go
   goarch:
@@ -30,7 +36,9 @@ builds:
   goos:
   - darwin
   - linux
-  
+  env:
+    - CGO_ENABLED=0
+
 dockers:
   - dockerfile: Dockerfile-server-goreleaser
     binaries:
