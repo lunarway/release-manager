@@ -4,13 +4,13 @@ import (
 	"path"
 	"time"
 
-	"github.com/lunarway/release-manager/internal/spec"
+	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/spf13/cobra"
 )
 
 // NewCommand sets up the move command
 func initCommand(options *Options) *cobra.Command {
-	var s spec.Spec
+	var s artifact.Spec
 
 	command := &cobra.Command{
 		Use:   "init",
@@ -21,7 +21,7 @@ func initCommand(options *Options) *cobra.Command {
 			s.CI.Start = time.Now()
 
 			// Persist the spec to disk
-			err := spec.Persist(path.Join(options.RootPath, options.FileName), s)
+			err := artifact.Persist(path.Join(options.RootPath, options.FileName), s)
 			if err != nil {
 				return err
 			}

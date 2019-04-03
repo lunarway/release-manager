@@ -5,7 +5,7 @@
 
 GitOps release manager for kubernetes configuration repositories.
 
-This project is used as an internal project at Lunar Way and it therefore contains some assumptions on our setup. This includes environment naming (dev, staging, prod), and also a specific check for @lunarway domains. Further it is build around assumptions made by our OSS project `shuttle`, and id's for releases are a combination of branch name, git-sha from source repo, and git-sha from shuttle plan repo. Our initial intent is not to support this as an open source project. 
+This project is used as an internal project at Lunar Way and it therefore contains some assumptions on our setup. This includes environment naming (dev, staging, prod), and also a specific check for @lunarway domains. Further it is build around assumptions made by our OSS project `shuttle`, and id's for releases are a combination of branch name, git-sha from source repo, and git-sha from shuttle plan repo. Our initial intent is not to support this as an open source project.
 
 We will however, have it public available for reference. This might change over time.
 
@@ -28,7 +28,7 @@ The applications are not enough to complete the flow. We utilize jenkins as a CI
 # Components
 
 ## Artifact
-`artifact` is used to generate, what we refer to as, build artifacts. These are just a json-blob containing relevant information from the Continuous Integration flow.
+`artifact` is used to generate, what we refer to as artifacts. These are just a json-blob containing relevant information from the Continuous Integration flow.
 As mentioned we use `shuttle` in our jenkins to minimize the custom "CI" code we have to write, making it portable, if we decide to change CI solution at some point. The id's of the artifacts, are composed of `<Branch>-<Source Repository>-<Plan Repository>`.
 
 An example of a generated `artifact.json`
@@ -114,7 +114,7 @@ $ hamctl promote --service example --env dev
 ```
 
 The convention follows the following flow: `master -> dev -> staging -> prod`
-As seen in the example above, the `example` service will be promoted from the lastest available master build to the `dev` environment.
+As seen in the example above, the `example` service will be promoted from the lastest available artifact from `master` to the `dev` environment.
 
 Another example, is a promotion of an artifact running in, e.g. staging, to the production environment. This can be achieved with the following command:
 
@@ -126,7 +126,7 @@ The above locates what is running in the `staging` environment, and takes the ne
 ### Release
 The release flow, is a more liberal release process. There is no conventions in how artifacts move between environments. This makes it suitable for releasing `hotfix`-branches to production or `feature`-branches to a specific environment for testing before merging into `master`.
 
-The release flow currently consist of two approaches, either the release of the lastest build on a given branch, or a specific artifact id.
+The release flow currently consist of two approaches, either the release of the lastest artifact from a given branch, or a specific artifact id.
 
 Example of a release of a feature branch to the `dev` environment:
 
@@ -137,7 +137,7 @@ $ hamctl release --service example --branch "feature/new_feature" --env dev
 Example of a release of a specific artifact id to the `staging` environment:
 
 ```
-$ hamctl release --service example --artifact dev-0017d995e3-67e9d69164 --env staging 
+$ hamctl release --service example --artifact dev-0017d995e3-67e9d69164 --env staging
 ```
 
 ### Status
@@ -218,7 +218,7 @@ $ hamctl policy --service example apply auto-release --branch master --env dev
 
 Files are structured as shown below.
 
-Artifacts are stored in the `builds` directory.
+Artifacts are stored in the `artifacts` directory.
 It contains artifacts based of Git branches on the application repositories and must contain resource definitions for the environments that it is able to be released to.
 
 In the root are folders for each environment, e.g. `dev`, `prod`.
@@ -231,7 +231,7 @@ These are stored as JSON files for each service.
 .
 ├── policies
 │   └── <service>.json
-├── builds
+├── artifacts
 │   └── <service>
 │       ├── <branches>
 │       └── master
@@ -293,6 +293,6 @@ go test -v ./...
 
 There are multiple applications in this repo.
 
-This project is configured with `goreleaser` and releases all 4 applications at once. 
+This project is configured with `goreleaser` and releases all 4 applications at once.
 
-The release-manager server and the release-daemon is available as docker images, besides raw binaries. 
+The release-manager server and the release-daemon is available as docker images, besides raw binaries.

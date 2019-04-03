@@ -19,9 +19,9 @@ import (
 )
 
 var (
-	ErrNothingToCommit = errors.New("nothing to commit")
-	ErrReleaseNotFound = errors.New("release not found")
-	ErrBuildNotFound   = errors.New("build not found")
+	ErrNothingToCommit  = errors.New("nothing to commit")
+	ErrReleaseNotFound  = errors.New("release not found")
+	ErrArtifactNotFound = errors.New("artifact not found")
 )
 
 func CloneDepth(ctx context.Context, repoURL, destination, sshPrivateKeyPath string, depth int) (*git.Repository, error) {
@@ -72,10 +72,10 @@ func LocateRelease(r *git.Repository, release string) (plumbing.Hash, error) {
 	}, ErrReleaseNotFound)
 }
 
-func LocateBuild(r *git.Repository, build string) (plumbing.Hash, error) {
+func LocateArtifact(r *git.Repository, artifactID string) (plumbing.Hash, error) {
 	return locate(r, func(commitMsg string) bool {
-		return strings.Contains(commitMsg, fmt.Sprintf("build tag %s", build))
-	}, ErrBuildNotFound)
+		return strings.Contains(commitMsg, fmt.Sprintf("artifact %s", artifactID))
+	}, ErrArtifactNotFound)
 }
 
 func locate(r *git.Repository, condition func(commitMsg string) bool, notFoundErr error) (plumbing.Hash, error) {
