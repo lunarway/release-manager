@@ -22,5 +22,6 @@ func NewCommand() (*cobra.Command, error) {
 	command.AddCommand(initCommand(&options))
 	command.AddCommand(endCommand(&options))
 	command.AddCommand(addCommand(&options))
+	command.AddCommand(pushCommand(&options))
 	return command, nil
 }

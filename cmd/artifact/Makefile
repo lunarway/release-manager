@@ -1,11 +1,14 @@
 example:
-	- rm -rf examples/artifact.json
+	rm -rf examples
+	mkdir -p  examples
 	go run main.go init \
 	  --artifact-id "master-1234ds13g3-12s46g356g"\
-		--git-author "Kasper Nissen"\
+		--git-author-name "Kasper Nissen"\
+		--git-author-email "kni@lunarway.com"\
 		--git-message "Some message"\
 		--git-sha "asd39sdas0g392"\
-		--git-committer "Bjørn Sørensen"\
+		--git-committer-name "Bjørn Sørensen"\
+		--git-committer-email "bso@lunarway.com"\
 		--provider "BitBucket"\
 		--url "https://someurl.com"\
 		--name "lunar-way-application"\
@@ -55,4 +58,27 @@ example:
 
 	go run main.go end --root examples
 
+define CONFIG_MAP_DEV
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: product
+  namespace: dev
+data:
+  cdn.url: 'https://cdn.dev.lunarway.com'
+  log.console.as.json: 'true'
+  log.console.level: 'info'
+endef
+export CONFIG_MAP_DEV
 
+example_resources:
+	mkdir -p examples/dev
+	echo "$$CONFIG_MAP_DEV" > examples/dev/configmap.yaml
+
+test_push: example example_resources
+	go run main.go push \
+		--root examples \
+		--config-repo git@github.com:lunarway/release-manager-test-config-repo.git \
+		--git-branch master \
+		--service test \
+		--ssh-private-key ~/.ssh/github_key
