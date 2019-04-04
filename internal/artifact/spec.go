@@ -21,6 +21,7 @@ var (
 
 type Spec struct {
 	ID          string     `json:"id,omitempty"`
+	Service     string     `json:"service,omitempty"`
 	Application Repository `json:"application,omitempty"`
 	CI          CI         `json:"ci,omitempty"`
 	Squad       string     `json:"squad,omitempty"`
@@ -29,6 +30,7 @@ type Spec struct {
 }
 
 type Repository struct {
+	Branch         string `json:"branch,omitempty"`
 	SHA            string `json:"sha,omitempty"`
 	AuthorName     string `json:"authorName,omitempty"`
 	AuthorEmail    string `json:"authorEmail,omitempty"`

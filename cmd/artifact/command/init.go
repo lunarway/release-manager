@@ -31,6 +31,7 @@ func initCommand(options *Options) *cobra.Command {
 	}
 
 	command.Flags().StringVar(&s.ID, "artifact-id", "", "the id of the artifact")
+	command.Flags().StringVar(&s.Service, "service", "", "the service name")
 
 	// Init git data
 	command.Flags().StringVar(&s.Application.AuthorName, "git-author-name", "", "the commit author name")
@@ -39,20 +40,24 @@ func initCommand(options *Options) *cobra.Command {
 	command.Flags().StringVar(&s.Application.CommitterName, "git-committer-name", "", "the commit committer name")
 	command.Flags().StringVar(&s.Application.CommitterEmail, "git-committer-email", "", "the commit committer email")
 	command.Flags().StringVar(&s.Application.SHA, "git-sha", "", "the commit sha")
+	command.Flags().StringVar(&s.Application.Branch, "git-branch", "", "the branch of the repository")
 	command.Flags().StringVar(&s.Application.Provider, "provider", "", "the name of the repository provider")
 	command.Flags().StringVar(&s.Application.URL, "url", "", "the url to the repository commit")
 	command.Flags().StringVar(&s.Application.Name, "name", "", "the name of the repository")
 	command.Flags().StringVar(&s.Shuttle.Plan.SHA, "shuttle-plan-sha", "", "the commit sha of the shuttle plan")
 	command.Flags().StringVar(&s.Shuttle.Plan.URL, "shuttle-plan-url", "", "the url to the shuttle plan commit")
 	command.Flags().StringVar(&s.Shuttle.Plan.Message, "shuttle-plan-message", "", "the shuttle plan commit message")
+	command.Flags().StringVar(&s.Shuttle.Plan.Branch, "shuttle-plan-branch", "", "the shuttle plan branch name")
 
 	command.MarkFlagRequired("artifact-id")
+	command.MarkFlagRequired("service")
 	command.MarkFlagRequired("git-author-name")
 	command.MarkFlagRequired("git-author-email")
 	command.MarkFlagRequired("git-message")
 	command.MarkFlagRequired("git-committer-name")
 	command.MarkFlagRequired("git-committer-email")
 	command.MarkFlagRequired("git-sha")
+	command.MarkFlagRequired("git-branch")
 
 	// Init ci data
 	command.Flags().StringVar(&s.CI.JobURL, "ci-job-url", "", "the URL of the Job in CI")

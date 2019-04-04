@@ -388,12 +388,11 @@ func ReleaseArtifactID(ctx context.Context, configRepoURL, artifactFileName, ser
 	return artifactID, nil
 }
 
-// PushArtifact pushes an artifact into the configuration repository for a
-// specific service and branch.
+// PushArtifact pushes an artifact into the configuration repository.
 //
 // The resourceRoot specifies the path to the artifact files. All files in this
 // path will be pushed.
-func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resourceRoot, service, branch, sshPrivateKeyPath string) error {
+func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resourceRoot, sshPrivateKeyPath string) error {
 	artifactSpecPath := path.Join(resourceRoot, artifactFileName)
 	artifactSpec, err := artifact.Get(artifactSpecPath)
 	if err != nil {
@@ -405,7 +404,7 @@ func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resource
 	if err != nil {
 		return errors.WithMessage(err, "clone config repo")
 	}
-	destinationPath := artifactPath(artifactConfigRepoPath, service, branch)
+	destinationPath := artifactPath(artifactConfigRepoPath, artifactSpec.Service, artifactSpec.Application.Branch)
 	fmt.Printf("Artifacts destination '%s'\n", destinationPath)
 	fmt.Printf("Removing existing files\n")
 	err = os.RemoveAll(destinationPath)
@@ -428,7 +427,7 @@ func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resource
 	artifactID := artifactSpec.ID
 	authorName := artifactSpec.Application.AuthorName
 	authorEmail := artifactSpec.Application.AuthorEmail
-	commitMsg := git.ArtifactCommitMessage(service, artifactID, authorName)
+	commitMsg := git.ArtifactCommitMessage(artifactSpec.Service, artifactID, authorName)
 	fmt.Printf("Committing changes\n")
 	err = git.Commit(context.Background(), repo, ".", authorName, authorEmail, committerName, committerEmail, commitMsg, sshPrivateKeyPath)
 	if err != nil {

@@ -2,7 +2,9 @@ example:
 	rm -rf examples
 	mkdir -p  examples
 	go run main.go init \
+		--service "test-service"\
 	  --artifact-id "master-1234ds13g3-12s46g356g"\
+		--git-branch "master"\
 		--git-author-name "Kasper Nissen"\
 		--git-author-email "kni@lunarway.com"\
 		--git-message "Some message"\
@@ -15,6 +17,7 @@ example:
 		--shuttle-plan-sha "asdasdo300asd0asd90as92"\
 		--shuttle-plan-url "https://someplanurl"\
     --shuttle-plan-message "Some commit"\
+		--shuttle-plan-branch "plan-branch"\
 		--ci-job-url "https://jenkins.dev.lunarway.com/job/asdasd"\
 		--root examples
 
@@ -79,6 +82,4 @@ test_push: example example_resources
 	go run main.go push \
 		--root examples \
 		--config-repo git@github.com:lunarway/release-manager-test-config-repo.git \
-		--git-branch master \
-		--service test \
 		--ssh-private-key ~/.ssh/github_key
