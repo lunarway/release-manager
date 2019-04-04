@@ -144,14 +144,14 @@ func Get(path string) (Spec, error) {
 func Persist(path string, spec Spec) error {
 	s, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, os.ModePerm)
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "open file")
 	}
 	defer s.Close()
 	encode := json.NewEncoder(s)
 	encode.SetIndent("", "  ")
 	err = encode.Encode(spec)
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "encode spec to json")
 	}
 	return nil
 }
@@ -159,7 +159,7 @@ func Persist(path string, spec Spec) error {
 func Update(path string, f func(Spec) Spec) error {
 	s, err := Get(path)
 	if err != nil {
-		return err
+		return errors.WithMessagef(err, "read artifact '%s'", path)
 	}
 
 	s = f(s)
@@ -167,7 +167,7 @@ func Update(path string, f func(Spec) Spec) error {
 	// Persist back to the file
 	err = Persist(path, s)
 	if err != nil {
-		return err
+		return errors.WithMessagef(err, "persiste artifact to '%s'", path)
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -21,9 +22,10 @@ func initCommand(options *Options) *cobra.Command {
 			s.CI.Start = time.Now()
 
 			// Persist the spec to disk
-			err := artifact.Persist(path.Join(options.RootPath, options.FileName), s)
+			filePath := path.Join(options.RootPath, options.FileName)
+			err := artifact.Persist(filePath, s)
 			if err != nil {
-				return err
+				return errors.WithMessagef(err, "persist to file '%s'", filePath)
 			}
 
 			return nil
