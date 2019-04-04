@@ -3,3 +3,4 @@ artifact-linux-amd64
 .tmp/
 .idea/
 /.vscode/
+/cmd/artifact/examples

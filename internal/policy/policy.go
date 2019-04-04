@@ -86,7 +86,7 @@ func Get(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc strin
 // ApplyAutoRelease applies an auto-release policy for service svc from branch
 // to environment env.
 func ApplyAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc, branch, env, committerName, committerEmail string) (string, error) {
-	commitMsg := fmt.Sprintf("[%s] policy update: apply auto-release from '%s' to '%s'", svc, branch, env)
+	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, branch, "auto-release")
 	var policyID string
 	err := updatePolicies(ctx, configRepoURL, sshPrivateKeyPath, svc, commitMsg, committerName, committerEmail, func(p *Policies) {
 		policyID = p.SetAutoRelease(branch, env)
@@ -99,7 +99,7 @@ func ApplyAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath stri
 
 // Delete deletes policies by ID for service svc.
 func Delete(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc string, ids []string, committerName, committerEmail string) (int, error) {
-	commitMsg := fmt.Sprintf("[%s] policy update: delete policies", svc)
+	commitMsg := git.PolicyUpdateDeleteCommitMessage(svc)
 	var deleted int
 	err := updatePolicies(ctx, configRepoURL, sshPrivateKeyPath, svc, commitMsg, committerName, committerEmail, func(p *Policies) {
 		deleted = p.Delete(ids...)

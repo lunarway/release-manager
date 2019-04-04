@@ -66,12 +66,22 @@ func Checkout(r *git.Repository, hash plumbing.Hash) error {
 	return nil
 }
 
-func LocateRelease(r *git.Repository, release string) (plumbing.Hash, error) {
+// LocateRelease traverses the git log to find a release commit with id
+// artifactID.
+//
+// It expects the commit to have a commit messages as the one returned by
+// ReleaseCommitMessage.
+func LocateRelease(r *git.Repository, artifactID string) (plumbing.Hash, error) {
 	return locate(r, func(commitMsg string) bool {
-		return strings.Contains(commitMsg, release)
+		return strings.Contains(commitMsg, artifactID)
 	}, ErrReleaseNotFound)
 }
 
+// LocateArtifact traverses the git log to find an artifact commit with id
+// artifactID.
+//
+// It expects the commit to have a commit messages as the one returned by
+// ArtifactCommitMessage.
 func LocateArtifact(r *git.Repository, artifactID string) (plumbing.Hash, error) {
 	return locate(r, func(commitMsg string) bool {
 		return strings.Contains(commitMsg, fmt.Sprintf("artifact %s", artifactID))
