@@ -20,6 +20,11 @@ type Container struct {
 	RestartCount int32  `json:"restartCount"`
 }
 
+type Log struct {
+	Level   string
+	Message string
+}
+
 // NotifyFunc represents callback function for Pod event
 type NotifyFunc = func(event *PodEvent) error
 

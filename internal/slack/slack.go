@@ -54,6 +54,10 @@ func (c *Client) PostPrivateMessage(userID, env, service string, artifact artifa
 }
 
 func successMessage(env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) slack.MsgOption {
+	color := "#FF9830"
+	if podNotify.State == "Ready" {
+		color = "#73bf69"
+	}
 	podField := slack.AttachmentField{
 		Title: "Pod",
 		Value: podNotify.Name,
@@ -76,7 +80,7 @@ func successMessage(env, service string, artifact artifact.Spec, podNotify *http
 	}
 	return slack.MsgOptionAttachments(slack.Attachment{
 		Title:      fmt.Sprintf("%s (artifact: %s)", service, artifact.ID),
-		Color:      "#73bf69",
+		Color:      color,
 		MarkdownIn: []string{"text", "fields"},
 		Fields:     []slack.AttachmentField{podField, namespaceField, statusField, containersField},
 	})
