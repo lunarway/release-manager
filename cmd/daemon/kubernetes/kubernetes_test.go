@@ -34,6 +34,12 @@ func TestParseToJSONLogs(t *testing.T) {
 				},
 			},
 		},
+		{
+			desc:   "non json",
+			input:  "PANIC IN MAIN\nWith a stack",
+			output: nil,
+			err:    errors.New("invalid character 'P' looking for beginning of value"),
+		},
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {

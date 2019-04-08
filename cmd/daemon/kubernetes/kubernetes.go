@@ -61,9 +61,8 @@ func (c *Client) GetLogs(podName, namespace string) (string, error) {
 	}
 	logs, err := parseToJSONAray(buf.String())
 	if err != nil {
-		return "", err
+		return buf.String(), nil
 	}
-
 	message := ""
 	for _, l := range logs {
 		message += l.Message + "\n"
@@ -79,7 +78,7 @@ func parseToJSONAray(str string) ([]Log, error) {
 	var logs []Log
 	err := json.Unmarshal([]byte(str), &logs)
 	if err != nil {
-		return []Log{}, errors.WithMessage(err, "unmarshal")
+		return nil, errors.WithMessage(err, "unmarshal")
 	}
 	return logs, nil
 }
