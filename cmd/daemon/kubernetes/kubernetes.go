@@ -3,8 +3,12 @@ package kubernetes
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/lunarway/release-manager/internal/log"
 	v1 "k8s.io/api/core/v1"
@@ -36,8 +40,9 @@ func NewClient() (*Client, error) {
 
 	return &client, nil
 }
+
 func (c *Client) GetLogs(podName, namespace string) (string, error) {
-	numberOfLogLines := int64(25)
+	numberOfLogLines := int64(8)
 	podLogOpts := v1.PodLogOptions{
 		TailLines: &numberOfLogLines,
 	}
@@ -54,9 +59,29 @@ func (c *Client) GetLogs(podName, namespace string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	str := buf.String()
+	logs, err := parseToJSONAray(buf.String())
+	if err != nil {
+		return "", err
+	}
 
-	return str, nil
+	message := ""
+	for _, l := range logs {
+		message += l.Message + "\n"
+	}
+	return message, nil
+}
+
+func parseToJSONAray(str string) ([]Log, error) {
+	str = strings.ReplaceAll(str, "}\n{", "},{")
+	str = fmt.Sprintf("[%s]", str)
+	fmt.Printf("PRINT: %s", str)
+
+	var logs []Log
+	err := json.Unmarshal([]byte(str), &logs)
+	if err != nil {
+		return []Log{}, errors.WithMessage(err, "unmarshal")
+	}
+	return logs, nil
 }
 
 func (c *Client) WatchPods(ctx context.Context, succeeded, failed NotifyFunc) error {
