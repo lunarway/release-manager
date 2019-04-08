@@ -23,6 +23,10 @@ type Client struct {
 	config    *rest.Config
 }
 
+var (
+	ErrWatcherClosed = errors.New("channel closed")
+)
+
 func NewClient() (*Client, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -73,7 +77,6 @@ func (c *Client) GetLogs(podName, namespace string) (string, error) {
 func parseToJSONAray(str string) ([]Log, error) {
 	str = strings.ReplaceAll(str, "}\n{", "},{")
 	str = fmt.Sprintf("[%s]", str)
-	fmt.Printf("PRINT: %s", str)
 
 	var logs []Log
 	err := json.Unmarshal([]byte(str), &logs)
@@ -92,7 +95,10 @@ func (c *Client) WatchPods(ctx context.Context, succeeded, failed NotifyFunc) er
 
 	for {
 		select {
-		case e := <-watcher.ResultChan():
+		case e, ok := <-watcher.ResultChan():
+			if !ok {
+				return ErrWatcherClosed
+			}
 			if e.Object == nil {
 				continue
 			}

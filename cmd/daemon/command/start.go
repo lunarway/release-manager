@@ -43,11 +43,12 @@ func StartDaemon() *cobra.Command {
 				return nil
 			}
 
-			err = kubectl.WatchPods(context.Background(), succeededFunc, failedFunc)
-			if err != nil {
-				return err
+			for {
+				err = kubectl.WatchPods(context.Background(), succeededFunc, failedFunc)
+				if err != nil && err != kubernetes.ErrWatcherClosed {
+					return err
+				}
 			}
-			return nil
 		},
 	}
 	command.Flags().StringVar(&releaseManagerUrl, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")
