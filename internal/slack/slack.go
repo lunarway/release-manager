@@ -29,6 +29,37 @@ func (c *Client) GetSlackIdByEmail(email string) (string, error) {
 	return user.ID, nil
 }
 
+func (c *Client) UpdateSlackBuildStatus(channel, title, text, color, timestamp string) (string, string, error) {
+	asUser := slack.MsgOptionAsUser(true)
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      title,
+		Color:      color,
+		Text:       text,
+		MarkdownIn: []string{"text", "fields"},
+	})
+	respChannel, timestamp, _, err := c.client.UpdateMessage(channel, timestamp, asUser, attachments)
+	if err != nil {
+		return "", "", err
+	}
+	return respChannel, timestamp, nil
+}
+
+func (c *Client) PostSlackBuildStarted(userId, title, text, color string) (string, string, error) {
+	asUser := slack.MsgOptionAsUser(true)
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      title,
+		Color:      color,
+		Text:       text,
+		MarkdownIn: []string{"text", "fields"},
+	})
+
+	respChannel, timestamp, err := c.client.PostMessage(userId, asUser, attachments)
+	if err != nil {
+		return "", "", err
+	}
+	return respChannel, timestamp, err
+}
+
 func (c *Client) PostPrivateMessage(userID, env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) error {
 	asUser := slack.MsgOptionAsUser(true)
 	switch podNotify.State {

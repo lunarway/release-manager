@@ -2,6 +2,10 @@ package command
 
 import (
 	"context"
+	"fmt"
+	"path"
+
+	"github.com/lunarway/release-manager/internal/slack"
 
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/spf13/cobra"
@@ -13,7 +17,15 @@ func pushCommand(options *Options) *cobra.Command {
 		Use:   "push",
 		Short: "push artifact to a configuration repository",
 		RunE: func(c *cobra.Command, args []string) error {
-			return flow.PushArtifact(context.Background(), configGitRepo, options.FileName, options.RootPath, sshPrivateKeyPath)
+			artifactId, err := flow.PushArtifact(context.Background(), configGitRepo, options.FileName, options.RootPath, sshPrivateKeyPath)
+			if err != nil {
+				return err
+			}
+			return slack.Update(path.Join(options.RootPath, options.MessageFileName), options.SlackToken, func(m slack.Message) slack.Message {
+				m.Color = slack.MsgColorGreen
+				m.Text += fmt.Sprintf(":white_check_mark: *Artifact pushed:* %s", artifactId)
+				return m
+			})
 		},
 	}
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key", "", "private key for the config repo")
