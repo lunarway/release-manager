@@ -1,9 +1,11 @@
 package command
 
 import (
+	"fmt"
 	"path"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/spf13/cobra"
 )
 
@@ -33,12 +35,20 @@ func appendTestSubCommand(options *Options) *cobra.Command {
 		Short: "",
 		Long:  "",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
+			err := artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Test"
 				stage.ID = "test"
 				stage.Data = testData
 				return setStage(s, stage)
 			})
+			if err != nil {
+				return err
+			}
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Test* (passed: %d, failed: %d, skipped: %d)", testData.Results.Passed, testData.Results.Failed, testData.Results.Skipped), slack.MsgColorYellow)
+			if err != nil {
+				fmt.Printf("Error notifying slack")
+			}
+			return nil
 		},
 	}
 	command.Flags().IntVar(&testData.Results.Passed, "passed", 0, "")
@@ -59,12 +69,20 @@ func appendBuildSubCommand(options *Options) *cobra.Command {
 		Short: "",
 		Long:  "",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
+			err := artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Build"
 				stage.ID = "build"
 				stage.Data = buildData
 				return setStage(s, stage)
 			})
+			if err != nil {
+				return nil
+			}
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Build* (%s:%s)", buildData.Image, buildData.Tag), slack.MsgColorYellow)
+			if err != nil {
+				fmt.Printf("Error notifying slack")
+			}
+			return nil
 		},
 	}
 
@@ -85,12 +103,20 @@ func appendSnykDockerSubCommand(options *Options) *cobra.Command {
 		Short: "",
 		Long:  "",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
+			err := artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Security Scan - Docker"
 				stage.ID = "snyk-docker"
 				stage.Data = snykDockerData
 				return setStage(s, stage)
 			})
+			if err != nil {
+				return err
+			}
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Snyk - Docker* (high: %d, medium: %d, low: %d)", snykDockerData.Vulnerabilities.High, snykDockerData.Vulnerabilities.Medium, snykDockerData.Vulnerabilities.Low), slack.MsgColorYellow)
+			if err != nil {
+				fmt.Printf("Error notifying slack")
+			}
+			return nil
 		},
 	}
 
@@ -112,12 +138,21 @@ func appendSnykCodeSubCommand(options *Options) *cobra.Command {
 		Short: "",
 		Long:  "",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
+			err := artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Security Scan - Code"
 				stage.ID = "snyk-code"
 				stage.Data = snykCodeData
 				return setStage(s, stage)
 			})
+			if err != nil {
+				return err
+			}
+
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Snyk - Code* (high: %d, medium: %d, low: %d)", snykCodeData.Vulnerabilities.High, snykCodeData.Vulnerabilities.Medium, snykCodeData.Vulnerabilities.Low), slack.MsgColorYellow)
+			if err != nil {
+				fmt.Printf("Error notifying slack")
+			}
+			return nil
 		},
 	}
 
@@ -138,12 +173,20 @@ func appendPushSubCommand(options *Options) *cobra.Command {
 		Short: "",
 		Long:  "",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
+			err := artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Push"
 				stage.ID = "push"
 				stage.Data = pushData
 				return setStage(s, stage)
 			})
+			if err != nil {
+				return err
+			}
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Push* (%s:%s)", pushData.Image, pushData.Tag), slack.MsgColorYellow)
+			if err != nil {
+				fmt.Printf("Error notifying slack")
+			}
+			return nil
 		},
 	}
 
@@ -175,4 +218,18 @@ func setStage(s artifact.Spec, stage artifact.Stage) artifact.Spec {
 
 	s.Stages = updatedStages
 	return s
+}
+
+func notifySlack(options *Options, text, color string) error {
+	messageFilePath := path.Join(options.RootPath, options.MessageFileName)
+	err := slack.Update(messageFilePath, options.SlackToken, func(m slack.Message) slack.Message {
+		m.Text += text + "\n"
+		m.Color = color
+		return m
+	})
+
+	if err != nil {
+		return err
+	}
+	return nil
 }

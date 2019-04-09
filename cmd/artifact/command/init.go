@@ -1,10 +1,12 @@
 package command
 
 import (
+	"fmt"
 	"path"
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -26,6 +28,48 @@ func initCommand(options *Options) *cobra.Command {
 			err := artifact.Persist(filePath, s)
 			if err != nil {
 				return errors.WithMessagef(err, "persist to file '%s'", filePath)
+			}
+
+			// If we have an email to use for slack, lets inform
+			if s.Application.AuthorEmail != "" {
+				// Setup Slack client
+				client, err := slack.NewClient(options.SlackToken)
+				if err != nil {
+					fmt.Printf("Error creating Slack client")
+					return nil
+				}
+
+				// retrieve the slack userId to communicate directly
+				userId, err := client.GetSlackIdByEmail(s.Application.AuthorEmail)
+				if err != nil {
+					fmt.Printf("Error getting Slack Id for author: %s", s.Application.AuthorEmail)
+					return nil
+				}
+
+				// create and post the initial slack message
+				title := fmt.Sprintf("%s", s.Application.Name)
+				text := fmt.Sprintf("Build started for branch: *%s*\n", s.Application.Branch)
+				color := slack.MsgColorYellow
+				respChan, timestamp, err := client.PostSlackBuildStarted(userId, title, text, color)
+				if err != nil {
+					return nil
+				}
+
+				// Persist the Slack message to disk for later retrieval and updates
+				messageFilePath := path.Join(options.RootPath, options.MessageFileName)
+				err = slack.Persist(messageFilePath, slack.Message{
+					Title:     title,
+					Text:      text,
+					UserID:    userId,
+					Channel:   respChan,
+					Timestamp: timestamp,
+					Color:     color,
+				})
+
+				if err != nil {
+					fmt.Printf("Error persisting slack message to file")
+					return nil
+				}
 			}
 
 			return nil

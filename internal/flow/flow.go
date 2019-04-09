@@ -392,37 +392,37 @@ func ReleaseArtifactID(ctx context.Context, configRepoURL, artifactFileName, ser
 //
 // The resourceRoot specifies the path to the artifact files. All files in this
 // path will be pushed.
-func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resourceRoot, sshPrivateKeyPath string) error {
+func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resourceRoot, sshPrivateKeyPath string) (string, error) {
 	artifactSpecPath := path.Join(resourceRoot, artifactFileName)
 	artifactSpec, err := artifact.Get(artifactSpecPath)
 	if err != nil {
-		return errors.WithMessagef(err, "path '%s'", artifactSpecPath)
+		return "", errors.WithMessagef(err, "path '%s'", artifactSpecPath)
 	}
 	// fmt.Printf is used for logging as this is called from artifact cli only
 	fmt.Printf("Checkout config repository from '%s' into '%s'\n", configRepoURL, resourceRoot)
 	repo, err := git.CloneDepth(context.Background(), configRepoURL, artifactConfigRepoPath, sshPrivateKeyPath, 1)
 	if err != nil {
-		return errors.WithMessage(err, "clone config repo")
+		return "", errors.WithMessage(err, "clone config repo")
 	}
 	destinationPath := artifactPath(artifactConfigRepoPath, artifactSpec.Service, artifactSpec.Application.Branch)
 	fmt.Printf("Artifacts destination '%s'\n", destinationPath)
 	fmt.Printf("Removing existing files\n")
 	err = os.RemoveAll(destinationPath)
 	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("remove destination path '%s'", destinationPath))
+		return "", errors.WithMessage(err, fmt.Sprintf("remove destination path '%s'", destinationPath))
 	}
 	err = os.MkdirAll(destinationPath, os.ModePerm)
 	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
+		return "", errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
 	}
 	fmt.Printf("Copy configuration into destination\n")
 	err = copy.Copy(resourceRoot, destinationPath)
 	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", resourceRoot, destinationPath))
+		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", resourceRoot, destinationPath))
 	}
 	committerName, committerEmail, err := git.CommitterDetails()
 	if err != nil {
-		return errors.WithMessage(err, "get committer details")
+		return "", errors.WithMessage(err, "get committer details")
 	}
 	artifactID := artifactSpec.ID
 	authorName := artifactSpec.Application.AuthorName
@@ -432,9 +432,9 @@ func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resource
 	err = git.Commit(context.Background(), repo, ".", authorName, authorEmail, committerName, committerEmail, commitMsg, sshPrivateKeyPath)
 	if err != nil {
 		if err == git.ErrNothingToCommit {
-			return nil
+			return "", nil
 		}
-		return errors.WithMessage(err, "commit files")
+		return "", errors.WithMessage(err, "commit files")
 	}
-	return nil
+	return artifactSpec.ID, nil
 }
