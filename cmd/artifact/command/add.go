@@ -44,7 +44,11 @@ func appendTestSubCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return notifySlack(options, fmt.Sprintf(":white_check_mark: *Test* (passed: %d, failed: %d, skipped: %d)", testData.Results.Passed, testData.Results.Failed, testData.Results.Skipped), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Test* (passed: %d, failed: %d, skipped: %d)", testData.Results.Passed, testData.Results.Failed, testData.Results.Skipped), slack.MsgColorYellow)
+			if err != nil {
+				fmt.Printf("Error notifying slack")
+			}
+			return nil
 		},
 	}
 	command.Flags().IntVar(&testData.Results.Passed, "passed", 0, "")
@@ -74,7 +78,11 @@ func appendBuildSubCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return nil
 			}
-			return notifySlack(options, fmt.Sprintf(":white_check_mark: *Build* (%s:%s)", buildData.Image, buildData.Tag), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Build* (%s:%s)", buildData.Image, buildData.Tag), slack.MsgColorYellow)
+			if err != nil {
+				fmt.Printf("Error notifying slack")
+			}
+			return nil
 		},
 	}
 
@@ -104,7 +112,11 @@ func appendSnykDockerSubCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return notifySlack(options, fmt.Sprintf(":white_check_mark: *Snyk - Docker* (high: %d, medium: %d, low: %d)", snykDockerData.Vulnerabilities.High, snykDockerData.Vulnerabilities.Medium, snykDockerData.Vulnerabilities.Low), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Snyk - Docker* (high: %d, medium: %d, low: %d)", snykDockerData.Vulnerabilities.High, snykDockerData.Vulnerabilities.Medium, snykDockerData.Vulnerabilities.Low), slack.MsgColorYellow)
+			if err != nil {
+				fmt.Printf("Error notifying slack")
+			}
+			return nil
 		},
 	}
 
@@ -135,7 +147,12 @@ func appendSnykCodeSubCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return notifySlack(options, fmt.Sprintf(":white_check_mark: *Snyk - Code* (high: %d, medium: %d, low: %d)", snykCodeData.Vulnerabilities.High, snykCodeData.Vulnerabilities.Medium, snykCodeData.Vulnerabilities.Low), slack.MsgColorYellow)
+
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Snyk - Code* (high: %d, medium: %d, low: %d)", snykCodeData.Vulnerabilities.High, snykCodeData.Vulnerabilities.Medium, snykCodeData.Vulnerabilities.Low), slack.MsgColorYellow)
+			if err != nil {
+				fmt.Printf("Error notifying slack")
+			}
+			return nil
 		},
 	}
 
@@ -165,7 +182,11 @@ func appendPushSubCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return notifySlack(options, fmt.Sprintf(":white_check_mark: *Push* (%s:%s)", pushData.Image, pushData.Tag), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Push* (%s:%s)", pushData.Image, pushData.Tag), slack.MsgColorYellow)
+			if err != nil {
+				fmt.Printf("Error notifying slack")
+			}
+			return nil
 		},
 	}
 

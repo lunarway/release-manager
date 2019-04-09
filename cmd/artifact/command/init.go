@@ -35,13 +35,15 @@ func initCommand(options *Options) *cobra.Command {
 				// Setup Slack client
 				client, err := slack.NewClient(options.SlackToken)
 				if err != nil {
-					return err
+					fmt.Printf("Error creating Slack client")
+					return nil
 				}
 
 				// retrieve the slack userId to communicate directly
 				userId, err := client.GetSlackIdByEmail(s.Application.AuthorEmail)
 				if err != nil {
-					return err
+					fmt.Printf("Error getting Slack Id for author: %s", s.Application.AuthorEmail)
+					return nil
 				}
 
 				// create and post the initial slack message
@@ -65,7 +67,8 @@ func initCommand(options *Options) *cobra.Command {
 				})
 
 				if err != nil {
-					return errors.WithMessagef(err, "persist to file '%s'", messageFilePath)
+					fmt.Printf("Error persisting slack message to file")
+					return nil
 				}
 			}
 

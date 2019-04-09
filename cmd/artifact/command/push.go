@@ -21,11 +21,16 @@ func pushCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return slack.Update(path.Join(options.RootPath, options.MessageFileName), options.SlackToken, func(m slack.Message) slack.Message {
+			err = slack.Update(path.Join(options.RootPath, options.MessageFileName), options.SlackToken, func(m slack.Message) slack.Message {
 				m.Color = slack.MsgColorGreen
 				m.Text += fmt.Sprintf(":white_check_mark: *Artifact pushed:* %s", artifactId)
 				return m
 			})
+			if err != nil {
+				fmt.Printf("Error updating the message file in push")
+				return nil
+			}
+			return nil
 		},
 	}
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key", "", "private key for the config repo")
