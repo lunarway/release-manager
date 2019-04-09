@@ -42,7 +42,7 @@ func NotifyCommitter(ctx context.Context, configRepoURL, artifactFileName, sshPr
 	env := matches[1]
 	service := matches[2]
 
-	sourceSpec, err := sourceSpec(sourceConfigRepoPath, artifactFileName, service, env)
+	sourceSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, env)
 	if err != nil {
 		return errors.WithMessage(err, "locate source spec")
 	}
