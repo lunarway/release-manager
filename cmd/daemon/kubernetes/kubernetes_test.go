@@ -97,26 +97,7 @@ func TestStatusNotifier(t *testing.T) {
 					},
 				},
 			},
-			successOutput: &PodEvent{
-				Name:       "product-77d79cf64-59mjj",
-				Namespace:  "dev",
-				State:      "Running",
-				ArtifactID: "master-7039119b9c-6a95af9e3f",
-				Containers: []Container{
-					{
-						Name:  "container1",
-						State: "Running",
-						Ready: false,
-					},
-					{
-						Name:  "container2",
-						State: "Running",
-						Ready: false,
-					},
-				},
-				Reason:  "",
-				Message: "",
-			},
+			successOutput: nil,
 			failureOutput: nil,
 		},
 		{
@@ -200,20 +181,7 @@ func TestStatusNotifier(t *testing.T) {
 					},
 				},
 			},
-			successOutput: &PodEvent{
-				Name:       "product-77d79cf64-59mjj",
-				Namespace:  "dev",
-				State:      "Running",
-				ArtifactID: "master-7039119b9c-6a95af9e3f",
-				Containers: []Container{
-					{
-						Name:  "container1",
-						State: "Running",
-					},
-				},
-				Reason:  "",
-				Message: "",
-			},
+			successOutput: nil,
 			failureOutput: nil,
 		},
 		{

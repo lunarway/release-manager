@@ -87,103 +87,40 @@ func (c *Client) PostPrivateMessage(userID, env, service string, artifact artifa
 }
 
 func successMessage(env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) slack.MsgOption {
-	color := "#FF9830"
-	if podNotify.State == "Ready" {
-		color = "#73bf69"
-	}
-	podField := slack.AttachmentField{
-		Title: "Pod",
-		Value: podNotify.Name,
-		Short: true,
-	}
-	statusField := slack.AttachmentField{
-		Title: "Status",
-		Value: podNotify.State,
-		Short: true,
-	}
-	namespaceField := slack.AttachmentField{
-		Title: "Namespace",
-		Value: podNotify.Namespace,
-		Short: true,
-	}
-	containersField := slack.AttachmentField{
-		Title: "Containers",
-		Value: fmt.Sprintf("%d", len(podNotify.Containers)),
-		Short: true,
-	}
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf("%s (artifact: %s)", service, artifact.ID),
-		Color:      color,
+		Title:      fmt.Sprintf("%s (%s)", service, artifact.ID),
+		Text:       fmt.Sprintf("*Environment:* %s\n:white_check_mark: *%s* (%s)", env, podNotify.Name, podNotify.State),
+		Color:      "#73bf69",
 		MarkdownIn: []string{"text", "fields"},
-		Fields:     []slack.AttachmentField{podField, namespaceField, statusField, containersField},
 	})
 }
 
 func createConfigErrorMessage(env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) slack.MsgOption {
-	podField := slack.AttachmentField{
-		Title: "Pod",
-		Value: podNotify.Name,
-		Short: true,
-	}
-	statusField := slack.AttachmentField{
-		Title: "Status",
-		Value: podNotify.State,
-		Short: true,
-	}
-	namespaceField := slack.AttachmentField{
-		Title: "Namespace",
-		Value: podNotify.Namespace,
-		Short: true,
-	}
-	containersField := slack.AttachmentField{
-		Title: "Containers",
-		Value: fmt.Sprintf("%d", len(podNotify.Containers)),
-		Short: true,
-	}
 	messageField := slack.AttachmentField{
-		Title: "Containers",
-		Value: podNotify.Message,
+		Title: "Error",
+		Value: fmt.Sprintf("```%s```", podNotify.Message),
 		Short: false,
 	}
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf("%s (artifact: %s)", service, artifact.ID),
+		Title:      fmt.Sprintf("%s (%s)", service, artifact.ID),
+		Text:       fmt.Sprintf("*Environment:* %s\n:no_entry: *%s* (%s)\n", env, podNotify.Name, podNotify.State),
 		Color:      "#e24d42",
 		MarkdownIn: []string{"text", "fields"},
-		Fields:     []slack.AttachmentField{podField, namespaceField, statusField, containersField, messageField},
+		Fields:     []slack.AttachmentField{messageField},
 	})
 }
 
 func crashLoopBackOffErrorMessage(env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) slack.MsgOption {
-	fmt.Printf("%+v", podNotify)
-	podField := slack.AttachmentField{
-		Title: "Pod",
-		Value: podNotify.Name,
-		Short: true,
-	}
-	statusField := slack.AttachmentField{
-		Title: "Status",
-		Value: podNotify.State,
-		Short: true,
-	}
-	namespaceField := slack.AttachmentField{
-		Title: "Namespace",
-		Value: podNotify.Namespace,
-		Short: true,
-	}
-	containersField := slack.AttachmentField{
-		Title: "Containers",
-		Value: fmt.Sprintf("%d", len(podNotify.Containers)),
-		Short: true,
-	}
 	logField := slack.AttachmentField{
 		Title: "Logs",
 		Value: fmt.Sprintf("```%s```", podNotify.Logs),
 		Short: false,
 	}
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf("%s (artifact: %s)", service, artifact.ID),
+		Title:      fmt.Sprintf("%s (%s)", service, artifact.ID),
+		Text:       fmt.Sprintf("*Environment:* %s\n:no_entry: *%s* (%s)\n", env, podNotify.Name, podNotify.State),
 		Color:      "#e24d42",
 		MarkdownIn: []string{"text", "fields"},
-		Fields:     []slack.AttachmentField{podField, namespaceField, statusField, containersField, logField},
+		Fields:     []slack.AttachmentField{logField},
 	})
 }

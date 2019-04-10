@@ -100,13 +100,13 @@ daemon-webhook-success:
 	-d '{ \
 	  "name": "product-f4fd84588-62789", \
 	  "namespace": "dev", \
-	  "state": "Running", \
+	  "state": "Ready", \
 	  "artifactId": "master-a9aad46188-f41b35775e", \
 	  "reason": "test", \
 	  "message": "test", \
 	  "containers": [ \
-		{ "name": "container1", "state": "Running" }, \
-		{ "name": "container2", "state": "Running" } \
+		{ "name": "container1", "state": "Ready" }, \
+		{ "name": "container2", "state": "Ready" } \
 	  ] \
 	}' \
 	localhost:8080/webhook/daemon
