@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewRelease(client *httpinternal.Client) *cobra.Command {
-	var serviceName, environment, branch, artifact string
+func NewRelease(client *httpinternal.Client, service *string) *cobra.Command {
+	var environment, branch, artifact string
 	var command = &cobra.Command{
 		Use:   "release",
 		Short: `Release a specific artifact or latest artifact from a branch into a specific environment.`,
@@ -39,7 +39,7 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				return err
 			}
 			err = client.Do(http.MethodPost, path, httpinternal.ReleaseRequest{
-				Service:        serviceName,
+				Service:        *service,
 				Environment:    environment,
 				Branch:         branch,
 				ArtifactID:     artifact,
@@ -58,8 +58,6 @@ Release latest artifact from branch 'master' of service 'product' into environme
 			return nil
 		},
 	}
-	command.Flags().StringVar(&serviceName, "service", "", "service from with to release into specified environment (required)")
-	command.MarkFlagRequired("service")
 	command.Flags().StringVar(&environment, "env", "", "environment to release to (required)")
 	command.MarkFlagRequired("env")
 	command.Flags().StringVar(&branch, "branch", "", "release latest artifact from this branch (mutually exclusive with --artifact)")
