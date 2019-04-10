@@ -28,6 +28,7 @@ type Message struct {
 	Channel   string `json:"channel,omitempty"`
 	Text      string `json:"text,omitempty"`
 	Title     string `json:"title,omitempty"`
+	TitleLink string `json:"titleLink,omitempty"`
 	Timestamp string `json:"timestamp,omitempty"`
 }
 
@@ -95,7 +96,7 @@ func Update(path, token string, f func(Message) Message) error {
 		return err
 	}
 
-	m.Channel, m.Timestamp, err = client.UpdateSlackBuildStatus(m.Channel, m.Title, m.Text, m.Color, m.Timestamp)
+	m.Channel, m.Timestamp, err = client.UpdateSlackBuildStatus(m.Channel, m.Title, m.TitleLink, m.Text, m.Color, m.Timestamp)
 	if err != nil {
 		return err
 	}
@@ -103,7 +104,7 @@ func Update(path, token string, f func(Message) Message) error {
 	// Persist back to the file
 	err = Persist(path, m)
 	if err != nil {
-		return errors.WithMessagef(err, "persiste artifact to '%s'", path)
+		return errors.WithMessagef(err, "persist artifact to '%s'", path)
 	}
 
 	return nil
