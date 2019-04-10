@@ -9,6 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	snykDefaultUrl = "https://app.snyk.io"
+)
+
 // NewCommand returns a new instance of a rm-gen-spec command.
 func addCommand(options *Options) *cobra.Command {
 	var command = &cobra.Command{
@@ -112,7 +116,7 @@ func appendSnykDockerSubCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = notifySlack(options, fmt.Sprintf(":white_check_mark: <%s|*Snyk - Docker*> (high: %d, medium: %d, low: %d)", snykDockerData.URL, snykDockerData.Vulnerabilities.High, snykDockerData.Vulnerabilities.Medium, snykDockerData.Vulnerabilities.Low), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: <%s|*Snyk - Docker*> (high: %d, medium: %d, low: %d)", formatSnykURL(snykDockerData.URL), snykDockerData.Vulnerabilities.High, snykDockerData.Vulnerabilities.Medium, snykDockerData.Vulnerabilities.Low), slack.MsgColorYellow)
 			if err != nil {
 				fmt.Printf("Error notifying slack")
 			}
@@ -148,7 +152,7 @@ func appendSnykCodeSubCommand(options *Options) *cobra.Command {
 				return err
 			}
 
-			err = notifySlack(options, fmt.Sprintf(":white_check_mark: <%s|*Snyk - Code*> (high: %d, medium: %d, low: %d)", snykCodeData.URL, snykCodeData.Vulnerabilities.High, snykCodeData.Vulnerabilities.Medium, snykCodeData.Vulnerabilities.Low), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: <%s|*Snyk - Code*> (high: %d, medium: %d, low: %d)", formatSnykURL(snykCodeData.URL), snykCodeData.Vulnerabilities.High, snykCodeData.Vulnerabilities.Medium, snykCodeData.Vulnerabilities.Low), slack.MsgColorYellow)
 			if err != nil {
 				fmt.Printf("Error notifying slack")
 			}
@@ -232,4 +236,11 @@ func notifySlack(options *Options, text, color string) error {
 		return err
 	}
 	return nil
+}
+
+func formatSnykURL(url string) string {
+	if url == "" || url == "null" {
+		return snykDefaultUrl
+	}
+	return url
 }

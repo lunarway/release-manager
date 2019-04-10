@@ -45,7 +45,7 @@ server: build_server
 	HAMCTL_AUTH_TOKEN=test DAEMON_AUTH_TOKEN=test ./dist/server start --ssh-private-key ~/.ssh/github --slack-token ${SLACK_TOKEN}
 
 artifact-init:
-	./dist/artifact init --slack-token ${SLACK_TOKEN} --artifact-id "master-deed62270f-854d930ecb" --name "lunar-way-product-service" --service "product" --git-author-name "Kasper Nissen" --git-author-email "kni@lunarway.com" --git-message "This is a test message" --git-committer-name "Bjørn Sørensen" --git-committer-email "bso@lunarway.com" --git-sha deed62270f24f1ca8cf2c19b505b2c88036e1b1c --git-branch master --url "https://bitbucket.org/LunarWay/lunar-way-product-service/commits/a05e314599a7c202724d46a009fcc0f493bce035"
+	./dist/artifact init --slack-token ${SLACK_TOKEN} --artifact-id "master-deed62270f-854d930ecb" --name "lunar-way-product-service" --service "product" --git-author-name "Kasper Nissen" --git-author-email "kni@lunarway.com" --git-message "This is a test message" --git-committer-name "Bjørn Sørensen" --git-committer-email "bso@lunarway.com" --git-sha deed62270f24f1ca8cf2c19b505b2c88036e1b1c --git-branch master --url "https://bitbucket.org/LunarWay/lunar-way-product-service/commits/a05e314599a7c202724d46a009fcc0f493bce035" --ci-job-url "https://jenkins.dev.lunarway.com/job/bitbucket/job/lunar-way-product-service/job/master/170/display/redirect"
 
 artifact-test:
 	./dist/artifact add test --slack-token ${SLACK_TOKEN} --passed 189 --failed 0 --skipped 0
@@ -57,7 +57,7 @@ artifact-push:
 	./dist/artifact add push --slack-token ${SLACK_TOKEN} --image quay.io/lunarway/product-service --tag master-24sadj821s-99sie2j19k --docker-version 1.18.09
 
 artifact-snyk-docker:
-	./dist/artifact add snyk-docker --slack-token ${SLACK_TOKEN} --high 1 --medium 2 --low 23
+	./dist/artifact add snyk-docker --slack-token ${SLACK_TOKEN} --high 1 --medium 2 --low 23 --url ""
 
 artifact-snyk-code:
 	./dist/artifact add snyk-code --slack-token ${SLACK_TOKEN} --high 0 --medium 0 --low 0 --url "https://example.com"
