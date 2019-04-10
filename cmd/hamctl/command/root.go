@@ -27,6 +27,6 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&client.BaseURL, "http-base-url", "https://release-manager.dev.lunarway.com", "address of the http release manager server")
 	command.PersistentFlags().StringVar(&client.AuthToken, "http-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "auth token for the http service")
 	command.PersistentFlags().StringVar(&service, "service", "", "service name to execute commands for")
-	command.MarkFlagRequired("service")
+	command.MarkPersistentFlagRequired("service")
 	return command, nil
 }
