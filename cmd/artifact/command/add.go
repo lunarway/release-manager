@@ -148,7 +148,7 @@ func appendSnykCodeSubCommand(options *Options) *cobra.Command {
 				return err
 			}
 
-			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Snyk - Code* (high: %d, medium: %d, low: %d)", snykCodeData.Vulnerabilities.High, snykCodeData.Vulnerabilities.Medium, snykCodeData.Vulnerabilities.Low), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: <%s|*Snyk - Code*> (high: %d, medium: %d, low: %d)", snykCodeData.URL, snykCodeData.Vulnerabilities.High, snykCodeData.Vulnerabilities.Medium, snykCodeData.Vulnerabilities.Low), slack.MsgColorYellow)
 			if err != nil {
 				fmt.Printf("Error notifying slack")
 			}

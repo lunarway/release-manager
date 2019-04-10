@@ -47,10 +47,11 @@ func initCommand(options *Options) *cobra.Command {
 				}
 
 				// create and post the initial slack message
-				title := fmt.Sprintf("%s", s.Application.Name)
+				title := s.Application.Name
+				titleLink := s.Application.URL
 				text := fmt.Sprintf("Build started for branch: *%s*\n", s.Application.Branch)
 				color := slack.MsgColorYellow
-				respChan, timestamp, err := client.PostSlackBuildStarted(userId, title, text, color)
+				respChan, timestamp, err := client.PostSlackBuildStarted(userId, title, titleLink, text, color)
 				if err != nil {
 					return nil
 				}
@@ -59,6 +60,7 @@ func initCommand(options *Options) *cobra.Command {
 				messageFilePath := path.Join(options.RootPath, options.MessageFileName)
 				err = slack.Persist(messageFilePath, slack.Message{
 					Title:     title,
+					TitleLink: titleLink,
 					Text:      text,
 					UserID:    userId,
 					Channel:   respChan,

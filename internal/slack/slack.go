@@ -29,10 +29,11 @@ func (c *Client) GetSlackIdByEmail(email string) (string, error) {
 	return user.ID, nil
 }
 
-func (c *Client) UpdateSlackBuildStatus(channel, title, text, color, timestamp string) (string, string, error) {
+func (c *Client) UpdateSlackBuildStatus(channel, title, titleLink, text, color, timestamp string) (string, string, error) {
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      title,
+		TitleLink:  titleLink,
 		Color:      color,
 		Text:       text,
 		MarkdownIn: []string{"text", "fields"},
@@ -44,10 +45,11 @@ func (c *Client) UpdateSlackBuildStatus(channel, title, text, color, timestamp s
 	return respChannel, timestamp, nil
 }
 
-func (c *Client) PostSlackBuildStarted(userId, title, text, color string) (string, string, error) {
+func (c *Client) PostSlackBuildStarted(userId, title, titleLink, text, color string) (string, string, error) {
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      title,
+		TitleLink:  titleLink,
 		Color:      color,
 		Text:       text,
 		MarkdownIn: []string{"text", "fields"},
