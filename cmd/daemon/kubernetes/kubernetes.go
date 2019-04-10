@@ -194,15 +194,6 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 				})
 				return
 			}
-			succeeded(&PodEvent{
-				Namespace:  pod.Namespace,
-				Name:       pod.Name,
-				ArtifactID: artifactId,
-				State:      string(v1.PodRunning),
-				Containers: containers,
-				Reason:     "",
-				Message:    message,
-			})
 			return
 
 			// PodFailed means that all containers in the pod have terminated, and at least one container has
