@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
@@ -295,15 +296,22 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 		releaseID, err := flow.Promote(r.Context(), configRepo, artifactFileName, req.Service, req.Environment, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath)
 
 		var statusString string
-		if err != nil && errors.Cause(err) == git.ErrNothingToCommit {
-			statusString = "Environment is already up-to-date"
-		} else if err != nil && errors.Cause(err) == flow.ErrUnknownEnvironment {
-			log.Errorf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v", configRepo, artifactFileName, req.Service, req.Environment, err)
-			Error(w, fmt.Sprintf("Unknown environment: %s", req.Environment), http.StatusBadRequest)
-		} else if err != nil {
-			log.Errorf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v", configRepo, artifactFileName, req.Service, req.Environment, err)
-			Error(w, "Unknown error", http.StatusInternalServerError)
-			return
+		if err != nil {
+			switch errors.Cause(err) {
+			case git.ErrNothingToCommit:
+				statusString = "Environment is already up-to-date"
+			case flow.ErrUnknownEnvironment:
+				log.Errorf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v", configRepo, artifactFileName, req.Service, req.Environment, err)
+				Error(w, fmt.Sprintf("Unknown environment: %s", req.Environment), http.StatusBadRequest)
+				return
+			case artifact.ErrFileNotFound:
+				Error(w, fmt.Sprintf("artifact not found for service '%s'", req.Service), http.StatusBadRequest)
+				return
+			default:
+				log.Errorf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v", configRepo, artifactFileName, req.Service, req.Environment, err)
+				Error(w, "Unknown error", http.StatusInternalServerError)
+				return
+			}
 		}
 
 		var fromEnvironment string
@@ -373,6 +381,13 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 				log.Info("release: nothing to commit")
 			case git.ErrArtifactNotFound:
 				Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
+				return
+			case artifact.ErrFileNotFound:
+				if req.Branch != "" {
+					Error(w, fmt.Sprintf("artifact for branch '%s' not found for service '%s'", req.Branch, req.Service), http.StatusBadRequest)
+				} else {
+					Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
+				}
 				return
 			default:
 				log.Errorf("http release flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v", configRepo, artifactFileName, req.Service, req.Environment, err)
