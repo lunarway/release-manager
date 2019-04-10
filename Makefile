@@ -60,7 +60,7 @@ artifact-snyk-docker:
 	./dist/artifact add snyk-docker --slack-token ${SLACK_TOKEN} --high 1 --medium 2 --low 23
 
 artifact-snyk-code:
-	./dist/artifact add snyk-code --slack-token ${SLACK_TOKEN} --high 0 --medium 0 --low 0 --url
+	./dist/artifact add snyk-code --slack-token ${SLACK_TOKEN} --high 0 --medium 0 --low 0 --url "https://example.com"
 
 artifact-failure:
 	./dist/artifact failure --slack-token ${SLACK_TOKEN}
