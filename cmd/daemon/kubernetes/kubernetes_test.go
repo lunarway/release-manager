@@ -158,6 +158,111 @@ func TestStatusNotifier(t *testing.T) {
 			failureOutput: nil,
 		},
 		{
+			desc: "Pod with 2 containers in State: Running and Ready with DeletionTimestamp nil",
+			input: watch.Event{
+				Type: watch.Modified,
+				Object: &v1.Pod{
+					ObjectMeta: defaultObjectMetaData(),
+					Status: v1.PodStatus{
+						Phase: v1.PodRunning,
+						ContainerStatuses: []v1.ContainerStatus{
+							{
+								Name:  "container1",
+								Ready: true,
+								State: v1.ContainerState{
+									Running: &v1.ContainerStateRunning{
+										StartedAt: metav1.Time{
+											Time: time.Now(),
+										},
+									},
+								},
+							},
+							{
+								Name:  "container2",
+								Ready: true,
+								State: v1.ContainerState{
+									Running: &v1.ContainerStateRunning{
+										StartedAt: metav1.Time{
+											Time: time.Now(),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			successOutput: &PodEvent{
+				Name:       "product-77d79cf64-59mjj",
+				Namespace:  "dev",
+				State:      "Ready",
+				ArtifactID: "master-7039119b9c-6a95af9e3f",
+				Containers: []Container{
+					{
+						Name:  "container1",
+						State: "Ready",
+						Ready: true,
+					},
+					{
+						Name:  "container2",
+						State: "Ready",
+						Ready: true,
+					},
+				},
+				Reason:  "",
+				Message: "",
+			},
+			failureOutput: nil,
+		},
+		{
+			desc: "Pod with 2 containers in State: Running and Ready with DeletionTimestamp set",
+			input: watch.Event{
+				Type: watch.Modified,
+				Object: &v1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "product-77d79cf64-59mjj",
+						Namespace: "dev",
+						DeletionTimestamp: &metav1.Time{
+							Time: time.Now(),
+						},
+						Annotations: map[string]string{
+							"lunarway.com/controlled-by-release-manager": "true",
+							"lunarway.com/artifact-id":                   "master-7039119b9c-6a95af9e3f",
+						},
+					},
+					Status: v1.PodStatus{
+						Phase: v1.PodRunning,
+						ContainerStatuses: []v1.ContainerStatus{
+							{
+								Name:  "container1",
+								Ready: true,
+								State: v1.ContainerState{
+									Running: &v1.ContainerStateRunning{
+										StartedAt: metav1.Time{
+											Time: time.Now(),
+										},
+									},
+								},
+							},
+							{
+								Name:  "container2",
+								Ready: true,
+								State: v1.ContainerState{
+									Running: &v1.ContainerStateRunning{
+										StartedAt: metav1.Time{
+											Time: time.Now(),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			successOutput: nil,
+			failureOutput: nil,
+		},
+		{
 			desc: "Pod with 1 container in State: Running",
 			input: watch.Event{
 				Type: watch.Modified,
@@ -549,8 +654,9 @@ func TestStatusNotifier(t *testing.T) {
 
 func defaultObjectMetaData() metav1.ObjectMeta {
 	return metav1.ObjectMeta{
-		Name:      "product-77d79cf64-59mjj",
-		Namespace: "dev",
+		Name:              "product-77d79cf64-59mjj",
+		Namespace:         "dev",
+		DeletionTimestamp: nil,
 		Annotations: map[string]string{
 			"lunarway.com/controlled-by-release-manager": "true",
 			"lunarway.com/artifact-id":                   "master-7039119b9c-6a95af9e3f",

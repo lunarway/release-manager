@@ -153,8 +153,8 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 
 					continue
 				}
-				// Container is Running and responding to Readiness checks
-				if cst.State.Running != nil && cst.Ready {
+				// Container is Running and responding to Readiness checks and is not being terminated
+				if cst.State.Running != nil && cst.Ready && pod.DeletionTimestamp == nil {
 					containers = append(containers, Container{Name: cst.Name, State: "Ready", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
 					continue
 				}
@@ -172,7 +172,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 			}
 
 			if containsState(containers, "CrashLoopBackOff") {
-				failed(&PodEvent{
+				event := PodEvent{
 					Namespace:  pod.Namespace,
 					Name:       pod.Name,
 					ArtifactID: artifactId,
@@ -180,10 +180,14 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 					Containers: containers,
 					Reason:     "CrashLoopBackOff",
 					Message:    message,
-				})
+				}
+				err := failed(&event)
+				if err != nil {
+					log.WithFields("event", event).Errorf("daemon/kubernetes: statusNotifier: PodRunning: failure notification error: %v", err)
+				}
 				return
 			} else if allContainersReady(containers) {
-				succeeded(&PodEvent{
+				event := PodEvent{
 					Namespace:  pod.Namespace,
 					Name:       pod.Name,
 					ArtifactID: artifactId,
@@ -191,7 +195,11 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 					Containers: containers,
 					Reason:     "",
 					Message:    message,
-				})
+				}
+				err := succeeded(&event)
+				if err != nil {
+					log.WithFields("event", event).Errorf("daemon/kubernetes: statusNotifier: PodRunning: success notification error: %v", err)
+				}
 				return
 			}
 			return
@@ -199,14 +207,18 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 			// PodFailed means that all containers in the pod have terminated, and at least one container has
 			// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
 		case v1.PodFailed:
-			failed(&PodEvent{
+			event := PodEvent{
 				Namespace:  pod.Namespace,
 				Name:       pod.Name,
 				ArtifactID: artifactId,
 				State:      string(v1.PodFailed),
 				Reason:     pod.Status.Reason,
 				Message:    pod.Status.Message,
-			})
+			}
+			err := failed(&event)
+			if err != nil {
+				log.WithFields("event", event).Errorf("daemon/kubernetes: statusNotifier: PodFailed: failed notification error: %v", err)
+			}
 			return
 
 			// PodPending means the pod has been accepted by the system, but one or more of the containers
@@ -228,7 +240,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 					continue
 				}
 				// Container is Running and responding to Readiness checks
-				if cst.State.Running != nil && cst.Ready {
+				if cst.State.Running != nil && cst.Ready && pod.DeletionTimestamp == nil {
 					containers = append(containers, Container{Name: cst.Name, State: "Ready", Reason: "", Message: "", Ready: cst.Ready, RestartCount: cst.RestartCount})
 					continue
 				}
@@ -246,7 +258,7 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 			}
 
 			if containsState(containers, "CreateContainerConfigError") {
-				failed(&PodEvent{
+				event := PodEvent{
 					Namespace:  pod.Namespace,
 					Name:       pod.Name,
 					ArtifactID: artifactId,
@@ -254,7 +266,11 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 					Containers: containers,
 					Reason:     "CreateContainerConfigError",
 					Message:    message,
-				})
+				}
+				err := failed(&event)
+				if err != nil {
+					log.WithFields("event", event).Errorf("daemon/kubernetes: statusNotifier: PodPending: failed notification error: %v", err)
+				}
 				return
 			}
 			return
