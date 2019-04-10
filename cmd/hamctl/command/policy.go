@@ -7,8 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewPolicy(client *http.Client) *cobra.Command {
-	var service string
+func NewPolicy(client *http.Client, service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "policy",
 		Short: "Manage release policies for services.",
@@ -29,11 +28,8 @@ func NewPolicy(client *http.Client) *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(policy.NewApply(client, &service))
-	command.AddCommand(policy.NewList(client, &service))
-	command.AddCommand(policy.NewDelete(client, &service))
-
-	command.PersistentFlags().StringVar(&service, "service", "", "Service to manage policies for (required)")
-	command.MarkPersistentFlagRequired("service")
+	command.AddCommand(policy.NewApply(client, service))
+	command.AddCommand(policy.NewList(client, service))
+	command.AddCommand(policy.NewDelete(client, service))
 	return command
 }

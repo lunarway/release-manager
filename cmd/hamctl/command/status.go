@@ -11,15 +11,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewStatus(client *httpinternal.Client) *cobra.Command {
-	var serviceName string
+func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "status",
 		Short: "List the status of the environments",
 		RunE: func(c *cobra.Command, args []string) error {
 			var resp httpinternal.StatusResponse
 			params := url.Values{}
-			params.Add("service", serviceName)
+			params.Add("service", *service)
 			path, err := client.URLWithQuery("status", params)
 			if err != nil {
 				return err
@@ -41,8 +40,6 @@ func NewStatus(client *httpinternal.Client) *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&serviceName, "service", "", "service to output current status for")
-	command.MarkFlagRequired("service")
 	return command
 }
 

@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewPromote(client *httpinternal.Client) *cobra.Command {
-	var serviceName, environment string
+func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
+	var environment string
 	var command = &cobra.Command{
 		Use:   "promote",
 		Short: "Promote a service to a specific environment following promoting conventions.",
@@ -26,7 +26,7 @@ func NewPromote(client *httpinternal.Client) *cobra.Command {
 				return err
 			}
 			err = client.Do(http.MethodPost, url, httpinternal.PromoteRequest{
-				Service:        serviceName,
+				Service:        *service,
 				Environment:    environment,
 				CommitterName:  committerName,
 				CommitterEmail: committerEmail,
@@ -43,8 +43,6 @@ func NewPromote(client *httpinternal.Client) *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&serviceName, "service", "", "Service to promote to specified environment (required)")
-	command.MarkFlagRequired("service")
 	command.Flags().StringVar(&environment, "env", "", "Environment to promote to (required)")
 	command.MarkFlagRequired("env")
 	return command
