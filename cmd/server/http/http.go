@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -162,7 +163,7 @@ func daemonWebhook(configRepo, artifactFileName, sshPrivateKeyPath string, slack
 			return
 		}
 
-		err = flow.NotifyCommitter(r.Context(), configRepo, artifactFileName, sshPrivateKeyPath, &podNotify, slackClient)
+		err = flow.NotifyCommitter(context.Background(), configRepo, artifactFileName, sshPrivateKeyPath, &podNotify, slackClient)
 		if err != nil {
 			log.Errorf("daemon webhook failed: notify committer: %v", err)
 			Error(w, "internal server error", http.StatusInternalServerError)
@@ -214,7 +215,7 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 			}
 
 			// lookup policies for branch
-			autoReleases, err := policyinternal.GetAutoReleases(r.Context(), configRepo, sshPrivateKeyPath, serviceName, branch)
+			autoReleases, err := policyinternal.GetAutoReleases(context.Background(), configRepo, sshPrivateKeyPath, serviceName, branch)
 			if err != nil {
 				log.Errorf("webhook: get auto release policies: service '%s' branch '%s': %v", serviceName, branch, err)
 				Error(w, "internal error", http.StatusInternalServerError)
@@ -223,7 +224,7 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 			log.Debugf("webhook: found %d release policies: service '%s' branch '%s'", len(autoReleases), serviceName, branch)
 			var errs error
 			for _, autoRelease := range autoReleases {
-				releaseID, err := flow.ReleaseBranch(r.Context(), configRepo, artifactFileName, serviceName, autoRelease.Environment, autoRelease.Branch, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath, slackToken)
+				releaseID, err := flow.ReleaseBranch(context.Background(), configRepo, artifactFileName, serviceName, autoRelease.Environment, autoRelease.Branch, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath, slackToken)
 				if err != nil {
 					if errors.Cause(err) != git.ErrNothingToCommit {
 						errs = multierr.Append(errs, err)
