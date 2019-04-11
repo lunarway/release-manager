@@ -182,12 +182,11 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 		hook, _ := github.New(github.Options.Secret(githubWebhookSecret))
 		payload, err := hook.Parse(r, github.PushEvent)
 		if err != nil {
-			log.Debugf("webhook: parse webhook: %v", err)
-			w.WriteHeader(http.StatusBadRequest)
+			log.Errorf("http: github webhook: decode request body failed: %v", err)
+			invalidBodyError(w)
 			return
 		}
 		switch payload.(type) {
-
 		case github.PushPayload:
 			push := payload.(github.PushPayload)
 			if !isBranchPush(push.Ref) {
@@ -197,7 +196,7 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 			rgx := regexp.MustCompile(`\[(.*?)\]`)
 			matches := rgx.FindStringSubmatch(push.HeadCommit.Message)
 			if len(matches) < 2 {
-				log.Debugf("webhook: no service match from commit '%s'", push.HeadCommit.Message)
+				log.Debugf("http: github webhook: no service match from commit '%s'", push.HeadCommit.Message)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
@@ -206,19 +205,20 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 			// locate branch of commit
 			branch, ok := branchName(push.HeadCommit.Modified, artifactFileName, serviceName)
 			if !ok {
-				log.Debugf("webhook: branch name not found: service '%s'", serviceName)
+				log.Debugf("http: github webhook: service '%s': branch name not found", serviceName)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
 
+			logger := log.WithFields("branch", branch, "service", serviceName, "commit", push.HeadCommit)
 			// lookup policies for branch
 			autoReleases, err := policyinternal.GetAutoReleases(context.Background(), configRepo, sshPrivateKeyPath, serviceName, branch)
 			if err != nil {
-				log.Errorf("webhook: get auto release policies: service '%s' branch '%s': %v", serviceName, branch, err)
-				Error(w, "internal error", http.StatusInternalServerError)
+				logger.Errorf("http: github webhook: service '%s' branch '%s': get auto release policies failed: %v", serviceName, branch, err)
+				unknownError(w)
 				return
 			}
-			log.Debugf("webhook: found %d release policies: service '%s' branch '%s'", len(autoReleases), serviceName, branch)
+			logger.Debugf("http: github webhook: service '%s' branch '%s': found %d release policies", serviceName, branch, len(autoReleases))
 			var errs error
 			for _, autoRelease := range autoReleases {
 				releaseID, err := flow.ReleaseBranch(context.Background(), configRepo, artifactFileName, serviceName, autoRelease.Environment, autoRelease.Branch, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath, slackToken)
@@ -227,28 +227,21 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 						errs = multierr.Append(errs, err)
 						continue
 					}
-					log.WithFields("service", serviceName,
-						"branch", branch,
-						"environment", autoRelease.Environment).
-						Infof("webhook: auto-release service '%s' from policy '%s' to '%s': nothing to commit", serviceName, autoRelease.ID, autoRelease.Environment)
+					logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' to '%s': nothing to commit", serviceName, autoRelease.ID, autoRelease.Environment)
 					continue
 				}
-				log.WithFields("service", serviceName,
-					"branch", branch,
-					"environment", autoRelease.Environment,
-					"commit", push.HeadCommit).
-					Infof("webhook: auto-release service '%s' from policy '%s' of %s to %s", serviceName, autoRelease.ID, releaseID, autoRelease.Environment)
+				logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' of %s to %s", serviceName, autoRelease.ID, releaseID, autoRelease.Environment)
 			}
 			if errs != nil {
-				log.Errorf("webhook: auto-release failed with one or more errors: service '%s' branch '%s' commit '%s': %v", serviceName, branch, push.HeadCommit.ID, errs)
-				Error(w, "internal error", http.StatusInternalServerError)
+				log.Errorf("http: github webhook: service '%s' branch '%s': auto-release failed with one or more errors: %v", serviceName, branch, errs)
+				unknownError(w)
 				return
 			}
-			log.Infof("webhook: handled successfully: service '%s' branch '%s' commit '%s'", serviceName, branch, push.HeadCommit.ID)
+			log.Infof("http: github webhook: handled successfully: service '%s' branch '%s' commit '%s'", serviceName, branch, push.HeadCommit.ID)
 			w.WriteHeader(http.StatusOK)
 			return
 		default:
-			log.Infof("webhook: payload type: default case hit: %v", payload)
+			log.WithFields("payload", payload).Infof("http: github webhook: payload type '%T': ignored", payload)
 			w.WriteHeader(http.StatusOK)
 			return
 		}
