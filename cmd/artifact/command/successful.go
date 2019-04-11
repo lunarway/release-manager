@@ -47,7 +47,7 @@ func successfulCommand(options *Options) *cobra.Command {
 				Color:         slack.MsgColorGreen,
 			})
 			if err != nil {
-				fmt.Printf("Error, not able to notify #builds in successful command: %v")
+				fmt.Printf("Error, not able to notify #builds in successful command: %v", err)
 				return nil
 			}
 			return nil
