@@ -330,7 +330,7 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string)
 			Status:          statusString,
 		})
 		if err != nil {
-			logger.Infof("http: promote: service '%s' environment '%s': marshal response failed: %v", req.Service, req.Environment, err)
+			logger.Errorf("http: promote: service '%s' environment '%s': marshal response failed: %v", req.Service, req.Environment, err)
 		}
 	}
 }
