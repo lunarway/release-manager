@@ -40,7 +40,7 @@ func NewServer(opts *Options, client *slack.Client) error {
 	mux.HandleFunc("/promote", authenticate(opts.HamCtlAuthToken, promote(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.SlackAuthToken)))
 	mux.HandleFunc("/release", authenticate(opts.HamCtlAuthToken, release(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.SlackAuthToken)))
 	mux.HandleFunc("/status", authenticate(opts.HamCtlAuthToken, status(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
-	mux.HandleFunc("/rollback", authenticate(opts.HamCtlAuthToken, rollback(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
+	mux.HandleFunc("/rollback", authenticate(opts.HamCtlAuthToken, rollback(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.SlackAuthToken)))
 	mux.HandleFunc("/policies", authenticate(opts.HamCtlAuthToken, policy(opts.ConfigRepo, opts.SSHPrivateKeyPath)))
 	mux.HandleFunc("/webhook/github", githubWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.GithubWebhookSecret, opts.SlackAuthToken))
 	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, client)))
@@ -152,7 +152,7 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 	}
 }
 
-func rollback(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
+func rollback(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			Error(w, "not found", http.StatusNotFound)
@@ -185,7 +185,7 @@ func rollback(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handl
 
 		logger := log.WithFields("configRepo", configRepo, "artifactFileName", artifactFileName, "service", req.Service, "req", req)
 
-		res, err := flow.Rollback(r.Context(), configRepo, artifactFileName, req.Service, req.Environment, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath)
+		res, err := flow.Rollback(r.Context(), configRepo, artifactFileName, req.Service, req.Environment, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath, slackToken)
 		if err != nil {
 			switch errors.Cause(err) {
 			case git.ErrReleaseNotFound:

@@ -8,6 +8,7 @@ import (
 
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 )
@@ -17,7 +18,7 @@ type RollbackResult struct {
 	New      string
 }
 
-func Rollback(ctx context.Context, configRepoURL, artifactFileName, service, env, committerName, committerEmail, sshPrivateKeyPath string) (RollbackResult, error) {
+func Rollback(ctx context.Context, configRepoURL, artifactFileName, service, env, committerName, committerEmail, sshPrivateKeyPath, slackToken string) (RollbackResult, error) {
 	r, err := git.Clone(ctx, configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return RollbackResult{}, errors.WithMessagef(err, "clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath)
@@ -93,6 +94,20 @@ func Rollback(ctx context.Context, configRepoURL, artifactFileName, service, env
 	err = git.Commit(ctx, destinationRepo, releasePath(".", service, env), authorName, authorEmail, committerName, committerEmail, releaseMessage, sshPrivateKeyPath)
 	if err != nil {
 		return RollbackResult{}, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
+	}
+	err = notifyRelease(slack.ReleaseOptions{
+		SlackToken:    slackToken,
+		Service:       service,
+		Environment:   env,
+		ArtifactID:    newSpec.ID,
+		CommitAuthor:  newSpec.Application.AuthorName,
+		CommitMessage: newSpec.Application.Message,
+		CommitSHA:     newSpec.Application.SHA,
+		CommitLink:    newSpec.Application.URL,
+		Releaser:      committerName,
+	})
+	if err != nil {
+		log.Errorf("flow: ReleaseBranch: error notifying release: %v", err)
 	}
 	log.Infof("flow: Rollback: rollback committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, committerName, committerEmail)
 	return RollbackResult{
