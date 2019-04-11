@@ -18,8 +18,6 @@ func Error(w http.ResponseWriter, message string, statusCode int) {
 	})
 	if err != nil {
 		log.Errorf("json encoding failed in error response: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
 	}
 }
 
