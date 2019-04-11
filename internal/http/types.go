@@ -121,3 +121,17 @@ type DeletePolicyResponse struct {
 	Service string `json:"service,omitempty"`
 	Count   int    `json:"count,omitempty"`
 }
+
+type RollbackRequest struct {
+	Service        string `json:"service,omitempty"`
+	Environment    string `json:"environment,omitempty"`
+	CommitterName  string `json:"committerName,omitempty"`
+	CommitterEmail string `json:"committerEmail,omitempty"`
+}
+
+type RollbackResponse struct {
+	Service            string `json:"service,omitempty"`
+	Environment        string `json:"environment,omitempty"`
+	PreviousArtifactID string `json:"previousArtifactId,omitempty"`
+	NewArtifactID      string `json:"newArtifactId,omitempty"`
+}

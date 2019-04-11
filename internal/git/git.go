@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -73,7 +74,39 @@ func Checkout(r *git.Repository, hash plumbing.Hash) error {
 // ReleaseCommitMessage.
 func LocateRelease(r *git.Repository, artifactID string) (plumbing.Hash, error) {
 	return locate(r, func(commitMsg string) bool {
-		return strings.Contains(commitMsg, artifactID)
+		return strings.Contains(commitMsg, fmt.Sprintf("release %s", artifactID))
+	}, ErrReleaseNotFound)
+}
+
+// LocateServiceRelease traverses the git log to find a release
+// commit for a specified service and environment.
+//
+// It expects the commit to have a commit messages as the one returned by
+// ReleaseCommitMessage.
+func LocateServiceRelease(r *git.Repository, env, service string) (plumbing.Hash, error) {
+	return locate(r, func(commitMsg string) bool {
+		return strings.Contains(commitMsg, fmt.Sprintf("[%s/%s] release", env, service))
+	}, ErrReleaseNotFound)
+}
+
+// LocateServiceReleaseRollbackSkip traverses the git log to find a release or
+// rollback commit for a specified service and environment.
+//
+// It expects the commit to have a commit messages as the one returned by
+// ReleaseCommitMessage or RollbackCommitMessage.
+func LocateServiceReleaseRollbackSkip(r *git.Repository, env, service string, n uint) (plumbing.Hash, error) {
+	return locate(r, func(commitMsg string) bool {
+		releaseOK := strings.Contains(commitMsg, fmt.Sprintf("[%s/%s] release", env, service))
+		rollbackOK := strings.Contains(commitMsg, fmt.Sprintf("[%s/%s] rollback", env, service))
+		ok := releaseOK || rollbackOK
+		if !ok {
+			return false
+		}
+		if n == 0 {
+			return true
+		}
+		n--
+		return false
 	}, ErrReleaseNotFound)
 }
 
@@ -130,6 +163,7 @@ func Commit(ctx context.Context, repo *git.Repository, changesPath, authorName, 
 
 	// if commit is empty
 	if status.IsClean() {
+		log.Debugf("internal/git: Commit: message '%s': nothing to commit", msg)
 		return ErrNothingToCommit
 	}
 

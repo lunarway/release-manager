@@ -13,6 +13,7 @@ import (
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 var (
@@ -162,10 +163,18 @@ func Promote(ctx context.Context, configRepoURL, artifactFileName, service, env,
 	// find release identifier in artifact.json
 	release := sourceSpec.ID
 	// ckechout commit of release
-	hash, err := git.LocateRelease(sourceRepo, release)
+	var hash plumbing.Hash
+	// when promoting to dev we use should look for the artifact instead of
+	// release as the artifact have never been released.
+	if env == "dev" {
+		hash, err = git.LocateArtifact(sourceRepo, release)
+	} else {
+		hash, err = git.LocateRelease(sourceRepo, release)
+	}
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("locate release '%s' from '%s'", release, configRepoURL))
 	}
+	log.Debugf("internal/flow: Promote: release hash '%v'", hash)
 	err = git.Checkout(sourceRepo, hash)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("checkout release hash '%s' from '%s'", hash, configRepoURL))

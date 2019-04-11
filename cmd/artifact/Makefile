@@ -1,7 +1,8 @@
 example:
 	rm -rf examples
 	mkdir -p  examples
-	go run main.go init \
+	go build
+	./artifact init \
 		--service "test-service"\
 	  --artifact-id "master-1234ds13g3-12s46g356g"\
 		--git-branch "master"\
@@ -21,26 +22,26 @@ example:
 		--ci-job-url "https://jenkins.dev.lunarway.com/job/asdasd"\
 		--root examples
 
-	go run main.go add build\
+	./artifact add build\
 		--image "quay.io/lunarway/application"\
 		--tag "master-1234ds13g3-12s46g356g"\
 		--docker-version "1.18.6"\
 		--root examples
 
-	go run main.go add push\
+	./artifact add push\
 		--image "quay.io/lunarway/application"\
 		--tag "master-1234ds13g3-12s46g356g"\
 		--docker-version "1.18.6"\
 		--root examples
 
-	go run main.go add test\
+	./artifact add test\
 		--url "https://jenkins.dev.lunarway.com"\
 		--passed 563\
 		--skipped 0\
 		--failed 0\
 		--root examples
 
-	go run main.go add snyk-code\
+	./artifact add snyk-code\
 		--language "go"\
 		--snyk-version "1.144.23"\
 		--url "https://snyk.io/aslkdasdlas"\
@@ -49,7 +50,7 @@ example:
 		--low 134\
 		--root examples
 
-	go run main.go add snyk-docker\
+	./artifact add snyk-docker\
 		--base-image "node"\
 		--snyk-version "1.144.23"\
 		--tag "8.15.0-alpine"\
@@ -59,9 +60,9 @@ example:
 		--low 0\
 		--root examples
 
-	go run main.go end --root examples
+	./artifact end --root examples
 
-define CONFIG_MAP_DEV
+define CONFIG_MAP
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -72,14 +73,16 @@ data:
   log.console.as.json: 'true'
   log.console.level: 'info'
 endef
-export CONFIG_MAP_DEV
+export CONFIG_MAP
 
 example_resources:
-	mkdir -p examples/dev
-	echo "$$CONFIG_MAP_DEV" > examples/dev/configmap.yaml
+	mkdir -p examples/{dev,staging,prod}
+	echo "$$CONFIG_MAP" > examples/dev/configmap.yaml
+	echo "$$CONFIG_MAP" > examples/staging/configmap.yaml
+	echo "$$CONFIG_MAP" > examples/prod/configmap.yaml
 
 test_push: example example_resources
-	go run main.go push \
+	./artifact push \
 		--root examples \
 		--config-repo git@github.com:lunarway/release-manager-test-config-repo.git \
 		--ssh-private-key ~/.ssh/github_key
