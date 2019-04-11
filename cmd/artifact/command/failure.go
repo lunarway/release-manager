@@ -20,17 +20,20 @@ func failureCommand(options *Options) *cobra.Command {
 				return m
 			})
 			if err != nil {
-				fmt.Printf("Error, not able to update slack message with failure message")
+				fmt.Printf("Error, not able to update slack message with failure message: %v", err)
+				return nil
 			}
 
 			client, err := slack.NewClient(options.SlackToken)
 			if err != nil {
-				fmt.Printf("Error, not able to create Slack client in failure command")
+				fmt.Printf("Error, not able to create Slack client in failure command: %v", err)
+				return nil
 			}
 
 			a, err := artifact.Get(path.Join(options.RootPath, options.FileName))
 			if err != nil {
-				fmt.Printf("Error, not able to retrieve artifact in failure command")
+				fmt.Printf("Error, not able to retrieve artifact in failure command: %v", err)
+				return nil
 			}
 
 			err = client.NotifySlackBuildsChannel(slack.BuildsOptions{
@@ -45,7 +48,8 @@ func failureCommand(options *Options) *cobra.Command {
 				Color:         slack.MsgColorRed,
 			})
 			if err != nil {
-				fmt.Printf("Error, not able to notify #builds in failure command")
+				fmt.Printf("Error, not able to notify #builds in failure command: %v", err)
+				return nil
 			}
 
 			return nil
