@@ -342,27 +342,35 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string)
 
 		err := decoder.Decode(&req)
 		if err != nil {
-			log.Errorf("Decode request body failed: %v", err)
-			Error(w, "Invalid payload", http.StatusBadRequest)
+			log.Errorf("http: release: decode request body failed: %v", err)
+			invalidBodyError(w)
 			return
 		}
-		log.Infof("http release: service '%s' environment '%s' branch '%s' artifact id '%s'", req.Service, req.Environment, req.Branch, req.ArtifactID)
 		ctx := r.Context()
+		logger := log.WithFields(
+			"configRepo", configRepo,
+			"artifactFileName", artifactFileName,
+			"service", req.Service,
+			"req", req)
 		var releaseID string
 		switch {
 		case req.Branch != "" && req.ArtifactID != "":
-			Error(w, "Branch and artifact id cannot both be specified. Pick one", http.StatusBadRequest)
+			logger.Infof("http: release: service '%s' environment '%s' artifact id '%s' branch '%s': brand and artifact id both specified", req.Service, req.Environment, req.ArtifactID, req.Branch)
+			Error(w, "branch and artifact id cannot both be specified. Pick one", http.StatusBadRequest)
 			return
 		case req.Branch == "" && req.ArtifactID == "":
-			Error(w, "Branch or artifact id must be specified.", http.StatusBadRequest)
+			logger.Infof("http: release: service '%s' environment '%s' artifact id '%s' branch '%s': brand or artifact id not specified", req.Service, req.Environment, req.ArtifactID, req.Branch)
+			Error(w, "branch or artifact id must be specified.", http.StatusBadRequest)
 			return
 		case req.Branch != "":
-			log.Infof("Release '%s' from branch '%s' to '%s'", req.Service, req.Branch, req.Environment)
+			logger.Infof("http: release: service '%s' environment '%s' branch '%s': releasing branch", req.Service, req.Environment, req.Branch)
 			releaseID, err = flow.ReleaseBranch(ctx, configRepo, artifactFileName, req.Service, req.Environment, req.Branch, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath, slackToken)
 		case req.ArtifactID != "":
+			logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': releasing artifact", req.Service, req.Environment, req.ArtifactID)
 			releaseID, err = flow.ReleaseArtifactID(ctx, configRepo, artifactFileName, req.Service, req.Environment, req.ArtifactID, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath, slackToken)
 		default:
-			Error(w, "Either branch or artifact id must be specified", http.StatusBadRequest)
+			logger.Infof("http: release: service '%s' environment '%s' artifact id '%s' branch '%s': neither brand nor artifact id specified", req.Service, req.Environment, req.ArtifactID, req.Branch)
+			Error(w, "either branch or artifact id must be specified", http.StatusBadRequest)
 			return
 		}
 		var statusString string
@@ -371,11 +379,13 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string)
 			switch cause {
 			case git.ErrNothingToCommit:
 				statusString = "Environment is already up-to-date"
-				log.Info("release: nothing to commit")
+				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release skipped: environment up to date", req.Service, req.Environment, req.Branch, req.ArtifactID)
 			case git.ErrArtifactNotFound:
+				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: artifact not found", req.Service, req.Environment, req.Branch, req.ArtifactID)
 				Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
 				return
 			case artifact.ErrFileNotFound:
+				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: artifact not found", req.Service, req.Environment, req.Branch, req.ArtifactID)
 				if req.Branch != "" {
 					Error(w, fmt.Sprintf("artifact for branch '%s' not found for service '%s'", req.Branch, req.Service), http.StatusBadRequest)
 				} else {
@@ -383,8 +393,8 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string)
 				}
 				return
 			default:
-				log.Errorf("http release flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v", configRepo, artifactFileName, req.Service, req.Environment, err)
-				Error(w, "release flow failed", http.StatusInternalServerError)
+				logger.Errorf("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release failed: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
+				unknownError(w)
 				return
 			}
 		}
@@ -399,8 +409,7 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string)
 			Status:        statusString,
 		})
 		if err != nil {
-			log.Errorf("release: marshal response failed: %v", err)
-			Error(w, "unknown error", http.StatusInternalServerError)
+			logger.Errorf("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': marshal response failed: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
 		}
 	}
 }
