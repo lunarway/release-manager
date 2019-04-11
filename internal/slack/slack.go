@@ -152,3 +152,31 @@ func (c *Client) NotifySlackReleasesChannel(options ReleaseOptions) error {
 	}
 	return err
 }
+
+type BuildsOptions struct {
+	Service       string
+	ArtifactID    string
+	Branch        string
+	CommitSHA     string
+	CommitLink    string
+	CommitMessage string
+	CommitAuthor  string
+	CIJobURL      string
+	Color         string
+}
+
+func (c *Client) NotifySlackBuildsChannel(options BuildsOptions) error {
+	asUser := slack.MsgOptionAsUser(true)
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      fmt.Sprintf("%s (%s)", options.Service, options.ArtifactID),
+		TitleLink:  options.CIJobURL,
+		Color:      options.Color,
+		Text:       fmt.Sprintf("*Author:* %s (<%s|%s>)\n*Message:* _%s_", options.CommitAuthor, options.CommitLink, options.CommitSHA[0:10], options.CommitMessage),
+		MarkdownIn: []string{"text", "fields"},
+	})
+	_, _, err := c.client.PostMessage("#builds", asUser, attachments)
+	if err != nil {
+		return err
+	}
+	return err
+}

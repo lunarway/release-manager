@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/slack"
-
 	"github.com/spf13/cobra"
 )
 
@@ -22,6 +22,32 @@ func failureCommand(options *Options) *cobra.Command {
 			if err != nil {
 				fmt.Printf("Error, not able to update slack message with failure message")
 			}
+
+			client, err := slack.NewClient(options.SlackToken)
+			if err != nil {
+				fmt.Printf("Error, not able to create Slack client in failure command")
+			}
+
+			a, err := artifact.Get(path.Join(options.RootPath, options.FileName))
+			if err != nil {
+				fmt.Printf("Error, not able to retrieve artifact in failure command")
+			}
+
+			err = client.NotifySlackBuildsChannel(slack.BuildsOptions{
+				Service:       a.Service,
+				ArtifactID:    a.ID,
+				Branch:        a.Application.Branch,
+				CommitSHA:     a.Application.SHA,
+				CommitLink:    a.Application.URL,
+				CommitAuthor:  a.Application.AuthorName,
+				CommitMessage: a.Application.Message,
+				CIJobURL:      a.CI.JobURL,
+				Color:         slack.MsgColorRed,
+			})
+			if err != nil {
+				fmt.Printf("Error, not able to notify #builds in failure command")
+			}
+
 			return nil
 		},
 	}

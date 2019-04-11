@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/lunarway/release-manager/internal/slack"
-
 	"github.com/lunarway/release-manager/internal/flow"
+	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/spf13/cobra"
 )
 
@@ -22,7 +21,6 @@ func pushCommand(options *Options) *cobra.Command {
 				return err
 			}
 			err = slack.Update(path.Join(options.RootPath, options.MessageFileName), options.SlackToken, func(m slack.Message) slack.Message {
-				m.Color = slack.MsgColorGreen
 				m.Text += fmt.Sprintf(":white_check_mark: *Artifact pushed:* %s", artifactId)
 				return m
 			})
