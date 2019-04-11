@@ -36,11 +36,11 @@ type Options struct {
 func NewServer(opts *Options, client *slack.Client) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
-	mux.HandleFunc("/promote", authenticate(opts.HamCtlAuthToken, promote(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
-	mux.HandleFunc("/release", authenticate(opts.HamCtlAuthToken, release(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
+	mux.HandleFunc("/promote", authenticate(opts.HamCtlAuthToken, promote(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.SlackAuthToken)))
+	mux.HandleFunc("/release", authenticate(opts.HamCtlAuthToken, release(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.SlackAuthToken)))
 	mux.HandleFunc("/status", authenticate(opts.HamCtlAuthToken, status(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
 	mux.HandleFunc("/policies", authenticate(opts.HamCtlAuthToken, policy(opts.ConfigRepo, opts.SSHPrivateKeyPath)))
-	mux.HandleFunc("/webhook/github", githubWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.GithubWebhookSecret))
+	mux.HandleFunc("/webhook/github", githubWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.GithubWebhookSecret, opts.SlackAuthToken))
 	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, client)))
 
 	s := http.Server{
@@ -179,7 +179,7 @@ func daemonWebhook(configRepo, artifactFileName, sshPrivateKeyPath string, slack
 	}
 }
 
-func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret string) http.HandlerFunc {
+func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret, slackToken string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		hook, _ := github.New(github.Options.Secret(githubWebhookSecret))
 		payload, err := hook.Parse(r, github.PushEvent)
@@ -223,7 +223,7 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 			log.Debugf("webhook: found %d release policies: service '%s' branch '%s'", len(autoReleases), serviceName, branch)
 			var errs error
 			for _, autoRelease := range autoReleases {
-				releaseID, err := flow.ReleaseBranch(r.Context(), configRepo, artifactFileName, serviceName, autoRelease.Environment, autoRelease.Branch, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath)
+				releaseID, err := flow.ReleaseBranch(r.Context(), configRepo, artifactFileName, serviceName, autoRelease.Environment, autoRelease.Branch, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath, slackToken)
 				if err != nil {
 					if errors.Cause(err) != git.ErrNothingToCommit {
 						errs = multierr.Append(errs, err)
@@ -281,7 +281,7 @@ func branchName(modifiedFiles []string, artifactFileName, svc string) (string, b
 	return strings.TrimSuffix(branch, fmt.Sprintf("/%s", artifactFileName)), true
 }
 
-func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
+func promote(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 		var req httpinternal.PromoteRequest
@@ -293,7 +293,7 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 			return
 		}
 
-		releaseID, err := flow.Promote(r.Context(), configRepo, artifactFileName, req.Service, req.Environment, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath)
+		releaseID, err := flow.Promote(r.Context(), configRepo, artifactFileName, req.Service, req.Environment, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath, slackToken)
 
 		var statusString string
 		if err != nil {
@@ -342,7 +342,7 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 	}
 }
 
-func release(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
+func release(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 		var req httpinternal.ReleaseRequest
@@ -365,9 +365,9 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handle
 			return
 		case req.Branch != "":
 			log.Infof("Release '%s' from branch '%s' to '%s'", req.Service, req.Branch, req.Environment)
-			releaseID, err = flow.ReleaseBranch(ctx, configRepo, artifactFileName, req.Service, req.Environment, req.Branch, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath)
+			releaseID, err = flow.ReleaseBranch(ctx, configRepo, artifactFileName, req.Service, req.Environment, req.Branch, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath, slackToken)
 		case req.ArtifactID != "":
-			releaseID, err = flow.ReleaseArtifactID(ctx, configRepo, artifactFileName, req.Service, req.Environment, req.ArtifactID, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath)
+			releaseID, err = flow.ReleaseArtifactID(ctx, configRepo, artifactFileName, req.Service, req.Environment, req.ArtifactID, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath, slackToken)
 		default:
 			Error(w, "Either branch or artifact id must be specified", http.StatusBadRequest)
 			return

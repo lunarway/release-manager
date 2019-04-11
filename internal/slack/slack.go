@@ -124,3 +124,31 @@ func crashLoopBackOffErrorMessage(env, service string, artifact artifact.Spec, p
 		Fields:     []slack.AttachmentField{logField},
 	})
 }
+
+type ReleaseOptions struct {
+	SlackToken    string
+	Service       string
+	ArtifactID    string
+	CommitSHA     string
+	CommitLink    string
+	CommitMessage string
+	CommitAuthor  string
+	Releaser      string
+	Environment   string
+}
+
+func (c *Client) NotifySlackReleasesChannel(options ReleaseOptions) error {
+	asUser := slack.MsgOptionAsUser(true)
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      fmt.Sprintf("%s (%s)", options.Service, options.ArtifactID),
+		TitleLink:  options.CommitLink,
+		Color:      MsgColorGreen,
+		Text:       fmt.Sprintf("*Author:* %s, *Releaser:* %s\n*Message:* _%s_", options.CommitAuthor, options.Releaser, options.CommitMessage),
+		MarkdownIn: []string{"text", "fields"},
+	})
+	_, _, err := c.client.PostMessage(fmt.Sprintf("#releases-%s", options.Environment), asUser, attachments)
+	if err != nil {
+		return err
+	}
+	return err
+}
