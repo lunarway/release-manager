@@ -224,7 +224,7 @@ func Promote(ctx context.Context, configRepoURL, artifactFileName, service, env,
 		Releaser:      committerName,
 	})
 	if err != nil {
-		log.Errorf("flow; promote; error notifying release: %v", err)
+		log.Errorf("flow: Promote: error notifying release: %v", err)
 	}
 
 	return release, nil
