@@ -4,5 +4,6 @@ artifact-linux-amd64
 .idea/
 /.vscode/
 /cmd/artifact/examples
+/cmd/artifact/artifact
 message.json
 artifact.json
