@@ -9,28 +9,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func failureCommand(options *Options) *cobra.Command {
+func successfulCommand(options *Options) *cobra.Command {
 	command := &cobra.Command{
-		Use:   "failure",
-		Short: "report failure in the pipeline",
+		Use:   "successful",
+		Short: "report successful in the pipeline",
 		RunE: func(c *cobra.Command, args []string) error {
 			err := slack.Update(path.Join(options.RootPath, options.MessageFileName), options.SlackToken, func(m slack.Message) slack.Message {
-				m.Color = slack.MsgColorRed
-				m.Text += ":no_entry: *Unexpected error in pipeline*"
+				m.Color = slack.MsgColorGreen
 				return m
 			})
 			if err != nil {
-				fmt.Printf("Error, not able to update slack message with failure message")
+				fmt.Printf("Error, not able to update slack message with successful message")
 			}
 
 			client, err := slack.NewClient(options.SlackToken)
 			if err != nil {
-				fmt.Printf("Error, not able to create Slack client in failure command")
+				fmt.Printf("Error, not able to create Slack client in successful command")
 			}
 
 			a, err := artifact.Get(path.Join(options.RootPath, options.FileName))
 			if err != nil {
-				fmt.Printf("Error, not able to retrieve artifact in failure command")
+				fmt.Printf("Error, not able to retrieve artifact in successful command")
 			}
 
 			err = client.NotifySlackBuildsChannel(slack.BuildsOptions{
@@ -42,12 +41,11 @@ func failureCommand(options *Options) *cobra.Command {
 				CommitAuthor:  a.Application.AuthorName,
 				CommitMessage: a.Application.Message,
 				CIJobURL:      a.CI.JobURL,
-				Color:         slack.MsgColorRed,
+				Color:         slack.MsgColorGreen,
 			})
 			if err != nil {
-				fmt.Printf("Error, not able to notify #builds in failure command")
+				fmt.Printf("Error, not able to notify #builds in successful command")
 			}
-
 			return nil
 		},
 	}

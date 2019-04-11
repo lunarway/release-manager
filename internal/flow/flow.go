@@ -10,6 +10,7 @@ import (
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -147,7 +148,7 @@ func calculateTotalVulnerabilties(severity string, s artifact.Spec) int64 {
 //
 // Copy artifacts from the current release into the new environment and commit
 // the changes
-func Promote(ctx context.Context, configRepoURL, artifactFileName, service, env, committerName, committerEmail, sshPrivateKeyPath string) (string, error) {
+func Promote(ctx context.Context, configRepoURL, artifactFileName, service, env, committerName, committerEmail, sshPrivateKeyPath, slackToken string) (string, error) {
 	// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
 	log.Debugf("Cloning source config repo %s into %s", configRepoURL, sourceConfigRepoPath)
 	sourceRepo, err := git.Clone(ctx, configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
@@ -220,6 +221,20 @@ func Promote(ctx context.Context, configRepoURL, artifactFileName, service, env,
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}
+	err = notifyRelease(slack.ReleaseOptions{
+		SlackToken:    slackToken,
+		Service:       service,
+		Environment:   env,
+		ArtifactID:    sourceSpec.ID,
+		CommitAuthor:  sourceSpec.Application.AuthorName,
+		CommitMessage: sourceSpec.Application.Message,
+		CommitSHA:     sourceSpec.Application.SHA,
+		CommitLink:    sourceSpec.Application.URL,
+		Releaser:      committerName,
+	})
+	if err != nil {
+		log.Errorf("flow: Promote: error notifying release: %v", err)
+	}
 
 	return release, nil
 }
@@ -266,7 +281,7 @@ func releasePath(root, service, env string) string {
 // artifact spec for the service and branch.
 //
 // Copy artifacts from the artifacts into the environment and commit the changes.
-func ReleaseBranch(ctx context.Context, configRepoURL, artifactFileName, service, env, branch, committerName, committerEmail, sshPrivateKeyPath string) (string, error) {
+func ReleaseBranch(ctx context.Context, configRepoURL, artifactFileName, service, env, branch, committerName, committerEmail, sshPrivateKeyPath, slackToken string) (string, error) {
 	repo, err := git.CloneDepth(ctx, configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath, 1)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
@@ -317,6 +332,20 @@ func ReleaseBranch(ctx context.Context, configRepoURL, artifactFileName, service
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}
+	err = notifyRelease(slack.ReleaseOptions{
+		SlackToken:    slackToken,
+		Service:       service,
+		Environment:   env,
+		ArtifactID:    artifactSpec.ID,
+		CommitAuthor:  artifactSpec.Application.AuthorName,
+		CommitMessage: artifactSpec.Application.Message,
+		CommitSHA:     artifactSpec.Application.SHA,
+		CommitLink:    artifactSpec.Application.URL,
+		Releaser:      committerName,
+	})
+	if err != nil {
+		log.Errorf("flow: ReleaseBranch: error notifying release: %v", err)
+	}
 	log.Infof("flow: ReleaseBranch: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, committerName, committerEmail)
 	return artifactID, nil
 }
@@ -330,7 +359,7 @@ func ReleaseBranch(ctx context.Context, configRepoURL, artifactFileName, service
 //
 // Copy resources from the artifact commit into the environment and commit
 // the changes
-func ReleaseArtifactID(ctx context.Context, configRepoURL, artifactFileName, service, env, artifactID, committerName, committerEmail, sshPrivateKeyPath string) (string, error) {
+func ReleaseArtifactID(ctx context.Context, configRepoURL, artifactFileName, service, env, artifactID, committerName, committerEmail, sshPrivateKeyPath, slackToken string) (string, error) {
 	sourceRepo, err := git.Clone(ctx, configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
@@ -392,6 +421,20 @@ func ReleaseArtifactID(ctx context.Context, configRepoURL, artifactFileName, ser
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}
+	err = notifyRelease(slack.ReleaseOptions{
+		SlackToken:    slackToken,
+		Service:       service,
+		Environment:   env,
+		ArtifactID:    sourceSpec.ID,
+		CommitAuthor:  sourceSpec.Application.AuthorName,
+		CommitMessage: sourceSpec.Application.Message,
+		CommitSHA:     sourceSpec.Application.SHA,
+		CommitLink:    sourceSpec.Application.URL,
+		Releaser:      committerName,
+	})
+	if err != nil {
+		log.Errorf("flow: ReleaseBranch: error notifying release: %v", err)
+	}
 	log.Infof("flow: ReleaseArtifactID: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, committerName, committerEmail)
 
 	return artifactID, nil
@@ -446,4 +489,16 @@ func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resource
 		return "", errors.WithMessage(err, "commit files")
 	}
 	return artifactSpec.ID, nil
+}
+
+func notifyRelease(releaseOptions slack.ReleaseOptions) error {
+	client, err := slack.NewClient(releaseOptions.SlackToken)
+	if err != nil {
+		return err
+	}
+	err = client.NotifySlackReleasesChannel(releaseOptions)
+	if err != nil {
+		return err
+	}
+	return nil
 }
