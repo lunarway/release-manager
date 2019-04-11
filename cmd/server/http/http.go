@@ -279,11 +279,12 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string)
 
 		err := decoder.Decode(&req)
 		if err != nil {
-			log.Errorf("Decode request body failed: %v", err)
-			http.Error(w, "Invalid payload", http.StatusBadRequest)
+			log.Errorf("http: promote: decode request body failed: %v", err)
+			invalidBodyError(w)
 			return
 		}
 
+		logger := log.WithFields("configRepo", configRepo, "artifactFileName", artifactFileName, "service", req.Service, "req", req)
 		releaseID, err := flow.Promote(r.Context(), configRepo, artifactFileName, req.Service, req.Environment, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath, slackToken)
 
 		var statusString string
@@ -291,16 +292,18 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string)
 			switch errors.Cause(err) {
 			case git.ErrNothingToCommit:
 				statusString = "Environment is already up-to-date"
+				logger.Infof("http: promote: service '%s' environment '%s': promote skipped: environment up to date", req.Service, req.Environment)
 			case flow.ErrUnknownEnvironment:
-				log.Errorf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v", configRepo, artifactFileName, req.Service, req.Environment, err)
-				Error(w, fmt.Sprintf("Unknown environment: %s", req.Environment), http.StatusBadRequest)
+				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: %v", req.Service, req.Environment, err)
+				Error(w, fmt.Sprintf("unknown environment: %s", req.Environment), http.StatusBadRequest)
 				return
 			case artifact.ErrFileNotFound:
+				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: artifact not found", req.Service, req.Environment)
 				Error(w, fmt.Sprintf("artifact not found for service '%s'", req.Service), http.StatusBadRequest)
 				return
 			default:
-				log.Errorf("http promote flow failed: config repo '%s' artifact file name '%s' service '%s' environment '%s': %v", configRepo, artifactFileName, req.Service, req.Environment, err)
-				Error(w, "Unknown error", http.StatusInternalServerError)
+				logger.Infof("http: promote: service '%s' environment '%s': promote failed: %v", req.Service, req.Environment, err)
+				unknownError(w)
 				return
 			}
 		}
@@ -327,8 +330,7 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string)
 			Status:          statusString,
 		})
 		if err != nil {
-			http.Error(w, "json encoding failed", http.StatusInternalServerError)
-			return
+			logger.Infof("http: promote: service '%s' environment '%s': marshal response failed: %v", req.Service, req.Environment, err)
 		}
 	}
 }
