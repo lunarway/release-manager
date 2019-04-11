@@ -35,6 +35,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.AddCommand(NewPromote(&client, &service))
 	command.AddCommand(NewRelease(&client, &service))
 	command.AddCommand(NewStatus(&client, &service))
+	command.AddCommand(NewRollback(&client, &service))
 	command.AddCommand(NewPolicy(&client, &service))
 	command.PersistentFlags().DurationVar(&client.Timeout, "http-timeout", 20*time.Second, "HTTP request timeout")
 	command.PersistentFlags().StringVar(&client.BaseURL, "http-base-url", "https://release-manager.dev.lunarway.com", "address of the http release manager server")

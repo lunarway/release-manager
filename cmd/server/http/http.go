@@ -39,6 +39,7 @@ func NewServer(opts *Options, client *slack.Client) error {
 	mux.HandleFunc("/promote", authenticate(opts.HamCtlAuthToken, promote(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
 	mux.HandleFunc("/release", authenticate(opts.HamCtlAuthToken, release(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
 	mux.HandleFunc("/status", authenticate(opts.HamCtlAuthToken, status(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
+	mux.HandleFunc("/rollback", authenticate(opts.HamCtlAuthToken, rollback(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
 	mux.HandleFunc("/policies", authenticate(opts.HamCtlAuthToken, policy(opts.ConfigRepo, opts.SSHPrivateKeyPath)))
 	mux.HandleFunc("/webhook/github", githubWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.GithubWebhookSecret))
 	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, client)))
@@ -146,6 +147,72 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 			log.Errorf("get status for service '%s' failed: marshal response: %v", service, err)
 			http.Error(w, "unknown", http.StatusInternalServerError)
 			return
+		}
+	}
+}
+
+func rollback(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		decoder := json.NewDecoder(r.Body)
+		var req httpinternal.RollbackRequest
+		err := decoder.Decode(&req)
+		if err != nil {
+			log.Errorf("http: rollback failed: decode request body: %v", err)
+			Error(w, "invalid payload", http.StatusBadRequest)
+			return
+		}
+		if emptyString(req.Service) {
+			requiredFieldError(w, "service")
+			return
+		}
+		if emptyString(req.Environment) {
+			requiredFieldError(w, "environment")
+			return
+		}
+		if emptyString(req.CommitterName) {
+			requiredFieldError(w, "committerName")
+			return
+		}
+		if emptyString(req.CommitterEmail) {
+			requiredFieldError(w, "committerEmail")
+			return
+		}
+
+		logger := log.WithFields("configRepo", configRepo, "artifactFileName", artifactFileName, "service", req.Service, "req", req)
+
+		res, err := flow.Rollback(r.Context(), configRepo, artifactFileName, req.Service, req.Environment, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath)
+		if err != nil {
+			switch errors.Cause(err) {
+			case git.ErrReleaseNotFound:
+				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
+				Error(w, fmt.Sprintf("no release of service '%s' available for rollback in environment '%s'", req.Service, req.Environment), http.StatusBadRequest)
+				return
+			case git.ErrNothingToCommit:
+				logger.Infof("http: rollback rejected: env '%s' service '%s': already rolled back", req.Environment, req.Service)
+				Error(w, fmt.Sprintf("service '%s' already rolled back in environment '%s'", req.Service, req.Environment), http.StatusBadRequest)
+				return
+			default:
+				logger.Errorf("http: rollback failed: env '%s' service '%s': %v", req.Environment, req.Service, err)
+				Error(w, "unknown error", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		err = json.NewEncoder(w).Encode(httpinternal.RollbackResponse{
+			Service:            req.Service,
+			Environment:        req.Environment,
+			PreviousArtifactID: res.Previous,
+			NewArtifactID:      res.New,
+		})
+		if err != nil {
+			logger.Errorf("http: rollback failed: env '%s' service '%s': marshal response: %v", req.Environment, req.Service, err)
 		}
 	}
 }
