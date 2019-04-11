@@ -155,15 +155,15 @@ func daemonWebhook(configRepo, artifactFileName, sshPrivateKeyPath string, slack
 
 		err := decoder.Decode(&podNotify)
 		if err != nil {
-			log.Errorf("daemon webhook failed: decode request body failed: %v", err)
-			http.Error(w, "Invalid payload", http.StatusBadRequest)
+			log.Errorf("http: daemon webhook: decode request body failed: %v", err)
+			invalidBodyError(w)
 			return
 		}
 
 		err = flow.NotifyCommitter(context.Background(), configRepo, artifactFileName, sshPrivateKeyPath, &podNotify, slackClient)
 		if err != nil {
-			log.Errorf("daemon webhook failed: notify committer: %v", err)
-			Error(w, "internal server error", http.StatusInternalServerError)
+			log.Errorf("http: daemon webhook failed: notify committer: %v", err)
+			unknownError(w)
 			return
 		}
 
