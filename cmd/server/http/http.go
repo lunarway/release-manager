@@ -83,18 +83,18 @@ func ping(w http.ResponseWriter, r *http.Request) {
 
 func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		services, ok := r.URL.Query()["service"]
-		if !ok || len(services[0]) == 0 {
-			log.Errorf("query param service is missing for /status endpoint")
-			http.Error(w, "Invalid query param", http.StatusBadRequest)
+		values := r.URL.Query()
+		service := values.Get("servce")
+		if emptyString(service) {
+			requiredQueryError(w, "service")
 			return
 		}
-		service := services[0]
 
+		logger := log.WithFields("configRepo", configRepo, "artifactFileName", artifactFileName, "service", service)
 		s, err := flow.Status(r.Context(), configRepo, artifactFileName, service, sshPrivateKeyPath)
 		if err != nil {
-			log.Errorf("getting status failed: config repo '%s' artifact file name '%s' service '%s': %v", configRepo, artifactFileName, service, err)
-			http.Error(w, "promote flow failed", http.StatusInternalServerError)
+			logger.Errorf("http: status: get status failed: service '%s': %v", service, err)
+			unknownError(w)
 			return
 		}
 
@@ -142,11 +142,8 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 			Staging: &staging,
 			Prod:    &prod,
 		})
-
 		if err != nil {
-			log.Errorf("get status for service '%s' failed: marshal response: %v", service, err)
-			http.Error(w, "unknown", http.StatusInternalServerError)
-			return
+			logger.Errorf("http: status: service '%s': marshal response failed: %v", service, err)
 		}
 	}
 }

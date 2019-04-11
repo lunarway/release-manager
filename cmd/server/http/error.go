@@ -23,6 +23,10 @@ func Error(w http.ResponseWriter, message string, statusCode int) {
 	}
 }
 
+func unknownError(w http.ResponseWriter) {
+	Error(w, "unkown error", http.StatusInternalServerError)
+}
+
 func requiredFieldError(w http.ResponseWriter, field string) {
 	Error(w, fmt.Sprintf("field %s required but was empty", field), http.StatusBadRequest)
 }
