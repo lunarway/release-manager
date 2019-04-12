@@ -18,9 +18,15 @@ func Error(w http.ResponseWriter, message string, statusCode int) {
 	})
 	if err != nil {
 		log.Errorf("json encoding failed in error response: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
 	}
+}
+
+func unknownError(w http.ResponseWriter) {
+	Error(w, "unkown error", http.StatusInternalServerError)
+}
+
+func invalidBodyError(w http.ResponseWriter) {
+	Error(w, "invalid body", http.StatusBadRequest)
 }
 
 func requiredFieldError(w http.ResponseWriter, field string) {

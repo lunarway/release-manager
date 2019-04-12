@@ -33,8 +33,8 @@ func applyAutoReleasePolicy(configRepo, sshPrivateKeyPath string) http.HandlerFu
 		var req httpinternal.ApplyAutoReleasePolicyRequest
 		err := decoder.Decode(&req)
 		if err != nil {
-			log.Errorf("Decode request body failed: %v", err)
-			Error(w, "invalid payload", http.StatusBadRequest)
+			log.Errorf("http: policy: apply: decode request body failed: %v", err)
+			invalidBodyError(w)
 			return
 		}
 		if emptyString(req.Service) {
@@ -57,12 +57,12 @@ func applyAutoReleasePolicy(configRepo, sshPrivateKeyPath string) http.HandlerFu
 			requiredFieldError(w, "committerEmail")
 			return
 		}
-
-		log.Infof("http apply auto-release policy started: service '%s' branch '%s' environment '%s'", req.Service, req.Branch, req.Environment)
+		logger := log.WithFields("configRepo", configRepo, "service", req.Service, "req", req)
+		logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release policy started", req.Service, req.Branch, req.Environment)
 		id, err := policyinternal.ApplyAutoRelease(r.Context(), configRepo, sshPrivateKeyPath, req.Service, req.Branch, req.Environment, req.CommitterName, req.CommitterEmail)
 		if err != nil {
-			log.Errorf("http apply auto-release policy failed: config repo '%s' service '%s' branch '%s' environment '%s': %v", configRepo, req.Service, req.Branch, req.Environment, err)
-			Error(w, "unknown error", http.StatusInternalServerError)
+			logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release failed: %v", req.Service, req.Branch, req.Environment, err)
+			unknownError(w)
 			return
 		}
 
@@ -75,9 +75,7 @@ func applyAutoReleasePolicy(configRepo, sshPrivateKeyPath string) http.HandlerFu
 			Environment: req.Environment,
 		})
 		if err != nil {
-			log.Errorf("http apply auto-release policy failed: config repo '%s' service '%s' branch '%s' environment '%s': encode response: %v", configRepo, req.Service, req.Branch, req.Environment, err)
-			Error(w, "unknown error", http.StatusInternalServerError)
-			return
+			logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release: marshal response failed: %v", req.Service, req.Branch, req.Environment, err)
 		}
 	}
 }
@@ -91,14 +89,15 @@ func listPolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 			return
 		}
 
+		logger := log.WithFields("configRepo", configRepo, "service", service)
 		policies, err := policyinternal.Get(r.Context(), configRepo, sshPrivateKeyPath, service)
 		if err != nil {
 			if errors.Cause(err) == policyinternal.ErrNotFound {
 				Error(w, "no policies exist", http.StatusNotFound)
 				return
 			}
-			log.Errorf("http list policies failed: config repo '%s' service '%s': %v", configRepo, service, err)
-			Error(w, "unknown error", http.StatusInternalServerError)
+			logger.Errorf("http: policy: list: service '%s': get policies failed: %v", service, err)
+			unknownError(w)
 			return
 		}
 
@@ -109,9 +108,7 @@ func listPolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 			AutoReleases: mapAutoReleasePolicies(policies.AutoReleases),
 		})
 		if err != nil {
-			log.Errorf("http list policies failed: config repo '%s' service '%s': encode response: %v", configRepo, service, err)
-			Error(w, "unknown error", http.StatusInternalServerError)
-			return
+			logger.Errorf("http: policy: list: service '%s': marshal response failed: %v", service, err)
 		}
 	}
 }
@@ -134,8 +131,8 @@ func deletePolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 		var req httpinternal.DeletePolicyRequest
 		err := decoder.Decode(&req)
 		if err != nil {
-			log.Errorf("Decode request body failed: %v", err)
-			Error(w, "invalid payload", http.StatusBadRequest)
+			log.Errorf("http: policy: delete: decode request body failed: %v", err)
+			invalidBodyError(w)
 			return
 		}
 		if emptyString(req.Service) {
@@ -156,14 +153,16 @@ func deletePolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 			return
 		}
 
+		logger := log.WithFields("configRepo", configRepo, "service", req.Service, "req", req)
+
 		deleted, err := policyinternal.Delete(r.Context(), configRepo, sshPrivateKeyPath, req.Service, ids, req.CommitterName, req.CommitterEmail)
 		if err != nil {
 			if errors.Cause(err) == policyinternal.ErrNotFound {
 				Error(w, "no policies exist", http.StatusNotFound)
 				return
 			}
-			log.Errorf("http delete policies failed: config repo '%s' service '%s' ids %v: %v", configRepo, req.Service, ids, err)
-			Error(w, "unknown error", http.StatusInternalServerError)
+			logger.Errorf("http: policy: delete: service '%s' ids %v: delete failed: %v", req.Service, ids, err)
+			unknownError(w)
 			return
 		}
 
@@ -174,9 +173,7 @@ func deletePolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 			Count:   deleted,
 		})
 		if err != nil {
-			log.Errorf("http delete policies failed: config repo '%s' service '%s' ids %v: encode response: %v", configRepo, req.Service, ids, err)
-			Error(w, "unknown error", http.StatusInternalServerError)
-			return
+			log.Errorf("http: policy: delete: service '%s' ids %v: marshal response failed: %v", req.Service, ids, err)
 		}
 	}
 }
