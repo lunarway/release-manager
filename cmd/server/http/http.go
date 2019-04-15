@@ -379,10 +379,7 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath, slackToken, grafan
 			return
 		}
 
-<<<<<<< HEAD
 		logger := log.WithFields("configRepo", configRepo, "artifactFileName", artifactFileName, "service", req.Service, "req", req)
-=======
->>>>>>> f7abf7fc107785a5800358c8d5e25a20cb3cece3
 		releaseID, err := flow.Promote(r.Context(), flow.FlowOptions{
 			ConfigRepoURL:     configRepo,
 			ArtifactFileName:  artifactFileName,
