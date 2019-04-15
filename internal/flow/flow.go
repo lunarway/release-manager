@@ -18,10 +18,7 @@ import (
 )
 
 var (
-	artifactConfigRepoPath    = path.Join(".tmp", "k8s-config-artifact")
-	sourceConfigRepoPath      = path.Join(".tmp", "k8s-config-source")
-	destinationConfigRepoPath = path.Join(".tmp", "k8s-config-destination")
-	ErrUnknownEnvironment     = errors.New("unknown environment")
+	ErrUnknownEnvironment = errors.New("unknown environment")
 )
 
 type Environment struct {
@@ -58,9 +55,14 @@ type FlowOptions struct {
 }
 
 func Status(ctx context.Context, configRepoURL, artifactFileName, service, sshPrivateKeyPath string) (StatusResponse, error) {
+	sourceConfigRepoPath, close, err := tempDir("k8s-config-status")
+	if err != nil {
+		return StatusResponse{}, err
+	}
+	defer close()
 	// find current released artifact.json for each environment
 	log.Debugf("Cloning source config repo %s into %s", configRepoURL, sourceConfigRepoPath)
-	_, err := git.Clone(ctx, configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
+	_, err = git.Clone(ctx, configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
 	}
@@ -186,6 +188,11 @@ func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resource
 	if err != nil {
 		return "", errors.WithMessagef(err, "path '%s'", artifactSpecPath)
 	}
+	artifactConfigRepoPath, close, err := tempDir("k8s-config-artifact")
+	if err != nil {
+		return "", err
+	}
+	defer close()
 	// fmt.Printf is used for logging as this is called from artifact cli only
 	fmt.Printf("Checkout config repository from '%s' into '%s'\n", configRepoURL, resourceRoot)
 	repo, err := git.CloneDepth(context.Background(), configRepoURL, artifactConfigRepoPath, sshPrivateKeyPath, 1)

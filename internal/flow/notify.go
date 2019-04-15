@@ -14,6 +14,11 @@ import (
 )
 
 func NotifyCommitter(ctx context.Context, configRepoURL, artifactFileName, sshPrivateKeyPath string, event *http.PodNotifyRequest, client *slack.Client) error {
+	sourceConfigRepoPath, close, err := tempDir("k8s-config-notify")
+	if err != nil {
+		return err
+	}
+	defer close()
 	sourceRepo, err := git.Clone(ctx, configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
 	if err != nil {
 		return errors.WithMessagef(err, "clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath)

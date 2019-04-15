@@ -18,6 +18,16 @@ type RollbackResult struct {
 }
 
 func Rollback(ctx context.Context, opts FlowOptions) (RollbackResult, error) {
+	sourceConfigRepoPath, closeSource, err := tempDir("k8s-config-rollback-source")
+	if err != nil {
+		return RollbackResult{}, err
+	}
+	defer closeSource()
+	destinationConfigRepoPath, closeDestination, err := tempDir("k8s-config-rollback-destination")
+	if err != nil {
+		return RollbackResult{}, err
+	}
+	defer closeDestination()
 	r, err := git.Clone(ctx, opts.ConfigRepoURL, sourceConfigRepoPath, opts.SSHPrivateKeyPath)
 	if err != nil {
 		return RollbackResult{}, errors.WithMessagef(err, "clone '%s' into '%s'", opts.ConfigRepoURL, sourceConfigRepoPath)
