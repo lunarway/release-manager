@@ -22,12 +22,18 @@ import (
 )
 
 type Options struct {
-	Port                int
-	Timeout             time.Duration
-	GithubWebhookSecret string
-	HamCtlAuthToken     string
-	DaemonAuthToken     string
-	SlackAuthToken      string
+	Port                 int
+	Timeout              time.Duration
+	GithubWebhookSecret  string
+	HamCtlAuthToken      string
+	DaemonAuthToken      string
+	SlackAuthToken       string
+	GrafanaDevAPIKey     string
+	GrafanaStagingAPIKey string
+	GrafanaProdAPIKey    string
+	GrafanaDevUrl        string
+	GrafanaStagingUrl    string
+	GrafanaProdUrl       string
 
 	ConfigRepo        string
 	ArtifactFileName  string
@@ -37,12 +43,12 @@ type Options struct {
 func NewServer(opts *Options, client *slack.Client) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
-	mux.HandleFunc("/promote", authenticate(opts.HamCtlAuthToken, promote(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.SlackAuthToken)))
-	mux.HandleFunc("/release", authenticate(opts.HamCtlAuthToken, release(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.SlackAuthToken)))
+	mux.HandleFunc("/promote", authenticate(opts.HamCtlAuthToken, promote(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.SlackAuthToken, opts.GrafanaDevAPIKey, opts.GrafanaStagingAPIKey, opts.GrafanaProdAPIKey, opts.GrafanaDevUrl, opts.GrafanaStagingUrl, opts.GrafanaProdUrl)))
+	mux.HandleFunc("/release", authenticate(opts.HamCtlAuthToken, release(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.SlackAuthToken, opts.GrafanaDevAPIKey, opts.GrafanaStagingAPIKey, opts.GrafanaProdAPIKey, opts.GrafanaDevUrl, opts.GrafanaStagingUrl, opts.GrafanaProdUrl)))
 	mux.HandleFunc("/status", authenticate(opts.HamCtlAuthToken, status(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
-	mux.HandleFunc("/rollback", authenticate(opts.HamCtlAuthToken, rollback(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.SlackAuthToken)))
+	mux.HandleFunc("/rollback", authenticate(opts.HamCtlAuthToken, rollback(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.SlackAuthToken, opts.GrafanaDevAPIKey, opts.GrafanaStagingAPIKey, opts.GrafanaProdAPIKey, opts.GrafanaDevUrl, opts.GrafanaStagingUrl, opts.GrafanaProdUrl)))
 	mux.HandleFunc("/policies", authenticate(opts.HamCtlAuthToken, policy(opts.ConfigRepo, opts.SSHPrivateKeyPath)))
-	mux.HandleFunc("/webhook/github", githubWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.GithubWebhookSecret, opts.SlackAuthToken))
+	mux.HandleFunc("/webhook/github", githubWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.GithubWebhookSecret, opts.SlackAuthToken, opts.GrafanaDevAPIKey, opts.GrafanaStagingAPIKey, opts.GrafanaProdAPIKey, opts.GrafanaDevUrl, opts.GrafanaStagingUrl, opts.GrafanaProdUrl))
 	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, client)))
 
 	s := http.Server{
@@ -149,7 +155,7 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 	}
 }
 
-func rollback(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string) http.HandlerFunc {
+func rollback(configRepo, artifactFileName, sshPrivateKeyPath, slackToken, grafanaApiKeyDev, grafanaApiKeyStaging, grafanaApiKeyProd, grafanaDevUrl, grafanaStagingUrl, grafanaProdUrl string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			Error(w, "not found", http.StatusNotFound)
@@ -181,8 +187,18 @@ func rollback(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string
 		}
 
 		logger := log.WithFields("configRepo", configRepo, "artifactFileName", artifactFileName, "service", req.Service, "req", req)
-
-		res, err := flow.Rollback(r.Context(), configRepo, artifactFileName, req.Service, req.Environment, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath, slackToken)
+		res, err := flow.Rollback(r.Context(), flow.FlowOptions{
+			ConfigRepoURL:     configRepo,
+			ArtifactFileName:  artifactFileName,
+			Service:           req.Service,
+			Environment:       req.Environment,
+			CommitterName:     req.CommitterName,
+			CommitterEmail:    req.CommitterEmail,
+			SSHPrivateKeyPath: sshPrivateKeyPath,
+			SlackToken:        slackToken,
+			GrafanaAPIKey:     getGrafanaVarForEnv(req.Environment, grafanaApiKeyDev, grafanaApiKeyStaging, grafanaApiKeyProd),
+			GrafanaUrl:        getGrafanaVarForEnv(req.Environment, grafanaDevUrl, grafanaStagingUrl, grafanaProdUrl),
+		})
 		if err != nil {
 			switch errors.Cause(err) {
 			case git.ErrReleaseNotFound:
@@ -244,7 +260,7 @@ func daemonWebhook(configRepo, artifactFileName, sshPrivateKeyPath string, slack
 	}
 }
 
-func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret, slackToken string) http.HandlerFunc {
+func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret, slackToken, grafanaApiKeyDev, grafanaApiKeyStaging, grafanaApiKeyProd, grafanaDevUrl, grafanaStagingUrl, grafanaProdUrl string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		hook, _ := github.New(github.Options.Secret(githubWebhookSecret))
 		payload, err := hook.Parse(r, github.PushEvent)
@@ -288,7 +304,19 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 			logger.Debugf("http: github webhook: service '%s' branch '%s': found %d release policies", serviceName, branch, len(autoReleases))
 			var errs error
 			for _, autoRelease := range autoReleases {
-				releaseID, err := flow.ReleaseBranch(context.Background(), configRepo, artifactFileName, serviceName, autoRelease.Environment, autoRelease.Branch, push.HeadCommit.Author.Name, push.HeadCommit.Author.Email, sshPrivateKeyPath, slackToken)
+				releaseID, err := flow.ReleaseBranch(context.Background(), flow.FlowOptions{
+					ConfigRepoURL:     configRepo,
+					ArtifactFileName:  artifactFileName,
+					Service:           serviceName,
+					Environment:       autoRelease.Environment,
+					Branch:            autoRelease.Branch,
+					CommitterName:     push.HeadCommit.Author.Name,
+					CommitterEmail:    push.HeadCommit.Author.Email,
+					SSHPrivateKeyPath: sshPrivateKeyPath,
+					SlackToken:        slackToken,
+					GrafanaAPIKey:     getGrafanaVarForEnv(autoRelease.Environment, grafanaApiKeyDev, grafanaApiKeyStaging, grafanaApiKeyProd),
+					GrafanaUrl:        getGrafanaVarForEnv(autoRelease.Environment, grafanaDevUrl, grafanaStagingUrl, grafanaProdUrl),
+				})
 				if err != nil {
 					if errors.Cause(err) != git.ErrNothingToCommit {
 						errs = multierr.Append(errs, err)
@@ -339,7 +367,7 @@ func branchName(modifiedFiles []string, artifactFileName, svc string) (string, b
 	return strings.TrimSuffix(branch, fmt.Sprintf("/%s", artifactFileName)), true
 }
 
-func promote(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string) http.HandlerFunc {
+func promote(configRepo, artifactFileName, sshPrivateKeyPath, slackToken, grafanaApiKeyDev, grafanaApiKeyStaging, grafanaApiKeyProd, grafanaDevUrl, grafanaStagingUrl, grafanaProdUrl string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 		var req httpinternal.PromoteRequest
@@ -352,7 +380,18 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string)
 		}
 
 		logger := log.WithFields("configRepo", configRepo, "artifactFileName", artifactFileName, "service", req.Service, "req", req)
-		releaseID, err := flow.Promote(r.Context(), configRepo, artifactFileName, req.Service, req.Environment, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath, slackToken)
+		releaseID, err := flow.Promote(r.Context(), flow.FlowOptions{
+			ConfigRepoURL:     configRepo,
+			ArtifactFileName:  artifactFileName,
+			Service:           req.Service,
+			Environment:       req.Environment,
+			CommitterName:     req.CommitterName,
+			CommitterEmail:    req.CommitterEmail,
+			SSHPrivateKeyPath: sshPrivateKeyPath,
+			SlackToken:        slackToken,
+			GrafanaAPIKey:     getGrafanaVarForEnv(req.Environment, grafanaApiKeyDev, grafanaApiKeyStaging, grafanaApiKeyProd),
+			GrafanaUrl:        getGrafanaVarForEnv(req.Environment, grafanaDevUrl, grafanaStagingUrl, grafanaProdUrl),
+		})
 
 		var statusString string
 		if err != nil {
@@ -402,7 +441,7 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string)
 	}
 }
 
-func release(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string) http.HandlerFunc {
+func release(configRepo, artifactFileName, sshPrivateKeyPath, slackToken, grafanaApiKeyDev, grafanaApiKeyStaging, grafanaApiKeyProd, grafanaDevUrl, grafanaStagingUrl, grafanaProdUrl string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 		var req httpinternal.ReleaseRequest
@@ -431,10 +470,34 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string)
 			return
 		case req.Branch != "":
 			logger.Infof("http: release: service '%s' environment '%s' branch '%s': releasing branch", req.Service, req.Environment, req.Branch)
-			releaseID, err = flow.ReleaseBranch(ctx, configRepo, artifactFileName, req.Service, req.Environment, req.Branch, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath, slackToken)
+			releaseID, err = flow.ReleaseBranch(ctx, flow.FlowOptions{
+				ConfigRepoURL:     configRepo,
+				ArtifactFileName:  artifactFileName,
+				Service:           req.Service,
+				Environment:       req.Environment,
+				Branch:            req.Branch,
+				CommitterName:     req.CommitterName,
+				CommitterEmail:    req.CommitterEmail,
+				SSHPrivateKeyPath: sshPrivateKeyPath,
+				SlackToken:        slackToken,
+				GrafanaAPIKey:     getGrafanaVarForEnv(req.Environment, grafanaApiKeyDev, grafanaApiKeyStaging, grafanaApiKeyProd),
+				GrafanaUrl:        getGrafanaVarForEnv(req.Environment, grafanaDevUrl, grafanaStagingUrl, grafanaProdUrl),
+			})
 		case req.ArtifactID != "":
 			logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': releasing artifact", req.Service, req.Environment, req.ArtifactID)
-			releaseID, err = flow.ReleaseArtifactID(ctx, configRepo, artifactFileName, req.Service, req.Environment, req.ArtifactID, req.CommitterName, req.CommitterEmail, sshPrivateKeyPath, slackToken)
+			releaseID, err = flow.ReleaseArtifactID(ctx, flow.FlowOptions{
+				ConfigRepoURL:     configRepo,
+				ArtifactFileName:  artifactFileName,
+				Service:           req.Service,
+				Environment:       req.Environment,
+				ArtifactID:        req.ArtifactID,
+				CommitterName:     req.CommitterName,
+				CommitterEmail:    req.CommitterEmail,
+				SSHPrivateKeyPath: sshPrivateKeyPath,
+				SlackToken:        slackToken,
+				GrafanaAPIKey:     getGrafanaVarForEnv(req.Environment, grafanaApiKeyDev, grafanaApiKeyStaging, grafanaApiKeyProd),
+				GrafanaUrl:        getGrafanaVarForEnv(req.Environment, grafanaDevUrl, grafanaStagingUrl, grafanaProdUrl),
+			})
 		default:
 			logger.Infof("http: release: service '%s' environment '%s' artifact id '%s' branch '%s': neither brand nor artifact id specified", req.Service, req.Environment, req.ArtifactID, req.Branch)
 			Error(w, "either branch or artifact id must be specified", http.StatusBadRequest)
@@ -483,4 +546,16 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath, slackToken string)
 
 func convertTimeToEpoch(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
+}
+
+func getGrafanaVarForEnv(env, dev, staging, prod string) string {
+	switch env {
+	case "dev":
+		return dev
+	case "staging":
+		return staging
+	case "prod":
+		return prod
+	}
+	return ""
 }

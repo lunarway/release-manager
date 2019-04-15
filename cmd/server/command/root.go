@@ -28,6 +28,12 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&options.SSHPrivateKeyPath, "ssh-private-key", "/etc/release-manager/ssh/identity", "ssh-private-key for the config repo")
 	command.PersistentFlags().StringVar(&options.GithubWebhookSecret, "github-webhook-secret", os.Getenv("GITHUB_WEBHOOK_SECRET"), "github webhook secret")
 	command.PersistentFlags().StringVar(&options.SlackAuthToken, "slack-token", os.Getenv("SLACK_TOKEN"), "token to be used to communicate with the slack api")
+	command.PersistentFlags().StringVar(&options.GrafanaDevAPIKey, "grafana-api-key-dev", os.Getenv("GRAFANA_DEV_API_KEY"), "api key to be used to annotate in dev")
+	command.PersistentFlags().StringVar(&options.GrafanaStagingAPIKey, "grafana-api-key-staging", os.Getenv("GRAFANA_STAGING_API_KEY"), "api key to be used to annotate in dev")
+	command.PersistentFlags().StringVar(&options.GrafanaProdAPIKey, "grafana-api-key-prod", os.Getenv("GRAFANA_PROD_API_KEY"), "api key to be used to annotate in prod")
+	command.PersistentFlags().StringVar(&options.GrafanaDevUrl, "grafana-dev-url", os.Getenv("GRAFANA_DEV_URL"), "grafana dev url")
+	command.PersistentFlags().StringVar(&options.GrafanaStagingUrl, "grafana-staging-url", os.Getenv("GRAFANA_STAGING_URL"), "grafana staging url")
+	command.PersistentFlags().StringVar(&options.GrafanaProdUrl, "grafana-prod-url", os.Getenv("GRAFANA_PROD_URL"), "grafana prod url")
 
 	return command, nil
 }
