@@ -55,6 +55,6 @@ func Annotate(apiKey, baseURL string, body AnnotateRequest) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("AnnoteResponse: message: %s, id: %d", responseBody.Message, responseBody.Id)
+	log.Infof("grafana: AnnotateResponse: message: %s, id: %d", responseBody.Message, responseBody.Id)
 	return nil
 }
