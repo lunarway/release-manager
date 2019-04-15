@@ -91,7 +91,7 @@ func ping(w http.ResponseWriter, r *http.Request) {
 func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		values := r.URL.Query()
-		service := values.Get("servce")
+		service := values.Get("service")
 		if emptyString(service) {
 			requiredQueryError(w, "service")
 			return
