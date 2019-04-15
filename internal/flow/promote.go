@@ -36,6 +36,16 @@ import (
 // Copy artifacts from the current release into the new environment and commit
 // the changes
 func Promote(ctx context.Context, opts FlowOptions) (string, error) {
+	sourceConfigRepoPath, closeSource, err := tempDir("k8s-config-promote-source")
+	if err != nil {
+		return "", err
+	}
+	defer closeSource()
+	destinationConfigRepoPath, closeDestination, err := tempDir("k8s-config-promote-destination")
+	if err != nil {
+		return "", err
+	}
+	defer closeDestination()
 	// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
 	log.Debugf("Cloning source config repo %s into %s", opts.ConfigRepoURL, sourceConfigRepoPath)
 	sourceRepo, err := git.Clone(ctx, opts.ConfigRepoURL, sourceConfigRepoPath, opts.SSHPrivateKeyPath)

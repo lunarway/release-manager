@@ -23,6 +23,11 @@ import (
 //
 // Copy artifacts from the artifacts into the environment and commit the changes.
 func ReleaseBranch(ctx context.Context, opts FlowOptions) (string, error) {
+	sourceConfigRepoPath, close, err := tempDir("k8s-config-release-branch")
+	if err != nil {
+		return "", err
+	}
+	defer close()
 	repo, err := git.CloneDepth(ctx, opts.ConfigRepoURL, sourceConfigRepoPath, opts.SSHPrivateKeyPath, 1)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", opts.ConfigRepoURL, sourceConfigRepoPath))
@@ -103,6 +108,16 @@ func ReleaseBranch(ctx context.Context, opts FlowOptions) (string, error) {
 // Copy resources from the artifact commit into the environment and commit
 // the changes
 func ReleaseArtifactID(ctx context.Context, opts FlowOptions) (string, error) {
+	sourceConfigRepoPath, closeSource, err := tempDir("k8s-config-release-artifact-source")
+	if err != nil {
+		return "", err
+	}
+	defer closeSource()
+	destinationConfigRepoPath, closeDestination, err := tempDir("k8s-config-release-artifact-destination")
+	if err != nil {
+		return "", err
+	}
+	defer closeDestination()
 	sourceRepo, err := git.Clone(ctx, opts.ConfigRepoURL, sourceConfigRepoPath, opts.SSHPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", opts.ConfigRepoURL, sourceConfigRepoPath))
