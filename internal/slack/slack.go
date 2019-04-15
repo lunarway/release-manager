@@ -126,7 +126,6 @@ func crashLoopBackOffErrorMessage(env, service string, artifact artifact.Spec, p
 }
 
 type ReleaseOptions struct {
-	SlackToken    string
 	Service       string
 	ArtifactID    string
 	CommitSHA     string
