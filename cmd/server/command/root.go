@@ -2,6 +2,7 @@ package command
 
 import (
 	"os"
+	"strings"
 	"time"
 
 	"github.com/lunarway/release-manager/cmd/server/http"
@@ -11,9 +12,23 @@ import (
 // NewCommand returns a new instance of a hamctl command.
 func NewCommand() (*cobra.Command, error) {
 	var options http.Options
+	var users []string
 	var command = &cobra.Command{
 		Use:   "server",
 		Short: "server",
+		PersistentPreRunE: func(c *cobra.Command, args []string) error {
+			if len(users) == 0 {
+				userMappingString := os.Getenv("USER_MAPPINGS")
+				users = strings.Split(userMappingString, ",")
+			}
+			m := make(map[string]string)
+			for _, u := range users {
+				s := strings.Split(u, "=")
+				m[s[0]] = s[1]
+			}
+			options.UserMappings = m
+			return nil
+		},
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
@@ -34,6 +49,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&options.GrafanaDevUrl, "grafana-dev-url", os.Getenv("GRAFANA_DEV_URL"), "grafana dev url")
 	command.PersistentFlags().StringVar(&options.GrafanaStagingUrl, "grafana-staging-url", os.Getenv("GRAFANA_STAGING_URL"), "grafana staging url")
 	command.PersistentFlags().StringVar(&options.GrafanaProdUrl, "grafana-prod-url", os.Getenv("GRAFANA_PROD_URL"), "grafana prod url")
+	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between github and slack, key-value pair: <github>=<slack>")
 
 	return command, nil
 }

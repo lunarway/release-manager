@@ -35,6 +35,8 @@ type Options struct {
 	GrafanaStagingUrl    string
 	GrafanaProdUrl       string
 
+	UserMappings map[string]string
+
 	ConfigRepo        string
 	ArtifactFileName  string
 	SSHPrivateKeyPath string
@@ -49,7 +51,7 @@ func NewServer(opts *Options, client *slack.Client) error {
 	mux.HandleFunc("/rollback", authenticate(opts.HamCtlAuthToken, rollback(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.SlackAuthToken, opts.GrafanaDevAPIKey, opts.GrafanaStagingAPIKey, opts.GrafanaProdAPIKey, opts.GrafanaDevUrl, opts.GrafanaStagingUrl, opts.GrafanaProdUrl)))
 	mux.HandleFunc("/policies", authenticate(opts.HamCtlAuthToken, policy(opts.ConfigRepo, opts.SSHPrivateKeyPath)))
 	mux.HandleFunc("/webhook/github", githubWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.GithubWebhookSecret, opts.SlackAuthToken, opts.GrafanaDevAPIKey, opts.GrafanaStagingAPIKey, opts.GrafanaProdAPIKey, opts.GrafanaDevUrl, opts.GrafanaStagingUrl, opts.GrafanaProdUrl))
-	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, client)))
+	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, client, opts.UserMappings)))
 
 	s := http.Server{
 		Addr:              fmt.Sprintf(":%d", opts.Port),
@@ -231,7 +233,7 @@ func rollback(configRepo, artifactFileName, sshPrivateKeyPath, slackToken, grafa
 	}
 }
 
-func daemonWebhook(configRepo, artifactFileName, sshPrivateKeyPath string, slackClient *slack.Client) http.HandlerFunc {
+func daemonWebhook(configRepo, artifactFileName, sshPrivateKeyPath string, slackClient *slack.Client, userMappings map[string]string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 		var podNotify httpinternal.PodNotifyRequest
@@ -243,7 +245,7 @@ func daemonWebhook(configRepo, artifactFileName, sshPrivateKeyPath string, slack
 			return
 		}
 
-		err = flow.NotifyCommitter(context.Background(), configRepo, artifactFileName, sshPrivateKeyPath, &podNotify, slackClient)
+		err = flow.NotifyCommitter(context.Background(), configRepo, artifactFileName, sshPrivateKeyPath, &podNotify, slackClient, userMappings)
 		if err != nil {
 			log.Errorf("http: daemon webhook failed: notify committer: %v", err)
 			unknownError(w)

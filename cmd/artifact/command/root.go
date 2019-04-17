@@ -9,6 +9,7 @@ type Options struct {
 	FileName        string
 	SlackToken      string
 	MessageFileName string
+	UserMappings    map[string]string
 }
 
 // NewCommand returns a new instance of a rm-gen-spec command.
