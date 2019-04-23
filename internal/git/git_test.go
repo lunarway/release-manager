@@ -133,71 +133,80 @@ func TestLocateReleaseCondition(t *testing.T) {
 }
 
 func TestLocateServiceReleaseCondition(t *testing.T) {
-	commitMessage := "[env/service-name] release master-1234567890-1234567890"
 	tt := []struct {
 		name    string
 		env     string
 		service string
+		message string
 		output  bool
 	}{
 		{
 			name:    "empty env",
 			env:     "",
 			service: "service-name",
+			message: "[env/service-name] release master-1234567890-1234567890",
 			output:  false,
 		},
 		{
 			name:    "empty service",
 			env:     "env",
 			service: "",
+			message: "[env/service-name] release master-1234567890-1234567890",
 			output:  false,
 		},
 		{
 			name:    "regexp like env",
 			env:     `(\`,
 			service: "",
+			message: "[env/service-name] release master-1234567890-1234567890",
 			output:  false,
 		},
 		{
 			name:    "regexp like service",
 			env:     "",
 			service: `(\`,
+			message: "[env/service-name] release master-1234567890-1234567890",
 			output:  false,
 		},
 		{
 			name:    "partial env",
 			env:     "nv",
 			service: "service-name",
+			message: "[env/service-name] release master-1234567890-1234567890",
 			output:  false,
 		},
 		{
 			name:    "partial service",
 			env:     "env",
 			service: "service",
+			message: "[env/service-name] release master-1234567890-1234567890",
 			output:  false,
 		},
 		{
 			name:    "exact env and service",
 			env:     "env",
 			service: "service-name",
+			message: "[env/service-name] release master-1234567890-1234567890",
 			output:  true,
 		},
 		{
 			name:    "wrong cased env",
 			env:     "ENV",
 			service: "service-name",
+			message: "[env/service-name] release master-1234567890-1234567890",
 			output:  true,
 		},
 		{
 			name:    "wrong cased service",
 			env:     "env",
 			service: "SERVICE-NAME",
+			message: "[env/service-name] release master-1234567890-1234567890",
 			output:  true,
 		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			output := locateServiceReleaseCondition(tc.env, tc.service)(commitMessage)
+			output := locateServiceReleaseCondition(tc.env, tc.service)(tc.message)
 			assert.Equal(t, tc.output, output, "output not as expected")
 		})
 	}
