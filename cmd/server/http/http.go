@@ -575,6 +575,7 @@ func notifyPolicyFailure(email, title, errorMessage, token string, userMappings 
 		lwEmail, ok := userMappings[email]
 		if !ok {
 			log.Errorf("%s is not a Lunar Way email and no mapping exist", email)
+			return
 		}
 		email = lwEmail
 	}
