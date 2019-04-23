@@ -568,6 +568,7 @@ func notifyPolicyFailure(email, title, errorMessage, token string, userMappings 
 	client, err := slack.NewClient(token)
 	if err != nil {
 		log.Errorf("error initializing Slack Client in notifyPolicyFailure: %v", err)
+		return
 	}
 
 	if !flow.IsLunarWayEmail(email) {
