@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/cmd/server/http"
+	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/spf13/cobra"
 )
 
@@ -21,12 +22,11 @@ func NewCommand() (*cobra.Command, error) {
 				userMappingString := os.Getenv("USER_MAPPINGS")
 				users = strings.Split(userMappingString, ",")
 			}
-			m := make(map[string]string)
-			for _, u := range users {
-				s := strings.Split(u, "=")
-				m[s[0]] = s[1]
+			var err error
+			options.UserMappings, err = slack.ParseUserMappings(users)
+			if err != nil {
+				return err
 			}
-			options.UserMappings = m
 			return nil
 		},
 		Run: func(c *cobra.Command, args []string) {
@@ -49,7 +49,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&options.GrafanaDevUrl, "grafana-dev-url", os.Getenv("GRAFANA_DEV_URL"), "grafana dev url")
 	command.PersistentFlags().StringVar(&options.GrafanaStagingUrl, "grafana-staging-url", os.Getenv("GRAFANA_STAGING_URL"), "grafana staging url")
 	command.PersistentFlags().StringVar(&options.GrafanaProdUrl, "grafana-prod-url", os.Getenv("GRAFANA_PROD_URL"), "grafana prod url")
-	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between to emails used by Slack, key-value pair: <email>=<slack-email>")
+	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between emails used by Git and Slack, key-value pair: <email>=<slack-email>")
 
 	return command, nil
 }

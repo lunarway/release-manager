@@ -28,15 +28,14 @@ func initCommand(options *Options) *cobra.Command {
 				userMappingString := os.Getenv("USER_MAPPINGS")
 				users = strings.Split(userMappingString, ",")
 			}
-			m := make(map[string]string)
-			for _, u := range users {
-				s := strings.Split(u, "=")
-				m[s[0]] = s[1]
+			var err error
+			options.UserMappings, err = slack.ParseUserMappings(users)
+			if err != nil {
+				return err
 			}
-			options.UserMappings = m
 
 			if !flow.IsLunarWayEmail(s.Application.AuthorEmail) {
-				lwEmail, ok := m[s.Application.AuthorEmail]
+				lwEmail, ok := options.UserMappings[s.Application.AuthorEmail]
 				if !ok {
 					// Don't break, just continue and use the provided email
 					fmt.Printf("user mappings for %s not found", s.Application.AuthorEmail)
@@ -134,6 +133,7 @@ func initCommand(options *Options) *cobra.Command {
 	command.Flags().StringVar(&s.Shuttle.Plan.URL, "shuttle-plan-url", "", "the url to the shuttle plan commit")
 	command.Flags().StringVar(&s.Shuttle.Plan.Message, "shuttle-plan-message", "", "the shuttle plan commit message")
 	command.Flags().StringVar(&s.Shuttle.Plan.Branch, "shuttle-plan-branch", "", "the shuttle plan branch name")
+	command.Flags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between emails used by Git and Slack, key-value pair: <email>=<slack-email>")
 
 	command.MarkFlagRequired("artifact-id")
 	command.MarkFlagRequired("service")
