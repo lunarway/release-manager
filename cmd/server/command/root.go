@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/cmd/server/http"
+	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/spf13/cobra"
 )
 
@@ -21,12 +22,11 @@ func NewCommand() (*cobra.Command, error) {
 				userMappingString := os.Getenv("USER_MAPPINGS")
 				users = strings.Split(userMappingString, ",")
 			}
-			m := make(map[string]string)
-			for _, u := range users {
-				s := strings.Split(u, "=")
-				m[s[0]] = s[1]
+			var err error
+			options.UserMappings, err = slack.ParseUserMappings(users)
+			if err != nil {
+				return err
 			}
-			options.UserMappings = m
 			return nil
 		},
 		Run: func(c *cobra.Command, args []string) {
