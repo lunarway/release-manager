@@ -35,7 +35,6 @@ func initCommand(options *Options) *cobra.Command {
 			}
 			options.UserMappings = m
 
-			fmt.Printf("EMAIL: %s\n", s.Application.AuthorEmail)
 			if !flow.IsLunarWayEmail(s.Application.AuthorEmail) {
 				lwEmail, ok := m[s.Application.AuthorEmail]
 				if !ok {

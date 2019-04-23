@@ -49,7 +49,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&options.GrafanaDevUrl, "grafana-dev-url", os.Getenv("GRAFANA_DEV_URL"), "grafana dev url")
 	command.PersistentFlags().StringVar(&options.GrafanaStagingUrl, "grafana-staging-url", os.Getenv("GRAFANA_STAGING_URL"), "grafana staging url")
 	command.PersistentFlags().StringVar(&options.GrafanaProdUrl, "grafana-prod-url", os.Getenv("GRAFANA_PROD_URL"), "grafana prod url")
-	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between github and slack, key-value pair: <github>=<slack>")
+	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between to emails used by Slack, key-value pair: <email>=<slack-email>")
 
 	return command, nil
 }
