@@ -581,6 +581,7 @@ func notifyPolicyFailure(email, title, errorMessage, token string, userMappings 
 	slackId, err := client.GetSlackIdByEmail(email)
 	if err != nil {
 		log.Errorf("error obtaining slackId in notifyPolicyFailure: %v", err)
+		return
 	}
 	err = client.NotifySlackPolicyFailed(slackId, title, errorMessage)
 	if err != nil {
