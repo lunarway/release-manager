@@ -2,10 +2,13 @@ package command
 
 import (
 	"fmt"
+	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -14,11 +17,46 @@ import (
 // NewCommand sets up the move command
 func initCommand(options *Options) *cobra.Command {
 	var s artifact.Spec
+	var users []string
 
 	command := &cobra.Command{
 		Use:   "init",
 		Short: "",
 		Long:  "",
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if len(users) == 0 {
+				userMappingString := os.Getenv("USER_MAPPINGS")
+				users = strings.Split(userMappingString, ",")
+			}
+			m := make(map[string]string)
+			for _, u := range users {
+				s := strings.Split(u, "=")
+				m[s[0]] = s[1]
+			}
+			options.UserMappings = m
+
+			if !flow.IsLunarWayEmail(s.Application.AuthorEmail) {
+				lwEmail, ok := m[s.Application.AuthorEmail]
+				if !ok {
+					// Don't break, just continue and use the provided email
+					fmt.Printf("user mappings for %s not found", s.Application.AuthorEmail)
+				} else {
+					s.Application.AuthorEmail = lwEmail
+				}
+			}
+
+			if !flow.IsLunarWayEmail(s.Application.CommitterEmail) {
+				lwEmail, ok := options.UserMappings[s.Application.CommitterEmail]
+				if !ok {
+					// Don't break, just continue and use the provided email
+					fmt.Printf("user mappings for %s not found", s.Application.CommitterEmail)
+				} else {
+					s.Application.CommitterEmail = lwEmail
+				}
+			}
+
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Record when this job started
 			s.CI.Start = time.Now()

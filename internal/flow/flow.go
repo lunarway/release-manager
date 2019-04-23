@@ -276,5 +276,16 @@ func notifyRelease(opts NotifyReleaseOptions) error {
 	if err != nil {
 		return err
 	}
+
+	log.WithFields("service", opts.Service,
+		"environment", opts.Environment,
+		"artifact-id", opts.ArtifactID,
+		"commit-message", opts.CommitMessage,
+		"commit-author", opts.CommitAuthor,
+		"commit-link", opts.CommitLink,
+		"commit-sha", opts.CommitSHA,
+		"releaser", opts.Releaser,
+		"type", "release").Infof("Release [%s]: %s (%s) by %s, author %s", opts.Environment, opts.Service, opts.ArtifactID, opts.Releaser, opts.CommitAuthor)
+
 	return nil
 }

@@ -22,7 +22,7 @@ func Error(w http.ResponseWriter, message string, statusCode int) {
 }
 
 func unknownError(w http.ResponseWriter) {
-	Error(w, "unkown error", http.StatusInternalServerError)
+	Error(w, "unknown error", http.StatusInternalServerError)
 }
 
 func invalidBodyError(w http.ResponseWriter) {

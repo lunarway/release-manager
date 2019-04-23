@@ -42,10 +42,10 @@ test:
 	go test -v ./...
 
 server: build_server
-	HAMCTL_AUTH_TOKEN=test DAEMON_AUTH_TOKEN=test ./dist/server start --ssh-private-key ~/.ssh/github --slack-token ${SLACK_TOKEN} --grafana-api-key-dev ${GRAFANA_API_KEY} --grafana-dev-url ${GRAFANA_URL}
+	USER_MAPPINGS="kaspernissen@gmail.com=kni@lunarway.com,something@gmail.com=some@lunarway.com" HAMCTL_AUTH_TOKEN=test DAEMON_AUTH_TOKEN=test ./dist/server start --ssh-private-key ~/.ssh/github --slack-token ${SLACK_TOKEN} --grafana-api-key-dev ${GRAFANA_API_KEY} --grafana-dev-url ${GRAFANA_URL}
 
 artifact-init:
-	./dist/artifact init --slack-token ${SLACK_TOKEN} --artifact-id "master-deed62270f-854d930ecb" --name "lunar-way-product-service" --service "product" --git-author-name "Kasper Nissen" --git-author-email "kni@lunarway.com" --git-message "This is a test message" --git-committer-name "Bjørn Sørensen" --git-committer-email "bso@lunarway.com" --git-sha deed62270f24f1ca8cf2c19b505b2c88036e1b1c --git-branch master --url "https://bitbucket.org/LunarWay/lunar-way-product-service/commits/a05e314599a7c202724d46a009fcc0f493bce035" --ci-job-url "https://jenkins.dev.lunarway.com/job/bitbucket/job/lunar-way-product-service/job/master/170/display/redirect"
+	USER_MAPPINGS="kaspernissen@gmail.com=kni@lunarway.com,something@gmail.com=some@lunarway.com" ./dist/artifact init --slack-token ${SLACK_TOKEN} --artifact-id "master-deed62270f-854d930ecb" --name "lunar-way-product-service" --service "product" --git-author-name "Kasper Nissen" --git-author-email "kaspernissen@gmail.com" --git-message "This is a test message" --git-committer-name "Bjørn Sørensen" --git-committer-email "test@gmail.com" --git-sha deed62270f24f1ca8cf2c19b505b2c88036e1b1c --git-branch master --url "https://bitbucket.org/LunarWay/lunar-way-product-service/commits/a05e314599a7c202724d46a009fcc0f493bce035" --ci-job-url "https://jenkins.dev.lunarway.com/job/bitbucket/job/lunar-way-product-service/job/master/170/display/redirect"
 
 artifact-test:
 	./dist/artifact add test --slack-token ${SLACK_TOKEN} --passed 189 --failed 0 --skipped 0

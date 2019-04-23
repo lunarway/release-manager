@@ -2,7 +2,6 @@ module github.com/lunarway/release-manager
 
 require (
 	github.com/emirpasic/gods v1.12.0 // indirect
-	github.com/evanphx/json-patch v4.1.0+incompatible // indirect
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/protobuf v1.3.1 // indirect
 	github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c // indirect
@@ -13,13 +12,13 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.6 // indirect
 	github.com/lunarway/color v1.7.0
+	github.com/lusis/go-slackbot v0.0.0-20180109053408-401027ccfef5 // indirect
+	github.com/lusis/slack-test v0.0.0-20190408224659-6cf59653add2 // indirect
 	github.com/mattn/go-colorable v0.0.9 // indirect
 	github.com/mattn/go-isatty v0.0.4 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/nlopes/slack v0.5.0
-	github.com/onsi/ginkgo v1.8.0 // indirect
-	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/otiai10/copy v1.0.1
 	github.com/otiai10/curr v0.0.0-20150429015615-9b4961190c95 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
@@ -42,6 +41,5 @@ require (
 	k8s.io/apimachinery v0.0.0-20190320104356-82cbdc1b6ac2
 	k8s.io/client-go v10.0.0+incompatible
 	k8s.io/klog v0.2.0 // indirect
-	k8s.io/kube-openapi v0.0.0-20190320154901-5e45bb682580 // indirect
 	sigs.k8s.io/yaml v1.1.0 // indirect
 )

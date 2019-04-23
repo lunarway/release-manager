@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NotifyCommitter(ctx context.Context, configRepoURL, artifactFileName, sshPrivateKeyPath string, event *http.PodNotifyRequest, client *slack.Client) error {
+func NotifyCommitter(ctx context.Context, configRepoURL, artifactFileName, sshPrivateKeyPath string, event *http.PodNotifyRequest, client *slack.Client, userMappings map[string]string) error {
 	sourceConfigRepoPath, close, err := tempDir("k8s-config-notify")
 	if err != nil {
 		return err
@@ -54,8 +54,14 @@ func NotifyCommitter(ctx context.Context, configRepoURL, artifactFileName, sshPr
 
 	log.Infof("Commit: %+v", commit)
 
-	if !isValidEmail(commit.Author.Email) {
-		return errors.WithMessagef(err, "%s is not a Lunar Way email", commit.Author.Email)
+	if !IsLunarWayEmail(commit.Author.Email) {
+		//check UserMappings
+		lwEmail, ok := userMappings[commit.Author.Email]
+		if !ok {
+			log.Errorf("%s is not a Lunar Way email and no mapping exist", commit.Author.Email)
+			return errors.Errorf("%s is not a Lunar Way email and no mapping exist", commit.Author.Email)
+		}
+		commit.Author.Email = lwEmail
 	}
 
 	slackUserId, err := client.GetSlackIdByEmail(commit.Author.Email)
@@ -71,6 +77,6 @@ func NotifyCommitter(ctx context.Context, configRepoURL, artifactFileName, sshPr
 	return nil
 }
 
-func isValidEmail(email string) bool {
+func IsLunarWayEmail(email string) bool {
 	return strings.Contains(email, "@lunarway.com")
 }
