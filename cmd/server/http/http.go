@@ -100,8 +100,14 @@ func status(configRepo, artifactFileName, sshPrivateKeyPath string) http.Handler
 		}
 
 		logger := log.WithFields("configRepo", configRepo, "artifactFileName", artifactFileName, "service", service)
-		s, err := flow.Status(r.Context(), configRepo, artifactFileName, service, sshPrivateKeyPath)
+		ctx := r.Context()
+		s, err := flow.Status(ctx, configRepo, artifactFileName, service, sshPrivateKeyPath)
 		if err != nil {
+			if ctx.Err() == context.Canceled {
+				logger.Infof("http: status: get status cancelled: service '%s'", service)
+				cancelled(w)
+				return
+			}
 			logger.Errorf("http: status: get status failed: service '%s': %v", service, err)
 			unknownError(w)
 			return
@@ -189,7 +195,8 @@ func rollback(configRepo, artifactFileName, sshPrivateKeyPath, slackToken, grafa
 		}
 
 		logger := log.WithFields("configRepo", configRepo, "artifactFileName", artifactFileName, "service", req.Service, "req", req)
-		res, err := flow.Rollback(r.Context(), flow.FlowOptions{
+		ctx := r.Context()
+		res, err := flow.Rollback(ctx, flow.FlowOptions{
 			ConfigRepoURL:     configRepo,
 			ArtifactFileName:  artifactFileName,
 			Service:           req.Service,
@@ -202,6 +209,11 @@ func rollback(configRepo, artifactFileName, sshPrivateKeyPath, slackToken, grafa
 			GrafanaUrl:        getGrafanaVarForEnv(req.Environment, grafanaDevUrl, grafanaStagingUrl, grafanaProdUrl),
 		})
 		if err != nil {
+			if ctx.Err() == context.Canceled {
+				logger.Infof("http: rollback cancelled: env '%s' service '%s'", req.Environment, req.Service)
+				cancelled(w)
+				return
+			}
 			switch errors.Cause(err) {
 			case git.ErrReleaseNotFound:
 				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
@@ -382,7 +394,8 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath, slackToken, grafan
 		}
 
 		logger := log.WithFields("configRepo", configRepo, "artifactFileName", artifactFileName, "service", req.Service, "req", req)
-		releaseID, err := flow.Promote(r.Context(), flow.FlowOptions{
+		ctx := r.Context()
+		releaseID, err := flow.Promote(ctx, flow.FlowOptions{
 			ConfigRepoURL:     configRepo,
 			ArtifactFileName:  artifactFileName,
 			Service:           req.Service,
@@ -397,6 +410,11 @@ func promote(configRepo, artifactFileName, sshPrivateKeyPath, slackToken, grafan
 
 		var statusString string
 		if err != nil {
+			if ctx.Err() == context.Canceled {
+				logger.Infof("http: promote: service '%s' environment '%s': promote cancelled", req.Service, req.Environment)
+				cancelled(w)
+				return
+			}
 			switch errors.Cause(err) {
 			case git.ErrNothingToCommit:
 				statusString = "Environment is already up-to-date"
@@ -507,6 +525,11 @@ func release(configRepo, artifactFileName, sshPrivateKeyPath, slackToken, grafan
 		}
 		var statusString string
 		if err != nil {
+			if ctx.Err() == context.Canceled {
+				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release cancelled", req.Service, req.Environment, req.Branch, req.ArtifactID)
+				cancelled(w)
+				return
+			}
 			cause := errors.Cause(err)
 			switch cause {
 			case git.ErrNothingToCommit:

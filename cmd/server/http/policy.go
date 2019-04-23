@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -59,8 +60,14 @@ func applyAutoReleasePolicy(configRepo, sshPrivateKeyPath string) http.HandlerFu
 		}
 		logger := log.WithFields("configRepo", configRepo, "service", req.Service, "req", req)
 		logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release policy started", req.Service, req.Branch, req.Environment)
-		id, err := policyinternal.ApplyAutoRelease(r.Context(), configRepo, sshPrivateKeyPath, req.Service, req.Branch, req.Environment, req.CommitterName, req.CommitterEmail)
+		ctx := r.Context()
+		id, err := policyinternal.ApplyAutoRelease(ctx, configRepo, sshPrivateKeyPath, req.Service, req.Branch, req.Environment, req.CommitterName, req.CommitterEmail)
 		if err != nil {
+			if ctx.Err() == context.Canceled {
+				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release cancelled", req.Service, req.Branch, req.Environment)
+				cancelled(w)
+				return
+			}
 			logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release failed: %v", req.Service, req.Branch, req.Environment, err)
 			unknownError(w)
 			return
@@ -90,8 +97,14 @@ func listPolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 		}
 
 		logger := log.WithFields("configRepo", configRepo, "service", service)
-		policies, err := policyinternal.Get(r.Context(), configRepo, sshPrivateKeyPath, service)
+		ctx := r.Context()
+		policies, err := policyinternal.Get(ctx, configRepo, sshPrivateKeyPath, service)
 		if err != nil {
+			if ctx.Err() == context.Canceled {
+				logger.Infof("http: policy: list: service '%s': get policies cancelled", service)
+				cancelled(w)
+				return
+			}
 			if errors.Cause(err) == policyinternal.ErrNotFound {
 				Error(w, "no policies exist", http.StatusNotFound)
 				return
@@ -155,8 +168,14 @@ func deletePolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 
 		logger := log.WithFields("configRepo", configRepo, "service", req.Service, "req", req)
 
-		deleted, err := policyinternal.Delete(r.Context(), configRepo, sshPrivateKeyPath, req.Service, ids, req.CommitterName, req.CommitterEmail)
+		ctx := r.Context()
+		deleted, err := policyinternal.Delete(ctx, configRepo, sshPrivateKeyPath, req.Service, ids, req.CommitterName, req.CommitterEmail)
 		if err != nil {
+			if ctx.Err() == context.Canceled {
+				logger.Errorf("http: policy: delete: service '%s' ids %v: delete cancelled", req.Service, ids)
+				cancelled(w)
+				return
+			}
 			if errors.Cause(err) == policyinternal.ErrNotFound {
 				Error(w, "no policies exist", http.StatusNotFound)
 				return
