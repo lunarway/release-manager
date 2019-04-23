@@ -28,10 +28,20 @@ var (
 	ErrNotFound = errors.New("not found")
 )
 
+type Service struct {
+	ConfigRepoURL     string
+	SSHPrivateKeyPath string
+}
+
+type Actor struct {
+	Name  string
+	Email string
+}
+
 // GetAutoReleases gets stored auto-release policies for service svc. If no
 // policies are found a nil slice is returned.
-func GetAutoReleases(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc, branch string) ([]AutoReleasePolicy, error) {
-	policies, err := Get(ctx, configRepoURL, sshPrivateKeyPath, svc)
+func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]AutoReleasePolicy, error) {
+	policies, err := s.Get(ctx, svc)
 	if err != nil {
 		if errors.Cause(err) == ErrNotFound {
 			return nil, nil
@@ -48,8 +58,8 @@ func GetAutoReleases(ctx context.Context, configRepoURL, sshPrivateKeyPath strin
 }
 
 // Get gets stored policies for service svc. If no policies are stored ErrNotFound is returned.
-func Get(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc string) (Policies, error) {
-	_, err := git.CloneDepth(ctx, configRepoURL, configRepoPath, sshPrivateKeyPath, 1)
+func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
+	_, err := git.CloneDepth(ctx, s.ConfigRepoURL, configRepoPath, s.SSHPrivateKeyPath, 1)
 	if err != nil {
 		return Policies{}, errors.WithMessage(err, fmt.Sprintf("clone to path '%s'", configRepoPath))
 	}
@@ -85,10 +95,10 @@ func Get(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc strin
 
 // ApplyAutoRelease applies an auto-release policy for service svc from branch
 // to environment env.
-func ApplyAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc, branch, env, committerName, committerEmail string) (string, error) {
+func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch, env string) (string, error) {
 	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, branch, "auto-release")
 	var policyID string
-	err := updatePolicies(ctx, configRepoURL, sshPrivateKeyPath, svc, commitMsg, committerName, committerEmail, func(p *Policies) {
+	err := s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
 		policyID = p.SetAutoRelease(branch, env)
 	})
 	if err != nil {
@@ -98,10 +108,10 @@ func ApplyAutoRelease(ctx context.Context, configRepoURL, sshPrivateKeyPath stri
 }
 
 // Delete deletes policies by ID for service svc.
-func Delete(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc string, ids []string, committerName, committerEmail string) (int, error) {
+func (s *Service) Delete(ctx context.Context, actor Actor, svc string, ids []string) (int, error) {
 	commitMsg := git.PolicyUpdateDeleteCommitMessage(svc)
 	var deleted int
-	err := updatePolicies(ctx, configRepoURL, sshPrivateKeyPath, svc, commitMsg, committerName, committerEmail, func(p *Policies) {
+	err := s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
 		deleted = p.Delete(ids...)
 	})
 	if err != nil {
@@ -110,12 +120,12 @@ func Delete(ctx context.Context, configRepoURL, sshPrivateKeyPath string, svc st
 	return deleted, nil
 }
 
-func updatePolicies(ctx context.Context, configRepoURL, sshPrivateKeyPath, svc, commitMsg, committerName, committerEmail string, f func(p *Policies)) error {
+func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMsg string, f func(p *Policies)) error {
 	// read part of this code is the same as the Get function but differs in the
 	// file flags used. This is to avoid opening and closing to file multiple
 	// times during the operation.
 	log.Debugf("internal/policy: clone config repository")
-	repo, err := git.CloneDepth(ctx, configRepoURL, configRepoPath, sshPrivateKeyPath, 1)
+	repo, err := git.CloneDepth(ctx, s.ConfigRepoURL, configRepoPath, s.SSHPrivateKeyPath, 1)
 	if err != nil {
 		return errors.WithMessage(err, fmt.Sprintf("clone to '%s'", configRepoPath))
 	}
@@ -167,7 +177,7 @@ func updatePolicies(ctx context.Context, configRepoURL, sshPrivateKeyPath, svc, 
 
 	// commit changes
 	log.Debugf("internal/policy: commit policies file '%s'", policiesPath)
-	err = git.Commit(ctx, repo, path.Join(".", "policies"), committerName, committerEmail, committerName, committerEmail, commitMsg, sshPrivateKeyPath)
+	err = git.Commit(ctx, repo, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg, s.SSHPrivateKeyPath)
 	if err != nil {
 		// indicates that the applied policy was already set
 		if err == git.ErrNothingToCommit {
