@@ -133,7 +133,7 @@ func initCommand(options *Options) *cobra.Command {
 	command.Flags().StringVar(&s.Shuttle.Plan.URL, "shuttle-plan-url", "", "the url to the shuttle plan commit")
 	command.Flags().StringVar(&s.Shuttle.Plan.Message, "shuttle-plan-message", "", "the shuttle plan commit message")
 	command.Flags().StringVar(&s.Shuttle.Plan.Branch, "shuttle-plan-branch", "", "the shuttle plan branch name")
-	command.Flags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between to emails used by Slack, key-value pair: <email>=<slack-email>")
+	command.Flags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between emails used by Git and Slack, key-value pair: <email>=<slack-email>")
 
 	command.MarkFlagRequired("artifact-id")
 	command.MarkFlagRequired("service")
