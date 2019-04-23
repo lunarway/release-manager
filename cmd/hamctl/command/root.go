@@ -1,19 +1,29 @@
 package command
 
 import (
-	"errors"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/http"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )
 
 // NewCommand returns a new instance of a hamctl command.
-func NewCommand() (*cobra.Command, error) {
-	var client http.Client
+func NewCommand(version *string) (*cobra.Command, error) {
+	_, email, err := git.CommitterDetails()
+	if err != nil {
+		return nil, errors.WithMessage(err, "failed to lookup git credentials")
+	}
+	client := http.Client{
+		Metadata: http.Metadata{
+			CLIVersion:  *version,
+			CallerEmail: email,
+		},
+	}
 	var service string
 	var command = &cobra.Command{
 		Use:   "hamctl",
@@ -39,7 +49,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.AddCommand(NewPolicy(&client, &service))
 	command.PersistentFlags().DurationVar(&client.Timeout, "http-timeout", 20*time.Second, "HTTP request timeout")
 	command.PersistentFlags().StringVar(&client.BaseURL, "http-base-url", "https://release-manager.dev.lunarway.com", "address of the http release manager server")
-	command.PersistentFlags().StringVar(&client.AuthToken, "http-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "auth token for the http service")
+	command.PersistentFlags().StringVar(&client.Metadata.AuthToken, "http-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "auth token for the http service")
 	command.PersistentFlags().StringVar(&service, "service", "", "service name to execute commands for")
 	return command, nil
 }

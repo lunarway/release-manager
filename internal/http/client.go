@@ -13,9 +13,15 @@ import (
 )
 
 type Client struct {
-	BaseURL   string
-	Timeout   time.Duration
-	AuthToken string
+	BaseURL  string
+	Timeout  time.Duration
+	Metadata Metadata
+}
+
+type Metadata struct {
+	AuthToken   string
+	CLIVersion  string
+	CallerEmail string
 }
 
 // URL returns a URL with provided path added to the client's base URL.
@@ -59,7 +65,9 @@ func (c *Client) Do(method string, path string, requestBody, responseBody interf
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.AuthToken)
+	req.Header.Set("Authorization", "Bearer "+c.Metadata.AuthToken)
+	req.Header.Set("X-Cli-Version", c.Metadata.CLIVersion)
+	req.Header.Set("X-Caller-Email", c.Metadata.CallerEmail)
 	resp, err := client.Do(req)
 	if err != nil {
 		return err

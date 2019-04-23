@@ -13,7 +13,7 @@ var (
 )
 
 func main() {
-	c, err := command.NewCommand()
+	c, err := command.NewCommand(&version)
 	if err != nil {
 		os.Exit(1)
 	}
