@@ -179,3 +179,19 @@ func (c *Client) NotifySlackBuildsChannel(options BuildsOptions) error {
 	}
 	return err
 }
+
+func (c *Client) NotifySlackPolicyFailed(userId, title, errorMessage string) error {
+	asUser := slack.MsgOptionAsUser(true)
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      title,
+		Color:      MsgColorRed,
+		Text:       fmt.Sprintf("```%s```", errorMessage),
+		MarkdownIn: []string{"text", "fields"},
+	})
+
+	_, _, err := c.client.PostMessage(userId, asUser, attachments)
+	if err != nil {
+		return err
+	}
+	return nil
+}

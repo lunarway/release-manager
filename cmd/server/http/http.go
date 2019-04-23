@@ -50,7 +50,7 @@ func NewServer(opts *Options, client *slack.Client) error {
 	mux.HandleFunc("/status", authenticate(opts.HamCtlAuthToken, status(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath)))
 	mux.HandleFunc("/rollback", authenticate(opts.HamCtlAuthToken, rollback(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.SlackAuthToken, opts.GrafanaDevAPIKey, opts.GrafanaStagingAPIKey, opts.GrafanaProdAPIKey, opts.GrafanaDevUrl, opts.GrafanaStagingUrl, opts.GrafanaProdUrl)))
 	mux.HandleFunc("/policies", authenticate(opts.HamCtlAuthToken, policy(opts.ConfigRepo, opts.SSHPrivateKeyPath)))
-	mux.HandleFunc("/webhook/github", githubWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.GithubWebhookSecret, opts.SlackAuthToken, opts.GrafanaDevAPIKey, opts.GrafanaStagingAPIKey, opts.GrafanaProdAPIKey, opts.GrafanaDevUrl, opts.GrafanaStagingUrl, opts.GrafanaProdUrl))
+	mux.HandleFunc("/webhook/github", githubWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, opts.GithubWebhookSecret, opts.SlackAuthToken, opts.GrafanaDevAPIKey, opts.GrafanaStagingAPIKey, opts.GrafanaProdAPIKey, opts.GrafanaDevUrl, opts.GrafanaStagingUrl, opts.GrafanaProdUrl, opts.UserMappings))
 	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(opts.ConfigRepo, opts.ArtifactFileName, opts.SSHPrivateKeyPath, client, opts.UserMappings)))
 
 	s := http.Server{
@@ -274,7 +274,7 @@ func daemonWebhook(configRepo, artifactFileName, sshPrivateKeyPath string, slack
 	}
 }
 
-func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret, slackToken, grafanaApiKeyDev, grafanaApiKeyStaging, grafanaApiKeyProd, grafanaDevUrl, grafanaStagingUrl, grafanaProdUrl string) http.HandlerFunc {
+func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhookSecret, slackToken, grafanaApiKeyDev, grafanaApiKeyStaging, grafanaApiKeyProd, grafanaDevUrl, grafanaStagingUrl, grafanaProdUrl string, userMappings map[string]string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		hook, _ := github.New(github.Options.Secret(githubWebhookSecret))
 		payload, err := hook.Parse(r, github.PushEvent)
@@ -312,6 +312,7 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 			autoReleases, err := policyinternal.GetAutoReleases(context.Background(), configRepo, sshPrivateKeyPath, serviceName, branch)
 			if err != nil {
 				logger.Errorf("http: github webhook: service '%s' branch '%s': get auto release policies failed: %v", serviceName, branch, err)
+				notifyPolicyFailure(push.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("failed for branch: %s, env: %s", serviceName, branch), slackToken, userMappings)
 				unknownError(w)
 				return
 			}
@@ -343,6 +344,7 @@ func githubWebhook(configRepo, artifactFileName, sshPrivateKeyPath, githubWebhoo
 			}
 			if errs != nil {
 				log.Errorf("http: github webhook: service '%s' branch '%s': auto-release failed with one or more errors: %v", serviceName, branch, errs)
+				notifyPolicyFailure(push.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("failed for branch: %s, env: %s", serviceName, branch), slackToken, userMappings)
 				unknownError(w)
 				return
 			}
@@ -583,4 +585,31 @@ func getGrafanaVarForEnv(env, dev, staging, prod string) string {
 		return prod
 	}
 	return ""
+}
+
+func notifyPolicyFailure(email, title, errorMessage, token string, userMappings map[string]string) {
+	client, err := slack.NewClient(token)
+	if err != nil {
+		log.Errorf("error initializing Slack Client in notifyPolicyFailure: %v", err)
+		return
+	}
+
+	if !flow.IsLunarWayEmail(email) {
+		//check UserMappings
+		lwEmail, ok := userMappings[email]
+		if !ok {
+			log.Errorf("%s is not a Lunar Way email and no mapping exist", email)
+			return
+		}
+		email = lwEmail
+	}
+	slackId, err := client.GetSlackIdByEmail(email)
+	if err != nil {
+		log.Errorf("error obtaining slackId in notifyPolicyFailure: %v", err)
+		return
+	}
+	err = client.NotifySlackPolicyFailed(slackId, title, errorMessage)
+	if err != nil {
+		log.Errorf("error notifying slack in notifyPolicyFailure: %v", err)
+	}
 }
