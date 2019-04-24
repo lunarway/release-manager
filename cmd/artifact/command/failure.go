@@ -17,6 +17,7 @@ func failureCommand(options *Options) *cobra.Command {
 			err := slack.Update(path.Join(options.RootPath, options.MessageFileName), options.SlackToken, func(m slack.Message) slack.Message {
 				m.Color = slack.MsgColorRed
 				m.Text += ":no_entry: *Unexpected error in pipeline*"
+				m.Title = m.Service + " :no_entry:"
 				return m
 			})
 			if err != nil {

@@ -30,6 +30,7 @@ type Message struct {
 	Title     string `json:"title,omitempty"`
 	TitleLink string `json:"titleLink,omitempty"`
 	Timestamp string `json:"timestamp,omitempty"`
+	Service   string `json:"service,omitempty"`
 }
 
 func Get(path string) (Message, error) {
