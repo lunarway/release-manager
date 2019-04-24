@@ -196,22 +196,6 @@ func Commit(ctx context.Context, repo *git.Repository, changesPath, authorName, 
 	return nil
 }
 
-// GlobalConfig returns the global Git configuration read from the user home
-// directory.
-func GlobalConfig() (config.Config, error) {
-	file, err := os.Open(path.Join(userHomeDir(), ".gitconfig"))
-	if err != nil {
-		return config.Config{}, err
-	}
-	decoder := config.NewDecoder(file)
-	var c config.Config
-	err = decoder.Decode(&c)
-	if err != nil {
-		return config.Config{}, err
-	}
-	return c, nil
-}
-
 // userHomeDir returns the home directory of the current user.
 //
 // It handles windows, linux and darwin operating systems by inspecting
@@ -235,18 +219,51 @@ func userHomeDir() string {
 	}
 }
 
+// CommitterDetails returns name and email read for a Git configuration file.
+//
+// Configuration files are read first in the local git repository (if available)
+// and then read the global Git configuration.
 func CommitterDetails() (string, string, error) {
-	c, err := GlobalConfig()
+	var paths []string
+	pwd, err := os.Getwd()
+	if err == nil {
+		paths = append(paths, path.Join(pwd, ".git", "config"))
+	}
+	paths = append(paths, path.Join(userHomeDir(), ".gitconfig"))
+	return credentials(paths...)
+}
+
+// credentials will try to read user name and email from provided paths.
+func credentials(paths ...string) (string, string, error) {
+	for _, path := range paths {
+		c, err := parseConfig(path)
+		if err != nil {
+			continue
+		}
+		committerName := c.Section("user").Option("name")
+		committerEmail := c.Section("user").Option("email")
+		if committerEmail == "" {
+			continue
+		}
+		if committerName == "" {
+			continue
+		}
+		return committerName, committerEmail, nil
+	}
+	return "", "", errors.Errorf("failed to read Git credentials from paths: %v", paths)
+}
+
+// parseConfig returns the Git configuration parsed from provided path.
+func parseConfig(path string) (config.Config, error) {
+	file, err := os.Open(path)
 	if err != nil {
-		return "", "", errors.WithMessage(err, "get global config")
+		return config.Config{}, err
 	}
-	committerName := c.Section("user").Option("name")
-	committerEmail := c.Section("user").Option("email")
-	if committerEmail == "" {
-		return "", "", errors.New("user.email not available in global git config")
+	decoder := config.NewDecoder(file)
+	var c config.Config
+	err = decoder.Decode(&c)
+	if err != nil {
+		return config.Config{}, err
 	}
-	if committerName == "" {
-		return "", "", errors.New("user.name not available in global git config")
-	}
-	return committerName, committerEmail, nil
+	return c, nil
 }
