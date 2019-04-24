@@ -68,7 +68,7 @@ artifact-failure:
 artifact-successful:
 	./dist/artifact successful --slack-token ${SLACK_TOKEN}
 
-artifact-slack: build_artifact artifact-init artifact-build artifact-test artifact-snyk-docker artifact-snyk-code artifact-push artifact-failure
+artifact-slack: build_artifact artifact-init artifact-build artifact-test artifact-snyk-docker artifact-snyk-code artifact-push artifact-successful
 
 release:
 	goreleaser --rm-dist --skip-publish

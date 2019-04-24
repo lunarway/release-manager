@@ -16,6 +16,7 @@ func successfulCommand(options *Options) *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			err := slack.Update(path.Join(options.RootPath, options.MessageFileName), options.SlackToken, func(m slack.Message) slack.Message {
 				m.Color = slack.MsgColorGreen
+				m.Title = m.Service + " :white_check_mark:"
 				return m
 			})
 			if err != nil {
