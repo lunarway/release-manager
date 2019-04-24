@@ -129,7 +129,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		return "", errors.WithMessage(err, fmt.Sprintf("checkout release hash '%s' from '%s'", hash, s.ConfigRepoURL))
 	}
 
-	sourceSpec, err := sourceSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment)
+	sourceSpec, err := artifact.Get(srcPath(sourceConfigRepoPath, service, "master", s.ArtifactFileName))
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 	}
