@@ -20,7 +20,12 @@ func pushCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = slack.Update(path.Join(options.RootPath, options.MessageFileName), options.SlackToken, func(m slack.Message) slack.Message {
+			client, err := slack.NewClient(options.SlackToken, options.UserMappings)
+			if err != nil {
+				fmt.Printf("Error, not able to create Slack client in successful command: %v", err)
+				return nil
+			}
+			err = client.UpdateMessage(path.Join(options.RootPath, options.MessageFileName), func(m slack.Message) slack.Message {
 				m.Text += fmt.Sprintf(":white_check_mark: *Artifact pushed:* %s", artifactId)
 				return m
 			})

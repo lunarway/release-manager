@@ -12,23 +12,23 @@ import (
 	"github.com/pkg/errors"
 )
 
-func policy(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
+func policy(policySvc *policyinternal.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPatch:
 			// only auto-release policies are available so no other validtion is required here
-			applyAutoReleasePolicy(configRepo, sshPrivateKeyPath)(w, r)
+			applyAutoReleasePolicy(policySvc)(w, r)
 		case http.MethodGet:
-			listPolicies(configRepo, sshPrivateKeyPath)(w, r)
+			listPolicies(policySvc)(w, r)
 		case http.MethodDelete:
-			deletePolicies(configRepo, sshPrivateKeyPath)(w, r)
+			deletePolicies(policySvc)(w, r)
 		default:
 			Error(w, "not found", http.StatusNotFound)
 		}
 	}
 }
 
-func applyAutoReleasePolicy(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
+func applyAutoReleasePolicy(policySvc *policyinternal.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 		var req httpinternal.ApplyAutoReleasePolicyRequest
@@ -58,10 +58,13 @@ func applyAutoReleasePolicy(configRepo, sshPrivateKeyPath string) http.HandlerFu
 			requiredFieldError(w, "committerEmail")
 			return
 		}
-		logger := log.WithFields("configRepo", configRepo, "service", req.Service, "req", req)
+		logger := log.WithFields("service", req.Service, "req", req)
 		logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release policy started", req.Service, req.Branch, req.Environment)
 		ctx := r.Context()
-		id, err := policyinternal.ApplyAutoRelease(ctx, configRepo, sshPrivateKeyPath, req.Service, req.Branch, req.Environment, req.CommitterName, req.CommitterEmail)
+		id, err := policySvc.ApplyAutoRelease(ctx, policyinternal.Actor{
+			Name:  req.CommitterName,
+			Email: req.CommitterEmail,
+		}, req.Service, req.Branch, req.Environment)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release cancelled", req.Service, req.Branch, req.Environment)
@@ -87,7 +90,7 @@ func applyAutoReleasePolicy(configRepo, sshPrivateKeyPath string) http.HandlerFu
 	}
 }
 
-func listPolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
+func listPolicies(policySvc *policyinternal.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		values := r.URL.Query()
 		service := values.Get("service")
@@ -96,9 +99,9 @@ func listPolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 			return
 		}
 
-		logger := log.WithFields("configRepo", configRepo, "service", service)
+		logger := log.WithFields("service", service)
 		ctx := r.Context()
-		policies, err := policyinternal.Get(ctx, configRepo, sshPrivateKeyPath, service)
+		policies, err := policySvc.Get(ctx, service)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Infof("http: policy: list: service '%s': get policies cancelled", service)
@@ -138,7 +141,7 @@ func mapAutoReleasePolicies(policies []policyinternal.AutoReleasePolicy) []httpi
 	return h
 }
 
-func deletePolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
+func deletePolicies(policySvc *policyinternal.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 		var req httpinternal.DeletePolicyRequest
@@ -166,10 +169,13 @@ func deletePolicies(configRepo, sshPrivateKeyPath string) http.HandlerFunc {
 			return
 		}
 
-		logger := log.WithFields("configRepo", configRepo, "service", req.Service, "req", req)
+		logger := log.WithFields("service", req.Service, "req", req)
 
 		ctx := r.Context()
-		deleted, err := policyinternal.Delete(ctx, configRepo, sshPrivateKeyPath, req.Service, ids, req.CommitterName, req.CommitterEmail)
+		deleted, err := policySvc.Delete(ctx, policyinternal.Actor{
+			Name:  req.CommitterName,
+			Email: req.CommitterEmail,
+		}, req.Service, ids)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Errorf("http: policy: delete: service '%s' ids %v: delete cancelled", req.Service, ids)

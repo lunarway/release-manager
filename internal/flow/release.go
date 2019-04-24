@@ -22,18 +22,18 @@ import (
 // artifact spec for the service and branch.
 //
 // Copy artifacts from the artifacts into the environment and commit the changes.
-func ReleaseBranch(ctx context.Context, opts FlowOptions) (string, error) {
+func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, service, branch string) (string, error) {
 	sourceConfigRepoPath, close, err := tempDir("k8s-config-release-branch")
 	if err != nil {
 		return "", err
 	}
 	defer close()
-	repo, err := git.CloneDepth(ctx, opts.ConfigRepoURL, sourceConfigRepoPath, opts.SSHPrivateKeyPath, 1)
+	repo, err := git.CloneDepth(ctx, s.ConfigRepoURL, sourceConfigRepoPath, s.SSHPrivateKeyPath, 1)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", opts.ConfigRepoURL, sourceConfigRepoPath))
+		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", s.ConfigRepoURL, sourceConfigRepoPath))
 	}
 	// repo/artifacts/{service}/{branch}/{artifactFileName}
-	artifactSpecPath := path.Join(artifactPath(sourceConfigRepoPath, opts.Service, opts.Branch), opts.ArtifactFileName)
+	artifactSpecPath := path.Join(artifactPath(sourceConfigRepoPath, service, branch), s.ArtifactFileName)
 	artifactSpec, err := artifact.Get(artifactSpecPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
@@ -42,9 +42,9 @@ func ReleaseBranch(ctx context.Context, opts FlowOptions) (string, error) {
 
 	// release service to env from the artifact path
 	// repo/artifacts/{service}/{branch}/{env}
-	artifactPath := srcPath(sourceConfigRepoPath, opts.Service, opts.Branch, opts.Environment)
+	artifactPath := srcPath(sourceConfigRepoPath, service, branch, environment)
 	// repo/{env}/releases/{ns}/{service}
-	destinationPath := releasePath(sourceConfigRepoPath, opts.Service, opts.Environment)
+	destinationPath := releasePath(sourceConfigRepoPath, service, environment)
 	log.Infof("flow: ReleaseBranch: copy resources from %s to %s", artifactPath, destinationPath)
 
 	// empty existing resources in destination
@@ -63,7 +63,7 @@ func ReleaseBranch(ctx context.Context, opts FlowOptions) (string, error) {
 	}
 	// copy artifact spec
 	// repo/{env}/releases/{ns}/{service}/{artifactFileName}
-	artifactDestinationPath := path.Join(releasePath(sourceConfigRepoPath, opts.Service, opts.Environment), opts.ArtifactFileName)
+	artifactDestinationPath := path.Join(releasePath(sourceConfigRepoPath, service, environment), s.ArtifactFileName)
 	log.Infof("flow: ReleaseBranch: copy artifact from %s to %s", artifactSpecPath, artifactDestinationPath)
 	err = copy.Copy(artifactSpecPath, artifactDestinationPath)
 	if err != nil {
@@ -73,28 +73,25 @@ func ReleaseBranch(ctx context.Context, opts FlowOptions) (string, error) {
 	authorName := artifactSpec.Application.AuthorName
 	authorEmail := artifactSpec.Application.AuthorEmail
 	artifactID := artifactSpec.ID
-	releaseMessage := git.ReleaseCommitMessage(opts.Environment, opts.Service, artifactID)
-	err = git.Commit(ctx, repo, releasePath(".", opts.Service, opts.Environment), authorName, authorEmail, opts.CommitterName, opts.CommitterEmail, releaseMessage, opts.SSHPrivateKeyPath)
+	releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID)
+	err = git.Commit(ctx, repo, releasePath(".", service, environment), authorName, authorEmail, actor.Name, actor.Email, releaseMessage, s.SSHPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}
-	err = notifyRelease(NotifyReleaseOptions{
-		SlackToken:     opts.SlackToken,
-		GrafanaApiKey:  opts.GrafanaAPIKey,
-		GrafanaBaseUrl: opts.GrafanaUrl,
-		Service:        opts.Service,
-		Environment:    opts.Environment,
-		ArtifactID:     artifactSpec.ID,
-		CommitAuthor:   artifactSpec.Application.AuthorName,
-		CommitMessage:  artifactSpec.Application.Message,
-		CommitSHA:      artifactSpec.Application.SHA,
-		CommitLink:     artifactSpec.Application.URL,
-		Releaser:       opts.CommitterName,
+	err = s.notifyRelease(NotifyReleaseOptions{
+		Service:       service,
+		Environment:   environment,
+		ArtifactID:    artifactSpec.ID,
+		CommitAuthor:  artifactSpec.Application.AuthorName,
+		CommitMessage: artifactSpec.Application.Message,
+		CommitSHA:     artifactSpec.Application.SHA,
+		CommitLink:    artifactSpec.Application.URL,
+		Releaser:      actor.Name,
 	})
 	if err != nil {
 		log.Errorf("flow: ReleaseBranch: error notifying release: %v", err)
 	}
-	log.Infof("flow: ReleaseBranch: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, opts.CommitterName, opts.CommitterEmail)
+	log.Infof("flow: ReleaseBranch: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
 	return artifactID, nil
 }
 
@@ -107,7 +104,7 @@ func ReleaseBranch(ctx context.Context, opts FlowOptions) (string, error) {
 //
 // Copy resources from the artifact commit into the environment and commit
 // the changes
-func ReleaseArtifactID(ctx context.Context, opts FlowOptions) (string, error) {
+func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environment, service, artifactID string) (string, error) {
 	sourceConfigRepoPath, closeSource, err := tempDir("k8s-config-release-artifact-source")
 	if err != nil {
 		return "", err
@@ -118,35 +115,35 @@ func ReleaseArtifactID(ctx context.Context, opts FlowOptions) (string, error) {
 		return "", err
 	}
 	defer closeDestination()
-	sourceRepo, err := git.Clone(ctx, opts.ConfigRepoURL, sourceConfigRepoPath, opts.SSHPrivateKeyPath)
+	sourceRepo, err := git.Clone(ctx, s.ConfigRepoURL, sourceConfigRepoPath, s.SSHPrivateKeyPath)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", opts.ConfigRepoURL, sourceConfigRepoPath))
+		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", s.ConfigRepoURL, sourceConfigRepoPath))
 	}
 
-	hash, err := git.LocateArtifact(sourceRepo, opts.ArtifactID)
+	hash, err := git.LocateArtifact(sourceRepo, artifactID)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("locate release '%s' from '%s'", opts.ArtifactID, opts.ConfigRepoURL))
+		return "", errors.WithMessage(err, fmt.Sprintf("locate release '%s' from '%s'", artifactID, s.ConfigRepoURL))
 	}
 	err = git.Checkout(sourceRepo, hash)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("checkout release hash '%s' from '%s'", hash, opts.ConfigRepoURL))
+		return "", errors.WithMessage(err, fmt.Sprintf("checkout release hash '%s' from '%s'", hash, s.ConfigRepoURL))
 	}
 
-	sourceSpec, err := sourceSpec(sourceConfigRepoPath, opts.ArtifactFileName, opts.Service, opts.Environment)
+	sourceSpec, err := sourceSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 	}
 
 	log.Infof("flow: ReleaseArtifactID: hash '%s' id '%s'", hash, sourceSpec.ID)
 
-	destinationRepo, err := git.Clone(ctx, opts.ConfigRepoURL, destinationConfigRepoPath, opts.SSHPrivateKeyPath)
+	destinationRepo, err := git.Clone(ctx, s.ConfigRepoURL, destinationConfigRepoPath, s.SSHPrivateKeyPath)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("clone destination repo '%s' into '%s'", opts.ConfigRepoURL, destinationConfigRepoPath))
+		return "", errors.WithMessage(err, fmt.Sprintf("clone destination repo '%s' into '%s'", s.ConfigRepoURL, destinationConfigRepoPath))
 	}
 
 	// release service to env from original release
-	sourcePath := srcPath(sourceConfigRepoPath, opts.Service, "master", opts.Environment)
-	destinationPath := releasePath(destinationConfigRepoPath, opts.Service, opts.Environment)
+	sourcePath := srcPath(sourceConfigRepoPath, service, "master", environment)
+	destinationPath := releasePath(destinationConfigRepoPath, service, environment)
 	log.Infof("flow: ReleaseArtifactID: copy resources from %s to %s", sourcePath, destinationPath)
 
 	// empty existing resources in destination
@@ -164,8 +161,8 @@ func ReleaseArtifactID(ctx context.Context, opts FlowOptions) (string, error) {
 		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", sourcePath, destinationPath))
 	}
 	// copy artifact spec
-	artifactSourcePath := srcPath(sourceConfigRepoPath, opts.Service, "master", opts.ArtifactFileName)
-	artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, opts.Service, opts.Environment), opts.ArtifactFileName)
+	artifactSourcePath := srcPath(sourceConfigRepoPath, service, "master", s.ArtifactFileName)
+	artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment), s.ArtifactFileName)
 	log.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
 	err = copy.Copy(artifactSourcePath, artifactDestinationPath)
 	if err != nil {
@@ -174,28 +171,25 @@ func ReleaseArtifactID(ctx context.Context, opts FlowOptions) (string, error) {
 
 	authorName := sourceSpec.Application.AuthorName
 	authorEmail := sourceSpec.Application.AuthorEmail
-	releaseMessage := git.ReleaseCommitMessage(opts.Environment, opts.Service, opts.ArtifactID)
-	err = git.Commit(ctx, destinationRepo, releasePath(".", opts.Service, opts.Environment), authorName, authorEmail, opts.CommitterName, opts.CommitterEmail, releaseMessage, opts.SSHPrivateKeyPath)
+	releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID)
+	err = git.Commit(ctx, destinationRepo, releasePath(".", service, environment), authorName, authorEmail, actor.Name, actor.Email, releaseMessage, s.SSHPrivateKeyPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}
-	err = notifyRelease(NotifyReleaseOptions{
-		SlackToken:     opts.SlackToken,
-		GrafanaApiKey:  opts.GrafanaAPIKey,
-		GrafanaBaseUrl: opts.GrafanaUrl,
-		Service:        opts.Service,
-		Environment:    opts.Environment,
-		ArtifactID:     sourceSpec.ID,
-		CommitAuthor:   sourceSpec.Application.AuthorName,
-		CommitMessage:  sourceSpec.Application.Message,
-		CommitSHA:      sourceSpec.Application.SHA,
-		CommitLink:     sourceSpec.Application.URL,
-		Releaser:       opts.CommitterName,
+	err = s.notifyRelease(NotifyReleaseOptions{
+		Service:       service,
+		Environment:   environment,
+		ArtifactID:    sourceSpec.ID,
+		CommitAuthor:  sourceSpec.Application.AuthorName,
+		CommitMessage: sourceSpec.Application.Message,
+		CommitSHA:     sourceSpec.Application.SHA,
+		CommitLink:    sourceSpec.Application.URL,
+		Releaser:      actor.Name,
 	})
 	if err != nil {
 		log.Errorf("flow: ReleaseBranch: error notifying release: %v", err)
 	}
-	log.Infof("flow: ReleaseArtifactID: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, opts.CommitterName, opts.CommitterEmail)
+	log.Infof("flow: ReleaseArtifactID: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
 
-	return opts.ArtifactID, nil
+	return artifactID, nil
 }

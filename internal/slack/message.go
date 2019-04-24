@@ -23,7 +23,6 @@ var (
 )
 
 type Message struct {
-	UserID    string `json:"userId,omitempty"`
 	Color     string `json:"color,omitempty"`
 	Channel   string `json:"channel,omitempty"`
 	Text      string `json:"text,omitempty"`
@@ -84,20 +83,18 @@ func Persist(path string, message Message) error {
 	return nil
 }
 
-func Update(path, token string, f func(Message) Message) error {
+// UpdateMessage updates the message in the file located at path by applying f
+// on the contents.
+//
+// The stored Slack build message is updated accordingly.
+func (c *Client) UpdateMessage(path string, f func(Message) Message) error {
 	m, err := Get(path)
 	if err != nil {
 		return errors.WithMessagef(err, "read artifact '%s'", path)
 	}
 	m = f(m)
 
-	// Setup Slack client
-	client, err := NewClient(token)
-	if err != nil {
-		return err
-	}
-
-	m.Channel, m.Timestamp, err = client.UpdateSlackBuildStatus(m.Channel, m.Title, m.TitleLink, m.Text, m.Color, m.Timestamp)
+	m.Channel, m.Timestamp, err = c.UpdateSlackBuildStatus(m.Channel, m.Title, m.TitleLink, m.Text, m.Color, m.Timestamp)
 	if err != nil {
 		return err
 	}

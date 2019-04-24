@@ -14,7 +14,12 @@ func failureCommand(options *Options) *cobra.Command {
 		Use:   "failure",
 		Short: "report failure in the pipeline",
 		RunE: func(c *cobra.Command, args []string) error {
-			err := slack.Update(path.Join(options.RootPath, options.MessageFileName), options.SlackToken, func(m slack.Message) slack.Message {
+			client, err := slack.NewClient(options.SlackToken, options.UserMappings)
+			if err != nil {
+				fmt.Printf("Error, not able to create Slack client in failure command: %v", err)
+				return nil
+			}
+			err = client.UpdateMessage(path.Join(options.RootPath, options.MessageFileName), func(m slack.Message) slack.Message {
 				m.Color = slack.MsgColorRed
 				m.Text += ":no_entry: *Unexpected error in pipeline*"
 				m.Title = m.Service + " :no_entry:"
@@ -22,12 +27,6 @@ func failureCommand(options *Options) *cobra.Command {
 			})
 			if err != nil {
 				fmt.Printf("Error, not able to update slack message with failure message: %v", err)
-				return nil
-			}
-
-			client, err := slack.NewClient(options.SlackToken)
-			if err != nil {
-				fmt.Printf("Error, not able to create Slack client in failure command: %v", err)
 				return nil
 			}
 

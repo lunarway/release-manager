@@ -11,6 +11,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Service struct {
+	Environments map[string]Environment
+}
+
+type Environment struct {
+	APIKey  string
+	BaseURL string
+}
+
 type AnnotateRequest struct {
 	What string   `json:"what,omitempty"`
 	Tags []string `json:"tags,omitempty"`
@@ -22,7 +31,7 @@ type AnnotateResponse struct {
 	Id      int64  `json:"id,omitempty"`
 }
 
-func Annotate(apiKey, baseURL string, body AnnotateRequest) error {
+func (s *Service) Annotate(env string, body AnnotateRequest) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -33,11 +42,16 @@ func Annotate(apiKey, baseURL string, body AnnotateRequest) error {
 		return err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, baseURL+"/api/annotations/graphite", b)
+	e, ok := s.Environments[env]
+	if !ok {
+		return errors.New("unknown environment")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, e.BaseURL+"/api/annotations/graphite", b)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Authorization", "Bearer "+e.APIKey)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {

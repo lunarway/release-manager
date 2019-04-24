@@ -225,8 +225,12 @@ func setStage(s artifact.Spec, stage artifact.Stage) artifact.Spec {
 }
 
 func notifySlack(options *Options, text, color string) error {
+	client, err := slack.NewClient(options.SlackToken, options.UserMappings)
+	if err != nil {
+		return err
+	}
 	messageFilePath := path.Join(options.RootPath, options.MessageFileName)
-	err := slack.Update(messageFilePath, options.SlackToken, func(m slack.Message) slack.Message {
+	err = client.UpdateMessage(messageFilePath, func(m slack.Message) slack.Message {
 		m.Text += text + "\n"
 		m.Color = color
 		return m

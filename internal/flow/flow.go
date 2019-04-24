@@ -21,6 +21,15 @@ var (
 	ErrUnknownEnvironment = errors.New("unknown environment")
 )
 
+type Service struct {
+	ConfigRepoURL     string
+	ArtifactFileName  string
+	SSHPrivateKeyPath string
+	UserMappings      map[string]string
+	Slack             *slack.Client
+	Grafana           *grafana.Service
+}
+
 type Environment struct {
 	Tag                   string    `json:"tag,omitempty"`
 	Committer             string    `json:"committer,omitempty"`
@@ -39,35 +48,25 @@ type StatusResponse struct {
 	Prod    Environment `json:"prod,omitempty"`
 }
 
-type FlowOptions struct {
-	ConfigRepoURL     string
-	ArtifactFileName  string
-	Service           string
-	Environment       string
-	CommitterName     string
-	CommitterEmail    string
-	SSHPrivateKeyPath string
-	SlackToken        string
-	GrafanaAPIKey     string
-	GrafanaUrl        string
-	Branch            string
-	ArtifactID        string
+type Actor struct {
+	Email string
+	Name  string
 }
 
-func Status(ctx context.Context, configRepoURL, artifactFileName, service, sshPrivateKeyPath string) (StatusResponse, error) {
+func (s *Service) Status(ctx context.Context, service string) (StatusResponse, error) {
 	sourceConfigRepoPath, close, err := tempDir("k8s-config-status")
 	if err != nil {
 		return StatusResponse{}, err
 	}
 	defer close()
 	// find current released artifact.json for each environment
-	log.Debugf("Cloning source config repo %s into %s", configRepoURL, sourceConfigRepoPath)
-	_, err = git.Clone(ctx, configRepoURL, sourceConfigRepoPath, sshPrivateKeyPath)
+	log.Debugf("Cloning source config repo %s into %s", s.ConfigRepoURL, sourceConfigRepoPath)
+	_, err = git.Clone(ctx, s.ConfigRepoURL, sourceConfigRepoPath, s.SSHPrivateKeyPath)
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", configRepoURL, sourceConfigRepoPath))
+		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", s.ConfigRepoURL, sourceConfigRepoPath))
 	}
 
-	devSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "dev")
+	devSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "dev")
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -75,7 +74,7 @@ func Status(ctx context.Context, configRepoURL, artifactFileName, service, sshPr
 		}
 	}
 
-	stagingSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "staging")
+	stagingSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "staging")
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -83,7 +82,7 @@ func Status(ctx context.Context, configRepoURL, artifactFileName, service, sshPr
 		}
 	}
 
-	prodSpec, err := envSpec(sourceConfigRepoPath, artifactFileName, service, "prod")
+	prodSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "prod")
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -235,26 +234,19 @@ func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resource
 }
 
 type NotifyReleaseOptions struct {
-	GrafanaBaseUrl string
-	GrafanaApiKey  string
-	SlackToken     string
-	Environment    string
-	Service        string
-	ArtifactID     string
-	Squad          string
-	CommitAuthor   string
-	CommitMessage  string
-	CommitSHA      string
-	CommitLink     string
-	Releaser       string
+	Environment   string
+	Service       string
+	ArtifactID    string
+	Squad         string
+	CommitAuthor  string
+	CommitMessage string
+	CommitSHA     string
+	CommitLink    string
+	Releaser      string
 }
 
-func notifyRelease(opts NotifyReleaseOptions) error {
-	client, err := slack.NewClient(opts.SlackToken)
-	if err != nil {
-		return err
-	}
-	err = client.NotifySlackReleasesChannel(slack.ReleaseOptions{
+func (s *Service) notifyRelease(opts NotifyReleaseOptions) error {
+	err := s.Slack.NotifySlackReleasesChannel(slack.ReleaseOptions{
 		Service:       opts.Service,
 		Environment:   opts.Environment,
 		ArtifactID:    opts.ArtifactID,
@@ -268,7 +260,7 @@ func notifyRelease(opts NotifyReleaseOptions) error {
 		return err
 	}
 
-	err = grafana.Annotate(opts.GrafanaApiKey, opts.GrafanaBaseUrl, grafana.AnnotateRequest{
+	err = s.Grafana.Annotate(opts.Environment, grafana.AnnotateRequest{
 		What: fmt.Sprintf("Deployment: %s", opts.Service),
 		Data: fmt.Sprintf("Author: %s\nMessage: %s\nArtifactID: %s", opts.CommitAuthor, opts.CommitMessage, opts.ArtifactID),
 		Tags: []string{"deployment", opts.Service},
