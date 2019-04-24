@@ -111,6 +111,7 @@ func initCommand(options *Options) *cobra.Command {
 
 	command.Flags().StringVar(&s.ID, "artifact-id", "", "the id of the artifact")
 	command.Flags().StringVar(&s.Service, "service", "", "the service name")
+	command.Flags().StringVar(&s.Namespace, "namespace", "", "the namespace to deploy the service to")
 
 	// Init git data
 	command.Flags().StringVar(&s.Application.AuthorName, "git-author-name", "", "the commit author name")
