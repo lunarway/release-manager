@@ -1,7 +1,6 @@
 package command
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -82,7 +81,8 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 			go func() {
 				select {
 				case sig := <-sigs:
-					done <- fmt.Errorf("received os signal '%s'", sig)
+					log.Infof("received os signal '%s'", sig)
+					done <- nil
 				}
 			}()
 
