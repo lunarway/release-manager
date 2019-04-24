@@ -279,7 +279,7 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, sla
 			serviceName := matches[1]
 
 			// locate branch of commit
-			branch, ok := branchName(push.HeadCommit.Modified, flowSvc.ArtifactFileName, serviceName)
+			branch, ok := git.BranchName(push.HeadCommit.Modified, flowSvc.ArtifactFileName, serviceName)
 			if !ok {
 				log.Debugf("http: github webhook: service '%s': branch name not found", serviceName)
 				w.WriteHeader(http.StatusOK)
@@ -337,26 +337,6 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, sla
 
 func isBranchPush(ref string) bool {
 	return strings.HasPrefix(ref, "refs/heads/")
-}
-
-// branchName returns the branch name and a bool indicating one is found from a
-// list of modified file paths.
-//
-// It only handles files that originates from a build operation, ie. non-build
-// commits cannot be extracted.
-func branchName(modifiedFiles []string, artifactFileName, svc string) (string, bool) {
-	var branch string
-	for _, f := range modifiedFiles {
-		if !strings.Contains(f, artifactFileName) {
-			continue
-		}
-		branch = strings.TrimPrefix(f, fmt.Sprintf("artifacts/%s/", svc))
-		break
-	}
-	if len(branch) == 0 {
-		return "", false
-	}
-	return strings.TrimSuffix(branch, fmt.Sprintf("/%s", artifactFileName)), true
 }
 
 func promote(flowSvc *flow.Service) http.HandlerFunc {
