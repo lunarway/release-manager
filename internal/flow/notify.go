@@ -53,7 +53,7 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 
 	log.Infof("Commit: %+v", commit)
 
-	if !IsLunarWayEmail(commit.Author.Email) {
+	if !strings.Contains(commit.Author.Email, "@lunarway.com") {
 		//check UserMappings
 		lwEmail, ok := s.UserMappings[commit.Author.Email]
 		if !ok {
@@ -63,19 +63,10 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 		commit.Author.Email = lwEmail
 	}
 
-	slackUserId, err := s.Slack.GetSlackIdByEmail(commit.Author.Email)
-	if err != nil {
-		return errors.WithMessage(err, "locate slack userId")
-	}
-
-	err = s.Slack.PostPrivateMessage(slackUserId, env, service, sourceSpec, event)
+	err = s.Slack.PostPrivateMessage(commit.Author.Email, env, service, sourceSpec, event)
 	if err != nil {
 		return errors.WithMessage(err, "post private message")
 	}
 
 	return nil
-}
-
-func IsLunarWayEmail(email string) bool {
-	return strings.Contains(email, "@lunarway.com")
 }

@@ -2,26 +2,45 @@ package slack
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/nlopes/slack"
 	"github.com/pkg/errors"
 )
 
 type Client struct {
-	client *slack.Client
+	client        *slack.Client
+	emailMappings map[string]string
 }
 
-func NewClient(token string) (*Client, error) {
+var (
+	// ErrUnknownEmail indicates that an email not from the lunarway.com domain
+	// is used and no email mapping exists.
+	ErrUnknownEmail = errors.New("not a lunarway email")
+)
+
+func NewClient(token string, emailMappings map[string]string) (*Client, error) {
 	slackClient := slack.New(token)
 	client := Client{
-		client: slackClient,
+		client:        slackClient,
+		emailMappings: emailMappings,
 	}
 	return &client, nil
 }
 
-func (c *Client) GetSlackIdByEmail(email string) (string, error) {
+func (c *Client) getIdByEmail(email string) (string, error) {
+	if !strings.Contains(email, "@lunarway.com") {
+		// check for fallback emails
+		lwEmail, ok := c.emailMappings[email]
+		if !ok {
+			log.Errorf("%s is not a Lunar Way email and no mapping exist", email)
+			return "", ErrUnknownEmail
+		}
+		email = lwEmail
+	}
 	user, err := c.client.GetUserByEmail(email)
 	if err != nil {
 		return "", err
@@ -45,7 +64,11 @@ func (c *Client) UpdateSlackBuildStatus(channel, title, titleLink, text, color, 
 	return respChannel, timestamp, nil
 }
 
-func (c *Client) PostSlackBuildStarted(userId, title, titleLink, text, color string) (string, string, error) {
+func (c *Client) PostSlackBuildStarted(email, title, titleLink, text, color string) (string, string, error) {
+	userID, err := c.getIdByEmail(email)
+	if err != nil {
+		return "", "", err
+	}
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      title,
@@ -55,14 +78,18 @@ func (c *Client) PostSlackBuildStarted(userId, title, titleLink, text, color str
 		MarkdownIn: []string{"text", "fields"},
 	})
 
-	respChannel, timestamp, err := c.client.PostMessage(userId, asUser, attachments)
+	respChannel, timestamp, err := c.client.PostMessage(userID, asUser, attachments)
 	if err != nil {
 		return "", "", err
 	}
 	return respChannel, timestamp, err
 }
 
-func (c *Client) PostPrivateMessage(userID, env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) error {
+func (c *Client) PostPrivateMessage(email, env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) error {
+	userID, err := c.getIdByEmail(email)
+	if err != nil {
+		return err
+	}
 	asUser := slack.MsgOptionAsUser(true)
 	switch podNotify.State {
 	case "CrashLoopBackOff":
@@ -180,7 +207,11 @@ func (c *Client) NotifySlackBuildsChannel(options BuildsOptions) error {
 	return err
 }
 
-func (c *Client) NotifySlackPolicyFailed(userId, title, errorMessage string) error {
+func (c *Client) NotifySlackPolicyFailed(email, title, errorMessage string) error {
+	userID, err := c.getIdByEmail(email)
+	if err != nil {
+		return err
+	}
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      title,
@@ -189,7 +220,7 @@ func (c *Client) NotifySlackPolicyFailed(userId, title, errorMessage string) err
 		MarkdownIn: []string{"text", "fields"},
 	})
 
-	_, _, err := c.client.PostMessage(userId, asUser, attachments)
+	_, _, err = c.client.PostMessage(userID, asUser, attachments)
 	if err != nil {
 		return err
 	}

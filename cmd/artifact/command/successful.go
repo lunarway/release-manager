@@ -14,19 +14,18 @@ func successfulCommand(options *Options) *cobra.Command {
 		Use:   "successful",
 		Short: "report successful in the pipeline",
 		RunE: func(c *cobra.Command, args []string) error {
-			err := slack.Update(path.Join(options.RootPath, options.MessageFileName), options.SlackToken, func(m slack.Message) slack.Message {
+			client, err := slack.NewClient(options.SlackToken, options.UserMappings)
+			if err != nil {
+				fmt.Printf("Error, not able to create Slack client in successful command: %v", err)
+				return nil
+			}
+			err = client.UpdateMessage(path.Join(options.RootPath, options.MessageFileName), func(m slack.Message) slack.Message {
 				m.Color = slack.MsgColorGreen
 				m.Title = m.Service + " :white_check_mark:"
 				return m
 			})
 			if err != nil {
 				fmt.Printf("Error, not able to update slack message with successful message: %v", err)
-				return nil
-			}
-
-			client, err := slack.NewClient(options.SlackToken)
-			if err != nil {
-				fmt.Printf("Error, not able to create Slack client in successful command: %v", err)
 				return nil
 			}
 

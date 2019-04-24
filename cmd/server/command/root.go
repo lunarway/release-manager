@@ -32,7 +32,6 @@ func NewCommand() (*cobra.Command, error) {
 			if err != nil {
 				return err
 			}
-			httpOpts.UserMappings = userMappings
 			return nil
 		},
 		Run: func(c *cobra.Command, args []string) {

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
-	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -33,8 +32,10 @@ func initCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			if !flow.IsLunarWayEmail(s.Application.AuthorEmail) {
+			isLunarWayEmail := func(email string) bool {
+				return strings.Contains(email, "@lunarway.com")
+			}
+			if !isLunarWayEmail(s.Application.AuthorEmail) {
 				lwEmail, ok := options.UserMappings[s.Application.AuthorEmail]
 				if !ok {
 					// Don't break, just continue and use the provided email
@@ -44,7 +45,7 @@ func initCommand(options *Options) *cobra.Command {
 				}
 			}
 
-			if !flow.IsLunarWayEmail(s.Application.CommitterEmail) {
+			if !isLunarWayEmail(s.Application.CommitterEmail) {
 				lwEmail, ok := options.UserMappings[s.Application.CommitterEmail]
 				if !ok {
 					// Don't break, just continue and use the provided email
@@ -70,16 +71,9 @@ func initCommand(options *Options) *cobra.Command {
 			// If we have an email to use for slack, lets inform
 			if s.Application.AuthorEmail != "" {
 				// Setup Slack client
-				client, err := slack.NewClient(options.SlackToken)
+				client, err := slack.NewClient(options.SlackToken, options.UserMappings)
 				if err != nil {
 					fmt.Printf("Error creating Slack client")
-					return nil
-				}
-
-				// retrieve the slack userId to communicate directly
-				userId, err := client.GetSlackIdByEmail(s.Application.AuthorEmail)
-				if err != nil {
-					fmt.Printf("Error getting Slack Id for author: %s", s.Application.AuthorEmail)
 					return nil
 				}
 
@@ -88,7 +82,7 @@ func initCommand(options *Options) *cobra.Command {
 				titleLink := s.CI.JobURL
 				text := fmt.Sprintf("Build for branch: <%s|*%s*>\n", s.Application.URL, s.Application.Branch)
 				color := slack.MsgColorYellow
-				respChan, timestamp, err := client.PostSlackBuildStarted(userId, title, titleLink, text, color)
+				respChan, timestamp, err := client.PostSlackBuildStarted(s.Application.AuthorEmail, title, titleLink, text, color)
 				if err != nil {
 					return nil
 				}
@@ -99,7 +93,6 @@ func initCommand(options *Options) *cobra.Command {
 					Title:     title,
 					TitleLink: titleLink,
 					Text:      text,
-					UserID:    userId,
 					Channel:   respChan,
 					Timestamp: timestamp,
 					Color:     color,

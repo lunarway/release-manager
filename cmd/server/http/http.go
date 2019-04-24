@@ -27,7 +27,6 @@ type Options struct {
 	GithubWebhookSecret string
 	HamCtlAuthToken     string
 	DaemonAuthToken     string
-	UserMappings        map[string]string
 }
 
 func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service) error {
@@ -38,7 +37,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	mux.HandleFunc("/status", authenticate(opts.HamCtlAuthToken, status(flowSvc)))
 	mux.HandleFunc("/rollback", authenticate(opts.HamCtlAuthToken, rollback(flowSvc)))
 	mux.HandleFunc("/policies", authenticate(opts.HamCtlAuthToken, policy(policySvc)))
-	mux.HandleFunc("/webhook/github", githubWebhook(flowSvc, policySvc, slackClient, opts.GithubWebhookSecret, opts.UserMappings))
+	mux.HandleFunc("/webhook/github", githubWebhook(flowSvc, policySvc, slackClient, opts.GithubWebhookSecret))
 	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(flowSvc)))
 
 	s := http.Server{
@@ -254,7 +253,7 @@ func daemonWebhook(flowSvc *flow.Service) http.HandlerFunc {
 	}
 }
 
-func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, slackClient *slack.Client, githubWebhookSecret string, userMappings map[string]string) http.HandlerFunc {
+func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		hook, _ := github.New(github.Options.Secret(githubWebhookSecret))
 		payload, err := hook.Parse(r, github.PushEvent)
@@ -292,7 +291,10 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, sla
 			autoReleases, err := policySvc.GetAutoReleases(context.Background(), serviceName, branch)
 			if err != nil {
 				logger.Errorf("http: github webhook: service '%s' branch '%s': get auto release policies failed: %v", serviceName, branch, err)
-				notifyPolicyFailure(slackClient, push.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("failed for branch: %s, env: %s", serviceName, branch), userMappings)
+				err := slackClient.NotifySlackPolicyFailed(push.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("failed for branch: %s, env: %s", serviceName, branch))
+				if err != nil {
+					log.Errorf("http: github webhook: get auto-release policies: error notifying slack: %v", err)
+				}
 				unknownError(w)
 				return
 			}
@@ -315,7 +317,10 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, sla
 			}
 			if errs != nil {
 				log.Errorf("http: github webhook: service '%s' branch '%s': auto-release failed with one or more errors: %v", serviceName, branch, errs)
-				notifyPolicyFailure(slackClient, push.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("failed for branch: %s, env: %s", serviceName, branch), userMappings)
+				err := slackClient.NotifySlackPolicyFailed(push.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("failed for branch: %s, env: %s", serviceName, branch))
+				if err != nil {
+					log.Errorf("http: github webhook: auto-release failed: error notifying slack: %v", err)
+				}
 				unknownError(w)
 				return
 			}
@@ -516,25 +521,4 @@ func release(flowSvc *flow.Service) http.HandlerFunc {
 
 func convertTimeToEpoch(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
-}
-
-func notifyPolicyFailure(client *slack.Client, email, title, errorMessage string, userMappings map[string]string) {
-	if !flow.IsLunarWayEmail(email) {
-		//check UserMappings
-		lwEmail, ok := userMappings[email]
-		if !ok {
-			log.Errorf("%s is not a Lunar Way email and no mapping exist", email)
-			return
-		}
-		email = lwEmail
-	}
-	slackId, err := client.GetSlackIdByEmail(email)
-	if err != nil {
-		log.Errorf("error obtaining slackId in notifyPolicyFailure: %v", err)
-		return
-	}
-	err = client.NotifySlackPolicyFailed(slackId, title, errorMessage)
-	if err != nil {
-		log.Errorf("error notifying slack in notifyPolicyFailure: %v", err)
-	}
 }

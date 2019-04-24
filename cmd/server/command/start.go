@@ -37,7 +37,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 		Short: "start the release-manager",
 		RunE: func(c *cobra.Command, args []string) error {
 			done := make(chan error, 1)
-			slackClient, err := slack.NewClient(*slackAuthToken)
+			slackClient, err := slack.NewClient(*slackAuthToken, userMappings)
 			if err != nil {
 				return err
 			}
