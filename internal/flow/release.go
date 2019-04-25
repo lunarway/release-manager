@@ -129,7 +129,12 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		return "", errors.WithMessage(err, fmt.Sprintf("checkout release hash '%s' from '%s'", hash, s.ConfigRepoURL))
 	}
 
-	sourceSpec, err := sourceSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment)
+	branch, err := git.BranchFromHead(ctx, sourceRepo, s.ArtifactFileName, service)
+	if err != nil {
+		return "", errors.WithMessagef(err, "locate branch from commit hash '%s'", hash)
+	}
+	fmt.Printf("found branch %s\n", branch)
+	sourceSpec, err := artifact.Get(srcPath(sourceConfigRepoPath, service, branch, s.ArtifactFileName))
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 	}
@@ -142,7 +147,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	}
 
 	// release service to env from original release
-	sourcePath := srcPath(sourceConfigRepoPath, service, "master", environment)
+	sourcePath := srcPath(sourceConfigRepoPath, service, branch, environment)
 	destinationPath := releasePath(destinationConfigRepoPath, service, environment)
 	log.Infof("flow: ReleaseArtifactID: copy resources from %s to %s", sourcePath, destinationPath)
 
@@ -161,7 +166,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", sourcePath, destinationPath))
 	}
 	// copy artifact spec
-	artifactSourcePath := srcPath(sourceConfigRepoPath, service, "master", s.ArtifactFileName)
+	artifactSourcePath := srcPath(sourceConfigRepoPath, service, branch, s.ArtifactFileName)
 	artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment), s.ArtifactFileName)
 	log.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
 	err = copy.Copy(artifactSourcePath, artifactDestinationPath)
