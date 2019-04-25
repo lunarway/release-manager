@@ -10,6 +10,7 @@ import (
 )
 
 func failureCommand(options *Options) *cobra.Command {
+	var errorMessage string
 	command := &cobra.Command{
 		Use:   "failure",
 		Short: "report failure in the pipeline",
@@ -21,7 +22,7 @@ func failureCommand(options *Options) *cobra.Command {
 			}
 			err = client.UpdateMessage(path.Join(options.RootPath, options.MessageFileName), func(m slack.Message) slack.Message {
 				m.Color = slack.MsgColorRed
-				m.Text += ":no_entry: *Unexpected error in pipeline*"
+				m.Text += fmt.Sprintf(":no_entry: *%s*", errorMessage)
 				m.Title = m.Service + " :no_entry:"
 				return m
 			})
@@ -55,5 +56,6 @@ func failureCommand(options *Options) *cobra.Command {
 			return nil
 		},
 	}
+	command.Flags().StringVar(&errorMessage, "error-message", "Unexpected error in pipeline", "error message to send to slack")
 	return command
 }

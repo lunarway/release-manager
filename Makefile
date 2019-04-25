@@ -63,12 +63,12 @@ artifact-snyk-code:
 	./dist/artifact add snyk-code --slack-token ${SLACK_TOKEN} --high 0 --medium 0 --low 0 --url "https://example.com"
 
 artifact-failure:
-	./dist/artifact failure --slack-token ${SLACK_TOKEN}
+	./dist/artifact failure --slack-token ${SLACK_TOKEN} --error-message "Build failed"
 
 artifact-successful:
 	./dist/artifact successful --slack-token ${SLACK_TOKEN}
 
-artifact-slack: build_artifact artifact-init artifact-build artifact-test artifact-snyk-docker artifact-snyk-code artifact-push artifact-successful
+artifact-slack: build_artifact artifact-init artifact-build artifact-test artifact-snyk-docker artifact-snyk-code artifact-push artifact-failure
 
 release:
 	goreleaser --rm-dist --skip-publish
