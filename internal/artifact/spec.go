@@ -22,6 +22,7 @@ var (
 type Spec struct {
 	ID          string     `json:"id,omitempty"`
 	Service     string     `json:"service,omitempty"`
+	Namespace   string     `json:"namespace,omitempty"`
 	Application Repository `json:"application,omitempty"`
 	CI          CI         `json:"ci,omitempty"`
 	Squad       string     `json:"squad,omitempty"`
