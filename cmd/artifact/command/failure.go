@@ -14,12 +14,6 @@ func failureCommand(options *Options) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "failure",
 		Short: "report failure in the pipeline",
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if errorMessage == "" {
-				errorMessage = "Unexpected error in pipeline"
-			}
-			return nil
-		},
 		RunE: func(c *cobra.Command, args []string) error {
 			client, err := slack.NewClient(options.SlackToken, options.UserMappings)
 			if err != nil {
@@ -62,6 +56,6 @@ func failureCommand(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&errorMessage, "error-message", "", "error message to send to slack")
+	command.Flags().StringVar(&errorMessage, "error-message", "Unexpected error in pipeline", "error message to send to slack")
 	return command
 }
