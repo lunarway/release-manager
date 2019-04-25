@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/lunarway/release-manager/internal/log"
+
 	"github.com/lunarway/release-manager/cmd/artifact/command"
 	"github.com/spf13/cobra"
 )
@@ -13,6 +15,7 @@ var (
 )
 
 func main() {
+	log.Init()
 	c, err := command.NewCommand()
 	if err != nil {
 		os.Exit(1)
