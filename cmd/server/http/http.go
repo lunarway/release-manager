@@ -183,7 +183,7 @@ func rollback(flowSvc *flow.Service) http.HandlerFunc {
 			return
 		}
 		// default namespace to environment if it's empty. For most devlopers this
-		// allows them to avoid setting the namespac flag for services.
+		// allows them to avoid setting the namespace flag for requests.
 		if emptyString(req.Namespace) {
 			req.Namespace = req.Environment
 		}
@@ -202,7 +202,7 @@ func rollback(flowSvc *flow.Service) http.HandlerFunc {
 			}
 			switch errors.Cause(err) {
 			case flow.ErrNamespaceNotAllowedByArtifact:
-				logger.Infof("http: rollback rejcted: env '%s' service '%s': %v", req.Environment, req.Service, err)
+				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
 				Error(w, "namespace not allowed by artifact", http.StatusBadRequest)
 				return
 			case git.ErrReleaseNotFound:
@@ -210,7 +210,7 @@ func rollback(flowSvc *flow.Service) http.HandlerFunc {
 				Error(w, fmt.Sprintf("no release of service '%s' available for rollback in environment '%s'", req.Service, req.Environment), http.StatusBadRequest)
 				return
 			case artifact.ErrFileNotFound:
-				logger.Infof("http: rollback rejected: env '%s' namespace '%s' service '%s': %v", req.Environment, req.Namespace, req.Service, err)
+				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
 				Error(w, fmt.Sprintf("no release of service '%s' available for rollback in environment '%s'. Are you missing a namespace?", req.Service, req.Environment), http.StatusBadRequest)
 				return
 			case git.ErrNothingToCommit:
@@ -371,7 +371,7 @@ func promote(flowSvc *flow.Service) http.HandlerFunc {
 			return
 		}
 		// default namespace to environment if it's empty. For most devlopers this
-		// allows them to avoid setting the namespac flag for services.
+		// allows them to avoid setting the namespace flag for requests.
 		if emptyString(req.Namespace) {
 			req.Namespace = req.Environment
 		}
