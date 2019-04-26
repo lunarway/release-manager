@@ -5,9 +5,10 @@ type StatusRequest struct {
 }
 
 type StatusResponse struct {
-	Dev     *Environment `json:"dev,omitempty"`
-	Staging *Environment `json:"staging,omitempty"`
-	Prod    *Environment `json:"prod,omitempty"`
+	DefaultNamespaces bool         `json:"defaultNamespaces,omitempty"`
+	Dev               *Environment `json:"dev,omitempty"`
+	Staging           *Environment `json:"staging,omitempty"`
+	Prod              *Environment `json:"prod,omitempty"`
 }
 
 type Environment struct {

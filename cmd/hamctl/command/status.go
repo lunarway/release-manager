@@ -37,6 +37,12 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if !someManaged(resp.Dev, resp.Staging, resp.Prod) {
+				if resp.DefaultNamespaces {
+					fmt.Printf("Using default namespaces. ")
+				}
+				fmt.Printf("Are you setting the right namespace?\n")
+			}
 			fmt.Printf("\n")
 			color.Green("dev:\n")
 			printStatus(resp.Dev)
@@ -53,6 +59,15 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 	return command
 }
 
+// someManaged returns true if any of provided environments are managed.
+func someManaged(envs ...*httpinternal.Environment) bool {
+	for _, e := range envs {
+		if e != nil && e.Tag != "" {
+			return true
+		}
+	}
+	return false
+}
 func Time(epoch int64) time.Time {
 	return time.Unix(epoch/1000, 0)
 }

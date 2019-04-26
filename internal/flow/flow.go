@@ -44,9 +44,10 @@ type Environment struct {
 }
 
 type StatusResponse struct {
-	Dev     Environment `json:"dev,omitempty"`
-	Staging Environment `json:"staging,omitempty"`
-	Prod    Environment `json:"prod,omitempty"`
+	DefaultNamespaces bool        `json:"defaultNamespaces,omitempty"`
+	Dev               Environment `json:"dev,omitempty"`
+	Staging           Environment `json:"staging,omitempty"`
+	Prod              Environment `json:"prod,omitempty"`
 }
 
 type Actor struct {
@@ -67,11 +68,14 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", s.ConfigRepoURL, sourceConfigRepoPath))
 	}
 
-	devNamespace := namespace
-	if devNamespace == "" {
-		devNamespace = namespace
+	defaultNamespaces := namespace == ""
+	defaultNamespace := func(env string) string {
+		if defaultNamespaces {
+			return env
+		}
+		return namespace
 	}
-	devSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "dev", devNamespace)
+	devSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "dev", defaultNamespace("dev"))
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -79,11 +83,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 		}
 	}
 
-	stagingNamespace := namespace
-	if stagingNamespace == "" {
-		stagingNamespace = namespace
-	}
-	stagingSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "staging", stagingNamespace)
+	stagingSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "staging", defaultNamespace("staging"))
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -91,11 +91,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 		}
 	}
 
-	prodNamespace := namespace
-	if prodNamespace == "" {
-		prodNamespace = namespace
-	}
-	prodSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "prod", prodNamespace)
+	prodSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "prod", defaultNamespace("prod"))
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -104,6 +100,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 
 	return StatusResponse{
+		DefaultNamespaces: defaultNamespaces,
 		Dev: Environment{
 			Tag:                   devSpec.ID,
 			Committer:             devSpec.Application.CommitterName,

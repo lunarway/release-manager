@@ -141,9 +141,10 @@ func status(flowSvc *flow.Service) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 
 		err = json.NewEncoder(w).Encode(httpinternal.StatusResponse{
-			Dev:     &dev,
-			Staging: &staging,
-			Prod:    &prod,
+			DefaultNamespaces: s.DefaultNamespaces,
+			Dev:               &dev,
+			Staging:           &staging,
+			Prod:              &prod,
 		})
 		if err != nil {
 			logger.Errorf("http: status: service '%s': marshal response failed: %v", service, err)
