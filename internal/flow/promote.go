@@ -65,7 +65,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 	}
 
 	// if artifact has no namespace we only allow using the environment as
-	// nameespace.
+	// namespace.
 	if sourceSpec.Namespace == "" && namespace != environment {
 		return PromoteResult{}, errors.WithMessagef(ErrNamespaceNotAllowedByArtifact, "namespace '%s'", namespace)
 	}

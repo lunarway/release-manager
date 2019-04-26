@@ -56,7 +56,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 	}
 
 	// if artifact has no namespace we only allow using the environment as
-	// nameespace.
+	// namespace.
 	if currentSpec.Namespace == "" && namespace != environment {
 		return RollbackResult{}, errors.WithMessagef(ErrNamespaceNotAllowedByArtifact, "namespace '%s'", namespace)
 	}
