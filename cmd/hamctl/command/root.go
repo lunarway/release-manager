@@ -29,10 +29,9 @@ func NewCommand(version *string) (*cobra.Command, error) {
 		Use:   "hamctl",
 		Short: "hamctl controls a release manager server",
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
-			service = strings.TrimSpace(service)
-			if service == "" {
-				service = readShuttleService()
-			}
+			defaultShuttleString(shuttleSpecFromFile, &service, func(s *shuttleSpec) string {
+				return s.Vars.Service
+			})
 			if service == "" {
 				return errors.New("required flag(s) \"service\" not set")
 			}
@@ -55,24 +54,45 @@ func NewCommand(version *string) (*cobra.Command, error) {
 }
 
 type shuttleSpec struct {
-	Vars struct {
-		Service string `yaml:"service"`
-	}
+	Vars shuttleSpecVars
 }
 
-// readShuttleService tries to read the service name from a shuttle
-// specification.
-// If the file is not found or cannot be parsed, we just fall back to the flag.
-func readShuttleService() string {
+type shuttleSpecVars struct {
+	Service   string `yaml:"service"`
+	Namespace string `yaml:"namespace"`
+}
+
+// shuttleSpecFromFile tries to read a shuttle specification.
+func shuttleSpecFromFile() (shuttleSpec, bool) {
 	f, err := os.Open("shuttle.yaml")
 	if err != nil {
-		return ""
+		return shuttleSpec{}, false
 	}
 	var spec shuttleSpec
 	decoder := yaml.NewDecoder(f)
 	err = decoder.Decode(&spec)
 	if err != nil {
-		return ""
+		return shuttleSpec{}, false
 	}
-	return spec.Vars.Service
+	return spec, true
+}
+
+// defaultShuttleString writes a value from a shuttle specification to flagValue
+// if the provided flagValue is empty and the value in the spec is set.
+func defaultShuttleString(shuttleLocator func() (shuttleSpec, bool), flagValue *string, f func(s *shuttleSpec) string) {
+	if flagValue == nil {
+		return
+	}
+	t := strings.TrimSpace(*flagValue)
+	if t != "" {
+		return
+	}
+	spec, ok := shuttleLocator()
+	if !ok {
+		return
+	}
+	t = f(&spec)
+	if t != "" {
+		*flagValue = t
+	}
 }

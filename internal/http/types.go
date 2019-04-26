@@ -5,9 +5,10 @@ type StatusRequest struct {
 }
 
 type StatusResponse struct {
-	Dev     *Environment `json:"dev,omitempty"`
-	Staging *Environment `json:"staging,omitempty"`
-	Prod    *Environment `json:"prod,omitempty"`
+	DefaultNamespaces bool         `json:"defaultNamespaces,omitempty"`
+	Dev               *Environment `json:"dev,omitempty"`
+	Staging           *Environment `json:"staging,omitempty"`
+	Prod              *Environment `json:"prod,omitempty"`
 }
 
 type Environment struct {
@@ -24,6 +25,7 @@ type Environment struct {
 
 type PromoteRequest struct {
 	Service        string `json:"service,omitempty"`
+	Namespace      string `json:"namespace,omitempty"`
 	Environment    string `json:"environment,omitempty"`
 	CommitterName  string `json:"committerName,omitempty"`
 	CommitterEmail string `json:"committerEmail,omitempty"`
@@ -124,6 +126,7 @@ type DeletePolicyResponse struct {
 
 type RollbackRequest struct {
 	Service        string `json:"service,omitempty"`
+	Namespace      string `json:"namespace,omitempty"`
 	Environment    string `json:"environment,omitempty"`
 	CommitterName  string `json:"committerName,omitempty"`
 	CommitterEmail string `json:"committerEmail,omitempty"`
@@ -131,6 +134,7 @@ type RollbackRequest struct {
 
 type RollbackResponse struct {
 	Service            string `json:"service,omitempty"`
+	Status             string `json:"status,omitempty"`
 	Environment        string `json:"environment,omitempty"`
 	PreviousArtifactID string `json:"previousArtifactId,omitempty"`
 	NewArtifactID      string `json:"newArtifactId,omitempty"`

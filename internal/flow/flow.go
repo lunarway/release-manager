@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	ErrUnknownEnvironment = errors.New("unknown environment")
+	ErrUnknownEnvironment            = errors.New("unknown environment")
+	ErrNamespaceNotAllowedByArtifact = errors.New("namespace not allowed by artifact")
 )
 
 type Service struct {
@@ -43,9 +44,10 @@ type Environment struct {
 }
 
 type StatusResponse struct {
-	Dev     Environment `json:"dev,omitempty"`
-	Staging Environment `json:"staging,omitempty"`
-	Prod    Environment `json:"prod,omitempty"`
+	DefaultNamespaces bool        `json:"defaultNamespaces,omitempty"`
+	Dev               Environment `json:"dev,omitempty"`
+	Staging           Environment `json:"staging,omitempty"`
+	Prod              Environment `json:"prod,omitempty"`
 }
 
 type Actor struct {
@@ -53,7 +55,7 @@ type Actor struct {
 	Name  string
 }
 
-func (s *Service) Status(ctx context.Context, service string) (StatusResponse, error) {
+func (s *Service) Status(ctx context.Context, namespace, service string) (StatusResponse, error) {
 	sourceConfigRepoPath, close, err := tempDir("k8s-config-status")
 	if err != nil {
 		return StatusResponse{}, err
@@ -66,7 +68,14 @@ func (s *Service) Status(ctx context.Context, service string) (StatusResponse, e
 		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", s.ConfigRepoURL, sourceConfigRepoPath))
 	}
 
-	devSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "dev")
+	defaultNamespaces := namespace == ""
+	defaultNamespace := func(env string) string {
+		if defaultNamespaces {
+			return env
+		}
+		return namespace
+	}
+	devSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "dev", defaultNamespace("dev"))
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -74,7 +83,7 @@ func (s *Service) Status(ctx context.Context, service string) (StatusResponse, e
 		}
 	}
 
-	stagingSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "staging")
+	stagingSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "staging", defaultNamespace("staging"))
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -82,7 +91,7 @@ func (s *Service) Status(ctx context.Context, service string) (StatusResponse, e
 		}
 	}
 
-	prodSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "prod")
+	prodSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "prod", defaultNamespace("prod"))
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -91,6 +100,7 @@ func (s *Service) Status(ctx context.Context, service string) (StatusResponse, e
 	}
 
 	return StatusResponse{
+		DefaultNamespaces: defaultNamespaces,
 		Dev: Environment{
 			Tag:                   devSpec.ID,
 			Committer:             devSpec.Application.CommitterName,
@@ -144,24 +154,24 @@ func calculateTotalVulnerabilties(severity string, s artifact.Spec) int64 {
 	return int64(result + 0.5)
 }
 
-func envSpec(root, artifactFileName, service, env string) (artifact.Spec, error) {
-	return artifact.Get(path.Join(releasePath(root, service, env), artifactFileName))
+func envSpec(root, artifactFileName, service, env, namespace string) (artifact.Spec, error) {
+	return artifact.Get(path.Join(releasePath(root, service, env, namespace), artifactFileName))
 }
 
 // sourceSpec returns the Spec of the current release.
-func sourceSpec(root, artifactFileName, service, env string) (artifact.Spec, error) {
+func sourceSpec(root, artifactFileName, service, env, namespace string) (artifact.Spec, error) {
 	var specPath string
 	switch env {
 	case "dev":
 		specPath = path.Join(artifactPath(root, service, "master"), artifactFileName)
 	case "staging":
-		specPath = path.Join(releasePath(root, service, "dev"), artifactFileName)
+		specPath = path.Join(releasePath(root, service, "dev", namespace), artifactFileName)
 	case "prod":
-		specPath = path.Join(releasePath(root, service, "staging"), artifactFileName)
+		specPath = path.Join(releasePath(root, service, "staging", namespace), artifactFileName)
 	default:
 		return artifact.Spec{}, ErrUnknownEnvironment
 	}
-	log.Debugf("Get artifact spec from %s\n", specPath)
+	log.Debugf("Get artifact spec from %s", specPath)
 	return artifact.Get(specPath)
 }
 
@@ -173,8 +183,8 @@ func artifactPath(root, service, branch string) string {
 	return path.Join(root, "artifacts", service, branch)
 }
 
-func releasePath(root, service, env string) string {
-	return path.Join(root, env, "releases", env, service)
+func releasePath(root, service, env, namespace string) string {
+	return path.Join(root, env, "releases", namespace, service)
 }
 
 // PushArtifact pushes an artifact into the configuration repository.
@@ -235,6 +245,7 @@ func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resource
 
 type NotifyReleaseOptions struct {
 	Environment   string
+	Namespace     string
 	Service       string
 	ArtifactID    string
 	Squad         string
@@ -271,6 +282,7 @@ func (s *Service) notifyRelease(opts NotifyReleaseOptions) error {
 
 	log.WithFields("service", opts.Service,
 		"environment", opts.Environment,
+		"namespace", opts.Namespace,
 		"artifact-id", opts.ArtifactID,
 		"commit-message", opts.CommitMessage,
 		"commit-author", opts.CommitAuthor,

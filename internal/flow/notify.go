@@ -46,7 +46,7 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 	env := matches[1]
 	service := matches[2]
 
-	sourceSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, env)
+	sourceSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, env, event.Namespace)
 	if err != nil {
 		return errors.WithMessage(err, "locate source spec")
 	}

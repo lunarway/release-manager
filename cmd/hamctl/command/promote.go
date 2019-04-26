@@ -10,10 +10,15 @@ import (
 )
 
 func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
-	var environment string
+	var environment, namespace string
 	var command = &cobra.Command{
 		Use:   "promote",
 		Short: "Promote a service to a specific environment following promoting conventions.",
+		PreRun: func(c *cobra.Command, args []string) {
+			defaultShuttleString(shuttleSpecFromFile, &namespace, func(s *shuttleSpec) string {
+				return s.Vars.Namespace
+			})
+		},
 		RunE: func(c *cobra.Command, args []string) error {
 			committerName, committerEmail, err := git.CommitterDetails()
 			if err != nil {
@@ -28,6 +33,7 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 			err = client.Do(http.MethodPost, url, httpinternal.PromoteRequest{
 				Service:        *service,
 				Environment:    environment,
+				Namespace:      namespace,
 				CommitterName:  committerName,
 				CommitterEmail: committerEmail,
 			}, &resp)
@@ -45,5 +51,6 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 	}
 	command.Flags().StringVar(&environment, "env", "", "Environment to promote to (required)")
 	command.MarkFlagRequired("env")
+	command.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace the service is deployed to (defaults to env)")
 	return command
 }

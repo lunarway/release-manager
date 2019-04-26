@@ -7,7 +7,6 @@ import (
 
 	"github.com/pkg/errors"
 	git "gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 // BranchName returns the branch name and a bool indicating one is found from a
@@ -40,13 +39,17 @@ func BranchFromHead(ctx context.Context, repo *git.Repository, artifactFileName,
 		return "", errors.WithMessage(err, "get worktree")
 	}
 	c, err := repo.CommitObject(h.Hash())
-	files, err := c.Files()
+	if err != nil {
+		return "", errors.WithMessagef(err, "get commit at hash '%s'", h.Hash())
+	}
+	s, err := c.Stats()
+	if err != nil {
+		return "", errors.WithMessagef(err, "get stats at hash '%s'", h.Hash())
+	}
 	var modifiedFiles []string
-
-	files.ForEach(func(f *object.File) error {
-		modifiedFiles = append(modifiedFiles, f.Name)
-		return nil
-	})
+	for _, s := range s {
+		modifiedFiles = append(modifiedFiles, s.Name)
+	}
 	branchName, ok := BranchName(modifiedFiles, artifactFileName, svc)
 	if !ok {
 		return "", errors.New("branch not detectable")

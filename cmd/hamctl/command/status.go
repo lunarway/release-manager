@@ -12,13 +12,22 @@ import (
 )
 
 func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
+	var namespace string
 	var command = &cobra.Command{
 		Use:   "status",
 		Short: "List the status of the environments",
+		PreRun: func(c *cobra.Command, args []string) {
+			defaultShuttleString(shuttleSpecFromFile, &namespace, func(s *shuttleSpec) string {
+				return s.Vars.Namespace
+			})
+		},
 		RunE: func(c *cobra.Command, args []string) error {
 			var resp httpinternal.StatusResponse
 			params := url.Values{}
 			params.Add("service", *service)
+			if namespace != "" {
+				params.Add("namespace", namespace)
+			}
 			path, err := client.URLWithQuery("status", params)
 			if err != nil {
 				return err
@@ -27,6 +36,12 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 
 			if err != nil {
 				return err
+			}
+			if !someManaged(resp.Dev, resp.Staging, resp.Prod) {
+				if resp.DefaultNamespaces {
+					fmt.Printf("Using default namespaces. ")
+				}
+				fmt.Printf("Are you setting the right namespace?\n")
 			}
 			fmt.Printf("\n")
 			color.Green("dev:\n")
@@ -40,9 +55,19 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 			return nil
 		},
 	}
+	command.Flags().StringVarP(&namespace, "namespace", "n", "", "namespace the service is deployed to (defaults to env)")
 	return command
 }
 
+// someManaged returns true if any of provided environments are managed.
+func someManaged(envs ...*httpinternal.Environment) bool {
+	for _, e := range envs {
+		if e != nil && e.Tag != "" {
+			return true
+		}
+	}
+	return false
+}
 func Time(epoch int64) time.Time {
 	return time.Unix(epoch/1000, 0)
 }

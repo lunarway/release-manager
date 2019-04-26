@@ -80,15 +80,16 @@ func ping(w http.ResponseWriter, r *http.Request) {
 func status(flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		values := r.URL.Query()
+		namespace := values.Get("namespace")
 		service := values.Get("service")
 		if emptyString(service) {
 			requiredQueryError(w, "service")
 			return
 		}
 
-		logger := log.WithFields("service", service)
+		logger := log.WithFields("service", service, "namespace", namespace)
 		ctx := r.Context()
-		s, err := flowSvc.Status(ctx, service)
+		s, err := flowSvc.Status(ctx, namespace, service)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Infof("http: status: get status cancelled: service '%s'", service)
@@ -140,9 +141,10 @@ func status(flowSvc *flow.Service) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 
 		err = json.NewEncoder(w).Encode(httpinternal.StatusResponse{
-			Dev:     &dev,
-			Staging: &staging,
-			Prod:    &prod,
+			DefaultNamespaces: s.DefaultNamespaces,
+			Dev:               &dev,
+			Staging:           &staging,
+			Prod:              &prod,
 		})
 		if err != nil {
 			logger.Errorf("http: status: service '%s': marshal response failed: %v", service, err)
@@ -180,13 +182,18 @@ func rollback(flowSvc *flow.Service) http.HandlerFunc {
 			requiredFieldError(w, "committerEmail")
 			return
 		}
+		// default namespace to environment if it's empty. For most devlopers this
+		// allows them to avoid setting the namespace flag for requests.
+		if emptyString(req.Namespace) {
+			req.Namespace = req.Environment
+		}
 
-		logger := log.WithFields("service", req.Service, "req", req)
+		logger := log.WithFields("service", req.Service, "namespace", req.Namespace, "req", req)
 		ctx := r.Context()
 		res, err := flowSvc.Rollback(ctx, flow.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
-		}, req.Environment, req.Service)
+		}, req.Environment, req.Namespace, req.Service)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Infof("http: rollback cancelled: env '%s' service '%s'", req.Environment, req.Service)
@@ -194,9 +201,17 @@ func rollback(flowSvc *flow.Service) http.HandlerFunc {
 				return
 			}
 			switch errors.Cause(err) {
+			case flow.ErrNamespaceNotAllowedByArtifact:
+				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
+				Error(w, "namespace not allowed by artifact", http.StatusBadRequest)
+				return
 			case git.ErrReleaseNotFound:
 				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
 				Error(w, fmt.Sprintf("no release of service '%s' available for rollback in environment '%s'", req.Service, req.Environment), http.StatusBadRequest)
+				return
+			case artifact.ErrFileNotFound:
+				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
+				Error(w, fmt.Sprintf("no release of service '%s' available for rollback in environment '%s'. Are you missing a namespace?", req.Service, req.Environment), http.StatusBadRequest)
 				return
 			case git.ErrNothingToCommit:
 				logger.Infof("http: rollback rejected: env '%s' service '%s': already rolled back", req.Environment, req.Service)
@@ -208,11 +223,16 @@ func rollback(flowSvc *flow.Service) http.HandlerFunc {
 				return
 			}
 		}
+		var status string
+		if res.OverwritingNamespace != "" {
+			status = fmt.Sprintf("Namespace '%s' did not match that of the artifact and was overwritten to '%s'", req.Namespace, res.OverwritingNamespace)
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
 		err = json.NewEncoder(w).Encode(httpinternal.RollbackResponse{
+			Status:             status,
 			Service:            req.Service,
 			Environment:        req.Environment,
 			PreviousArtifactID: res.Previous,
@@ -350,13 +370,18 @@ func promote(flowSvc *flow.Service) http.HandlerFunc {
 			invalidBodyError(w)
 			return
 		}
+		// default namespace to environment if it's empty. For most devlopers this
+		// allows them to avoid setting the namespace flag for requests.
+		if emptyString(req.Namespace) {
+			req.Namespace = req.Environment
+		}
 
-		logger := log.WithFields("service", req.Service, "req", req)
+		logger := log.WithFields("service", req.Service, "namespace", req.Namespace, "req", req)
 		ctx := r.Context()
-		releaseID, err := flowSvc.Promote(ctx, flow.Actor{
+		result, err := flowSvc.Promote(ctx, flow.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
-		}, req.Environment, req.Service)
+		}, req.Environment, req.Namespace, req.Service)
 
 		var statusString string
 		if err != nil {
@@ -373,9 +398,13 @@ func promote(flowSvc *flow.Service) http.HandlerFunc {
 				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: %v", req.Service, req.Environment, err)
 				Error(w, fmt.Sprintf("unknown environment: %s", req.Environment), http.StatusBadRequest)
 				return
+			case flow.ErrNamespaceNotAllowedByArtifact:
+				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: %v", req.Service, req.Environment, err)
+				Error(w, "namespace not allowed by artifact", http.StatusBadRequest)
+				return
 			case artifact.ErrFileNotFound:
 				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: artifact not found", req.Service, req.Environment)
-				Error(w, fmt.Sprintf("artifact not found for service '%s'", req.Service), http.StatusBadRequest)
+				Error(w, fmt.Sprintf("artifact not found for service '%s'. Are you missing a namespace?", req.Service), http.StatusBadRequest)
 				return
 			default:
 				logger.Infof("http: promote: service '%s' environment '%s': promote failed: %v", req.Service, req.Environment, err)
@@ -396,13 +425,17 @@ func promote(flowSvc *flow.Service) http.HandlerFunc {
 			fromEnvironment = req.Environment
 		}
 
+		if result.OverwritingNamespace != "" {
+			statusString = fmt.Sprintf("Namespace '%s' did not match that of the artifact and was overwritten to '%s'", req.Namespace, result.OverwritingNamespace)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		err = json.NewEncoder(w).Encode(httpinternal.PromoteResponse{
 			Service:         req.Service,
 			FromEnvironment: fromEnvironment,
 			ToEnvironment:   req.Environment,
-			Tag:             releaseID,
+			Tag:             result.ReleaseID,
 			Status:          statusString,
 		})
 		if err != nil {
