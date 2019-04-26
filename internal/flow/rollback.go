@@ -13,11 +13,12 @@ import (
 )
 
 type RollbackResult struct {
-	Previous string
-	New      string
+	Previous             string
+	New                  string
+	NamespaceOverwritten string
 }
 
-func (s *Service) Rollback(ctx context.Context, actor Actor, environment, service string) (RollbackResult, error) {
+func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namespace, service string) (RollbackResult, error) {
 	sourceConfigRepoPath, closeSource, err := tempDir("k8s-config-rollback-source")
 	if err != nil {
 		return RollbackResult{}, err
@@ -43,11 +44,33 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, servic
 	if err != nil {
 		return RollbackResult{}, errors.WithMessagef(err, "checkout current release hash '%v' in '%s'", currentHash, s.ConfigRepoURL)
 	}
-	currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment)
+	// default to environment name for the namespace if none is specified
+	if namespace == "" {
+		namespace = environment
+	}
+	log.Infof("flow: Rollback: using namespace '%s'", namespace)
+
+	currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
 	if err != nil {
 		return RollbackResult{}, errors.WithMessagef(err, "get spec of current release hash '%v' in '%s'", currentHash, s.ConfigRepoURL)
 	}
 
+	// if artifact has no namespace we only allow using the environment as
+	// nameespace.
+	if currentSpec.Namespace == "" && namespace != environment {
+		return RollbackResult{}, errors.WithMessagef(ErrNamespaceNotAllowedByArtifact, "namespace '%s'", namespace)
+	}
+
+	var result RollbackResult
+	// a developer can mistakenly specify the wrong namespace when promoting and
+	// we will not be able to detect it before this point.
+	// It only affects "dev" promotes as we read from the artifacts here where we
+	// can find the artifact without taking the namespace into account.
+	if currentSpec.Namespace != "" && namespace != currentSpec.Namespace {
+		log.Infof("flow: Rollback: overwriting namespace '%s' to '%s'", namespace, currentSpec.Namespace)
+		namespace = currentSpec.Namespace
+		result.NamespaceOverwritten = currentSpec.Namespace
+	}
 	// locate new release (the previous released artifact for this service)
 	newHash, err := git.LocateServiceReleaseRollbackSkip(r, environment, service, 1)
 	if err != nil {
@@ -58,7 +81,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, servic
 	if err != nil {
 		return RollbackResult{}, errors.WithMessagef(err, "checkout previous release hash '%v' in '%s'", newHash, s.ConfigRepoURL)
 	}
-	newSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment)
+	newSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
 	if err != nil {
 		return RollbackResult{}, errors.WithMessagef(err, "get spec of previous release hash '%v' in '%s'", newHash, s.ConfigRepoURL)
 	}
@@ -70,8 +93,8 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, servic
 	}
 
 	// release service to env from original release
-	sourcePath := releasePath(sourceConfigRepoPath, service, environment)
-	destinationPath := releasePath(destinationConfigRepoPath, service, environment)
+	sourcePath := releasePath(sourceConfigRepoPath, service, environment, namespace)
+	destinationPath := releasePath(destinationConfigRepoPath, service, environment, namespace)
 	log.Infof("flow: ReleaseArtifactID: copy resources from %s to %s", sourcePath, destinationPath)
 
 	// empty existing resources in destination
@@ -89,8 +112,8 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, servic
 		return RollbackResult{}, errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", sourcePath, destinationPath))
 	}
 	// copy artifact spec
-	artifactSourcePath := path.Join(releasePath(sourceConfigRepoPath, service, environment), s.ArtifactFileName)
-	artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment), s.ArtifactFileName)
+	artifactSourcePath := path.Join(releasePath(sourceConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
+	artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
 	log.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
 	err = copy.Copy(artifactSourcePath, artifactDestinationPath)
 	if err != nil {
@@ -100,13 +123,14 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, servic
 	authorName := newSpec.Application.AuthorName
 	authorEmail := newSpec.Application.AuthorEmail
 	releaseMessage := git.RollbackCommitMessage(environment, service, currentSpec.ID, newSpec.ID)
-	err = git.Commit(ctx, destinationRepo, releasePath(".", service, environment), authorName, authorEmail, actor.Name, actor.Email, releaseMessage, s.SSHPrivateKeyPath)
+	err = git.Commit(ctx, destinationRepo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage, s.SSHPrivateKeyPath)
 	if err != nil {
 		return RollbackResult{}, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}
 	err = s.notifyRelease(NotifyReleaseOptions{
 		Service:       service,
 		Environment:   environment,
+		Namespace:     namespace,
 		ArtifactID:    newSpec.ID,
 		CommitAuthor:  newSpec.Application.AuthorName,
 		CommitMessage: newSpec.Application.Message,
@@ -118,8 +142,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, servic
 		log.Errorf("flow: ReleaseBranch: error notifying release: %v", err)
 	}
 	log.Infof("flow: Rollback: rollback committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
-	return RollbackResult{
-		Previous: currentSpec.ID,
-		New:      newSpec.ID,
-	}, nil
+	result.Previous = currentSpec.ID
+	result.New = newSpec.ID
+	return result, nil
 }

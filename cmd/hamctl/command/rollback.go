@@ -10,7 +10,7 @@ import (
 )
 
 func NewRollback(client *httpinternal.Client, service *string) *cobra.Command {
-	var environment string
+	var environment, namespace string
 	var command = &cobra.Command{
 		Use:   "rollback",
 		Short: `Rollback to the previous artifact in an environment.`,
@@ -25,6 +25,11 @@ has no effect.`,
 		Example: `Rollback to the previous artifact for service 'product' in environment 'dev':
 
   hamctl rollback --service product --env dev`,
+		PreRun: func(c *cobra.Command, args []string) {
+			defaultShuttleString(shuttleSpecFromFile, &namespace, func(s *shuttleSpec) string {
+				return s.Vars.Namespace
+			})
+		},
 		RunE: func(c *cobra.Command, args []string) error {
 			committerName, committerEmail, err := git.CommitterDetails()
 			if err != nil {
@@ -37,12 +42,16 @@ has no effect.`,
 			}
 			err = client.Do(http.MethodPost, path, httpinternal.RollbackRequest{
 				Service:        *service,
+				Namespace:      namespace,
 				Environment:    environment,
 				CommitterName:  committerName,
 				CommitterEmail: committerEmail,
 			}, &resp)
 			if err != nil {
 				return err
+			}
+			if resp.Status != "" {
+				fmt.Printf("%s\n", resp.Status)
 			}
 			fmt.Printf("[✓] Rollback of artifact '%s' initiated\n", resp.PreviousArtifactID)
 			fmt.Printf("    Release of '%s' to '%s'\n", resp.NewArtifactID, resp.Environment)
@@ -52,5 +61,6 @@ has no effect.`,
 	}
 	command.Flags().StringVar(&environment, "env", "", "environment to release to (required)")
 	command.MarkFlagRequired("env")
+	command.Flags().StringVarP(&namespace, "namespace", "n", "", "namespace the service is deployed to (defaults to env)")
 	return command
 }

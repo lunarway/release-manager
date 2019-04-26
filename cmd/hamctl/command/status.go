@@ -12,13 +12,22 @@ import (
 )
 
 func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
+	var namespace string
 	var command = &cobra.Command{
 		Use:   "status",
 		Short: "List the status of the environments",
+		PreRun: func(c *cobra.Command, args []string) {
+			defaultShuttleString(shuttleSpecFromFile, &namespace, func(s *shuttleSpec) string {
+				return s.Vars.Namespace
+			})
+		},
 		RunE: func(c *cobra.Command, args []string) error {
 			var resp httpinternal.StatusResponse
 			params := url.Values{}
 			params.Add("service", *service)
+			if namespace != "" {
+				params.Add("namespace", namespace)
+			}
 			path, err := client.URLWithQuery("status", params)
 			if err != nil {
 				return err
@@ -40,6 +49,7 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 			return nil
 		},
 	}
+	command.Flags().StringVarP(&namespace, "namespace", "n", "", "namespace the service is deployed to (defaults to env)")
 	return command
 }
 
