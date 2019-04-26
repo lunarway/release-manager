@@ -15,7 +15,7 @@ import (
 type RollbackResult struct {
 	Previous             string
 	New                  string
-	NamespaceOverwritten string
+	OverwritingNamespace string
 }
 
 func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namespace, service string) (RollbackResult, error) {
@@ -69,7 +69,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 	if currentSpec.Namespace != "" && namespace != currentSpec.Namespace {
 		log.Infof("flow: Rollback: overwriting namespace '%s' to '%s'", namespace, currentSpec.Namespace)
 		namespace = currentSpec.Namespace
-		result.NamespaceOverwritten = currentSpec.Namespace
+		result.OverwritingNamespace = currentSpec.Namespace
 	}
 	// locate new release (the previous released artifact for this service)
 	newHash, err := git.LocateServiceReleaseRollbackSkip(r, environment, service, 1)

@@ -224,8 +224,8 @@ func rollback(flowSvc *flow.Service) http.HandlerFunc {
 			}
 		}
 		var status string
-		if res.NamespaceOverwritten != "" {
-			status = fmt.Sprintf("Namespace '%s' did not match that of the artifact and was overwritten to '%s'", req.Namespace, res.NamespaceOverwritten)
+		if res.OverwritingNamespace != "" {
+			status = fmt.Sprintf("Namespace '%s' did not match that of the artifact and was overwritten to '%s'", req.Namespace, res.OverwritingNamespace)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -425,8 +425,8 @@ func promote(flowSvc *flow.Service) http.HandlerFunc {
 			fromEnvironment = req.Environment
 		}
 
-		if result.NamespaceOverwritten != "" {
-			statusString = fmt.Sprintf("Namespace '%s' did not match that of the artifact and was overwritten to '%s'", req.Namespace, result.NamespaceOverwritten)
+		if result.OverwritingNamespace != "" {
+			statusString = fmt.Sprintf("Namespace '%s' did not match that of the artifact and was overwritten to '%s'", req.Namespace, result.OverwritingNamespace)
 		}
 
 		w.Header().Set("Content-Type", "application/json")

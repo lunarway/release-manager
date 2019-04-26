@@ -78,7 +78,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 	if sourceSpec.Namespace != "" && namespace != sourceSpec.Namespace {
 		log.Infof("flow: Promote: overwriting namespace '%s' to '%s'", namespace, sourceSpec.Namespace)
 		namespace = sourceSpec.Namespace
-		result.NamespaceOverwritten = sourceSpec.Namespace
+		result.OverwritingNamespace = sourceSpec.Namespace
 	}
 
 	// find release identifier in artifact.json
@@ -162,5 +162,5 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 
 type PromoteResult struct {
 	ReleaseID            string
-	NamespaceOverwritten string
+	OverwritingNamespace string
 }
