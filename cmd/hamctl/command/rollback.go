@@ -27,7 +27,7 @@ has no effect.`,
   hamctl rollback --service product --env dev`,
 		PreRun: func(c *cobra.Command, args []string) {
 			defaultShuttleString(shuttleSpecFromFile, &namespace, func(s *shuttleSpec) string {
-				return s.Vars.Namespace
+				return s.Vars.K8S.Namespace
 			})
 		},
 		RunE: func(c *cobra.Command, args []string) error {

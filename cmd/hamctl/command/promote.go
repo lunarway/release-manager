@@ -16,7 +16,7 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 		Short: "Promote a service to a specific environment following promoting conventions.",
 		PreRun: func(c *cobra.Command, args []string) {
 			defaultShuttleString(shuttleSpecFromFile, &namespace, func(s *shuttleSpec) string {
-				return s.Vars.Namespace
+				return s.Vars.K8S.Namespace
 			})
 		},
 		RunE: func(c *cobra.Command, args []string) error {

@@ -18,7 +18,7 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 		Short: "List the status of the environments",
 		PreRun: func(c *cobra.Command, args []string) {
 			defaultShuttleString(shuttleSpecFromFile, &namespace, func(s *shuttleSpec) string {
-				return s.Vars.Namespace
+				return s.Vars.K8S.Namespace
 			})
 		},
 		RunE: func(c *cobra.Command, args []string) error {
