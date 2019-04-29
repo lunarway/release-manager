@@ -407,7 +407,7 @@ func promote(flowSvc *flow.Service) http.HandlerFunc {
 				Error(w, fmt.Sprintf("artifact not found for service '%s'. Are you missing a namespace?", req.Service), http.StatusBadRequest)
 				return
 			default:
-				logger.Infof("http: promote: service '%s' environment '%s': promote failed: %v", req.Service, req.Environment, err)
+				logger.Errorf("http: promote: service '%s' environment '%s': promote failed: %v", req.Service, req.Environment, err)
 				unknownError(w)
 				return
 			}
