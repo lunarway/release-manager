@@ -58,8 +58,10 @@ type shuttleSpec struct {
 }
 
 type shuttleSpecVars struct {
-	Service   string `yaml:"service"`
-	Namespace string `yaml:"namespace"`
+	Service string `yaml:"service"`
+	K8S     struct {
+		Namespace string `yaml:"namespace"`
+	} `yaml:"k8s"`
 }
 
 // shuttleSpecFromFile tries to read a shuttle specification.
