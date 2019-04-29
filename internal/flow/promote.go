@@ -63,7 +63,6 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 	if err != nil {
 		return PromoteResult{}, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 	}
-
 	// if artifact has no namespace we only allow using the environment as
 	// namespace.
 	if sourceSpec.Namespace == "" && namespace != environment {

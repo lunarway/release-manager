@@ -165,13 +165,21 @@ func sourceSpec(root, artifactFileName, service, env, namespace string) (artifac
 	case "dev":
 		specPath = path.Join(artifactPath(root, service, "master"), artifactFileName)
 	case "staging":
-		specPath = path.Join(releasePath(root, service, "dev", namespace), artifactFileName)
+		if namespace == "staging" {
+			specPath = path.Join(releasePath(root, service, "dev", "dev"), artifactFileName)
+		} else {
+			specPath = path.Join(releasePath(root, service, "dev", namespace), artifactFileName)
+		}
 	case "prod":
-		specPath = path.Join(releasePath(root, service, "staging", namespace), artifactFileName)
+		if namespace == "prod" {
+			specPath = path.Join(releasePath(root, service, "staging", "staging"), artifactFileName)
+		} else {
+			specPath = path.Join(releasePath(root, service, "staging", namespace), artifactFileName)
+		}
 	default:
 		return artifact.Spec{}, ErrUnknownEnvironment
 	}
-	log.Debugf("Get artifact spec from %s", specPath)
+	log.Infof("Get artifact spec from %s", specPath)
 	return artifact.Get(specPath)
 }
 
