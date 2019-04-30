@@ -286,13 +286,14 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, sla
 		case github.PushPayload:
 			push := payload.(github.PushPayload)
 			if !isBranchPush(push.Ref) {
+				log.Infof("http: github webhook: ref '%s' is not a branch push", push.Ref)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
 			rgx := regexp.MustCompile(`\[(.*?)\]`)
 			matches := rgx.FindStringSubmatch(push.HeadCommit.Message)
 			if len(matches) < 2 {
-				log.Debugf("http: github webhook: no service match from commit '%s'", push.HeadCommit.Message)
+				log.Infof("http: github webhook: no service match from commit '%s'", push.HeadCommit.Message)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
@@ -301,7 +302,7 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, sla
 			// locate branch of commit
 			branch, ok := git.BranchName(push.HeadCommit.Modified, flowSvc.ArtifactFileName, serviceName)
 			if !ok {
-				log.Debugf("http: github webhook: service '%s': branch name not found", serviceName)
+				log.Infof("http: github webhook: service '%s': branch name not found", serviceName)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
@@ -318,7 +319,7 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, sla
 				unknownError(w)
 				return
 			}
-			logger.Debugf("http: github webhook: service '%s' branch '%s': found %d release policies", serviceName, branch, len(autoReleases))
+			logger.Infof("http: github webhook: service '%s' branch '%s': found %d release policies", serviceName, branch, len(autoReleases))
 			var errs error
 			for _, autoRelease := range autoReleases {
 				releaseID, err := flowSvc.ReleaseBranch(context.Background(), flow.Actor{
