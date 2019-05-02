@@ -214,6 +214,7 @@ func Commit(ctx context.Context, repo *git.Repository, changesPath, authorName, 
 	}
 
 	_, err = w.Commit(msg, &git.CommitOptions{
+		All: true,
 		Author: &object.Signature{
 			Name:  authorName,
 			Email: authorEmail,
