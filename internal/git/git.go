@@ -206,7 +206,7 @@ func Commit(ctx context.Context, repo *git.Repository, changesPath, authorName, 
 	if err != nil {
 		return errors.WithMessage(err, "status")
 	}
-
+	log.Infof("internal/git: Commit status:\n%s", status)
 	// if commit is empty
 	if status.IsClean() {
 		log.Debugf("internal/git: Commit: message '%s': nothing to commit", msg)
