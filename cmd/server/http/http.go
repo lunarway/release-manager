@@ -255,21 +255,22 @@ func daemonWebhook(flowSvc *flow.Service) http.HandlerFunc {
 			invalidBodyError(w)
 			return
 		}
-
-		err = flowSvc.NotifyCommitter(context.Background(), &podNotify)
-		if err != nil {
-			log.Errorf("http: daemon webhook failed: notify committer: %v", err)
-			unknownError(w)
-			return
-		}
-
-		log.WithFields("pod", podNotify.Name,
+		logger := log.WithFields("pod", podNotify.Name,
 			"namespace", podNotify.Namespace,
 			"state", podNotify.State,
 			"message", podNotify.Message,
 			"reason", podNotify.Reason,
 			"artifactId", podNotify.ArtifactID,
-			"logs", podNotify.Logs).Infof("Pod event received: %s, state=%s", podNotify.Name, podNotify.State)
+			"raw", podNotify)
+
+		err = flowSvc.NotifyCommitter(context.Background(), &podNotify)
+		if err != nil {
+			logger.Errorf("http: daemon webhook failed: pod '%s' namespace '%s': notify committer: %v", podNotify.Name, podNotify.Name, err)
+			unknownError(w)
+			return
+		}
+
+		logger.Infof("http: daemon webhook: pod '%s' namespace '%s': Pod event handled: state=%s", podNotify.Name, podNotify.Namespace, podNotify.State)
 	}
 }
 
