@@ -260,7 +260,7 @@ These are stored as JSON files for each service.
 When running `kubectl apply` files are applied to the cluster alphabetically so the following convention should be used by configuration generators.
 
 ```
-01-09 configmaps
+01-09 configmaps and CRDs
 10-19 secrets
 20-29 volumes
 30-39 rbac
