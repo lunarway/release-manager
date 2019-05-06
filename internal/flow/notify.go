@@ -23,7 +23,7 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 		return errors.WithMessagef(err, "clone '%s' into '%s'", s.ConfigRepoURL, sourceConfigRepoPath)
 	}
 
-	hash, err := git.LocateRelease(sourceRepo, event.ArtifactID)
+	hash, err := git.LocateEnvRelease(sourceRepo, event.Environment, event.ArtifactID)
 	if err != nil {
 		return errors.WithMessagef(err, "locate release '%s' from '%s'", event.ArtifactID, s.ConfigRepoURL)
 	}
@@ -44,15 +44,11 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 	if len(matches) < 2 {
 		return errors.WithMessagef(err, "locate service from commit message: '%s'", commit.Message)
 	}
-	env := matches[1]
+	// Use environment received from release-daemon
+	env := event.Environment
 	service := matches[2]
 	namespace := event.Namespace
-	// handle cases where the namespace would default to the environment
-	// this ensures that we can locate artifact specifications on deployments in
-	// these namespaces
-	if isEnvironmentNamespace(event.Namespace) {
-		namespace = env
-	}
+
 	log.Infof("internal/flow: NotifyCommitter: read spec from: env '%s' namespace '%s' service '%s'", env, namespace, service)
 	sourceSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, env, namespace)
 	if err != nil {
@@ -77,13 +73,4 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 	}
 
 	return nil
-}
-
-func isEnvironmentNamespace(e string) bool {
-	switch e {
-	case "dev", "staging", "prod":
-		return true
-	default:
-		return false
-	}
 }

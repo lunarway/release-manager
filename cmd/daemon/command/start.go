@@ -15,7 +15,7 @@ import (
 )
 
 func StartDaemon() *cobra.Command {
-	var authToken, releaseManagerUrl string
+	var authToken, releaseManagerUrl, environment string
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-daemon",
@@ -26,7 +26,7 @@ func StartDaemon() *cobra.Command {
 			}
 
 			succeededFunc := func(event *kubernetes.PodEvent) error {
-				notifyReleaseManager(event, "", releaseManagerUrl, authToken)
+				notifyReleaseManager(event, "", releaseManagerUrl, authToken, environment)
 				return nil
 			}
 
@@ -36,10 +36,10 @@ func StartDaemon() *cobra.Command {
 					if err != nil {
 						return err
 					}
-					notifyReleaseManager(event, logs, releaseManagerUrl, authToken)
+					notifyReleaseManager(event, logs, releaseManagerUrl, authToken, environment)
 					return nil
 				}
-				notifyReleaseManager(event, "", releaseManagerUrl, authToken)
+				notifyReleaseManager(event, "", releaseManagerUrl, authToken, environment)
 				return nil
 			}
 
@@ -53,24 +53,27 @@ func StartDaemon() *cobra.Command {
 	}
 	command.Flags().StringVar(&releaseManagerUrl, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")
 	command.Flags().StringVar(&authToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
+	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
+	command.MarkFlagRequired("environment")
 	return command
 }
 
-func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, authToken string) {
+func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, authToken, environment string) {
 	client := &http.Client{
 		Timeout: 20 * time.Second,
 	}
 
 	b := &bytes.Buffer{}
 	err := json.NewEncoder(b).Encode(httpinternal.PodNotifyRequest{
-		Name:       event.Name,
-		Namespace:  event.Namespace,
-		Message:    event.Message,
-		Reason:     event.Reason,
-		State:      event.State,
-		Containers: mapContainers(event.Containers),
-		ArtifactID: event.ArtifactID,
-		Logs:       logs,
+		Name:        event.Name,
+		Namespace:   event.Namespace,
+		Message:     event.Message,
+		Reason:      event.Reason,
+		State:       event.State,
+		Containers:  mapContainers(event.Containers),
+		ArtifactID:  event.ArtifactID,
+		Logs:        logs,
+		Environment: environment,
 	})
 
 	if err != nil {

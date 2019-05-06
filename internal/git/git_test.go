@@ -362,3 +362,83 @@ func TestLocateArtifactCondition(t *testing.T) {
 		})
 	}
 }
+
+func TestLocateEnvReleaseCondition(t *testing.T) {
+	tt := []struct {
+		name       string
+		env        string
+		artifactID string
+		message    string
+		output     bool
+	}{
+		{
+			name:       "empty env",
+			env:        "",
+			artifactID: "master-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890",
+			output:     false,
+		},
+		{
+			name:       "empty artifactID",
+			env:        "env",
+			artifactID: "",
+			message:    "[env/service-name] release master-1234567890-1234567890",
+			output:     false,
+		},
+		{
+			name:       "regexp like env",
+			env:        `(\`,
+			artifactID: "master-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890",
+			output:     false,
+		},
+		{
+			name:       "regexp like artifactId",
+			env:        "",
+			artifactID: `(\`,
+			message:    "[env/service-name] release master-1234567890-1234567890",
+			output:     false,
+		},
+		{
+			name:       "partial env",
+			env:        "nv",
+			artifactID: "master-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890",
+			output:     false,
+		},
+		{
+			name:       "partial artifactId",
+			env:        "env",
+			artifactID: "master-12345",
+			message:    "[env/service-name] release master-1234567890-1234567890",
+			output:     false,
+		},
+		{
+			name:       "exact env and service",
+			env:        "env",
+			artifactID: "master-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890",
+			output:     true,
+		},
+		{
+			name:       "wrong cased env",
+			env:        "ENV",
+			artifactID: "master-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890",
+			output:     true,
+		},
+		{
+			name:       "wrong cased service",
+			env:        "env",
+			artifactID: "MASTER-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890",
+			output:     true,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			output := locateEnvReleaseCondition(tc.env, tc.artifactID)(tc.message)
+			assert.Equal(t, tc.output, output, "output not as expected")
+		})
+	}
+}

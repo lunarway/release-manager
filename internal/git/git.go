@@ -108,6 +108,28 @@ func locateServiceReleaseCondition(env, service string) conditionFunc {
 	}
 }
 
+// LocateEnvRelease traverses the git log to find a release
+// commit for a specified environment and artifactID.
+//
+// It expects the commit to have a commit messages as the one returned by
+// ReleaseCommitMessage.
+func LocateEnvRelease(r *git.Repository, env, artifactID string) (plumbing.Hash, error) {
+	return locate(r, locateEnvReleaseCondition(env, artifactID), ErrReleaseNotFound)
+}
+
+func locateEnvReleaseCondition(env, artifactId string) conditionFunc {
+	r := regexp.MustCompile(fmt.Sprintf(`(?i)\[%s/.*] release %s$`, regexp.QuoteMeta(env), regexp.QuoteMeta(artifactId)))
+	return func(commitMsg string) bool {
+		if env == "" {
+			return false
+		}
+		if artifactId == "" {
+			return false
+		}
+		return r.MatchString(commitMsg)
+	}
+}
+
 // LocateServiceReleaseRollbackSkip traverses the git log to find a release or
 // rollback commit for a specified service and environment.
 //
