@@ -74,12 +74,3 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 
 	return nil
 }
-
-func isEnvironmentNamespace(e string) bool {
-	switch e {
-	case "dev", "staging", "prod":
-		return true
-	default:
-		return false
-	}
-}
