@@ -57,7 +57,7 @@ type Actor struct {
 }
 
 func (s *Service) Status(ctx context.Context, namespace, service string) (StatusResponse, error) {
-	sourceConfigRepoPath, close, err := tempDir("k8s-config-status")
+	sourceConfigRepoPath, close, err := git.TempDir("k8s-config-status")
 	if err != nil {
 		return StatusResponse{}, err
 	}
@@ -206,7 +206,7 @@ func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resource
 	if err != nil {
 		return "", errors.WithMessagef(err, "path '%s'", artifactSpecPath)
 	}
-	artifactConfigRepoPath, close, err := tempDir("k8s-config-artifact")
+	artifactConfigRepoPath, close, err := git.TempDir("k8s-config-artifact")
 	if err != nil {
 		return "", err
 	}

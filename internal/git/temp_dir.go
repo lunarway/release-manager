@@ -1,4 +1,4 @@
-package flow
+package git
 
 import (
 	"io/ioutil"
@@ -7,7 +7,10 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 )
 
-func tempDir(prefix string) (string, func(), error) {
+// TempDir returns a temporary directory with provided prefix.
+// The first return argument is the path. The second is a close function to
+// remove the path.
+func TempDir(prefix string) (string, func(), error) {
 	path, err := ioutil.TempDir("", prefix)
 	if err != nil {
 		return "", func() {}, err

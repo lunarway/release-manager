@@ -19,12 +19,12 @@ type RollbackResult struct {
 }
 
 func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namespace, service string) (RollbackResult, error) {
-	sourceConfigRepoPath, closeSource, err := tempDir("k8s-config-rollback-source")
+	sourceConfigRepoPath, closeSource, err := git.TempDir("k8s-config-rollback-source")
 	if err != nil {
 		return RollbackResult{}, err
 	}
 	defer closeSource()
-	destinationConfigRepoPath, closeDestination, err := tempDir("k8s-config-rollback-destination")
+	destinationConfigRepoPath, closeDestination, err := git.TempDir("k8s-config-rollback-destination")
 	if err != nil {
 		return RollbackResult{}, err
 	}

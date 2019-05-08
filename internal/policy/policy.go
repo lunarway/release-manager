@@ -15,10 +15,6 @@ import (
 )
 
 var (
-	configRepoPath = path.Join(".tmp", "k8s-config-policies")
-)
-
-var (
 	// ErrNotParsable indicates that a policies file could not be parsed against
 	// the specification.
 	ErrNotParsable = errors.New("policies not parsable")
@@ -59,7 +55,12 @@ func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]Au
 
 // Get gets stored policies for service svc. If no policies are stored ErrNotFound is returned.
 func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
-	_, err := git.CloneDepth(ctx, s.ConfigRepoURL, configRepoPath, s.SSHPrivateKeyPath, 1)
+	configRepoPath, close, err := git.TempDir("k8s-config-notify")
+	if err != nil {
+		return Policies{}, err
+	}
+	defer close()
+	_, err = git.CloneDepth(ctx, s.ConfigRepoURL, configRepoPath, s.SSHPrivateKeyPath, 1)
 	if err != nil {
 		return Policies{}, errors.WithMessage(err, fmt.Sprintf("clone to path '%s'", configRepoPath))
 	}
@@ -121,6 +122,11 @@ func (s *Service) Delete(ctx context.Context, actor Actor, svc string, ids []str
 }
 
 func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMsg string, f func(p *Policies)) error {
+	configRepoPath, close, err := git.TempDir("k8s-config-notify")
+	if err != nil {
+		return err
+	}
+	defer close()
 	// read part of this code is the same as the Get function but differs in the
 	// file flags used. This is to avoid opening and closing to file multiple
 	// times during the operation.

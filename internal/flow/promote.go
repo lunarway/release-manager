@@ -36,12 +36,12 @@ import (
 // Copy artifacts from the current release into the new environment and commit
 // the changes
 func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespace, service string) (PromoteResult, error) {
-	sourceConfigRepoPath, closeSource, err := tempDir("k8s-config-promote-source")
+	sourceConfigRepoPath, closeSource, err := git.TempDir("k8s-config-promote-source")
 	if err != nil {
 		return PromoteResult{}, err
 	}
 	defer closeSource()
-	destinationConfigRepoPath, closeDestination, err := tempDir("k8s-config-promote-destination")
+	destinationConfigRepoPath, closeDestination, err := git.TempDir("k8s-config-promote-destination")
 	if err != nil {
 		return PromoteResult{}, err
 	}

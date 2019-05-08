@@ -13,7 +13,7 @@ import (
 )
 
 func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequest) error {
-	sourceConfigRepoPath, close, err := tempDir("k8s-config-notify")
+	sourceConfigRepoPath, close, err := git.TempDir("k8s-config-notify")
 	if err != nil {
 		return err
 	}
