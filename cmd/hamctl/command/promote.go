@@ -40,6 +40,7 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			fmt.Printf("Promote service: %s\n", *service)
 			if resp.Status != "" {
 				fmt.Printf("%s\n", resp.Status)
 			} else {

@@ -49,6 +49,7 @@ Release latest artifact from branch 'master' of service 'product' into environme
 			if err != nil {
 				return err
 			}
+			fmt.Printf("Release of service: %s\n", *service)
 			if resp.Status != "" {
 				fmt.Printf("%s\n", resp.Status)
 			} else {

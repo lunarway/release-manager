@@ -43,6 +43,7 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 				}
 				fmt.Printf("Are you setting the right namespace?\n")
 			}
+			fmt.Printf("Status for service: %s\n", *service)
 			fmt.Printf("\n")
 			color.Green("dev:\n")
 			printStatus(resp.Dev)

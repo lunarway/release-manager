@@ -50,6 +50,7 @@ has no effect.`,
 			if err != nil {
 				return err
 			}
+			fmt.Printf("Rollback of service: %s\n", *service)
 			if resp.Status != "" {
 				fmt.Printf("%s\n", resp.Status)
 			}
