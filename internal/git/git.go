@@ -25,15 +25,20 @@ var (
 	ErrArtifactNotFound = errors.New("artifact not found")
 )
 
-func CloneDepth(ctx context.Context, repoURL, destination, sshPrivateKeyPath string, depth int) (*git.Repository, error) {
-	return clone(ctx, repoURL, destination, sshPrivateKeyPath, depth)
-}
-func Clone(ctx context.Context, repoURL, destination, sshPrivateKeyPath string) (*git.Repository, error) {
-	return clone(ctx, repoURL, destination, sshPrivateKeyPath, 0)
+type Service struct {
+	SSHPrivateKeyPath string
+	ConfigRepoURL     string
 }
 
-func clone(ctx context.Context, repoURL, destination, sshPrivateKeyPath string, depth int) (*git.Repository, error) {
-	authSSH, err := ssh.NewPublicKeysFromFile("git", sshPrivateKeyPath, "")
+func (s *Service) CloneDepth(ctx context.Context, destination string, depth int) (*git.Repository, error) {
+	return s.clone(ctx, destination, depth)
+}
+func (s *Service) Clone(ctx context.Context, destination string) (*git.Repository, error) {
+	return s.clone(ctx, destination, 0)
+}
+
+func (s *Service) clone(ctx context.Context, destination string, depth int) (*git.Repository, error) {
+	authSSH, err := ssh.NewPublicKeysFromFile("git", s.SSHPrivateKeyPath, "")
 	if err != nil {
 		return nil, errors.WithMessage(err, "public keys from file")
 	}
@@ -43,7 +48,7 @@ func clone(ctx context.Context, repoURL, destination, sshPrivateKeyPath string, 
 	}
 
 	r, err := git.PlainCloneContext(ctx, destination, false, &git.CloneOptions{
-		URL:   repoURL,
+		URL:   s.ConfigRepoURL,
 		Auth:  authSSH,
 		Depth: depth,
 	})
@@ -53,7 +58,7 @@ func clone(ctx context.Context, repoURL, destination, sshPrivateKeyPath string, 
 	return r, nil
 }
 
-func Checkout(r *git.Repository, hash plumbing.Hash) error {
+func (*Service) Checkout(r *git.Repository, hash plumbing.Hash) error {
 	workTree, err := r.Worktree()
 	if err != nil {
 		return errors.WithMessage(err, "get worktree")
@@ -72,7 +77,7 @@ func Checkout(r *git.Repository, hash plumbing.Hash) error {
 //
 // It expects the commit to have a commit messages as the one returned by
 // ReleaseCommitMessage.
-func LocateRelease(r *git.Repository, artifactID string) (plumbing.Hash, error) {
+func (*Service) LocateRelease(r *git.Repository, artifactID string) (plumbing.Hash, error) {
 	return locate(r, locateReleaseCondition(artifactID), ErrReleaseNotFound)
 }
 
@@ -91,7 +96,7 @@ func locateReleaseCondition(artifactID string) conditionFunc {
 //
 // It expects the commit to have a commit messages as the one returned by
 // ReleaseCommitMessage.
-func LocateServiceRelease(r *git.Repository, env, service string) (plumbing.Hash, error) {
+func (*Service) LocateServiceRelease(r *git.Repository, env, service string) (plumbing.Hash, error) {
 	return locate(r, locateServiceReleaseCondition(env, service), ErrReleaseNotFound)
 }
 
@@ -113,7 +118,7 @@ func locateServiceReleaseCondition(env, service string) conditionFunc {
 //
 // It expects the commit to have a commit messages as the one returned by
 // ReleaseCommitMessage.
-func LocateEnvRelease(r *git.Repository, env, artifactID string) (plumbing.Hash, error) {
+func (*Service) LocateEnvRelease(r *git.Repository, env, artifactID string) (plumbing.Hash, error) {
 	return locate(r, locateEnvReleaseCondition(env, artifactID), ErrReleaseNotFound)
 }
 
@@ -135,7 +140,7 @@ func locateEnvReleaseCondition(env, artifactId string) conditionFunc {
 //
 // It expects the commit to have a commit messages as the one returned by
 // ReleaseCommitMessage or RollbackCommitMessage.
-func LocateServiceReleaseRollbackSkip(r *git.Repository, env, service string, n uint) (plumbing.Hash, error) {
+func (*Service) LocateServiceReleaseRollbackSkip(r *git.Repository, env, service string, n uint) (plumbing.Hash, error) {
 	return locate(r, locateServiceReleaseRollbackSkipCondition(env, service, n), ErrReleaseNotFound)
 }
 
@@ -173,7 +178,7 @@ func locateServiceRollbackCondition(env, service string) conditionFunc {
 //
 // It expects the commit to have a commit messages as the one returned by
 // ArtifactCommitMessage.
-func LocateArtifact(r *git.Repository, artifactID string) (plumbing.Hash, error) {
+func (*Service) LocateArtifact(r *git.Repository, artifactID string) (plumbing.Hash, error) {
 	return locate(r, locateArtifactCondition(artifactID), ErrArtifactNotFound)
 }
 
@@ -214,7 +219,7 @@ func locate(r *git.Repository, condition conditionFunc, notFoundErr error) (plum
 	}
 }
 
-func Commit(ctx context.Context, repo *git.Repository, changesPath, authorName, authorEmail, committerName, committerEmail, msg, sshPrivateKeyPath string) error {
+func (s *Service) Commit(ctx context.Context, repo *git.Repository, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
 	w, err := repo.Worktree()
 	if err != nil {
 		return errors.WithMessage(err, "get worktree")
@@ -252,7 +257,7 @@ func Commit(ctx context.Context, repo *git.Repository, changesPath, authorName, 
 		return errors.WithMessage(err, "commit")
 	}
 
-	authSSH, err := ssh.NewPublicKeysFromFile("git", sshPrivateKeyPath, "")
+	authSSH, err := ssh.NewPublicKeysFromFile("git", s.SSHPrivateKeyPath, "")
 	if err != nil {
 		return errors.WithMessage(err, "public keys from file")
 	}

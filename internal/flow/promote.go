@@ -47,10 +47,10 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 	}
 	defer closeDestination()
 	// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
-	log.Debugf("Cloning source config repo %s into %s", s.ConfigRepoURL, sourceConfigRepoPath)
-	sourceRepo, err := git.Clone(ctx, s.ConfigRepoURL, sourceConfigRepoPath, s.SSHPrivateKeyPath)
+	log.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
+	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
-		return PromoteResult{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", s.ConfigRepoURL, sourceConfigRepoPath))
+		return PromoteResult{}, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 
 	// default to environment name for the namespace if none is specified
@@ -88,22 +88,22 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 	// when promoting to dev we use should look for the artifact instead of
 	// release as the artifact have never been released.
 	if environment == "dev" {
-		hash, err = git.LocateArtifact(sourceRepo, result.ReleaseID)
+		hash, err = s.Git.LocateArtifact(sourceRepo, result.ReleaseID)
 	} else {
-		hash, err = git.LocateRelease(sourceRepo, result.ReleaseID)
+		hash, err = s.Git.LocateRelease(sourceRepo, result.ReleaseID)
 	}
 	if err != nil {
-		return PromoteResult{}, errors.WithMessage(err, fmt.Sprintf("locate release '%s' from '%s'", result.ReleaseID, s.ConfigRepoURL))
+		return PromoteResult{}, errors.WithMessagef(err, "locate release '%s'", result.ReleaseID)
 	}
 	log.Debugf("internal/flow: Promote: release hash '%v'", hash)
-	err = git.Checkout(sourceRepo, hash)
+	err = s.Git.Checkout(sourceRepo, hash)
 	if err != nil {
-		return PromoteResult{}, errors.WithMessage(err, fmt.Sprintf("checkout release hash '%s' from '%s'", hash, s.ConfigRepoURL))
+		return PromoteResult{}, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 	}
 
-	destinationRepo, err := git.Clone(ctx, s.ConfigRepoURL, destinationConfigRepoPath, s.SSHPrivateKeyPath)
+	destinationRepo, err := s.Git.Clone(ctx, destinationConfigRepoPath)
 	if err != nil {
-		return PromoteResult{}, errors.WithMessage(err, fmt.Sprintf("clone destination repo '%s' into '%s'", s.ConfigRepoURL, destinationConfigRepoPath))
+		return PromoteResult{}, errors.WithMessagef(err, "clone destination repo into '%s'", destinationConfigRepoPath)
 	}
 
 	// release service to env from original release
@@ -138,7 +138,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 	authorEmail := sourceSpec.Application.AuthorEmail
 	releaseMessage := git.ReleaseCommitMessage(environment, service, result.ReleaseID)
 	log.Debugf("Committing release: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
-	err = git.Commit(ctx, destinationRepo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage, s.SSHPrivateKeyPath)
+	err = s.Git.Commit(ctx, destinationRepo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 	if err != nil {
 		return PromoteResult{}, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}

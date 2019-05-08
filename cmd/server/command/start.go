@@ -7,6 +7,7 @@ import (
 
 	"github.com/lunarway/release-manager/cmd/server/http"
 	"github.com/lunarway/release-manager/internal/flow"
+	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/grafana"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
@@ -56,17 +57,19 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 					},
 				},
 			}
-			flowSvc := flow.Service{
-				ConfigRepoURL:     configRepoOpts.ConfigRepo,
-				ArtifactFileName:  configRepoOpts.ArtifactFileName,
+			gitSvc := git.Service{
 				SSHPrivateKeyPath: configRepoOpts.SSHPrivateKeyPath,
-				UserMappings:      userMappings,
-				Slack:             slackClient,
-				Grafana:           &grafana,
+				ConfigRepoURL:     configRepoOpts.ConfigRepo,
+			}
+			flowSvc := flow.Service{
+				ArtifactFileName: configRepoOpts.ArtifactFileName,
+				UserMappings:     userMappings,
+				Slack:            slackClient,
+				Grafana:          &grafana,
+				Git:              &gitSvc,
 			}
 			policySvc := policy.Service{
-				ConfigRepoURL:     configRepoOpts.ConfigRepo,
-				SSHPrivateKeyPath: configRepoOpts.SSHPrivateKeyPath,
+				Git: &gitSvc,
 			}
 			go func() {
 				err := http.NewServer(httpOpts, slackClient, &flowSvc, &policySvc)

@@ -18,20 +18,20 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 		return err
 	}
 	defer close()
-	sourceRepo, err := git.Clone(ctx, s.ConfigRepoURL, sourceConfigRepoPath, s.SSHPrivateKeyPath)
+	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
-		return errors.WithMessagef(err, "clone '%s' into '%s'", s.ConfigRepoURL, sourceConfigRepoPath)
+		return errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 
-	hash, err := git.LocateEnvRelease(sourceRepo, event.Environment, event.ArtifactID)
+	hash, err := s.Git.LocateEnvRelease(sourceRepo, event.Environment, event.ArtifactID)
 	if err != nil {
-		return errors.WithMessagef(err, "locate release '%s' from '%s'", event.ArtifactID, s.ConfigRepoURL)
+		return errors.WithMessagef(err, "locate release '%s'", event.ArtifactID)
 	}
 	log.Infof("internal/flow: NotifyCommitter: located release of '%s' on hash '%s'", event.ArtifactID, hash)
 
-	err = git.Checkout(sourceRepo, hash)
+	err = s.Git.Checkout(sourceRepo, hash)
 	if err != nil {
-		return errors.WithMessagef(err, "checkout release hash '%s' from '%s'", hash, s.ConfigRepoURL)
+		return errors.WithMessagef(err, "checkout release hash '%s'", hash)
 	}
 
 	commit, err := sourceRepo.CommitObject(hash)

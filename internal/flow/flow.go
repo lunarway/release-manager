@@ -24,12 +24,11 @@ var (
 )
 
 type Service struct {
-	ConfigRepoURL     string
-	ArtifactFileName  string
-	SSHPrivateKeyPath string
-	UserMappings      map[string]string
-	Slack             *slack.Client
-	Grafana           *grafana.Service
+	ArtifactFileName string
+	UserMappings     map[string]string
+	Slack            *slack.Client
+	Grafana          *grafana.Service
+	Git              *git.Service
 }
 
 type Environment struct {
@@ -63,10 +62,10 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 	defer close()
 	// find current released artifact.json for each environment
-	log.Debugf("Cloning source config repo %s into %s", s.ConfigRepoURL, sourceConfigRepoPath)
-	_, err = git.Clone(ctx, s.ConfigRepoURL, sourceConfigRepoPath, s.SSHPrivateKeyPath)
+	log.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
+	_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", s.ConfigRepoURL, sourceConfigRepoPath))
+		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone into '%s'", sourceConfigRepoPath))
 	}
 
 	defaultNamespaces := namespace == ""
@@ -200,7 +199,7 @@ func releasePath(root, service, env, namespace string) string {
 //
 // The resourceRoot specifies the path to the artifact files. All files in this
 // path will be pushed.
-func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resourceRoot, sshPrivateKeyPath string) (string, error) {
+func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, resourceRoot string) (string, error) {
 	artifactSpecPath := path.Join(resourceRoot, artifactFileName)
 	artifactSpec, err := artifact.Get(artifactSpecPath)
 	if err != nil {
@@ -212,9 +211,9 @@ func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resource
 	}
 	defer close()
 	// fmt.Printf is used for logging as this is called from artifact cli only
-	fmt.Printf("Checkout config repository from '%s' into '%s'\n", configRepoURL, resourceRoot)
+	fmt.Printf("Checkout config repository from '%s' into '%s'\n", gitSvc.ConfigRepoURL, resourceRoot)
 	listFiles(resourceRoot)
-	repo, err := git.CloneDepth(context.Background(), configRepoURL, artifactConfigRepoPath, sshPrivateKeyPath, 1)
+	repo, err := gitSvc.CloneDepth(context.Background(), artifactConfigRepoPath, 1)
 	if err != nil {
 		return "", errors.WithMessage(err, "clone config repo")
 	}
@@ -245,7 +244,7 @@ func PushArtifact(ctx context.Context, configRepoURL, artifactFileName, resource
 	authorEmail := artifactSpec.Application.AuthorEmail
 	commitMsg := git.ArtifactCommitMessage(artifactSpec.Service, artifactID, authorName)
 	fmt.Printf("Committing changes\n")
-	err = git.Commit(context.Background(), repo, ".", authorName, authorEmail, committerName, committerEmail, commitMsg, sshPrivateKeyPath)
+	err = gitSvc.Commit(context.Background(), repo, ".", authorName, authorEmail, committerName, committerEmail, commitMsg)
 	if err != nil {
 		if err == git.ErrNothingToCommit {
 			return "", nil

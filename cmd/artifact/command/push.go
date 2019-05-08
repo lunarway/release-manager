@@ -6,17 +6,18 @@ import (
 	"path"
 
 	"github.com/lunarway/release-manager/internal/flow"
+	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/spf13/cobra"
 )
 
 func pushCommand(options *Options) *cobra.Command {
-	var configGitRepo, sshPrivateKeyPath string
+	var gitSvc git.Service
 	command := &cobra.Command{
 		Use:   "push",
 		Short: "push artifact to a configuration repository",
 		RunE: func(c *cobra.Command, args []string) error {
-			artifactId, err := flow.PushArtifact(context.Background(), configGitRepo, options.FileName, options.RootPath, sshPrivateKeyPath)
+			artifactId, err := flow.PushArtifact(context.Background(), &gitSvc, options.FileName, options.RootPath)
 			if err != nil {
 				return err
 			}
@@ -36,9 +37,9 @@ func pushCommand(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key", "", "private key for the config repo")
+	command.Flags().StringVar(&gitSvc.SSHPrivateKeyPath, "ssh-private-key", "", "private key for the config repo")
 	command.MarkFlagRequired("ssh-private-key")
-	command.Flags().StringVar(&configGitRepo, "config-repo", "", "ssh url for the git config repository")
+	command.Flags().StringVar(&gitSvc.ConfigRepoURL, "config-repo", "", "ssh url for the git config repository")
 	command.MarkFlagRequired("config-repo")
 	return command
 }
