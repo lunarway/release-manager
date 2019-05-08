@@ -23,7 +23,7 @@ import (
 //
 // Copy artifacts from the artifacts into the environment and commit the changes.
 func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, service, branch string) (string, error) {
-	sourceConfigRepoPath, close, err := tempDir("k8s-config-release-branch")
+	sourceConfigRepoPath, close, err := git.TempDir("k8s-config-release-branch")
 	if err != nil {
 		return "", err
 	}
@@ -112,12 +112,12 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 // Copy resources from the artifact commit into the environment and commit
 // the changes
 func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environment, service, artifactID string) (string, error) {
-	sourceConfigRepoPath, closeSource, err := tempDir("k8s-config-release-artifact-source")
+	sourceConfigRepoPath, closeSource, err := git.TempDir("k8s-config-release-artifact-source")
 	if err != nil {
 		return "", err
 	}
 	defer closeSource()
-	destinationConfigRepoPath, closeDestination, err := tempDir("k8s-config-release-artifact-destination")
+	destinationConfigRepoPath, closeDestination, err := git.TempDir("k8s-config-release-artifact-destination")
 	if err != nil {
 		return "", err
 	}
