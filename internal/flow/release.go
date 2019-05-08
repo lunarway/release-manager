@@ -28,9 +28,9 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		return "", err
 	}
 	defer close()
-	repo, err := git.CloneDepth(ctx, s.ConfigRepoURL, sourceConfigRepoPath, s.SSHPrivateKeyPath, 1)
+	repo, err := s.Git.CloneDepth(ctx, sourceConfigRepoPath, 1)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", s.ConfigRepoURL, sourceConfigRepoPath))
+		return "", errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 	// repo/artifacts/{service}/{branch}/{artifactFileName}
 	artifactSpecPath := path.Join(artifactPath(sourceConfigRepoPath, service, branch), s.ArtifactFileName)
@@ -80,7 +80,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 	authorEmail := artifactSpec.Application.AuthorEmail
 	artifactID := artifactSpec.ID
 	releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID)
-	err = git.Commit(ctx, repo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage, s.SSHPrivateKeyPath)
+	err = s.Git.Commit(ctx, repo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}
@@ -122,18 +122,18 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		return "", err
 	}
 	defer closeDestination()
-	sourceRepo, err := git.Clone(ctx, s.ConfigRepoURL, sourceConfigRepoPath, s.SSHPrivateKeyPath)
+	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("clone '%s' into '%s'", s.ConfigRepoURL, sourceConfigRepoPath))
+		return "", errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 
-	hash, err := git.LocateArtifact(sourceRepo, artifactID)
+	hash, err := s.Git.LocateArtifact(sourceRepo, artifactID)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("locate release '%s' from '%s'", artifactID, s.ConfigRepoURL))
+		return "", errors.WithMessagef(err, "locate release '%s'", artifactID)
 	}
-	err = git.Checkout(sourceRepo, hash)
+	err = s.Git.Checkout(sourceRepo, hash)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("checkout release hash '%s' from '%s'", hash, s.ConfigRepoURL))
+		return "", errors.WithMessagef(err, "checkout release hash '%s'", hash)
 	}
 
 	branch, err := git.BranchFromHead(ctx, sourceRepo, s.ArtifactFileName, service)
@@ -153,9 +153,9 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		namespace = environment
 	}
 
-	destinationRepo, err := git.Clone(ctx, s.ConfigRepoURL, destinationConfigRepoPath, s.SSHPrivateKeyPath)
+	destinationRepo, err := s.Git.Clone(ctx, destinationConfigRepoPath)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("clone destination repo '%s' into '%s'", s.ConfigRepoURL, destinationConfigRepoPath))
+		return "", errors.WithMessagef(err, "clone destination repo into '%s'", destinationConfigRepoPath)
 	}
 
 	// release service to env from original release
@@ -189,7 +189,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	authorName := sourceSpec.Application.AuthorName
 	authorEmail := sourceSpec.Application.AuthorEmail
 	releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID)
-	err = git.Commit(ctx, destinationRepo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage, s.SSHPrivateKeyPath)
+	err = s.Git.Commit(ctx, destinationRepo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}

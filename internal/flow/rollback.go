@@ -29,20 +29,20 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 		return RollbackResult{}, err
 	}
 	defer closeDestination()
-	r, err := git.Clone(ctx, s.ConfigRepoURL, sourceConfigRepoPath, s.SSHPrivateKeyPath)
+	r, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
-		return RollbackResult{}, errors.WithMessagef(err, "clone '%s' into '%s'", s.ConfigRepoURL, sourceConfigRepoPath)
+		return RollbackResult{}, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 
 	// locate current release
-	currentHash, err := git.LocateServiceRelease(r, environment, service)
+	currentHash, err := s.Git.LocateServiceRelease(r, environment, service)
 	if err != nil {
-		return RollbackResult{}, errors.WithMessagef(err, "locate current release in '%s' at '%s'", s.ConfigRepoURL, sourceConfigRepoPath)
+		return RollbackResult{}, errors.WithMessagef(err, "locate current release at '%s'", sourceConfigRepoPath)
 	}
 	log.Debugf("flow: Rollback: current release hash '%v'", currentHash)
-	err = git.Checkout(r, currentHash)
+	err = s.Git.Checkout(r, currentHash)
 	if err != nil {
-		return RollbackResult{}, errors.WithMessagef(err, "checkout current release hash '%v' in '%s'", currentHash, s.ConfigRepoURL)
+		return RollbackResult{}, errors.WithMessagef(err, "checkout current release hash '%v'", currentHash)
 	}
 	// default to environment name for the namespace if none is specified
 	if namespace == "" {
@@ -52,7 +52,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 
 	currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
 	if err != nil {
-		return RollbackResult{}, errors.WithMessagef(err, "get spec of current release hash '%v' in '%s'", currentHash, s.ConfigRepoURL)
+		return RollbackResult{}, errors.WithMessagef(err, "get spec of current release hash '%v'", currentHash)
 	}
 
 	// if artifact has no namespace we only allow using the environment as
@@ -72,24 +72,24 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 		result.OverwritingNamespace = currentSpec.Namespace
 	}
 	// locate new release (the previous released artifact for this service)
-	newHash, err := git.LocateServiceReleaseRollbackSkip(r, environment, service, 1)
+	newHash, err := s.Git.LocateServiceReleaseRollbackSkip(r, environment, service, 1)
 	if err != nil {
-		return RollbackResult{}, errors.WithMessagef(err, "locate previous release in '%s' at '%s'", s.ConfigRepoURL, sourceConfigRepoPath)
+		return RollbackResult{}, errors.WithMessagef(err, "locate previous release at '%s'", sourceConfigRepoPath)
 	}
 	log.Debugf("flow: Rollback: new release hash '%v'", newHash)
-	err = git.Checkout(r, newHash)
+	err = s.Git.Checkout(r, newHash)
 	if err != nil {
-		return RollbackResult{}, errors.WithMessagef(err, "checkout previous release hash '%v' in '%s'", newHash, s.ConfigRepoURL)
+		return RollbackResult{}, errors.WithMessagef(err, "checkout previous release hash '%v'", newHash)
 	}
 	newSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
 	if err != nil {
-		return RollbackResult{}, errors.WithMessagef(err, "get spec of previous release hash '%v' in '%s'", newHash, s.ConfigRepoURL)
+		return RollbackResult{}, errors.WithMessagef(err, "get spec of previous release hash '%v'", newHash)
 	}
 
 	// copy current release artifacts into env
-	destinationRepo, err := git.CloneDepth(ctx, s.ConfigRepoURL, destinationConfigRepoPath, s.SSHPrivateKeyPath, 1)
+	destinationRepo, err := s.Git.CloneDepth(ctx, destinationConfigRepoPath, 1)
 	if err != nil {
-		return RollbackResult{}, errors.WithMessage(err, fmt.Sprintf("clone destination repo '%s' into '%s'", s.ConfigRepoURL, destinationConfigRepoPath))
+		return RollbackResult{}, errors.WithMessagef(err, "clone destination repo into '%s'", destinationConfigRepoPath)
 	}
 
 	// release service to env from original release
@@ -123,7 +123,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 	authorName := newSpec.Application.AuthorName
 	authorEmail := newSpec.Application.AuthorEmail
 	releaseMessage := git.RollbackCommitMessage(environment, service, currentSpec.ID, newSpec.ID)
-	err = git.Commit(ctx, destinationRepo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage, s.SSHPrivateKeyPath)
+	err = s.Git.Commit(ctx, destinationRepo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 	if err != nil {
 		return RollbackResult{}, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 	}

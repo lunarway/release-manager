@@ -25,8 +25,7 @@ var (
 )
 
 type Service struct {
-	ConfigRepoURL     string
-	SSHPrivateKeyPath string
+	Git *git.Service
 }
 
 type Actor struct {
@@ -60,7 +59,7 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 		return Policies{}, err
 	}
 	defer close()
-	_, err = git.CloneDepth(ctx, s.ConfigRepoURL, configRepoPath, s.SSHPrivateKeyPath, 1)
+	_, err = s.Git.CloneDepth(ctx, configRepoPath, 1)
 	if err != nil {
 		return Policies{}, errors.WithMessage(err, fmt.Sprintf("clone to path '%s'", configRepoPath))
 	}
@@ -131,7 +130,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 	// file flags used. This is to avoid opening and closing to file multiple
 	// times during the operation.
 	log.Debugf("internal/policy: clone config repository")
-	repo, err := git.CloneDepth(ctx, s.ConfigRepoURL, configRepoPath, s.SSHPrivateKeyPath, 1)
+	repo, err := s.Git.CloneDepth(ctx, configRepoPath, 1)
 	if err != nil {
 		return errors.WithMessage(err, fmt.Sprintf("clone to '%s'", configRepoPath))
 	}
@@ -183,7 +182,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 
 	// commit changes
 	log.Debugf("internal/policy: commit policies file '%s'", policiesPath)
-	err = git.Commit(ctx, repo, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg, s.SSHPrivateKeyPath)
+	err = s.Git.Commit(ctx, repo, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg)
 	if err != nil {
 		// indicates that the applied policy was already set
 		if err == git.ErrNothingToCommit {
