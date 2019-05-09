@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/lunarway/release-manager/cmd/daemon/command"
-	"github.com/lunarway/release-manager/internal/log"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +13,6 @@ var (
 )
 
 func main() {
-	log.Init()
 	c, err := command.DaemonCommand()
 	if err != nil {
 		os.Exit(1)

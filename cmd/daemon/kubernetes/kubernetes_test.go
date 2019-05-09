@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/stretchr/testify/assert"
@@ -55,7 +56,12 @@ func TestParseToJSONLogs(t *testing.T) {
 }
 
 func TestStatusNotifier(t *testing.T) {
-	log.Init()
+	log.Init(&log.Configuration{
+		Level: log.Level{
+			Level: zapcore.DebugLevel,
+		},
+		Development: true,
+	})
 	testCases := []struct {
 		desc          string
 		input         watch.Event

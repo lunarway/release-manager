@@ -16,10 +16,13 @@ import (
 
 func StartDaemon() *cobra.Command {
 	var authToken, releaseManagerUrl, environment string
+	var logConfiguration *log.Configuration
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-daemon",
 		RunE: func(c *cobra.Command, args []string) error {
+			logConfiguration.ParseFromEnvironmnet()
+			log.Init(logConfiguration)
 			kubectl, err := kubernetes.NewClient()
 			if err != nil {
 				return err
@@ -55,6 +58,7 @@ func StartDaemon() *cobra.Command {
 	command.Flags().StringVar(&authToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
 	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
 	command.MarkFlagRequired("environment")
+	logConfiguration = log.RegisterFlags(command)
 	return command
 }
 
