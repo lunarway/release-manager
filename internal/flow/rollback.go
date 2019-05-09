@@ -87,7 +87,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 	}
 
 	// copy current release artifacts into env
-	destinationRepo, err := s.Git.CloneDepth(ctx, destinationConfigRepoPath, 1)
+	destinationRepo, err := s.Git.Clone(ctx, destinationConfigRepoPath)
 	if err != nil {
 		return RollbackResult{}, errors.WithMessagef(err, "clone destination repo into '%s'", destinationConfigRepoPath)
 	}

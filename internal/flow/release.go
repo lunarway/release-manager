@@ -28,7 +28,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		return "", err
 	}
 	defer close()
-	repo, err := s.Git.CloneDepth(ctx, sourceConfigRepoPath, 1)
+	repo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		return "", errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}

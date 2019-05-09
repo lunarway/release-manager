@@ -29,7 +29,7 @@ type Options struct {
 	DaemonAuthToken     string
 }
 
-func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service) error {
+func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
 	mux.HandleFunc("/promote", authenticate(opts.HamCtlAuthToken, promote(flowSvc)))
@@ -37,7 +37,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	mux.HandleFunc("/status", authenticate(opts.HamCtlAuthToken, status(flowSvc)))
 	mux.HandleFunc("/rollback", authenticate(opts.HamCtlAuthToken, rollback(flowSvc)))
 	mux.HandleFunc("/policies", authenticate(opts.HamCtlAuthToken, policy(policySvc)))
-	mux.HandleFunc("/webhook/github", githubWebhook(flowSvc, policySvc, slackClient, opts.GithubWebhookSecret))
+	mux.HandleFunc("/webhook/github", githubWebhook(flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret))
 	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(flowSvc)))
 
 	s := http.Server{
@@ -275,7 +275,7 @@ func daemonWebhook(flowSvc *flow.Service) http.HandlerFunc {
 	}
 }
 
-func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
+func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		hook, _ := github.New(github.Options.Secret(githubWebhookSecret))
 		payload, err := hook.Parse(r, github.PushEvent)
@@ -289,6 +289,12 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, sla
 			push := payload.(github.PushPayload)
 			if !isBranchPush(push.Ref) {
 				log.Infof("http: github webhook: ref '%s' is not a branch push", push.Ref)
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			err := gitSvc.SyncMaster()
+			if err != nil {
+				log.Errorf("http: github webhook: failed to sync master: %v", err)
 				w.WriteHeader(http.StatusOK)
 				return
 			}

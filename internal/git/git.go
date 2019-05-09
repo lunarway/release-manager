@@ -8,9 +8,11 @@ import (
 	"path"
 	"regexp"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -28,16 +30,34 @@ var (
 type Service struct {
 	SSHPrivateKeyPath string
 	ConfigRepoURL     string
+
+	masterMutex sync.Mutex
+	masterPath  string
+	master      *git.Repository
 }
 
-func (s *Service) CloneDepth(ctx context.Context, destination string, depth int) (*git.Repository, error) {
-	return s.clone(ctx, destination, depth)
-}
-func (s *Service) Clone(ctx context.Context, destination string) (*git.Repository, error) {
-	return s.clone(ctx, destination, 0)
+// InitMasterRepo clones the configuration repository into a master directory.
+func (s *Service) InitMasterRepo() (func(), error) {
+	path, close, err := TempDir("k8s-master-clone")
+	if err != nil {
+		close()
+		return nil, errors.WithMessage(err, "get temporary directory")
+	}
+	repo, err := s.clone(context.Background(), path)
+	if err != nil {
+		close()
+		return nil, errors.WithMessagef(err, "clone into '%s'", path)
+	}
+	s.masterMutex.Lock()
+	defer s.masterMutex.Unlock()
+	s.master = repo
+	s.masterPath = path
+	log.Infof("Master repo cloned into '%s'", path)
+	return close, nil
 }
 
-func (s *Service) clone(ctx context.Context, destination string, depth int) (*git.Repository, error) {
+func (s *Service) clone(ctx context.Context, destination string) (*git.Repository, error) {
+	defer logDuration("Clone")()
 	authSSH, err := ssh.NewPublicKeysFromFile("git", s.SSHPrivateKeyPath, "")
 	if err != nil {
 		return nil, errors.WithMessage(err, "public keys from file")
@@ -48,12 +68,63 @@ func (s *Service) clone(ctx context.Context, destination string, depth int) (*gi
 	}
 
 	r, err := git.PlainCloneContext(ctx, destination, false, &git.CloneOptions{
-		URL:   s.ConfigRepoURL,
-		Auth:  authSSH,
-		Depth: depth,
+		URL:  s.ConfigRepoURL,
+		Auth: authSSH,
 	})
 	if err != nil {
 		return nil, errors.WithMessage(err, "clone repo")
+	}
+	return r, nil
+}
+
+// SyncMaster pulls latest changes from master repo.
+func (s *Service) SyncMaster() error {
+	defer logDuration("Sync master")()
+	authSSH, err := ssh.NewPublicKeysFromFile("git", s.SSHPrivateKeyPath, "")
+	if err != nil {
+		return errors.WithMessage(err, "public keys from file")
+	}
+	s.masterMutex.Lock()
+	defer s.masterMutex.Unlock()
+	err = s.master.Fetch(&git.FetchOptions{
+		Auth: authSSH,
+	})
+	if err != nil && err != git.NoErrAlreadyUpToDate {
+		return errors.WithMessage(err, "fetch changes")
+	}
+	w, err := s.master.Worktree()
+	if err != nil {
+		return errors.WithMessage(err, "get worktree")
+	}
+	err = w.Pull(&git.PullOptions{
+		Auth: authSSH,
+	})
+	if err != nil {
+		return errors.WithMessage(err, "pull latest")
+	}
+	return nil
+}
+
+// Clone returns a Git repository copy from the master repository.
+func (s *Service) Clone(ctx context.Context, destination string) (*git.Repository, error) {
+	return s.copyMaster(ctx, destination)
+}
+
+func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repository, error) {
+	defer logDuration("Copy master")()
+	err := os.RemoveAll(destination)
+	if err != nil {
+		return nil, errors.WithMessage(err, "remove existing destination")
+	}
+	s.masterMutex.Lock()
+	defer s.masterMutex.Unlock()
+	err = copy.Copy(s.masterPath, destination)
+	if err != nil {
+		return nil, errors.WithMessagef(err, "copy master from '%s'", s.masterPath)
+	}
+	r, err := git.PlainOpen(destination)
+	if err != nil {
+		return nil, errors.WithMessage(err, "open repo")
 	}
 	return r, nil
 }
@@ -220,6 +291,7 @@ func locate(r *git.Repository, condition conditionFunc, notFoundErr error) (plum
 }
 
 func (s *Service) Commit(ctx context.Context, repo *git.Repository, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
+	defer logDuration("Commit")()
 	w, err := repo.Worktree()
 	if err != nil {
 		return errors.WithMessage(err, "get worktree")
@@ -340,4 +412,12 @@ func parseConfig(path string) (config.Config, error) {
 		return config.Config{}, err
 	}
 	return c, nil
+}
+
+func logDuration(op string) func() {
+	start := time.Now()
+	return func() {
+		d := time.Since(start)
+		log.Infof("internal/git: %s: duration %s", op, d)
+	}
 }

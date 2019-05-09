@@ -95,6 +95,12 @@ github-webhook:
 		} \
 	}' \
 	localhost:8080/webhook/github
+	
+hamctl-status:
+	curl -X GET \
+	-H 'Content-Type: application/json' \
+	-H 'Authorization: Bearer test' \
+	"localhost:8080/status?service=a"
 
 daemon-webhook-success:
 	curl -X POST \
