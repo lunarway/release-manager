@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/cmd/server/http"
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/spf13/cobra"
 )
@@ -18,6 +19,7 @@ func NewCommand() (*cobra.Command, error) {
 	var configRepoOpts configRepoOptions
 	var users []string
 	var userMappings map[string]string
+	var logConfiguration *log.Configuration
 
 	var command = &cobra.Command{
 		Use:   "server",
@@ -32,6 +34,8 @@ func NewCommand() (*cobra.Command, error) {
 			if err != nil {
 				return err
 			}
+			logConfiguration.ParseFromEnvironmnet()
+			log.Init(logConfiguration)
 			return nil
 		},
 		Run: func(c *cobra.Command, args []string) {
@@ -55,6 +59,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&grafanaOpts.StagingURL, "grafana-staging-url", os.Getenv("GRAFANA_STAGING_URL"), "grafana staging url")
 	command.PersistentFlags().StringVar(&grafanaOpts.ProdURL, "grafana-prod-url", os.Getenv("GRAFANA_PROD_URL"), "grafana prod url")
 	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between emails used by Git and Slack, key-value pair: <email>=<slack-email>")
+	logConfiguration = log.RegisterFlags(command)
 
 	return command, nil
 }

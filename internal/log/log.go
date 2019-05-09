@@ -2,7 +2,6 @@ package log
 
 import (
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 var logger *Logger
@@ -10,22 +9,6 @@ var logger *Logger
 // Logger is a general structured logger.
 type Logger struct {
 	sugar *zap.SugaredLogger
-}
-
-func Init() {
-	config := zap.NewProductionConfig()
-	config.EncoderConfig.TimeKey = "@timestamp"
-	config.EncoderConfig.MessageKey = "message"
-	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	config.EncoderConfig.LevelKey = "level"
-	config.EncoderConfig.CallerKey = "caller"
-	config.EncoderConfig.StacktraceKey = "stacktrace"
-	config.EncoderConfig.LineEnding = zapcore.DefaultLineEnding
-	config.EncoderConfig.EncodeLevel = zapcore.LowercaseLevelEncoder
-	config.EncoderConfig.EncodeDuration = zapcore.SecondsDurationEncoder
-	config.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
-	zapLogger, _ := config.Build(zap.AddCallerSkip(2))
-	logger = &Logger{sugar: zapLogger.Sugar()}
 }
 
 // WithFields returns a logger with custom structured fields added to the 'fields' key in the log entries.
