@@ -89,7 +89,10 @@ func (s *Service) SyncMaster() error {
 	err = s.master.Fetch(&git.FetchOptions{
 		Auth: authSSH,
 	})
-	if err != nil && err != git.NoErrAlreadyUpToDate {
+	if err != nil {
+		if err == git.NoErrAlreadyUpToDate {
+			return nil
+		}
 		return errors.WithMessage(err, "fetch changes")
 	}
 	w, err := s.master.Worktree()
@@ -100,6 +103,9 @@ func (s *Service) SyncMaster() error {
 		Auth: authSSH,
 	})
 	if err != nil {
+		if err == git.NoErrAlreadyUpToDate {
+			return nil
+		}
 		return errors.WithMessage(err, "pull latest")
 	}
 	return nil
