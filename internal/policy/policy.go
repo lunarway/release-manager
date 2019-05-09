@@ -59,7 +59,7 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 		return Policies{}, err
 	}
 	defer close()
-	_, err = s.Git.CloneDepth(ctx, configRepoPath, 1)
+	_, err = s.Git.Clone(ctx, configRepoPath)
 	if err != nil {
 		return Policies{}, errors.WithMessage(err, fmt.Sprintf("clone to path '%s'", configRepoPath))
 	}
@@ -130,7 +130,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 	// file flags used. This is to avoid opening and closing to file multiple
 	// times during the operation.
 	log.Debugf("internal/policy: clone config repository")
-	repo, err := s.Git.CloneDepth(ctx, configRepoPath, 1)
+	repo, err := s.Git.Clone(ctx, configRepoPath)
 	if err != nil {
 		return errors.WithMessage(err, fmt.Sprintf("clone to '%s'", configRepoPath))
 	}

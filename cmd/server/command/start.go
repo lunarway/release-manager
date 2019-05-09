@@ -61,6 +61,11 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 				SSHPrivateKeyPath: configRepoOpts.SSHPrivateKeyPath,
 				ConfigRepoURL:     configRepoOpts.ConfigRepo,
 			}
+			close, err := gitSvc.InitMasterRepo()
+			if err != nil {
+				return err
+			}
+			defer close()
 			flowSvc := flow.Service{
 				ArtifactFileName: configRepoOpts.ArtifactFileName,
 				UserMappings:     userMappings,
@@ -72,7 +77,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 				Git: &gitSvc,
 			}
 			go func() {
-				err := http.NewServer(httpOpts, slackClient, &flowSvc, &policySvc)
+				err := http.NewServer(httpOpts, slackClient, &flowSvc, &policySvc, &gitSvc)
 				if err != nil {
 					done <- errors.WithMessage(err, "new http server")
 					return

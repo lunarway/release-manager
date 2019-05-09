@@ -213,7 +213,7 @@ func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, re
 	// fmt.Printf is used for logging as this is called from artifact cli only
 	fmt.Printf("Checkout config repository from '%s' into '%s'\n", gitSvc.ConfigRepoURL, resourceRoot)
 	listFiles(resourceRoot)
-	repo, err := gitSvc.CloneDepth(context.Background(), artifactConfigRepoPath, 1)
+	repo, err := gitSvc.Clone(context.Background(), artifactConfigRepoPath)
 	if err != nil {
 		return "", errors.WithMessage(err, "clone config repo")
 	}
