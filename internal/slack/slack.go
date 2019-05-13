@@ -23,6 +23,7 @@ var (
 )
 
 func NewClient(token string, emailMappings map[string]string) (*Client, error) {
+	log.Infof("slack: new client: initialized with emailMappings: %+v", emailMappings)
 	slackClient := slack.New(token)
 	client := Client{
 		client:        slackClient,

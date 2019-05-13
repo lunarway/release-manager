@@ -31,13 +31,13 @@ type configRepoOptions struct {
 	SSHPrivateKeyPath string
 }
 
-func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpts *configRepoOptions, httpOpts *http.Options, userMappings map[string]string) *cobra.Command {
+func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpts *configRepoOptions, httpOpts *http.Options, userMappings *map[string]string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-manager",
 		RunE: func(c *cobra.Command, args []string) error {
 			done := make(chan error, 1)
-			slackClient, err := slack.NewClient(*slackAuthToken, userMappings)
+			slackClient, err := slack.NewClient(*slackAuthToken, *userMappings)
 			if err != nil {
 				return err
 			}
@@ -68,7 +68,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 			defer close()
 			flowSvc := flow.Service{
 				ArtifactFileName: configRepoOpts.ArtifactFileName,
-				UserMappings:     userMappings,
+				UserMappings:     *userMappings,
 				Slack:            slackClient,
 				Grafana:          &grafana,
 				Git:              &gitSvc,
