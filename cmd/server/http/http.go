@@ -337,6 +337,10 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, git
 				if err != nil {
 					if errors.Cause(err) != git.ErrNothingToCommit {
 						errs = multierr.Append(errs, err)
+						err := slackClient.NotifySlackPolicyFailed(push.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("Service %s was not released into %s from branch %s", serviceName, autoRelease.Environment, autoRelease.Branch))
+						if err != nil {
+							log.Errorf("http: github webhook: auto-release failed: error notifying slack: %v", err)
+						}
 						continue
 					}
 					logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' to '%s': nothing to commit", serviceName, autoRelease.ID, autoRelease.Environment)
@@ -346,10 +350,6 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, git
 			}
 			if errs != nil {
 				log.Errorf("http: github webhook: service '%s' branch '%s': auto-release failed with one or more errors: %v", serviceName, branch, errs)
-				err := slackClient.NotifySlackPolicyFailed(push.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("failed for branch: %s, env: %s", serviceName, branch))
-				if err != nil {
-					log.Errorf("http: github webhook: auto-release failed: error notifying slack: %v", err)
-				}
 				unknownError(w)
 				return
 			}
