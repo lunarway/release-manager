@@ -337,7 +337,7 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, git
 				if err != nil {
 					if errors.Cause(err) != git.ErrNothingToCommit {
 						errs = multierr.Append(errs, err)
-						err := slackClient.NotifySlackPolicyFailed(push.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("Service %s was not released into %s from branch %s", serviceName, autoRelease.Environment, autoRelease.Branch))
+						err := slackClient.NotifySlackPolicyFailed(push.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("Service %s was not released into %s from branch %s.\nYou can deploy manually using `hamctl`:\nhamctl release --service example --branch master --env dev", serviceName, autoRelease.Environment, autoRelease.Branch))
 						if err != nil {
 							log.Errorf("http: github webhook: auto-release failed: error notifying slack: %v", err)
 						}
