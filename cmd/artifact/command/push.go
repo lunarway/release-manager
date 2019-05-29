@@ -8,6 +8,7 @@ import (
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/slack"
+	"github.com/lunarway/release-manager/internal/try"
 	"github.com/spf13/cobra"
 )
 
@@ -20,12 +21,19 @@ func pushCommand(options *Options) *cobra.Command {
 		Use:   "push",
 		Short: "push artifact to a configuration repository",
 		RunE: func(c *cobra.Command, args []string) error {
-			close, err := gitSvc.InitMasterRepo()
-			if err != nil {
-				return err
-			}
-			defer close()
-			artifactId, err := flow.PushArtifact(context.Background(), &gitSvc, options.FileName, options.RootPath, maxRetries)
+			var artifactID string
+			err := try.Do(maxRetries, func(int) (bool, error) {
+				close, err := gitSvc.InitMasterRepo()
+				if err != nil {
+					return false, err
+				}
+				defer close()
+				artifactID, err = flow.PushArtifact(context.Background(), &gitSvc, options.FileName, options.RootPath)
+				if err != nil {
+					return false, err
+				}
+				return true, nil
+			})
 			if err != nil {
 				return err
 			}
@@ -35,7 +43,7 @@ func pushCommand(options *Options) *cobra.Command {
 				return nil
 			}
 			err = client.UpdateMessage(path.Join(options.RootPath, options.MessageFileName), func(m slack.Message) slack.Message {
-				m.Text += fmt.Sprintf(":white_check_mark: *Artifact pushed:* %s", artifactId)
+				m.Text += fmt.Sprintf(":white_check_mark: *Artifact pushed:* %s", artifactID)
 				return m
 			})
 			if err != nil {
