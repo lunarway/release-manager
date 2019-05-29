@@ -72,9 +72,15 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 				Slack:            slackClient,
 				Grafana:          &grafana,
 				Git:              &gitSvc,
+				// retries for comitting changes into config repo
+				// can be required for racing writes
+				MaxRetries: 3,
 			}
 			policySvc := policy.Service{
 				Git: &gitSvc,
+				// retries for comitting changes into config repo
+				// can be required for racing writes
+				MaxRetries: 3,
 			}
 			go func() {
 				err := http.NewServer(httpOpts, slackClient, &flowSvc, &policySvc, &gitSvc)

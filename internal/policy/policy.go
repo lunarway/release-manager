@@ -11,6 +11,7 @@ import (
 
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/try"
 	"github.com/pkg/errors"
 )
 
@@ -26,6 +27,8 @@ var (
 
 type Service struct {
 	Git *git.Service
+
+	MaxRetries int
 }
 
 type Actor struct {
@@ -121,76 +124,78 @@ func (s *Service) Delete(ctx context.Context, actor Actor, svc string, ids []str
 }
 
 func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMsg string, f func(p *Policies)) error {
-	configRepoPath, close, err := git.TempDir("k8s-config-notify")
-	if err != nil {
-		return err
-	}
-	defer close()
-	// read part of this code is the same as the Get function but differs in the
-	// file flags used. This is to avoid opening and closing to file multiple
-	// times during the operation.
-	log.Debugf("internal/policy: clone config repository")
-	repo, err := s.Git.Clone(ctx, configRepoPath)
-	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("clone to '%s'", configRepoPath))
-	}
-
-	// make sure policy directory exists
-	log.Debugf("internal/policy: ensure policies directory")
-	policiesDir := path.Join(configRepoPath, "policies")
-	err = os.MkdirAll(policiesDir, os.ModePerm)
-	if err != nil {
-		return errors.WithMessagef(err, "make policies directory '%s'", policiesDir)
-	}
-
-	policiesPath := path.Join(policiesDir, fmt.Sprintf("%s.json", svc))
-	log.Debugf("internal/policy: open policies file '%s'", policiesPath)
-	policiesFile, err := os.OpenFile(policiesPath, os.O_CREATE|os.O_RDWR, os.ModePerm)
-	if err != nil {
-		return errors.WithMessagef(err, "open policies in '%s'", policiesPath)
-	}
-	defer policiesFile.Close()
-
-	// read existing policies
-	log.Debugf("internal/policy: parse policies file '%s'", policiesPath)
-	policies, err := parse(policiesFile)
-	if err != nil {
-		return errors.WithMessagef(err, "parse policies in '%s'", policiesPath)
-	}
-	log.Debugf("internal/policy: parseed policy: %+v", policies)
-
-	policies.Service = svc
-	f(&policies)
-
-	// store file
-
-	// truncate and reset the offset of the file before writing to it
-	// to overwrite the contents
-	err = policiesFile.Truncate(0)
-	if err != nil {
-		return errors.WithMessagef(err, "truncate file '%s'", policiesPath)
-	}
-	_, err = policiesFile.Seek(0, 0)
-	if err != nil {
-		return errors.WithMessagef(err, "reset seek on '%s'", policiesPath)
-	}
-	log.Debugf("internal/policy: persist policies file '%s'", policiesPath)
-	err = persist(policiesFile, policies)
-	if err != nil {
-		return errors.WithMessagef(err, "write policies in '%s'", policiesPath)
-	}
-
-	// commit changes
-	log.Debugf("internal/policy: commit policies file '%s'", policiesPath)
-	err = s.Git.Commit(ctx, repo, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg)
-	if err != nil {
-		// indicates that the applied policy was already set
-		if err == git.ErrNothingToCommit {
-			return nil
+	return try.Do(s.MaxRetries, func(int) (bool, error) {
+		configRepoPath, close, err := git.TempDir("k8s-config-notify")
+		if err != nil {
+			return true, err
 		}
-		return errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", policiesPath))
-	}
-	return nil
+		defer close()
+		// read part of this code is the same as the Get function but differs in the
+		// file flags used. This is to avoid opening and closing to file multiple
+		// times during the operation.
+		log.Debugf("internal/policy: clone config repository")
+		repo, err := s.Git.Clone(ctx, configRepoPath)
+		if err != nil {
+			return true, errors.WithMessage(err, fmt.Sprintf("clone to '%s'", configRepoPath))
+		}
+
+		// make sure policy directory exists
+		log.Debugf("internal/policy: ensure policies directory")
+		policiesDir := path.Join(configRepoPath, "policies")
+		err = os.MkdirAll(policiesDir, os.ModePerm)
+		if err != nil {
+			return true, errors.WithMessagef(err, "make policies directory '%s'", policiesDir)
+		}
+
+		policiesPath := path.Join(policiesDir, fmt.Sprintf("%s.json", svc))
+		log.Debugf("internal/policy: open policies file '%s'", policiesPath)
+		policiesFile, err := os.OpenFile(policiesPath, os.O_CREATE|os.O_RDWR, os.ModePerm)
+		if err != nil {
+			return true, errors.WithMessagef(err, "open policies in '%s'", policiesPath)
+		}
+		defer policiesFile.Close()
+
+		// read existing policies
+		log.Debugf("internal/policy: parse policies file '%s'", policiesPath)
+		policies, err := parse(policiesFile)
+		if err != nil {
+			return true, errors.WithMessagef(err, "parse policies in '%s'", policiesPath)
+		}
+		log.Debugf("internal/policy: parseed policy: %+v", policies)
+
+		policies.Service = svc
+		f(&policies)
+
+		// store file
+
+		// truncate and reset the offset of the file before writing to it
+		// to overwrite the contents
+		err = policiesFile.Truncate(0)
+		if err != nil {
+			return true, errors.WithMessagef(err, "truncate file '%s'", policiesPath)
+		}
+		_, err = policiesFile.Seek(0, 0)
+		if err != nil {
+			return true, errors.WithMessagef(err, "reset seek on '%s'", policiesPath)
+		}
+		log.Debugf("internal/policy: persist policies file '%s'", policiesPath)
+		err = persist(policiesFile, policies)
+		if err != nil {
+			return true, errors.WithMessagef(err, "write policies in '%s'", policiesPath)
+		}
+
+		// commit changes
+		log.Debugf("internal/policy: commit policies file '%s'", policiesPath)
+		err = s.Git.Commit(ctx, repo, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg)
+		if err != nil {
+			// indicates that the applied policy was already set
+			if err == git.ErrNothingToCommit {
+				return true, nil
+			}
+			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", policiesPath))
+		}
+		return true, nil
+	})
 }
 
 func parse(r io.Reader) (Policies, error) {

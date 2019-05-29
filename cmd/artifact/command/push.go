@@ -13,6 +13,9 @@ import (
 
 func pushCommand(options *Options) *cobra.Command {
 	var gitSvc git.Service
+	// retries for comitting changes into config repo
+	// can be required for racing writes
+	const maxRetries = 5
 	command := &cobra.Command{
 		Use:   "push",
 		Short: "push artifact to a configuration repository",
@@ -22,7 +25,7 @@ func pushCommand(options *Options) *cobra.Command {
 				return err
 			}
 			defer close()
-			artifactId, err := flow.PushArtifact(context.Background(), &gitSvc, options.FileName, options.RootPath)
+			artifactId, err := flow.PushArtifact(context.Background(), &gitSvc, options.FileName, options.RootPath, maxRetries)
 			if err != nil {
 				return err
 			}
