@@ -208,67 +208,59 @@ func releasePath(root, service, env, namespace string) string {
 //
 // The resourceRoot specifies the path to the artifact files. All files in this
 // path will be pushed.
-func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, resourceRoot string, maxRetries int) (string, error) {
-	var result string
-	err := try.Do(maxRetries, func(int) (bool, error) {
-		artifactSpecPath := path.Join(resourceRoot, artifactFileName)
-		artifactSpec, err := artifact.Get(artifactSpecPath)
-		if err != nil {
-			return true, errors.WithMessagef(err, "path '%s'", artifactSpecPath)
-		}
-		artifactConfigRepoPath, close, err := git.TempDir("k8s-config-artifact")
-		if err != nil {
-			return true, err
-		}
-		defer close()
-		// fmt.Printf is used for logging as this is called from artifact cli only
-		fmt.Printf("Checkout config repository from '%s' into '%s'\n", gitSvc.ConfigRepoURL, resourceRoot)
-		listFiles(resourceRoot)
-		repo, err := gitSvc.Clone(context.Background(), artifactConfigRepoPath)
-		if err != nil {
-			return true, errors.WithMessage(err, "clone config repo")
-		}
-		destinationPath := artifactPath(artifactConfigRepoPath, artifactSpec.Service, artifactSpec.Application.Branch)
-		fmt.Printf("Artifacts destination '%s'\n", destinationPath)
-		listFiles(destinationPath)
-		fmt.Printf("Removing existing files\n")
-		err = os.RemoveAll(destinationPath)
-		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("remove destination path '%s'", destinationPath))
-		}
-		err = os.MkdirAll(destinationPath, os.ModePerm)
-		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
-		}
-		fmt.Printf("Copy configuration into destination\n")
-		err = copy.Copy(resourceRoot, destinationPath)
-		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", resourceRoot, destinationPath))
-		}
-		listFiles(destinationPath)
-		committerName, committerEmail, err := git.CommitterDetails()
-		if err != nil {
-			return true, errors.WithMessage(err, "get committer details")
-		}
-		artifactID := artifactSpec.ID
-		authorName := artifactSpec.Application.AuthorName
-		authorEmail := artifactSpec.Application.AuthorEmail
-		commitMsg := git.ArtifactCommitMessage(artifactSpec.Service, artifactID, authorName)
-		fmt.Printf("Committing changes\n")
-		err = gitSvc.Commit(context.Background(), repo, ".", authorName, authorEmail, committerName, committerEmail, commitMsg)
-		if err != nil {
-			if err == git.ErrNothingToCommit {
-				return true, nil
-			}
-			return false, errors.WithMessage(err, "commit files")
-		}
-		result = artifactSpec.ID
-		return true, nil
-	})
+func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, resourceRoot string) (string, error) {
+	artifactSpecPath := path.Join(resourceRoot, artifactFileName)
+	artifactSpec, err := artifact.Get(artifactSpecPath)
+	if err != nil {
+		return "", errors.WithMessagef(err, "path '%s'", artifactSpecPath)
+	}
+	artifactConfigRepoPath, close, err := git.TempDir("k8s-config-artifact")
 	if err != nil {
 		return "", err
 	}
-	return result, nil
+	defer close()
+	// fmt.Printf is used for logging as this is called from artifact cli only
+	fmt.Printf("Checkout config repository from '%s' into '%s'\n", gitSvc.ConfigRepoURL, resourceRoot)
+	listFiles(resourceRoot)
+	repo, err := gitSvc.Clone(context.Background(), artifactConfigRepoPath)
+	if err != nil {
+		return "", errors.WithMessage(err, "clone config repo")
+	}
+	destinationPath := artifactPath(artifactConfigRepoPath, artifactSpec.Service, artifactSpec.Application.Branch)
+	fmt.Printf("Artifacts destination '%s'\n", destinationPath)
+	listFiles(destinationPath)
+	fmt.Printf("Removing existing files\n")
+	err = os.RemoveAll(destinationPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("remove destination path '%s'", destinationPath))
+	}
+	err = os.MkdirAll(destinationPath, os.ModePerm)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
+	}
+	fmt.Printf("Copy configuration into destination\n")
+	err = copy.Copy(resourceRoot, destinationPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", resourceRoot, destinationPath))
+	}
+	listFiles(destinationPath)
+	committerName, committerEmail, err := git.CommitterDetails()
+	if err != nil {
+		return "", errors.WithMessage(err, "get committer details")
+	}
+	artifactID := artifactSpec.ID
+	authorName := artifactSpec.Application.AuthorName
+	authorEmail := artifactSpec.Application.AuthorEmail
+	commitMsg := git.ArtifactCommitMessage(artifactSpec.Service, artifactID, authorName)
+	fmt.Printf("Committing changes\n")
+	err = gitSvc.Commit(context.Background(), repo, ".", authorName, authorEmail, committerName, committerEmail, commitMsg)
+	if err != nil {
+		if err == git.ErrNothingToCommit {
+			return artifactSpec.ID, nil
+		}
+		return "", errors.WithMessage(err, "commit files")
+	}
+	return artifactSpec.ID, nil
 }
 
 func listFiles(path string) {
