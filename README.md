@@ -207,6 +207,22 @@ $ hamctl policy --service example apply auto-release --branch master --env dev
 
 `hamctl` uses a token-based authentication model for interacting with the release-manager. This can either be provided as command-line argument `--http-auth-token` og set using a ENV variable: `HAMCTL_AUTH_TOKEN`.
 
+### Completions
+
+Shell completions are available with the command `completion`.
+The following commands will add completions to the current shell in either bash or zsh.
+
+```
+source <(hamctl completion bash)
+source <(hamctl completion zsh)
+```
+
+For a more detailed installation instruction see the help output.
+
+```
+hamctl completion --help
+```
+
 ## daemon
 
 `daemon` is a small controller running in each of the environments and reports state changes in the environment back to the release-manager. `daemon` needs access to the kubernetes api server, and can be configured using a `ServiceAccount`.

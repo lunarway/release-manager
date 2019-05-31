@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
@@ -51,7 +52,9 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&environment, "env", "", "Environment to promote to (required)")
+	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	command.MarkFlagRequired("env")
 	command.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace the service is deployed to (defaults to env)")
+	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")
 	return command
 }

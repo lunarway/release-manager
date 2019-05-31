@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lunarway/color"
+	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
@@ -57,6 +58,7 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 		},
 	}
 	command.Flags().StringVarP(&namespace, "namespace", "n", "", "namespace the service is deployed to (defaults to env)")
+	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")
 	return command
 }
 

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/pkg/errors"
@@ -26,9 +27,13 @@ func NewCommand(version *string) (*cobra.Command, error) {
 	}
 	var service string
 	var command = &cobra.Command{
-		Use:   "hamctl",
-		Short: "hamctl controls a release manager server",
+		Use:                    "hamctl",
+		Short:                  "hamctl controls a release manager server",
+		BashCompletionFunction: completion.Hamctl,
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
+			if c.Name() == "completion" {
+				return nil
+			}
 			defaultShuttleString(shuttleSpecFromFile, &service, func(s *shuttleSpec) string {
 				return s.Vars.Service
 			})
@@ -46,6 +51,7 @@ func NewCommand(version *string) (*cobra.Command, error) {
 	command.AddCommand(NewStatus(&client, &service))
 	command.AddCommand(NewRollback(&client, &service))
 	command.AddCommand(NewPolicy(&client, &service))
+	command.AddCommand(NewCompletion(command))
 	command.PersistentFlags().DurationVar(&client.Timeout, "http-timeout", 20*time.Second, "HTTP request timeout")
 	command.PersistentFlags().StringVar(&client.BaseURL, "http-base-url", "https://release-manager.dev.lunarway.com", "address of the http release manager server")
 	command.PersistentFlags().StringVar(&client.Metadata.AuthToken, "http-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "auth token for the http service")
