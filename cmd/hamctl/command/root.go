@@ -29,6 +29,11 @@ func NewCommand(version *string) (*cobra.Command, error) {
 		Use:   "hamctl",
 		Short: "hamctl controls a release manager server",
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
+			// all commands but version requires the "service" flag
+			// if this is thee version command, skip the check
+			if c.Name() == "version" {
+				return nil
+			}
 			defaultShuttleString(shuttleSpecFromFile, &service, func(s *shuttleSpec) string {
 				return s.Vars.Service
 			})
