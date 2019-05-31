@@ -200,7 +200,7 @@ func rollback(flowSvc *flow.Service) http.HandlerFunc {
 				cancelled(w)
 				return
 			}
-			switch errors.Cause(err) {
+			switch errorCause(err) {
 			case flow.ErrNamespaceNotAllowedByArtifact:
 				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
 				Error(w, "namespace not allowed by artifact", http.StatusBadRequest)
@@ -335,7 +335,7 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, git
 					Email: push.HeadCommit.Author.Email,
 				}, autoRelease.Environment, serviceName, autoRelease.Branch)
 				if err != nil {
-					if errors.Cause(err) != git.ErrNothingToCommit {
+					if errorCause(err) != git.ErrNothingToCommit {
 						errs = multierr.Append(errs, err)
 						err := slackClient.NotifySlackPolicyFailed(push.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("Service %s was not released into %s from branch %s.\nYou can deploy manually using `hamctl`:\nhamctl release --service %[1]s --branch %[3]s --env %[2]s", serviceName, autoRelease.Environment, autoRelease.Branch))
 						if err != nil {
@@ -399,7 +399,7 @@ func promote(flowSvc *flow.Service) http.HandlerFunc {
 				cancelled(w)
 				return
 			}
-			switch errors.Cause(err) {
+			switch errorCause(err) {
 			case git.ErrNothingToCommit:
 				statusString = "Environment is already up-to-date"
 				logger.Infof("http: promote: service '%s' environment '%s': promote skipped: environment up to date", req.Service, req.Environment)
@@ -502,8 +502,7 @@ func release(flowSvc *flow.Service) http.HandlerFunc {
 				cancelled(w)
 				return
 			}
-			cause := errors.Cause(err)
-			switch cause {
+			switch errorCause(err) {
 			case git.ErrNothingToCommit:
 				statusString = "Environment is already up-to-date"
 				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release skipped: environment up to date", req.Service, req.Environment, req.Branch, req.ArtifactID)
