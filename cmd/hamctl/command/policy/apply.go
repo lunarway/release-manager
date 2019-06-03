@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
@@ -68,7 +69,9 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 	}
 	command.Flags().StringVar(&branch, "branch", "", "Branch to auto-release artifacts from")
 	command.MarkFlagRequired("branch")
+	completion.FlagAnnotation(command, "branch", "__hamctl_get_branches")
 	command.Flags().StringVar(&env, "env", "", "Environment to release artifacts to")
 	command.MarkFlagRequired("env")
+	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	return command
 }
