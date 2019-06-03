@@ -9,7 +9,6 @@ import (
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
-	"github.com/pkg/errors"
 )
 
 func policy(policySvc *policyinternal.Service) http.HandlerFunc {
@@ -108,7 +107,7 @@ func listPolicies(policySvc *policyinternal.Service) http.HandlerFunc {
 				cancelled(w)
 				return
 			}
-			if errors.Cause(err) == policyinternal.ErrNotFound {
+			if errorCause(err) == policyinternal.ErrNotFound {
 				Error(w, "no policies exist", http.StatusNotFound)
 				return
 			}
@@ -182,7 +181,7 @@ func deletePolicies(policySvc *policyinternal.Service) http.HandlerFunc {
 				cancelled(w)
 				return
 			}
-			if errors.Cause(err) == policyinternal.ErrNotFound {
+			if errorCause(err) == policyinternal.ErrNotFound {
 				Error(w, "no policies exist", http.StatusNotFound)
 				return
 			}

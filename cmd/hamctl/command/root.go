@@ -31,7 +31,9 @@ func NewCommand(version *string) (*cobra.Command, error) {
 		Short:                  "hamctl controls a release manager server",
 		BashCompletionFunction: completion.Hamctl,
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
-			if c.Name() == "completion" {
+			// all commands but version and completion requires the "service" flag
+			// if this is thee version command, skip the check
+			if c.Name() == "version" || c.Name() == "completion" {
 				return nil
 			}
 			defaultShuttleString(shuttleSpecFromFile, &service, func(s *shuttleSpec) string {
