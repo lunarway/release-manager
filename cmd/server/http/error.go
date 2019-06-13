@@ -43,6 +43,10 @@ func requiredQueryError(w http.ResponseWriter, field string) {
 	Error(w, fmt.Sprintf("query param %s required but was empty", field), http.StatusBadRequest)
 }
 
+func notFound(w http.ResponseWriter) {
+	Error(w, "not found", http.StatusNotFound)
+}
+
 // errorCause unwraps err from pkg/errors messages and if err contains a
 // multierr, it will return the last err, again unwrapped if wrapped.
 func errorCause(err error) error {

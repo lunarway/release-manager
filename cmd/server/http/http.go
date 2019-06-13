@@ -38,6 +38,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	mux.HandleFunc("/status", authenticate(opts.HamCtlAuthToken, status(flowSvc)))
 	mux.HandleFunc("/rollback", authenticate(opts.HamCtlAuthToken, rollback(flowSvc)))
 	mux.HandleFunc("/policies", authenticate(opts.HamCtlAuthToken, policy(policySvc)))
+	mux.HandleFunc("/describe/", authenticate(opts.HamCtlAuthToken, describe(flowSvc)))
 	mux.HandleFunc("/webhook/github", githubWebhook(flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret))
 	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(flowSvc)))
 
