@@ -269,29 +269,61 @@ func locateArtifactCondition(artifactID string) conditionFunc {
 	}
 }
 
+// LocateArtifacts traverses the git log to find artifact commits for a service.
+//
+// It expects the commit to have a commit messages as the one returned by
+// ArtifactCommitMessage.
+func (*Service) LocateArtifacts(r *git.Repository, service string, n int) ([]plumbing.Hash, error) {
+	return locateN(r, locateArtifactServiceCondition(service), ErrArtifactNotFound, n)
+}
+
+func locateArtifactServiceCondition(service string) conditionFunc {
+	artifactRegex := regexp.MustCompile(fmt.Sprintf(`(?i)\[%s] artifact `, regexp.QuoteMeta(service)))
+	return func(commitMsg string) bool {
+		if service == "" {
+			return false
+		}
+		return artifactRegex.MatchString(commitMsg)
+	}
+}
+
 type conditionFunc func(commitMsg string) bool
 
 func locate(r *git.Repository, condition conditionFunc, notFoundErr error) (plumbing.Hash, error) {
+	hashes, err := locateN(r, condition, notFoundErr, 1)
+	if err != nil {
+		return plumbing.ZeroHash, err
+	}
+	// locateN will return an error when reaching the end of the git log.
+	// So if there is no error we must have found at least one match.
+	return hashes[0], nil
+}
+
+func locateN(r *git.Repository, condition conditionFunc, notFoundErr error, n int) ([]plumbing.Hash, error) {
+	var hashes []plumbing.Hash
 	ref, err := r.Head()
 	if err != nil {
-		return plumbing.ZeroHash, errors.WithMessage(err, "retrieve HEAD branch")
+		return nil, errors.WithMessage(err, "retrieve HEAD branch")
 	}
 	cIter, err := r.Log(&git.LogOptions{
 		From: ref.Hash(),
 	})
 	if err != nil {
-		return plumbing.ZeroHash, errors.WithMessage(err, "retrieve commit history")
+		return nil, errors.WithMessage(err, "retrieve commit history")
 	}
 	for {
 		commit, err := cIter.Next()
 		if err != nil {
 			if err == io.EOF {
-				return plumbing.ZeroHash, notFoundErr
+				return hashes, notFoundErr
 			}
-			return plumbing.ZeroHash, errors.WithMessage(err, "retrieve commit")
+			return nil, errors.WithMessage(err, "retrieve commit")
 		}
 		if condition(commit.Message) {
-			return commit.Hash, nil
+			hashes = append(hashes, commit.Hash)
+		}
+		if len(hashes) >= n {
+			return hashes, nil
 		}
 	}
 }

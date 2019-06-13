@@ -442,3 +442,55 @@ func TestLocateEnvReleaseCondition(t *testing.T) {
 		})
 	}
 }
+
+func TestLocateArtifactServiceCondition(t *testing.T) {
+	tt := []struct {
+		name    string
+		service string
+		message string
+		output  bool
+	}{
+		{
+			name:    "empty service",
+			service: "",
+			message: "[service-name] artifact master-1234567890-1234567890",
+			output:  false,
+		},
+		{
+			name:    "regexp like service",
+			service: `(\`,
+			message: "[service-name] artifact master-1234567890-1234567890",
+			output:  false,
+		},
+		{
+			name:    "partial service",
+			service: "service",
+			message: "[service-name] artifact master-1234567890-1234567890",
+			output:  false,
+		},
+		{
+			name:    "exact service",
+			service: "service-name",
+			message: "[service-name] artifact master-1234567890-1234567890",
+			output:  true,
+		},
+		{
+			name:    "wrong cased service",
+			service: "SERVICE-NAME",
+			message: "[service-name] artifact master-1234567890-1234567890",
+			output:  true,
+		},
+		{
+			name:    "release of exact service",
+			service: "service-name",
+			message: "[env/service-name] release master-1234567890-1234567890",
+			output:  false,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			output := locateArtifactServiceCondition(tc.service)(tc.message)
+			assert.Equal(t, tc.output, output, "output not as expected")
+		})
+	}
+}

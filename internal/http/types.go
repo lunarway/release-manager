@@ -1,5 +1,11 @@
 package http
 
+import (
+	"time"
+
+	"github.com/lunarway/release-manager/internal/artifact"
+)
+
 type StatusRequest struct {
 	Service string `json:"service,omitempty"`
 }
@@ -140,4 +146,18 @@ type RollbackResponse struct {
 	Environment        string `json:"environment,omitempty"`
 	PreviousArtifactID string `json:"previousArtifactId,omitempty"`
 	NewArtifactID      string `json:"newArtifactId,omitempty"`
+}
+
+type DescribeReleaseResponse struct {
+	Service         string        `json:"service,omitempty"`
+	Environment     string        `json:"environment,omitempty"`
+	Artifact        artifact.Spec `json:"artifact,omitempty"`
+	ReleasedAt      time.Time     `json:"releasedAt,omitempty"`
+	ReleasedByEmail string        `json:"releasedByEmail,omitempty"`
+	ReleasedByName  string        `json:"releasedByName,omitempty"`
+}
+
+type DescribeArtifactResponse struct {
+	Service   string          `json:"service,omitempty"`
+	Artifacts []artifact.Spec `json:"artifacts,omitempty"`
 }
