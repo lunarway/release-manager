@@ -84,6 +84,9 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID)
 		err = s.Git.Commit(ctx, repo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
+			if err == git.ErrNothingToCommit {
+				return true, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
+			}
 			// we can see races here where other changes are committed to the master repo
 			// after we cloned. Because of this we retry on any error.
 			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
@@ -203,6 +206,9 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID)
 		err = s.Git.Commit(ctx, destinationRepo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
+			if err == git.ErrNothingToCommit {
+				return true, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
+			}
 			// we can see races here where other changes are committed to the master repo
 			// after we cloned. Because of this we retry on any error.
 			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))

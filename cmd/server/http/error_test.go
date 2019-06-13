@@ -4,6 +4,7 @@ import (
 	stderrors "errors"
 	"testing"
 
+	"github.com/lunarway/release-manager/internal/try"
 	pkgererors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/multierr"
@@ -47,6 +48,20 @@ func TestErrorCause(t *testing.T) {
 			name:   "wrapped with multierer",
 			input:  pkgererors.Wrap(multierr.Combine(stderrors.New("std lib 1"), stderrors.New("std lib 2")), "message"),
 			output: stderrors.New("std lib 2"),
+		},
+		{
+			name: "last error is too many retries",
+			input: multierr.Combine(
+				pkgererors.Wrap(stderrors.New("std lib 1"), "message"),
+				pkgererors.Wrap(stderrors.New("std lib 2"), "message"),
+				try.ErrTooManyRetries,
+			),
+			output: stderrors.New("std lib 2"),
+		},
+		{
+			name:   "last error is too many retries",
+			input:  try.ErrTooManyRetries,
+			output: try.ErrTooManyRetries,
 		},
 	}
 	for _, tc := range tt {
