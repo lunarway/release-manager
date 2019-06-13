@@ -7,3 +7,4 @@ artifact-linux-amd64
 /cmd/artifact/artifact
 message.json
 artifact.json
+/profiles/
