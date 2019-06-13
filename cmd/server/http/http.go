@@ -18,6 +18,7 @@ import (
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/multierr"
 	"gopkg.in/go-playground/webhooks.v5/github"
 )
@@ -48,6 +49,8 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
+	mux.Handle("/metrics", promhttp.Handler())
 
 	s := http.Server{
 		Addr:              fmt.Sprintf(":%d", opts.Port),
