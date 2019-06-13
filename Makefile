@@ -156,3 +156,13 @@ daemon-webhook-configerror:
 	  ] \
 	}' \
 	localhost:8080/webhook/daemon
+
+server-profile-heap:
+	mkdir -p profiles
+	curl -o profiles/heap.pprof localhost:8080/debug/pprof/heap
+	go tool pprof -http=:8081 profiles/heap.pprof
+
+server-profile-cpu:
+	mkdir -p profiles
+	curl -o profiles/cpu.pprof localhost:8080/debug/pprof/profile?seconds=10
+	go tool pprof -http=:8081 profiles/cpu.pprof
