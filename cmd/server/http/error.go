@@ -7,6 +7,7 @@ import (
 
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/try"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 )
@@ -56,5 +57,11 @@ func errorCause(err error) error {
 	if len(errs) == 0 {
 		return nil
 	}
-	return errors.Cause(errs[len(errs)-1])
+	for i := len(errs) - 1; i >= 0; i-- {
+		err := errs[i]
+		if err != try.ErrTooManyRetries {
+			return errors.Cause(err)
+		}
+	}
+	return err
 }
