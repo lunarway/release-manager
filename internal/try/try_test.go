@@ -1,6 +1,7 @@
 package try
 
 import (
+	"context"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -93,9 +94,72 @@ func TestDo(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			c := 0
-			err := Do(tc.max, func(attempt int) (bool, error) {
+			err := Do(context.Background(), tc.max, func(attempt int) (bool, error) {
 				c++
 				return tc.f(attempt)
+			})
+			if tc.err == nil {
+				assert.NoError(t, err, "unexpected error")
+			} else {
+				assert.EqualError(t, err, tc.err.Error(), "expected an error but got none")
+			}
+			assert.Equal(t, tc.tries, c, "actual retry count not as expected")
+		})
+	}
+}
+
+func TestDo_contextCancellation(t *testing.T) {
+	tt := []struct {
+		name string
+		//input
+		max      int
+		cancelOn int
+		//output
+		err   error
+		tries int
+	}{
+		{
+			name:     "no cancellation",
+			max:      2,
+			cancelOn: 3,
+			err:      errors.New("retry 1: an error; retry 2: an error; too many retries"),
+			tries:    2,
+		},
+		{
+			name:     "cancel right away",
+			max:      2,
+			cancelOn: 0,
+			err:      errors.New("context canceled"),
+			tries:    0,
+		},
+		{
+			name:     "cancel after first attempt",
+			max:      2,
+			cancelOn: 1,
+			err:      errors.New("retry 1: an error; context canceled"),
+			tries:    1,
+		},
+		{
+			name:     "cancel after last attempt",
+			max:      2,
+			cancelOn: 2,
+			err:      errors.New("retry 1: an error; retry 2: an error; too many retries"),
+			tries:    2,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			c := 0
+			ctx, cancel := context.WithCancel(context.Background())
+			if tc.cancelOn == 0 {
+				cancel()
+			}
+			err := Do(ctx, tc.max, func(attempt int) (bool, error) {
+				if attempt >= tc.cancelOn {
+					cancel()
+				}
+				c++
+				return false, errors.New("an error")
 			})
 			if tc.err == nil {
 				assert.NoError(t, err, "unexpected error")

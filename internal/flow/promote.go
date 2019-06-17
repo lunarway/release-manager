@@ -37,7 +37,7 @@ import (
 // the changes
 func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespace, service string) (PromoteResult, error) {
 	var result PromoteResult
-	err := s.retry(func(int) (bool, error) {
+	err := s.retry(ctx, func(int) (bool, error) {
 		sourceConfigRepoPath, closeSource, err := git.TempDir("k8s-config-promote-source")
 		if err != nil {
 			return true, err

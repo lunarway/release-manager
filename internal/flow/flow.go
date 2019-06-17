@@ -36,8 +36,8 @@ type Service struct {
 // retry tries the function f until max attempts is reached
 // If f returns a true bool or a nil error retries are stopped and the error is
 // returned.
-func (s *Service) retry(f func(int) (bool, error)) error {
-	return try.Do(s.MaxRetries, f)
+func (s *Service) retry(ctx context.Context, f func(int) (bool, error)) error {
+	return try.Do(ctx, s.MaxRetries, f)
 }
 
 type Environment struct {

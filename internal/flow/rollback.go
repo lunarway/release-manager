@@ -20,7 +20,7 @@ type RollbackResult struct {
 
 func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namespace, service string) (RollbackResult, error) {
 	var result RollbackResult
-	err := s.retry(func(int) (bool, error) {
+	err := s.retry(ctx, func(int) (bool, error) {
 		sourceConfigRepoPath, closeSource, err := git.TempDir("k8s-config-rollback-source")
 		if err != nil {
 			return true, err
