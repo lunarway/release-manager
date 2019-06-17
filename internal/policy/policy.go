@@ -198,7 +198,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 
 		// commit changes
 		log.Debugf("internal/policy: commit policies file '%s'", policiesPath)
-		err = s.Git.Commit(ctx, repo, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg)
+		err = s.Git.Commit(ctx, repo, configRepoPath, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg)
 		if err != nil {
 			// indicates that the applied policy was already set
 			if err == git.ErrNothingToCommit {

@@ -131,7 +131,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		authorEmail := sourceSpec.Application.AuthorEmail
 		releaseMessage := git.ReleaseCommitMessage(environment, service, result.ReleaseID)
 		log.Debugf("Committing release: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
-		err = s.Git.Commit(ctx, destinationRepo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
+		err = s.Git.Commit(ctx, destinationRepo, destinationPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
 			if err == git.ErrNothingToCommit {
 				return true, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))

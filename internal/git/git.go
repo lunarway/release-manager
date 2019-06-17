@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"runtime"
@@ -366,7 +368,7 @@ func locateN(r *git.Repository, condition conditionFunc, notFoundErr error, n in
 	}
 }
 
-func (s *Service) Commit(ctx context.Context, repo *git.Repository, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
+func (s *Service) Commit(ctx context.Context, repo *git.Repository, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
 	defer span.Finish()
 	w, err := repo.Worktree()
@@ -408,18 +410,46 @@ func (s *Service) Commit(ctx context.Context, repo *git.Repository, changesPath,
 		return errors.WithMessage(err, "commit")
 	}
 
-	authSSH, err := ssh.NewPublicKeysFromFile("git", s.SSHPrivateKeyPath, "")
-	if err != nil {
-		return errors.WithMessage(err, "public keys from file")
-	}
-
-	// TODO: this could be made optional if needed
 	span, _ = s.Tracer.FromCtx(ctx, "push")
 	defer span.Finish()
-	err = repo.PushContext(ctx, &git.PushOptions{Auth: authSSH})
+	return pushCommit(ctx, rootPath)
+}
+
+func pushCommit(ctx context.Context, rootPath string) error {
+	// use an external process oposed to w.Commit() to speed up the commit and
+	// reduce memory pressure
+	cmd := exec.CommandContext(ctx, "git", "push", "origin", "master")
+	cmd.Dir = rootPath
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return errors.WithMessage(err, "push")
+		return errors.WithMessage(err, "get stdout pipe for push command")
 	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return errors.WithMessage(err, "get stderr pipe for push command")
+	}
+	err = cmd.Start()
+	if err != nil {
+		return errors.WithMessage(err, "start push command")
+	}
+
+	stdoutData, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		return errors.WithMessage(err, "read stdout data of push command")
+	}
+	stderrData, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		return errors.WithMessage(err, "read stderr data of push command")
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		log.Errorf("git/commit: git command stdout: %s", stdoutData)
+		log.Errorf("git/commit: git command stderr: %s", stderrData)
+		return errors.WithMessage(err, "push command failed")
+	}
+	log.Infof("git/commit: git command stdout: %s", stdoutData)
+	log.Infof("git/commit: git command stderr: %s", stderrData)
 	return nil
 }
 

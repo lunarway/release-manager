@@ -115,7 +115,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 		authorName := newSpec.Application.AuthorName
 		authorEmail := newSpec.Application.AuthorEmail
 		releaseMessage := git.RollbackCommitMessage(environment, service, currentSpec.ID, newSpec.ID)
-		err = s.Git.Commit(ctx, destinationRepo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
+		err = s.Git.Commit(ctx, destinationRepo, destinationPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
 			if err == git.ErrNothingToCommit {
 				return true, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
