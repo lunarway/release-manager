@@ -124,7 +124,7 @@ func (s *Service) Delete(ctx context.Context, actor Actor, svc string, ids []str
 }
 
 func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMsg string, f func(p *Policies)) error {
-	return try.Do(s.MaxRetries, func(int) (bool, error) {
+	return try.Do(ctx, s.MaxRetries, func(int) (bool, error) {
 		configRepoPath, close, err := git.TempDir("k8s-config-notify")
 		if err != nil {
 			return true, err

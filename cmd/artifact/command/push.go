@@ -22,7 +22,7 @@ func pushCommand(options *Options) *cobra.Command {
 		Short: "push artifact to a configuration repository",
 		RunE: func(c *cobra.Command, args []string) error {
 			var artifactID string
-			err := try.Do(maxRetries, func(int) (bool, error) {
+			err := try.Do(context.Background(), maxRetries, func(int) (bool, error) {
 				close, err := gitSvc.InitMasterRepo()
 				if err != nil {
 					return false, err
