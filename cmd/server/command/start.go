@@ -41,6 +41,11 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 			if err != nil {
 				return err
 			}
+			tracer, closer, err := initTracing()
+			if err != nil {
+				return err
+			}
+			defer closer.Close()
 			grafana := grafana.Service{
 				Environments: map[string]grafana.Environment{
 					"dev": {
@@ -58,6 +63,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 				},
 			}
 			gitSvc := git.Service{
+				Tracer:            tracer,
 				SSHPrivateKeyPath: configRepoOpts.SSHPrivateKeyPath,
 				ConfigRepoURL:     configRepoOpts.ConfigRepo,
 			}
@@ -72,6 +78,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 				Slack:            slackClient,
 				Grafana:          &grafana,
 				Git:              &gitSvc,
+				Tracer:           tracer,
 				// retries for comitting changes into config repo
 				// can be required for racing writes
 				MaxRetries: 3,
@@ -83,7 +90,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 				MaxRetries: 3,
 			}
 			go func() {
-				err := http.NewServer(httpOpts, slackClient, &flowSvc, &policySvc, &gitSvc)
+				err := http.NewServer(httpOpts, slackClient, &flowSvc, &policySvc, &gitSvc, tracer)
 				if err != nil {
 					done <- errors.WithMessage(err, "new http server")
 					return

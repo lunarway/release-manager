@@ -17,6 +17,7 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/slack"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/multierr"
@@ -31,14 +32,14 @@ type Options struct {
 	DaemonAuthToken     string
 }
 
-func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service) error {
+func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, tracer opentracing.Tracer) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
 	mux.HandleFunc("/promote", authenticate(opts.HamCtlAuthToken, promote(flowSvc)))
 	mux.HandleFunc("/release", authenticate(opts.HamCtlAuthToken, release(flowSvc)))
-	mux.HandleFunc("/status", authenticate(opts.HamCtlAuthToken, status(flowSvc)))
+	mux.HandleFunc("/status", trace(tracer, authenticate(opts.HamCtlAuthToken, status(tracer, flowSvc))))
 	mux.HandleFunc("/rollback", authenticate(opts.HamCtlAuthToken, rollback(flowSvc)))
-	mux.HandleFunc("/policies", authenticate(opts.HamCtlAuthToken, policy(policySvc)))
+	mux.HandleFunc("/policies", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(policySvc))))
 	mux.HandleFunc("/describe/", authenticate(opts.HamCtlAuthToken, describe(flowSvc)))
 	mux.HandleFunc("/webhook/github", githubWebhook(flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret))
 	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(flowSvc)))
@@ -68,6 +69,18 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	return nil
 }
 
+// trace adds an OpenTracing span to the request context.
+func trace(tracer opentracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		op := fmt.Sprintf("http %s %s", r.Method, r.URL)
+		span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, tracer, op)
+		defer span.Finish()
+		*r = *r.WithContext(ctx)
+		h(w, r)
+	})
+}
+
 // authenticate authenticates the handler against a Bearer token.
 //
 // If authentication fails a 401 Unauthorized HTTP status is returned with an
@@ -89,7 +102,7 @@ func ping(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "pong")
 }
 
-func status(flowSvc *flow.Service) http.HandlerFunc {
+func status(tracer opentracing.Tracer, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		values := r.URL.Query()
 		namespace := values.Get("namespace")
@@ -152,6 +165,8 @@ func status(flowSvc *flow.Service) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
+		span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, tracer, "json encode")
+		defer span.Finish()
 		err = json.NewEncoder(w).Encode(httpinternal.StatusResponse{
 			DefaultNamespaces: s.DefaultNamespaces,
 			Dev:               &dev,
