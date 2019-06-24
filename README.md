@@ -201,6 +201,16 @@ This is an example of applying an auto-release policy for the product service fo
 $ hamctl policy --service example apply auto-release --branch master --env dev
 ```
 
+### Tracing support
+
+The server collects [Jaeger](https://www.jaegertracing.io/) spans. This is enabled by default and reported as service `release-manager`.
+The jaeger configuration can be customized with available [environment variables](https://github.com/jaegertracing/jaeger-client-go#environment-variables).
+
+For local development a jaeger all-in-one instance can be created with Docker running `make jaeger`.
+The Jaeger UI will be available on [`localhost:16686`](http://localhost:16686).
+
+To disable collection set `JAEGER_DISABLED=true`.
+
 ## hamctl
 
 `hamctl` is a thin CLI for interacting with the release-manager server. The different commands implemented in `hamctl` is visible in the previous section.
