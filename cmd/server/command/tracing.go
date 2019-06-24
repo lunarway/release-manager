@@ -7,31 +7,28 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"
-	"github.com/uber/jaeger-lib/metrics"
+	"github.com/uber/jaeger-lib/metrics/prometheus"
 )
 
 func initTracing() (opentracing.Tracer, io.Closer, error) {
-	cfg := config.Configuration{
-		ServiceName: "release-manager",
-		Sampler: &config.SamplerConfig{
-			Type:  jaeger.SamplerTypeConst,
-			Param: 1,
-		},
-		Reporter: &config.ReporterConfig{
-			LogSpans: true,
-		},
+	cfg, err := config.FromEnv()
+	if err != nil {
+		return nil, nil, err
 	}
+	if cfg.ServiceName == "" {
+		cfg.ServiceName = "default-service-name"
+	}
+	cfg.Sampler = &config.SamplerConfig{
+		Type:  jaeger.SamplerTypeConst,
+		Param: 1,
+	}
+	cfg.Reporter.LogSpans = true
 
-	// Example metrics factory. Use github.com/uber/jaeger-lib/metrics to bind to
-	// real metrics frameworks.
-	jMetricsFactory := metrics.NullFactory
-
-	// Initialize tracer with a logger and a metrics factory
 	tracer, closer, err := cfg.NewTracer(
 		config.Logger(&jaegerLogger{
 			l: log.With("system", "jaeger"),
 		}),
-		config.Metrics(jMetricsFactory),
+		config.Metrics(prometheus.New()),
 	)
 	if err != nil {
 		return nil, nil, err
