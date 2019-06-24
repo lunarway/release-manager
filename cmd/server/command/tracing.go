@@ -23,6 +23,7 @@ func initTracing() (opentracing.Tracer, io.Closer, error) {
 		Param: 1,
 	}
 	cfg.Reporter.LogSpans = true
+	log.WithFields("config", cfg).Infof("Tracing spans reported to '%s'", cfg.Reporter.LocalAgentHostPort)
 
 	tracer, closer, err := cfg.NewTracer(
 		config.Logger(&jaegerLogger{
