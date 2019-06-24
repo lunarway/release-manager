@@ -35,14 +35,14 @@ type Options struct {
 func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, tracer opentracing.Tracer) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
-	mux.HandleFunc("/promote", authenticate(opts.HamCtlAuthToken, promote(flowSvc)))
-	mux.HandleFunc("/release", authenticate(opts.HamCtlAuthToken, release(flowSvc)))
+	mux.HandleFunc("/promote", trace(tracer, authenticate(opts.HamCtlAuthToken, promote(flowSvc))))
+	mux.HandleFunc("/release", trace(tracer, authenticate(opts.HamCtlAuthToken, release(flowSvc))))
 	mux.HandleFunc("/status", trace(tracer, authenticate(opts.HamCtlAuthToken, status(tracer, flowSvc))))
-	mux.HandleFunc("/rollback", authenticate(opts.HamCtlAuthToken, rollback(flowSvc)))
+	mux.HandleFunc("/rollback", trace(tracer, authenticate(opts.HamCtlAuthToken, rollback(flowSvc))))
 	mux.HandleFunc("/policies", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(policySvc))))
-	mux.HandleFunc("/describe/", authenticate(opts.HamCtlAuthToken, describe(flowSvc)))
-	mux.HandleFunc("/webhook/github", githubWebhook(flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret))
-	mux.HandleFunc("/webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(flowSvc)))
+	mux.HandleFunc("/describe/", trace(tracer, authenticate(opts.HamCtlAuthToken, describe(flowSvc))))
+	mux.HandleFunc("/webhook/github", trace(tracer, githubWebhook(flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret)))
+	mux.HandleFunc("/webhook/daemon", trace(tracer, authenticate(opts.DaemonAuthToken, daemonWebhook(flowSvc))))
 
 	// profiling endpoints
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
