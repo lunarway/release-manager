@@ -16,7 +16,7 @@ func initTracing() (opentracing.Tracer, io.Closer, error) {
 		return nil, nil, err
 	}
 	if cfg.ServiceName == "" {
-		cfg.ServiceName = "default-service-name"
+		cfg.ServiceName = "release-manager"
 	}
 	cfg.Sampler = &config.SamplerConfig{
 		Type:  jaeger.SamplerTypeConst,
