@@ -21,11 +21,13 @@ type DescribeReleaseResponse struct {
 
 // DescribeRelease returns information about a specific release in an environment.
 func (s *Service) DescribeRelease(ctx context.Context, namespace, environment, service string) (DescribeReleaseResponse, error) {
-	sourceConfigRepoPath, close, err := git.TempDir("k8s-config-describe-release")
+	span, ctx := s.span(ctx, "flow.DescribeRelease")
+	defer span.Finish()
+	sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-describe-release")
 	if err != nil {
 		return DescribeReleaseResponse{}, err
 	}
-	defer close()
+	defer close(ctx)
 
 	log.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
 	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
@@ -43,7 +45,7 @@ func (s *Service) DescribeRelease(ctx context.Context, namespace, environment, s
 		return DescribeReleaseResponse{}, errors.WithMessagef(err, "namespace '%s'", namespace)
 	}
 
-	hash, err := s.Git.LocateServiceReleaseRollbackSkip(sourceRepo, environment, service, 0)
+	hash, err := s.Git.LocateServiceReleaseRollbackSkip(ctx, sourceRepo, environment, service, 0)
 	if err != nil {
 		return DescribeReleaseResponse{}, errors.WithMessagef(err, "namespace '%s': locate latest release", namespace)
 	}
@@ -62,11 +64,13 @@ func (s *Service) DescribeRelease(ctx context.Context, namespace, environment, s
 
 // DescribeArtifact returns n artifacts for a service.
 func (s *Service) DescribeArtifact(ctx context.Context, service string, n int) ([]artifact.Spec, error) {
-	sourceConfigRepoPath, close, err := git.TempDir("k8s-config-describe-artifact")
+	span, ctx := s.span(ctx, "flow.DescribeArtifact")
+	defer span.Finish()
+	sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-describe-artifact")
 	if err != nil {
 		return nil, err
 	}
-	defer close()
+	defer close(ctx)
 
 	log.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
 	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
@@ -74,14 +78,14 @@ func (s *Service) DescribeArtifact(ctx context.Context, service string, n int) (
 		return nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 
-	hashes, err := s.Git.LocateArtifacts(sourceRepo, service, n)
+	hashes, err := s.Git.LocateArtifacts(ctx, sourceRepo, service, n)
 	if err != nil {
 		return nil, errors.WithMessage(err, "locate artifacts")
 	}
 	var artifacts []artifact.Spec
 	log.Debugf("flow/describe: hashes %+v", hashes)
 	for _, hash := range hashes {
-		err = s.Git.Checkout(sourceRepo, hash)
+		err = s.Git.Checkout(ctx, sourceRepo, hash)
 		if err != nil {
 			return nil, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 		}

@@ -1,6 +1,7 @@
 package command
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -67,11 +68,12 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 				SSHPrivateKeyPath: configRepoOpts.SSHPrivateKeyPath,
 				ConfigRepoURL:     configRepoOpts.ConfigRepo,
 			}
-			close, err := gitSvc.InitMasterRepo()
+			ctx := context.Background()
+			close, err := gitSvc.InitMasterRepo(ctx)
 			if err != nil {
 				return err
 			}
-			defer close()
+			defer close(ctx)
 			flowSvc := flow.Service{
 				ArtifactFileName: configRepoOpts.ArtifactFileName,
 				UserMappings:     *userMappings,
@@ -84,7 +86,8 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 				MaxRetries: 3,
 			}
 			policySvc := policy.Service{
-				Git: &gitSvc,
+				Tracer: tracer,
+				Git:    &gitSvc,
 				// retries for comitting changes into config repo
 				// can be required for racing writes
 				MaxRetries: 3,

@@ -3,7 +3,6 @@ package flow
 import (
 	"context"
 	"fmt"
-	"os"
 	"path"
 
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -36,18 +35,20 @@ import (
 // Copy artifacts from the current release into the new environment and commit
 // the changes
 func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespace, service string) (PromoteResult, error) {
+	span, ctx := s.span(ctx, "flow.Promote")
+	defer span.Finish()
 	var result PromoteResult
-	err := s.retry(ctx, func(int) (bool, error) {
-		sourceConfigRepoPath, closeSource, err := git.TempDir("k8s-config-promote-source")
+	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
+		sourceConfigRepoPath, closeSource, err := git.TempDir(ctx, s.Tracer, "k8s-config-promote-source")
 		if err != nil {
 			return true, err
 		}
-		defer closeSource()
-		destinationConfigRepoPath, closeDestination, err := git.TempDir("k8s-config-promote-destination")
+		defer closeSource(ctx)
+		destinationConfigRepoPath, closeDestination, err := git.TempDir(ctx, s.Tracer, "k8s-config-promote-destination")
 		if err != nil {
 			return true, err
 		}
-		defer closeDestination()
+		defer closeDestination(ctx)
 		// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
 		log.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
 		sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
@@ -89,15 +90,15 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		// when promoting to dev we use should look for the artifact instead of
 		// release as the artifact have never been released.
 		if environment == "dev" {
-			hash, err = s.Git.LocateArtifact(sourceRepo, result.ReleaseID)
+			hash, err = s.Git.LocateArtifact(ctx, sourceRepo, result.ReleaseID)
 		} else {
-			hash, err = s.Git.LocateRelease(sourceRepo, result.ReleaseID)
+			hash, err = s.Git.LocateRelease(ctx, sourceRepo, result.ReleaseID)
 		}
 		if err != nil {
 			return true, errors.WithMessagef(err, "locate release '%s'", result.ReleaseID)
 		}
 		log.Debugf("internal/flow: Promote: release hash '%v'", hash)
-		err = s.Git.Checkout(sourceRepo, hash)
+		err = s.Git.Checkout(ctx, sourceRepo, hash)
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 		}
@@ -112,20 +113,11 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		destinationPath := releasePath(destinationConfigRepoPath, service, environment, namespace)
 		log.Debugf("Copy resources from: %s to %s", sourcePath, destinationPath)
 
-		// empty existing resources in destination
-		err = os.RemoveAll(destinationPath)
+		err = s.cleanCopy(ctx, sourcePath, destinationPath)
 		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("remove destination path '%s'", destinationPath))
+			return true, errors.WithMessagef(err, "copy resources from '%s' to '%s'", sourcePath, destinationPath)
 		}
-		err = os.MkdirAll(destinationPath, os.ModePerm)
-		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
-		}
-		// copy previous env. files into destination
-		err = copy.Copy(sourcePath, destinationPath)
-		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", sourcePath, destinationPath))
-		}
+
 		// copy artifact spec
 		artifactSourcePath := srcPath(sourceConfigRepoPath, service, "master", s.ArtifactFileName)
 		artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
@@ -148,7 +140,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 			// after we cloned. Because of this we retry on any error.
 			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 		}
-		err = s.notifyRelease(NotifyReleaseOptions{
+		err = s.notifyRelease(ctx, NotifyReleaseOptions{
 			Service:       service,
 			Environment:   environment,
 			Namespace:     namespace,

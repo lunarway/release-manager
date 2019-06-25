@@ -3,7 +3,6 @@ package flow
 import (
 	"context"
 	"fmt"
-	"os"
 	"path"
 
 	"github.com/lunarway/release-manager/internal/artifact"
@@ -23,13 +22,15 @@ import (
 //
 // Copy artifacts from the artifacts into the environment and commit the changes.
 func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, service, branch string) (string, error) {
+	span, ctx := s.span(ctx, "flow.ReleaseBranch")
+	defer span.Finish()
 	var result string
-	err := s.retry(ctx, func(int) (bool, error) {
-		sourceConfigRepoPath, close, err := git.TempDir("k8s-config-release-branch")
+	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
+		sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-release-branch")
 		if err != nil {
 			return true, err
 		}
-		defer close()
+		defer close(ctx)
 		repo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 		if err != nil {
 			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
@@ -55,20 +56,11 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		destinationPath := releasePath(sourceConfigRepoPath, service, environment, namespace)
 		log.Infof("flow: ReleaseBranch: copy resources from %s to %s", artifactPath, destinationPath)
 
-		// empty existing resources in destination
-		err = os.RemoveAll(destinationPath)
+		err = s.cleanCopy(ctx, artifactPath, destinationPath)
 		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("remove destination path '%s'", destinationPath))
+			return true, errors.WithMessagef(err, "copy resources from '%s' to '%s'", artifactPath, destinationPath)
 		}
-		err = os.MkdirAll(destinationPath, os.ModePerm)
-		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
-		}
-		// copy artifact files into destination
-		err = copy.Copy(artifactPath, destinationPath)
-		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", artifactPath, destinationPath))
-		}
+
 		// copy artifact spec
 		// repo/{env}/releases/{ns}/{service}/{artifactFileName}
 		artifactDestinationPath := path.Join(releasePath(sourceConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
@@ -91,7 +83,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 			// after we cloned. Because of this we retry on any error.
 			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 		}
-		err = s.notifyRelease(NotifyReleaseOptions{
+		err = s.notifyRelease(ctx, NotifyReleaseOptions{
 			Service:       service,
 			Environment:   environment,
 			Namespace:     namespace,
@@ -125,28 +117,30 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 // Copy resources from the artifact commit into the environment and commit
 // the changes
 func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environment, service, artifactID string) (string, error) {
+	span, ctx := s.span(ctx, "flow.ReleaseArtifactID")
+	defer span.Finish()
 	var result string
-	err := s.retry(ctx, func(int) (bool, error) {
-		sourceConfigRepoPath, closeSource, err := git.TempDir("k8s-config-release-artifact-source")
+	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
+		sourceConfigRepoPath, closeSource, err := git.TempDir(ctx, s.Tracer, "k8s-config-release-artifact-source")
 		if err != nil {
 			return true, err
 		}
-		defer closeSource()
-		destinationConfigRepoPath, closeDestination, err := git.TempDir("k8s-config-release-artifact-destination")
+		defer closeSource(ctx)
+		destinationConfigRepoPath, closeDestination, err := git.TempDir(ctx, s.Tracer, "k8s-config-release-artifact-destination")
 		if err != nil {
 			return true, err
 		}
-		defer closeDestination()
+		defer closeDestination(ctx)
 		sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 		if err != nil {
 			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 		}
 
-		hash, err := s.Git.LocateArtifact(sourceRepo, artifactID)
+		hash, err := s.Git.LocateArtifact(ctx, sourceRepo, artifactID)
 		if err != nil {
 			return true, errors.WithMessagef(err, "locate release '%s'", artifactID)
 		}
-		err = s.Git.Checkout(sourceRepo, hash)
+		err = s.Git.Checkout(ctx, sourceRepo, hash)
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 		}
@@ -178,19 +172,9 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		destinationPath := releasePath(destinationConfigRepoPath, service, environment, namespace)
 		log.Infof("flow: ReleaseArtifactID: copy resources from %s to %s", sourcePath, destinationPath)
 
-		// empty existing resources in destination
-		err = os.RemoveAll(destinationPath)
+		err = s.cleanCopy(ctx, sourcePath, destinationPath)
 		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("remove destination path '%s'", destinationPath))
-		}
-		err = os.MkdirAll(destinationPath, os.ModePerm)
-		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
-		}
-		// copy previous env. files into destination
-		err = copy.Copy(sourcePath, destinationPath)
-		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", sourcePath, destinationPath))
+			return true, errors.WithMessagef(err, "copy resources from '%s' to '%s'", sourcePath, destinationPath)
 		}
 		// copy artifact spec
 		artifactSourcePath := srcPath(sourceConfigRepoPath, service, branch, s.ArtifactFileName)
@@ -213,7 +197,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 			// after we cloned. Because of this we retry on any error.
 			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 		}
-		err = s.notifyRelease(NotifyReleaseOptions{
+		err = s.notifyRelease(ctx, NotifyReleaseOptions{
 			Service:       service,
 			Environment:   environment,
 			Namespace:     namespace,

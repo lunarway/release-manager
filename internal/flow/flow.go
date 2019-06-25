@@ -38,8 +38,8 @@ type Service struct {
 // retry tries the function f until max attempts is reached
 // If f returns a true bool or a nil error retries are stopped and the error is
 // returned.
-func (s *Service) retry(ctx context.Context, f func(int) (bool, error)) error {
-	return try.Do(ctx, s.MaxRetries, f)
+func (s *Service) retry(ctx context.Context, f func(context.Context, int) (bool, error)) error {
+	return try.Do(ctx, s.Tracer, s.MaxRetries, f)
 }
 
 type Environment struct {
@@ -66,18 +66,18 @@ type Actor struct {
 	Name  string
 }
 
+func (s *Service) span(ctx context.Context, op string) (opentracing.Span, context.Context) {
+	return opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, op)
+}
+
 func (s *Service) Status(ctx context.Context, namespace, service string) (StatusResponse, error) {
-	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "flow.Status")
+	span, ctx := s.span(ctx, "flow.Status")
 	defer span.Finish()
-	sourceConfigRepoPath, close, err := git.TempDir("k8s-config-status")
+	sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-status")
 	if err != nil {
 		return StatusResponse{}, err
 	}
-	defer func() {
-		span, _ := opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "close temp dir")
-		defer span.Finish()
-		close()
-	}()
+	defer close(ctx)
 	// find current released artifact.json for each environment
 	log.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
 	_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
@@ -92,7 +92,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 		}
 		return namespace
 	}
-	span, _ = opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "envSpec dev")
+	span, _ = s.span(ctx, "envSpec dev")
 	devSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "dev", defaultNamespace("dev"))
 	if err != nil {
 		cause := errors.Cause(err)
@@ -102,7 +102,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 	defer span.Finish()
 
-	span, _ = opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "envSpec staging")
+	span, _ = s.span(ctx, "envSpec staging")
 	stagingSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "staging", defaultNamespace("staging"))
 	if err != nil {
 		cause := errors.Cause(err)
@@ -112,7 +112,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 	defer span.Finish()
 
-	span, _ = opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "envSpec prod")
+	span, _ = s.span(ctx, "envSpec prod")
 	prodSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "prod", defaultNamespace("prod"))
 	if err != nil {
 		cause := errors.Cause(err)
@@ -228,15 +228,15 @@ func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, re
 	if err != nil {
 		return "", errors.WithMessagef(err, "path '%s'", artifactSpecPath)
 	}
-	artifactConfigRepoPath, close, err := git.TempDir("k8s-config-artifact")
+	artifactConfigRepoPath, close, err := git.TempDir(ctx, gitSvc.Tracer, "k8s-config-artifact")
 	if err != nil {
 		return "", err
 	}
-	defer close()
+	defer close(ctx)
 	// fmt.Printf is used for logging as this is called from artifact cli only
 	fmt.Printf("Checkout config repository from '%s' into '%s'\n", gitSvc.ConfigRepoURL, resourceRoot)
 	listFiles(resourceRoot)
-	repo, err := gitSvc.Clone(context.Background(), artifactConfigRepoPath)
+	repo, err := gitSvc.Clone(ctx, artifactConfigRepoPath)
 	if err != nil {
 		return "", errors.WithMessage(err, "clone config repo")
 	}
@@ -267,7 +267,7 @@ func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, re
 	authorEmail := artifactSpec.Application.AuthorEmail
 	commitMsg := git.ArtifactCommitMessage(artifactSpec.Service, artifactID, authorName)
 	fmt.Printf("Committing changes\n")
-	err = gitSvc.Commit(context.Background(), repo, ".", authorName, authorEmail, committerName, committerEmail, commitMsg)
+	err = gitSvc.Commit(ctx, repo, ".", authorName, authorEmail, committerName, committerEmail, commitMsg)
 	if err != nil {
 		if err == git.ErrNothingToCommit {
 			return artifactSpec.ID, nil
@@ -306,7 +306,10 @@ type NotifyReleaseOptions struct {
 	Releaser      string
 }
 
-func (s *Service) notifyRelease(opts NotifyReleaseOptions) error {
+func (s *Service) notifyRelease(ctx context.Context, opts NotifyReleaseOptions) error {
+	span, ctx := s.span(ctx, "flow.notifyRelease")
+	defer span.Finish()
+	span, _ = s.span(ctx, "notify release channel")
 	err := s.Slack.NotifySlackReleasesChannel(slack.ReleaseOptions{
 		Service:       opts.Service,
 		Environment:   opts.Environment,
@@ -317,15 +320,18 @@ func (s *Service) notifyRelease(opts NotifyReleaseOptions) error {
 		CommitSHA:     opts.CommitSHA,
 		Releaser:      opts.Releaser,
 	})
+	span.Finish()
 	if err != nil {
 		return err
 	}
 
+	span, _ = s.span(ctx, "annotate grafana")
 	err = s.Grafana.Annotate(opts.Environment, grafana.AnnotateRequest{
 		What: fmt.Sprintf("Deployment: %s", opts.Service),
 		Data: fmt.Sprintf("Author: %s\nMessage: %s\nArtifactID: %s", opts.CommitAuthor, opts.CommitMessage, opts.ArtifactID),
 		Tags: []string{"deployment", opts.Service},
 	})
+	span.Finish()
 	if err != nil {
 		return err
 	}
@@ -341,5 +347,29 @@ func (s *Service) notifyRelease(opts NotifyReleaseOptions) error {
 		"releaser", opts.Releaser,
 		"type", "release").Infof("Release [%s]: %s (%s) by %s, author %s", opts.Environment, opts.Service, opts.ArtifactID, opts.Releaser, opts.CommitAuthor)
 
+	return nil
+}
+
+func (s *Service) cleanCopy(ctx context.Context, src, dest string) error {
+	span, ctx := s.span(ctx, "flow.cleanCopy")
+	defer span.Finish()
+	span, _ = s.span(ctx, "remove destination")
+	err := os.RemoveAll(dest)
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "remove destination path")
+	}
+	span, _ = s.span(ctx, "create destination dir")
+	err = os.MkdirAll(dest, os.ModePerm)
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "create destination dir")
+	}
+	span, _ = s.span(ctx, "copy files")
+	span.Finish()
+	err = copy.Copy(src, dest)
+	if err != nil {
+		return errors.WithMessage(err, "copy files")
+	}
 	return nil
 }

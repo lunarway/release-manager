@@ -13,23 +13,25 @@ import (
 )
 
 func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequest) error {
-	sourceConfigRepoPath, close, err := git.TempDir("k8s-config-notify")
+	span, ctx := s.span(ctx, "flow.NotifyCommitter")
+	defer span.Finish()
+	sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-notify")
 	if err != nil {
 		return err
 	}
-	defer close()
+	defer close(ctx)
 	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		return errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 
-	hash, err := s.Git.LocateEnvRelease(sourceRepo, event.Environment, event.ArtifactID)
+	hash, err := s.Git.LocateEnvRelease(ctx, sourceRepo, event.Environment, event.ArtifactID)
 	if err != nil {
 		return errors.WithMessagef(err, "locate release '%s'", event.ArtifactID)
 	}
 	log.Infof("internal/flow: NotifyCommitter: located release of '%s' on hash '%s'", event.ArtifactID, hash)
 
-	err = s.Git.Checkout(sourceRepo, hash)
+	err = s.Git.Checkout(ctx, sourceRepo, hash)
 	if err != nil {
 		return errors.WithMessagef(err, "checkout release hash '%s'", hash)
 	}
@@ -69,8 +71,9 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 		}
 		email = lwEmail
 	}
-
+	span, _ = s.span(ctx, "post private slack message")
 	err = s.Slack.PostPrivateMessage(email, env, service, sourceSpec, event)
+	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "post private message")
 	}

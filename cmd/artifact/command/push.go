@@ -25,13 +25,14 @@ func pushCommand(options *Options) *cobra.Command {
 		Short: "push artifact to a configuration repository",
 		RunE: func(c *cobra.Command, args []string) error {
 			var artifactID string
-			err := try.Do(context.Background(), maxRetries, func(int) (bool, error) {
-				close, err := gitSvc.InitMasterRepo()
+			ctx := context.Background()
+			err := try.Do(ctx, gitSvc.Tracer, maxRetries, func(ctx context.Context, attempt int) (bool, error) {
+				close, err := gitSvc.InitMasterRepo(ctx)
 				if err != nil {
 					return false, err
 				}
-				defer close()
-				artifactID, err = flow.PushArtifact(context.Background(), &gitSvc, options.FileName, options.RootPath)
+				defer close(ctx)
+				artifactID, err = flow.PushArtifact(ctx, &gitSvc, options.FileName, options.RootPath)
 				if err != nil {
 					return false, err
 				}
