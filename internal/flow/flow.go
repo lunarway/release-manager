@@ -14,6 +14,7 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/try"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 )
@@ -29,6 +30,7 @@ type Service struct {
 	Slack            *slack.Client
 	Grafana          *grafana.Service
 	Git              *git.Service
+	Tracer           opentracing.Tracer
 
 	MaxRetries int
 }
@@ -65,11 +67,17 @@ type Actor struct {
 }
 
 func (s *Service) Status(ctx context.Context, namespace, service string) (StatusResponse, error) {
+	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "flow.Status")
+	defer span.Finish()
 	sourceConfigRepoPath, close, err := git.TempDir("k8s-config-status")
 	if err != nil {
 		return StatusResponse{}, err
 	}
-	defer close()
+	defer func() {
+		span, _ := opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "close temp dir")
+		defer span.Finish()
+		close()
+	}()
 	// find current released artifact.json for each environment
 	log.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
 	_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
@@ -84,6 +92,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 		}
 		return namespace
 	}
+	span, _ = opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "envSpec dev")
 	devSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "dev", defaultNamespace("dev"))
 	if err != nil {
 		cause := errors.Cause(err)
@@ -91,7 +100,9 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env dev")
 		}
 	}
+	defer span.Finish()
 
+	span, _ = opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "envSpec staging")
 	stagingSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "staging", defaultNamespace("staging"))
 	if err != nil {
 		cause := errors.Cause(err)
@@ -99,7 +110,9 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env staging")
 		}
 	}
+	defer span.Finish()
 
+	span, _ = opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "envSpec prod")
 	prodSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "prod", defaultNamespace("prod"))
 	if err != nil {
 		cause := errors.Cause(err)
@@ -107,6 +120,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env prod")
 		}
 	}
+	defer span.Finish()
 
 	return StatusResponse{
 		DefaultNamespaces: defaultNamespaces,
