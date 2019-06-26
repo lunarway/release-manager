@@ -13,6 +13,7 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/slack"
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -42,11 +43,11 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 			if err != nil {
 				return err
 			}
-			tracer, closer, err := initTracing()
+			tracer, err := tracing.NewJaeger()
 			if err != nil {
 				return err
 			}
-			defer closer.Close()
+			defer tracer.Close()
 			grafana := grafana.Service{
 				Environments: map[string]grafana.Environment{
 					"dev": {

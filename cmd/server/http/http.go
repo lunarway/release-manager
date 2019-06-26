@@ -18,6 +18,7 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/slack"
+	"github.com/lunarway/release-manager/internal/tracing"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -33,7 +34,7 @@ type Options struct {
 	DaemonAuthToken     string
 }
 
-func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, tracer opentracing.Tracer) error {
+func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, tracer tracing.Tracer) error {
 	payloader := payload{
 		tracer: tracer,
 	}
@@ -74,11 +75,10 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 }
 
 // trace adds an OpenTracing span to the request context.
-func trace(tracer opentracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
+func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		op := fmt.Sprintf("http %s %s", r.Method, r.URL)
-		span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, tracer, op)
+		span, ctx := tracer.FromCtxf(ctx, "http %s %s", r.Method, r.URL)
 		defer span.Finish()
 		*r = *r.WithContext(ctx)
 		h(w, r)
@@ -104,13 +104,13 @@ func authenticate(token string, h http.HandlerFunc) http.HandlerFunc {
 
 // payload is a struct tracing encoding and deconding operations of HTTP payloads.
 type payload struct {
-	tracer opentracing.Tracer
+	tracer tracing.Tracer
 }
 
 // encodeResponse encodes resp as JSON into w. Tracing is reported from the
 // context ctx and reported on tracer.
 func (p *payload) encodeResponse(ctx context.Context, w io.Writer, resp interface{}) error {
-	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, p.tracer, "json encode response")
+	span, _ := p.tracer.FromCtx(ctx, "json encode response")
 	defer span.Finish()
 	err := json.NewEncoder(w).Encode(resp)
 	if err != nil {
@@ -122,7 +122,7 @@ func (p *payload) encodeResponse(ctx context.Context, w io.Writer, resp interfac
 // decodeResponse decodes req as JSON into r. Tracing is reported from the
 // context ctx and reported on tracer.
 func (p *payload) decodeResponse(ctx context.Context, r io.Reader, req interface{}) error {
-	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, p.tracer, "json decode request")
+	span, _ := p.tracer.FromCtx(ctx, "json decode request")
 	defer span.Finish()
 	decoder := json.NewDecoder(r)
 	err := decoder.Decode(req)

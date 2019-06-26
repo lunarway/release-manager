@@ -8,14 +8,14 @@ import (
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/slack"
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/lunarway/release-manager/internal/try"
-	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/cobra"
 )
 
 func pushCommand(options *Options) *cobra.Command {
 	gitSvc := git.Service{
-		Tracer: &opentracing.NoopTracer{},
+		Tracer: tracing.NewNoop(),
 	}
 	// retries for comitting changes into config repo
 	// can be required for racing writes

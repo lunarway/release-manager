@@ -21,7 +21,7 @@ type DescribeReleaseResponse struct {
 
 // DescribeRelease returns information about a specific release in an environment.
 func (s *Service) DescribeRelease(ctx context.Context, namespace, environment, service string) (DescribeReleaseResponse, error) {
-	span, ctx := s.span(ctx, "flow.DescribeRelease")
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.DescribeRelease")
 	defer span.Finish()
 	sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-describe-release")
 	if err != nil {
@@ -64,7 +64,7 @@ func (s *Service) DescribeRelease(ctx context.Context, namespace, environment, s
 
 // DescribeArtifact returns n artifacts for a service.
 func (s *Service) DescribeArtifact(ctx context.Context, service string, n int) ([]artifact.Spec, error) {
-	span, ctx := s.span(ctx, "flow.DescribeArtifact")
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.DescribeArtifact")
 	defer span.Finish()
 	sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-describe-artifact")
 	if err != nil {

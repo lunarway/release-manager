@@ -13,8 +13,8 @@ import (
 	"github.com/lunarway/release-manager/internal/grafana"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/slack"
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/lunarway/release-manager/internal/try"
-	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 )
@@ -30,7 +30,7 @@ type Service struct {
 	Slack            *slack.Client
 	Grafana          *grafana.Service
 	Git              *git.Service
-	Tracer           opentracing.Tracer
+	Tracer           tracing.Tracer
 
 	MaxRetries int
 }
@@ -66,12 +66,8 @@ type Actor struct {
 	Name  string
 }
 
-func (s *Service) span(ctx context.Context, op string) (opentracing.Span, context.Context) {
-	return opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, op)
-}
-
 func (s *Service) Status(ctx context.Context, namespace, service string) (StatusResponse, error) {
-	span, ctx := s.span(ctx, "flow.Status")
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.Status")
 	defer span.Finish()
 	sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-status")
 	if err != nil {
@@ -92,7 +88,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 		}
 		return namespace
 	}
-	span, _ = s.span(ctx, "envSpec dev")
+	span, _ = s.Tracer.FromCtx(ctx, "envSpec dev")
 	devSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "dev", defaultNamespace("dev"))
 	if err != nil {
 		cause := errors.Cause(err)
@@ -102,7 +98,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 	defer span.Finish()
 
-	span, _ = s.span(ctx, "envSpec staging")
+	span, _ = s.Tracer.FromCtx(ctx, "envSpec staging")
 	stagingSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "staging", defaultNamespace("staging"))
 	if err != nil {
 		cause := errors.Cause(err)
@@ -112,7 +108,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 	defer span.Finish()
 
-	span, _ = s.span(ctx, "envSpec prod")
+	span, _ = s.Tracer.FromCtx(ctx, "envSpec prod")
 	prodSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "prod", defaultNamespace("prod"))
 	if err != nil {
 		cause := errors.Cause(err)
@@ -307,9 +303,9 @@ type NotifyReleaseOptions struct {
 }
 
 func (s *Service) notifyRelease(ctx context.Context, opts NotifyReleaseOptions) error {
-	span, ctx := s.span(ctx, "flow.notifyRelease")
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.notifyRelease")
 	defer span.Finish()
-	span, _ = s.span(ctx, "notify release channel")
+	span, _ = s.Tracer.FromCtx(ctx, "notify release channel")
 	err := s.Slack.NotifySlackReleasesChannel(slack.ReleaseOptions{
 		Service:       opts.Service,
 		Environment:   opts.Environment,
@@ -325,7 +321,7 @@ func (s *Service) notifyRelease(ctx context.Context, opts NotifyReleaseOptions) 
 		return err
 	}
 
-	span, _ = s.span(ctx, "annotate grafana")
+	span, _ = s.Tracer.FromCtx(ctx, "annotate grafana")
 	err = s.Grafana.Annotate(opts.Environment, grafana.AnnotateRequest{
 		What: fmt.Sprintf("Deployment: %s", opts.Service),
 		Data: fmt.Sprintf("Author: %s\nMessage: %s\nArtifactID: %s", opts.CommitAuthor, opts.CommitMessage, opts.ArtifactID),
@@ -351,21 +347,21 @@ func (s *Service) notifyRelease(ctx context.Context, opts NotifyReleaseOptions) 
 }
 
 func (s *Service) cleanCopy(ctx context.Context, src, dest string) error {
-	span, ctx := s.span(ctx, "flow.cleanCopy")
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.cleanCopy")
 	defer span.Finish()
-	span, _ = s.span(ctx, "remove destination")
+	span, _ = s.Tracer.FromCtx(ctx, "remove destination")
 	err := os.RemoveAll(dest)
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "remove destination path")
 	}
-	span, _ = s.span(ctx, "create destination dir")
+	span, _ = s.Tracer.FromCtx(ctx, "create destination dir")
 	err = os.MkdirAll(dest, os.ModePerm)
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "create destination dir")
 	}
-	span, _ = s.span(ctx, "copy files")
+	span, _ = s.Tracer.FromCtx(ctx, "copy files")
 	span.Finish()
 	err = copy.Copy(src, dest)
 	if err != nil {

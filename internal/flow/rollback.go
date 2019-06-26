@@ -18,7 +18,7 @@ type RollbackResult struct {
 }
 
 func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namespace, service string) (RollbackResult, error) {
-	span, ctx := s.span(ctx, "flow.Rollback")
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.Rollback")
 	defer span.Finish()
 	var result RollbackResult
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {

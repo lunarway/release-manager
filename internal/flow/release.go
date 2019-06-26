@@ -22,7 +22,7 @@ import (
 //
 // Copy artifacts from the artifacts into the environment and commit the changes.
 func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, service, branch string) (string, error) {
-	span, ctx := s.span(ctx, "flow.ReleaseBranch")
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.ReleaseBranch")
 	defer span.Finish()
 	var result string
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
@@ -117,7 +117,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 // Copy resources from the artifact commit into the environment and commit
 // the changes
 func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environment, service, artifactID string) (string, error) {
-	span, ctx := s.span(ctx, "flow.ReleaseArtifactID")
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.ReleaseArtifactID")
 	defer span.Finish()
 	var result string
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {

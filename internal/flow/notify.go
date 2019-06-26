@@ -13,7 +13,7 @@ import (
 )
 
 func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequest) error {
-	span, ctx := s.span(ctx, "flow.NotifyCommitter")
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyCommitter")
 	defer span.Finish()
 	sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-notify")
 	if err != nil {
@@ -71,7 +71,7 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 		}
 		email = lwEmail
 	}
-	span, _ = s.span(ctx, "post private slack message")
+	span, _ = s.Tracer.FromCtx(ctx, "post private slack message")
 	err = s.Slack.PostPrivateMessage(email, env, service, sourceSpec, event)
 	span.Finish()
 	if err != nil {

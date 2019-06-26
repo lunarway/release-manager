@@ -35,7 +35,7 @@ import (
 // Copy artifacts from the current release into the new environment and commit
 // the changes
 func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespace, service string) (PromoteResult, error) {
-	span, ctx := s.span(ctx, "flow.Promote")
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.Promote")
 	defer span.Finish()
 	var result PromoteResult
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {

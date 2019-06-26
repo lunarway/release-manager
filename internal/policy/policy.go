@@ -11,8 +11,8 @@ import (
 
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/lunarway/release-manager/internal/try"
-	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
 
@@ -27,7 +27,7 @@ var (
 )
 
 type Service struct {
-	Tracer opentracing.Tracer
+	Tracer tracing.Tracer
 	Git    *git.Service
 
 	MaxRetries int
@@ -38,14 +38,10 @@ type Actor struct {
 	Email string
 }
 
-func (s *Service) span(ctx context.Context, op string) (opentracing.Span, context.Context) {
-	return opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, op)
-}
-
 // GetAutoReleases gets stored auto-release policies for service svc. If no
 // policies are found a nil slice is returned.
 func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]AutoReleasePolicy, error) {
-	span, ctx := s.span(ctx, "policy.GetAutoReleases")
+	span, ctx := s.Tracer.FromCtx(ctx, "policy.GetAutoReleases")
 	defer span.Finish()
 	policies, err := s.Get(ctx, svc)
 	if err != nil {
@@ -65,7 +61,7 @@ func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]Au
 
 // Get gets stored policies for service svc. If no policies are stored ErrNotFound is returned.
 func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
-	span, ctx := s.span(ctx, "policy.Get")
+	span, ctx := s.Tracer.FromCtx(ctx, "policy.Get")
 	defer span.Finish()
 	configRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-notify")
 	if err != nil {
@@ -109,7 +105,7 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 // ApplyAutoRelease applies an auto-release policy for service svc from branch
 // to environment env.
 func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch, env string) (string, error) {
-	span, ctx := s.span(ctx, "policy.ApplyAutoRelease")
+	span, ctx := s.Tracer.FromCtx(ctx, "policy.ApplyAutoRelease")
 	defer span.Finish()
 	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, branch, "auto-release")
 	var policyID string
@@ -124,7 +120,7 @@ func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch
 
 // Delete deletes policies by ID for service svc.
 func (s *Service) Delete(ctx context.Context, actor Actor, svc string, ids []string) (int, error) {
-	span, ctx := s.span(ctx, "policy.Delete")
+	span, ctx := s.Tracer.FromCtx(ctx, "policy.Delete")
 	defer span.Finish()
 	commitMsg := git.PolicyUpdateDeleteCommitMessage(svc)
 	var deleted int
@@ -138,7 +134,7 @@ func (s *Service) Delete(ctx context.Context, actor Actor, svc string, ids []str
 }
 
 func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMsg string, f func(p *Policies)) error {
-	span, ctx := s.span(ctx, "policy.updatePolicies")
+	span, ctx := s.Tracer.FromCtx(ctx, "policy.updatePolicies")
 	defer span.Finish()
 	return try.Do(ctx, s.Tracer, s.MaxRetries, func(ctx context.Context, attempt int) (bool, error) {
 		configRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-notify")
