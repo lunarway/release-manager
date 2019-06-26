@@ -3,7 +3,6 @@ package flow
 import (
 	"context"
 	"fmt"
-	"os"
 	"path"
 
 	"github.com/lunarway/release-manager/internal/git"
@@ -19,30 +18,32 @@ type RollbackResult struct {
 }
 
 func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namespace, service string) (RollbackResult, error) {
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.Rollback")
+	defer span.Finish()
 	var result RollbackResult
-	err := s.retry(ctx, func(int) (bool, error) {
-		sourceConfigRepoPath, closeSource, err := git.TempDir("k8s-config-rollback-source")
+	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
+		sourceConfigRepoPath, closeSource, err := git.TempDir(ctx, s.Tracer, "k8s-config-rollback-source")
 		if err != nil {
 			return true, err
 		}
-		defer closeSource()
-		destinationConfigRepoPath, closeDestination, err := git.TempDir("k8s-config-rollback-destination")
+		defer closeSource(ctx)
+		destinationConfigRepoPath, closeDestination, err := git.TempDir(ctx, s.Tracer, "k8s-config-rollback-destination")
 		if err != nil {
 			return true, err
 		}
-		defer closeDestination()
+		defer closeDestination(ctx)
 		r, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 		if err != nil {
 			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 		}
 
 		// locate current release
-		currentHash, err := s.Git.LocateServiceRelease(r, environment, service)
+		currentHash, err := s.Git.LocateServiceRelease(ctx, r, environment, service)
 		if err != nil {
 			return true, errors.WithMessagef(err, "locate current release at '%s'", sourceConfigRepoPath)
 		}
 		log.Debugf("flow: Rollback: current release hash '%v'", currentHash)
-		err = s.Git.Checkout(r, currentHash)
+		err = s.Git.Checkout(ctx, r, currentHash)
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout current release hash '%v'", currentHash)
 		}
@@ -73,12 +74,12 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 			result.OverwritingNamespace = currentSpec.Namespace
 		}
 		// locate new release (the previous released artifact for this service)
-		newHash, err := s.Git.LocateServiceReleaseRollbackSkip(r, environment, service, 1)
+		newHash, err := s.Git.LocateServiceReleaseRollbackSkip(ctx, r, environment, service, 1)
 		if err != nil {
 			return true, errors.WithMessagef(err, "locate previous release at '%s'", sourceConfigRepoPath)
 		}
 		log.Debugf("flow: Rollback: new release hash '%v'", newHash)
-		err = s.Git.Checkout(r, newHash)
+		err = s.Git.Checkout(ctx, r, newHash)
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout previous release hash '%v'", newHash)
 		}
@@ -98,19 +99,9 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 		destinationPath := releasePath(destinationConfigRepoPath, service, environment, namespace)
 		log.Infof("flow: ReleaseArtifactID: copy resources from %s to %s", sourcePath, destinationPath)
 
-		// empty existing resources in destination
-		err = os.RemoveAll(destinationPath)
+		err = s.cleanCopy(ctx, sourcePath, destinationPath)
 		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("remove destination path '%s'", destinationPath))
-		}
-		err = os.MkdirAll(destinationPath, os.ModePerm)
-		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
-		}
-		// copy previous env. files into destination
-		err = copy.Copy(sourcePath, destinationPath)
-		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", sourcePath, destinationPath))
+			return true, errors.WithMessagef(err, "copy resources from '%s' to '%s'", sourcePath, destinationPath)
 		}
 		// copy artifact spec
 		artifactSourcePath := path.Join(releasePath(sourceConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
@@ -133,7 +124,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 			// after we cloned. Because of this we retry on any error.
 			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 		}
-		err = s.notifyRelease(NotifyReleaseOptions{
+		err = s.notifyRelease(ctx, NotifyReleaseOptions{
 			Service:       service,
 			Environment:   environment,
 			Namespace:     namespace,

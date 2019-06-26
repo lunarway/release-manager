@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/internal/log"
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 	git "gopkg.in/src-d/go-git.v4"
@@ -29,7 +29,7 @@ var (
 )
 
 type Service struct {
-	Tracer            opentracing.Tracer
+	Tracer            tracing.Tracer
 	SSHPrivateKeyPath string
 	ConfigRepoURL     string
 
@@ -39,18 +39,17 @@ type Service struct {
 }
 
 // InitMasterRepo clones the configuration repository into a master directory.
-func (s *Service) InitMasterRepo() (func(), error) {
-	ctx := context.Background()
-	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "git.InitMasterRepo")
+func (s *Service) InitMasterRepo(ctx context.Context) (func(context.Context), error) {
+	span, ctx := s.Tracer.FromCtx(ctx, "git.InitMasterRepo")
 	defer span.Finish()
-	path, close, err := TempDir("k8s-master-clone")
+	path, close, err := TempDir(ctx, s.Tracer, "k8s-master-clone")
 	if err != nil {
-		close()
+		close(ctx)
 		return nil, errors.WithMessage(err, "get temporary directory")
 	}
 	repo, err := s.clone(ctx, path)
 	if err != nil {
-		close()
+		close(ctx)
 		return nil, errors.WithMessagef(err, "clone into '%s'", path)
 	}
 	s.masterMutex.Lock()
@@ -62,9 +61,8 @@ func (s *Service) InitMasterRepo() (func(), error) {
 }
 
 func (s *Service) clone(ctx context.Context, destination string) (*git.Repository, error) {
-	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "git.clone")
+	span, ctx := s.Tracer.FromCtx(ctx, "git.clone")
 	defer span.Finish()
-	defer logDuration("Clone")()
 	authSSH, err := ssh.NewPublicKeysFromFile("git", s.SSHPrivateKeyPath, "")
 	if err != nil {
 		return nil, errors.WithMessage(err, "public keys from file")
@@ -85,20 +83,23 @@ func (s *Service) clone(ctx context.Context, destination string) (*git.Repositor
 }
 
 // SyncMaster pulls latest changes from master repo.
-func (s *Service) SyncMaster() error {
-	ctx := context.Background()
-	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "git.SyncMaster")
+func (s *Service) SyncMaster(ctx context.Context) error {
+	span, ctx := s.Tracer.FromCtx(ctx, "git.SyncMaster")
 	defer span.Finish()
-	defer logDuration("Sync master")()
 	authSSH, err := ssh.NewPublicKeysFromFile("git", s.SSHPrivateKeyPath, "")
 	if err != nil {
 		return errors.WithMessage(err, "public keys from file")
 	}
+	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
 	s.masterMutex.Lock()
 	defer s.masterMutex.Unlock()
+	span.Finish()
+
+	span, _ = s.Tracer.FromCtx(ctx, "fetch")
 	err = s.master.FetchContext(ctx, &git.FetchOptions{
 		Auth: authSSH,
 	})
+	span.Finish()
 	if err != nil {
 		if err == git.NoErrAlreadyUpToDate {
 			return nil
@@ -109,9 +110,11 @@ func (s *Service) SyncMaster() error {
 	if err != nil {
 		return errors.WithMessage(err, "get worktree")
 	}
+	span, _ = s.Tracer.FromCtx(ctx, "pull")
 	err = w.PullContext(ctx, &git.PullOptions{
 		Auth: authSSH,
 	})
+	defer span.Finish()
 	if err != nil {
 		if err == git.NoErrAlreadyUpToDate {
 			return nil
@@ -123,34 +126,41 @@ func (s *Service) SyncMaster() error {
 
 // Clone returns a Git repository copy from the master repository.
 func (s *Service) Clone(ctx context.Context, destination string) (*git.Repository, error) {
-	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "git.Clone")
+	span, ctx := s.Tracer.FromCtx(ctx, "git.Clone")
 	defer span.Finish()
 	return s.copyMaster(ctx, destination)
 }
 
 func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repository, error) {
-	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "git.copyMaster")
+	span, ctx := s.Tracer.FromCtx(ctx, "git.copyMaster")
 	defer span.Finish()
-	defer logDuration("Copy master")()
+	span, _ = s.Tracer.FromCtx(ctx, "remove destination")
 	err := os.RemoveAll(destination)
+	span.Finish()
 	if err != nil {
 		return nil, errors.WithMessage(err, "remove existing destination")
 	}
+	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
 	s.masterMutex.Lock()
 	defer s.masterMutex.Unlock()
+	span.Finish()
+	span, _ = s.Tracer.FromCtx(ctx, "copy to destination")
 	err = copy.Copy(s.masterPath, destination)
+	span.Finish()
 	if err != nil {
 		return nil, errors.WithMessagef(err, "copy master from '%s'", s.masterPath)
 	}
+	span, _ = s.Tracer.FromCtx(ctx, "open repo")
 	r, err := git.PlainOpen(destination)
+	span.Finish()
 	if err != nil {
 		return nil, errors.WithMessage(err, "open repo")
 	}
 	return r, nil
 }
 
-func (s *Service) Checkout(r *git.Repository, hash plumbing.Hash) error {
-	span := s.Tracer.StartSpan("git.Checkout")
+func (s *Service) Checkout(ctx context.Context, r *git.Repository, hash plumbing.Hash) error {
+	span, ctx := s.Tracer.FromCtx(ctx, "git.Checkout")
 	defer span.Finish()
 	workTree, err := r.Worktree()
 	if err != nil {
@@ -170,8 +180,8 @@ func (s *Service) Checkout(r *git.Repository, hash plumbing.Hash) error {
 //
 // It expects the commit to have a commit messages as the one returned by
 // ReleaseCommitMessage.
-func (s *Service) LocateRelease(r *git.Repository, artifactID string) (plumbing.Hash, error) {
-	span := s.Tracer.StartSpan("git.LocateRelease")
+func (s *Service) LocateRelease(ctx context.Context, r *git.Repository, artifactID string) (plumbing.Hash, error) {
+	span, _ := s.Tracer.FromCtx(ctx, "git.LocateRelease")
 	defer span.Finish()
 	return locate(r, locateReleaseCondition(artifactID), ErrReleaseNotFound)
 }
@@ -191,7 +201,9 @@ func locateReleaseCondition(artifactID string) conditionFunc {
 //
 // It expects the commit to have a commit messages as the one returned by
 // ReleaseCommitMessage.
-func (*Service) LocateServiceRelease(r *git.Repository, env, service string) (plumbing.Hash, error) {
+func (s *Service) LocateServiceRelease(ctx context.Context, r *git.Repository, env, service string) (plumbing.Hash, error) {
+	span, _ := s.Tracer.FromCtx(ctx, "git.LocateServiceRelease")
+	defer span.Finish()
 	return locate(r, locateServiceReleaseCondition(env, service), ErrReleaseNotFound)
 }
 
@@ -213,7 +225,9 @@ func locateServiceReleaseCondition(env, service string) conditionFunc {
 //
 // It expects the commit to have a commit messages as the one returned by
 // ReleaseCommitMessage.
-func (*Service) LocateEnvRelease(r *git.Repository, env, artifactID string) (plumbing.Hash, error) {
+func (s *Service) LocateEnvRelease(ctx context.Context, r *git.Repository, env, artifactID string) (plumbing.Hash, error) {
+	span, _ := s.Tracer.FromCtx(ctx, "git.LocateEnvRelease")
+	defer span.Finish()
 	return locate(r, locateEnvReleaseCondition(env, artifactID), ErrReleaseNotFound)
 }
 
@@ -235,7 +249,9 @@ func locateEnvReleaseCondition(env, artifactId string) conditionFunc {
 //
 // It expects the commit to have a commit messages as the one returned by
 // ReleaseCommitMessage or RollbackCommitMessage.
-func (*Service) LocateServiceReleaseRollbackSkip(r *git.Repository, env, service string, n uint) (plumbing.Hash, error) {
+func (s *Service) LocateServiceReleaseRollbackSkip(ctx context.Context, r *git.Repository, env, service string, n uint) (plumbing.Hash, error) {
+	span, _ := s.Tracer.FromCtx(ctx, "git.LocateServiceReleaseRollbackSkip")
+	defer span.Finish()
 	return locate(r, locateServiceReleaseRollbackSkipCondition(env, service, n), ErrReleaseNotFound)
 }
 
@@ -273,7 +289,9 @@ func locateServiceRollbackCondition(env, service string) conditionFunc {
 //
 // It expects the commit to have a commit messages as the one returned by
 // ArtifactCommitMessage.
-func (*Service) LocateArtifact(r *git.Repository, artifactID string) (plumbing.Hash, error) {
+func (s *Service) LocateArtifact(ctx context.Context, r *git.Repository, artifactID string) (plumbing.Hash, error) {
+	span, _ := s.Tracer.FromCtx(ctx, "git.LocateArtifact")
+	defer span.Finish()
 	return locate(r, locateArtifactCondition(artifactID), ErrArtifactNotFound)
 }
 
@@ -291,7 +309,9 @@ func locateArtifactCondition(artifactID string) conditionFunc {
 //
 // It expects the commit to have a commit messages as the one returned by
 // ArtifactCommitMessage.
-func (*Service) LocateArtifacts(r *git.Repository, service string, n int) ([]plumbing.Hash, error) {
+func (s *Service) LocateArtifacts(ctx context.Context, r *git.Repository, service string, n int) ([]plumbing.Hash, error) {
+	span, _ := s.Tracer.FromCtx(ctx, "git.LocateArtifacts")
+	defer span.Finish()
 	return locateN(r, locateArtifactServiceCondition(service), ErrArtifactNotFound, n)
 }
 
@@ -347,9 +367,8 @@ func locateN(r *git.Repository, condition conditionFunc, notFoundErr error, n in
 }
 
 func (s *Service) Commit(ctx context.Context, repo *git.Repository, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
-	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "git.Commit")
+	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
 	defer span.Finish()
-	defer logDuration("Commit")()
 	w, err := repo.Worktree()
 	if err != nil {
 		return errors.WithMessage(err, "get worktree")
@@ -370,7 +389,7 @@ func (s *Service) Commit(ctx context.Context, repo *git.Repository, changesPath,
 		return ErrNothingToCommit
 	}
 
-	span, _ = opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "commit")
+	span, _ = s.Tracer.FromCtx(ctx, "commit")
 	_, err = w.Commit(msg, &git.CommitOptions{
 		All: true,
 		Author: &object.Signature{
@@ -395,7 +414,7 @@ func (s *Service) Commit(ctx context.Context, repo *git.Repository, changesPath,
 	}
 
 	// TODO: this could be made optional if needed
-	span, _ = opentracing.StartSpanFromContextWithTracer(ctx, s.Tracer, "push")
+	span, _ = s.Tracer.FromCtx(ctx, "push")
 	defer span.Finish()
 	err = repo.PushContext(ctx, &git.PushOptions{Auth: authSSH})
 	if err != nil {
@@ -474,12 +493,4 @@ func parseConfig(path string) (config.Config, error) {
 		return config.Config{}, err
 	}
 	return c, nil
-}
-
-func logDuration(op string) func() {
-	start := time.Now()
-	return func() {
-		d := time.Since(start)
-		log.Infof("internal/git: %s: duration %s", op, d)
-	}
 }

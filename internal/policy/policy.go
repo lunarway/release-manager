@@ -11,6 +11,7 @@ import (
 
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/lunarway/release-manager/internal/try"
 	"github.com/pkg/errors"
 )
@@ -26,7 +27,8 @@ var (
 )
 
 type Service struct {
-	Git *git.Service
+	Tracer tracing.Tracer
+	Git    *git.Service
 
 	MaxRetries int
 }
@@ -39,6 +41,8 @@ type Actor struct {
 // GetAutoReleases gets stored auto-release policies for service svc. If no
 // policies are found a nil slice is returned.
 func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]AutoReleasePolicy, error) {
+	span, ctx := s.Tracer.FromCtx(ctx, "policy.GetAutoReleases")
+	defer span.Finish()
 	policies, err := s.Get(ctx, svc)
 	if err != nil {
 		if errors.Cause(err) == ErrNotFound {
@@ -57,11 +61,13 @@ func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]Au
 
 // Get gets stored policies for service svc. If no policies are stored ErrNotFound is returned.
 func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
-	configRepoPath, close, err := git.TempDir("k8s-config-notify")
+	span, ctx := s.Tracer.FromCtx(ctx, "policy.Get")
+	defer span.Finish()
+	configRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-notify")
 	if err != nil {
 		return Policies{}, err
 	}
-	defer close()
+	defer close(ctx)
 	_, err = s.Git.Clone(ctx, configRepoPath)
 	if err != nil {
 		return Policies{}, errors.WithMessage(err, fmt.Sprintf("clone to path '%s'", configRepoPath))
@@ -99,6 +105,8 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 // ApplyAutoRelease applies an auto-release policy for service svc from branch
 // to environment env.
 func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch, env string) (string, error) {
+	span, ctx := s.Tracer.FromCtx(ctx, "policy.ApplyAutoRelease")
+	defer span.Finish()
 	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, branch, "auto-release")
 	var policyID string
 	err := s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
@@ -112,6 +120,8 @@ func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch
 
 // Delete deletes policies by ID for service svc.
 func (s *Service) Delete(ctx context.Context, actor Actor, svc string, ids []string) (int, error) {
+	span, ctx := s.Tracer.FromCtx(ctx, "policy.Delete")
+	defer span.Finish()
 	commitMsg := git.PolicyUpdateDeleteCommitMessage(svc)
 	var deleted int
 	err := s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
@@ -124,12 +134,14 @@ func (s *Service) Delete(ctx context.Context, actor Actor, svc string, ids []str
 }
 
 func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMsg string, f func(p *Policies)) error {
-	return try.Do(ctx, s.MaxRetries, func(int) (bool, error) {
-		configRepoPath, close, err := git.TempDir("k8s-config-notify")
+	span, ctx := s.Tracer.FromCtx(ctx, "policy.updatePolicies")
+	defer span.Finish()
+	return try.Do(ctx, s.Tracer, s.MaxRetries, func(ctx context.Context, attempt int) (bool, error) {
+		configRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-notify")
 		if err != nil {
 			return true, err
 		}
-		defer close()
+		defer close(ctx)
 		// read part of this code is the same as the Get function but differs in the
 		// file flags used. This is to avoid opening and closing to file multiple
 		// times during the operation.

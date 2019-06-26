@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -11,27 +10,27 @@ import (
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
 )
 
-func policy(policySvc *policyinternal.Service) http.HandlerFunc {
+func policy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPatch:
 			// only auto-release policies are available so no other validtion is required here
-			applyAutoReleasePolicy(policySvc)(w, r)
+			applyAutoReleasePolicy(payload, policySvc)(w, r)
 		case http.MethodGet:
-			listPolicies(policySvc)(w, r)
+			listPolicies(payload, policySvc)(w, r)
 		case http.MethodDelete:
-			deletePolicies(policySvc)(w, r)
+			deletePolicies(payload, policySvc)(w, r)
 		default:
 			Error(w, "not found", http.StatusNotFound)
 		}
 	}
 }
 
-func applyAutoReleasePolicy(policySvc *policyinternal.Service) http.HandlerFunc {
+func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		decoder := json.NewDecoder(r.Body)
+		ctx := r.Context()
 		var req httpinternal.ApplyAutoReleasePolicyRequest
-		err := decoder.Decode(&req)
+		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
 			log.Errorf("http: policy: apply: decode request body failed: %v", err)
 			invalidBodyError(w)
@@ -59,7 +58,6 @@ func applyAutoReleasePolicy(policySvc *policyinternal.Service) http.HandlerFunc 
 		}
 		logger := log.WithFields("service", req.Service, "req", req)
 		logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release policy started", req.Service, req.Branch, req.Environment)
-		ctx := r.Context()
 		id, err := policySvc.ApplyAutoRelease(ctx, policyinternal.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
@@ -77,7 +75,7 @@ func applyAutoReleasePolicy(policySvc *policyinternal.Service) http.HandlerFunc 
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		err = json.NewEncoder(w).Encode(httpinternal.ApplyPolicyResponse{
+		err = payload.encodeResponse(ctx, w, httpinternal.ApplyPolicyResponse{
 			ID:          id,
 			Service:     req.Service,
 			Branch:      req.Branch,
@@ -89,7 +87,7 @@ func applyAutoReleasePolicy(policySvc *policyinternal.Service) http.HandlerFunc 
 	}
 }
 
-func listPolicies(policySvc *policyinternal.Service) http.HandlerFunc {
+func listPolicies(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		values := r.URL.Query()
 		service := values.Get("service")
@@ -118,7 +116,7 @@ func listPolicies(policySvc *policyinternal.Service) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		err = json.NewEncoder(w).Encode(httpinternal.ListPoliciesResponse{
+		err = payload.encodeResponse(ctx, w, httpinternal.ListPoliciesResponse{
 			Service:      policies.Service,
 			AutoReleases: mapAutoReleasePolicies(policies.AutoReleases),
 		})
@@ -140,11 +138,11 @@ func mapAutoReleasePolicies(policies []policyinternal.AutoReleasePolicy) []httpi
 	return h
 }
 
-func deletePolicies(policySvc *policyinternal.Service) http.HandlerFunc {
+func deletePolicies(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		decoder := json.NewDecoder(r.Body)
+		ctx := r.Context()
 		var req httpinternal.DeletePolicyRequest
-		err := decoder.Decode(&req)
+		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
 			log.Errorf("http: policy: delete: decode request body failed: %v", err)
 			invalidBodyError(w)
@@ -170,7 +168,6 @@ func deletePolicies(policySvc *policyinternal.Service) http.HandlerFunc {
 
 		logger := log.WithFields("service", req.Service, "req", req)
 
-		ctx := r.Context()
 		deleted, err := policySvc.Delete(ctx, policyinternal.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
@@ -192,7 +189,7 @@ func deletePolicies(policySvc *policyinternal.Service) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		err = json.NewEncoder(w).Encode(httpinternal.DeletePolicyResponse{
+		err = payload.encodeResponse(ctx, w, httpinternal.DeletePolicyResponse{
 			Service: req.Service,
 			Count:   deleted,
 		})

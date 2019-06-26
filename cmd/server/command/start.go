@@ -1,6 +1,7 @@
 package command
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,6 +13,7 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/slack"
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -41,11 +43,11 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 			if err != nil {
 				return err
 			}
-			tracer, closer, err := initTracing()
+			tracer, err := tracing.NewJaeger()
 			if err != nil {
 				return err
 			}
-			defer closer.Close()
+			defer tracer.Close()
 			grafana := grafana.Service{
 				Environments: map[string]grafana.Environment{
 					"dev": {
@@ -67,11 +69,12 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 				SSHPrivateKeyPath: configRepoOpts.SSHPrivateKeyPath,
 				ConfigRepoURL:     configRepoOpts.ConfigRepo,
 			}
-			close, err := gitSvc.InitMasterRepo()
+			ctx := context.Background()
+			close, err := gitSvc.InitMasterRepo(ctx)
 			if err != nil {
 				return err
 			}
-			defer close()
+			defer close(ctx)
 			flowSvc := flow.Service{
 				ArtifactFileName: configRepoOpts.ArtifactFileName,
 				UserMappings:     *userMappings,
@@ -84,7 +87,8 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, configRepoOpt
 				MaxRetries: 3,
 			}
 			policySvc := policy.Service{
-				Git: &gitSvc,
+				Tracer: tracer,
+				Git:    &gitSvc,
 				// retries for comitting changes into config repo
 				// can be required for racing writes
 				MaxRetries: 3,

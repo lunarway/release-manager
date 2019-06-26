@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 )
@@ -19,7 +20,7 @@ var (
 // returned.
 //
 // Context cancellation is respected in between attempts.
-func Do(ctx context.Context, max int, f func(int) (bool, error)) error {
+func Do(ctx context.Context, tracer tracing.Tracer, max int, f func(context.Context, int) (bool, error)) error {
 	var errs error
 	attempt := 1
 	for {
@@ -27,7 +28,9 @@ func Do(ctx context.Context, max int, f func(int) (bool, error)) error {
 		case <-ctx.Done():
 			return multierr.Append(errs, ctx.Err())
 		default:
-			stop, err := f(attempt)
+			span, ctx := tracer.FromCtxf(ctx, "attempt %d", attempt)
+			defer span.Finish()
+			stop, err := f(ctx, attempt)
 			if err == nil {
 				return nil
 			}

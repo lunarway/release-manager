@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -15,7 +14,7 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 )
 
-func describe(flowSvc *flow.Service) http.HandlerFunc {
+func describe(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			notFound(w)
@@ -29,9 +28,9 @@ func describe(flowSvc *flow.Service) http.HandlerFunc {
 
 		switch p.Resource() {
 		case "release":
-			describeRelease(flowSvc, p.Namespace(), p.Environment(), p.Service())(w, r)
+			describeRelease(payload, flowSvc, p.Namespace(), p.Environment(), p.Service())(w, r)
 		case "artifact":
-			describeArtifact(flowSvc, p.Service())(w, r)
+			describeArtifact(payload, flowSvc, p.Service())(w, r)
 		default:
 			log.Errorf("describe path not found: %+v", p)
 			notFound(w)
@@ -76,7 +75,7 @@ func (p *describePath) Namespace() string {
 	return namespace
 }
 
-func describeRelease(flowSvc *flow.Service, namespace, environment, service string) http.HandlerFunc {
+func describeRelease(payload *payload, flowSvc *flow.Service, namespace, environment, service string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if emptyString(service) {
 			requiredFieldError(w, "service")
@@ -108,7 +107,7 @@ func describeRelease(flowSvc *flow.Service, namespace, environment, service stri
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		err = json.NewEncoder(w).Encode(httpinternal.DescribeReleaseResponse{
+		err = payload.encodeResponse(ctx, w, httpinternal.DescribeReleaseResponse{
 			Service:         service,
 			Environment:     environment,
 			Artifact:        resp.Artifact,
@@ -122,7 +121,7 @@ func describeRelease(flowSvc *flow.Service, namespace, environment, service stri
 	}
 }
 
-func describeArtifact(flowSvc *flow.Service, service string) http.HandlerFunc {
+func describeArtifact(payload *payload, flowSvc *flow.Service, service string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if emptyString(service) {
 			requiredFieldError(w, "service")
@@ -160,7 +159,7 @@ func describeArtifact(flowSvc *flow.Service, service string) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		err = json.NewEncoder(w).Encode(httpinternal.DescribeArtifactResponse{
+		err = payload.encodeResponse(ctx, w, httpinternal.DescribeArtifactResponse{
 			Service:   service,
 			Artifacts: resp,
 		})

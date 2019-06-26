@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -94,7 +95,7 @@ func TestDo(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			c := 0
-			err := Do(context.Background(), tc.max, func(attempt int) (bool, error) {
+			err := Do(context.Background(), tracing.NewNoop(), tc.max, func(ctx context.Context, attempt int) (bool, error) {
 				c++
 				return tc.f(attempt)
 			})
@@ -154,7 +155,7 @@ func TestDo_contextCancellation(t *testing.T) {
 			if tc.cancelOn == 0 {
 				cancel()
 			}
-			err := Do(ctx, tc.max, func(attempt int) (bool, error) {
+			err := Do(ctx, tracing.NewNoop(), tc.max, func(ctx context.Context, attempt int) (bool, error) {
 				if attempt >= tc.cancelOn {
 					cancel()
 				}

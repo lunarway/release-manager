@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/pprof"
 	"regexp"
@@ -17,6 +18,7 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/slack"
+	"github.com/lunarway/release-manager/internal/tracing"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -32,17 +34,20 @@ type Options struct {
 	DaemonAuthToken     string
 }
 
-func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, tracer opentracing.Tracer) error {
+func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, tracer tracing.Tracer) error {
+	payloader := payload{
+		tracer: tracer,
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
-	mux.HandleFunc("/promote", trace(tracer, authenticate(opts.HamCtlAuthToken, promote(flowSvc))))
-	mux.HandleFunc("/release", trace(tracer, authenticate(opts.HamCtlAuthToken, release(flowSvc))))
-	mux.HandleFunc("/status", trace(tracer, authenticate(opts.HamCtlAuthToken, status(tracer, flowSvc))))
-	mux.HandleFunc("/rollback", trace(tracer, authenticate(opts.HamCtlAuthToken, rollback(flowSvc))))
-	mux.HandleFunc("/policies", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(policySvc))))
-	mux.HandleFunc("/describe/", trace(tracer, authenticate(opts.HamCtlAuthToken, describe(flowSvc))))
-	mux.HandleFunc("/webhook/github", trace(tracer, githubWebhook(flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret)))
-	mux.HandleFunc("/webhook/daemon", trace(tracer, authenticate(opts.DaemonAuthToken, daemonWebhook(flowSvc))))
+	mux.HandleFunc("/promote", trace(tracer, authenticate(opts.HamCtlAuthToken, promote(&payloader, flowSvc))))
+	mux.HandleFunc("/release", trace(tracer, authenticate(opts.HamCtlAuthToken, release(&payloader, flowSvc))))
+	mux.HandleFunc("/status", trace(tracer, authenticate(opts.HamCtlAuthToken, status(&payloader, flowSvc))))
+	mux.HandleFunc("/rollback", trace(tracer, authenticate(opts.HamCtlAuthToken, rollback(&payloader, flowSvc))))
+	mux.HandleFunc("/policies", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(&payloader, policySvc))))
+	mux.HandleFunc("/describe/", trace(tracer, authenticate(opts.HamCtlAuthToken, describe(&payloader, flowSvc))))
+	mux.HandleFunc("/webhook/github", trace(tracer, githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret)))
+	mux.HandleFunc("/webhook/daemon", trace(tracer, authenticate(opts.DaemonAuthToken, daemonWebhook(&payloader, flowSvc))))
 
 	// profiling endpoints
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -70,11 +75,10 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 }
 
 // trace adds an OpenTracing span to the request context.
-func trace(tracer opentracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
+func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		op := fmt.Sprintf("http %s %s", r.Method, r.URL)
-		span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, tracer, op)
+		span, ctx := tracer.FromCtxf(ctx, "http %s %s", r.Method, r.URL)
 		defer span.Finish()
 		*r = *r.WithContext(ctx)
 		h(w, r)
@@ -98,11 +102,41 @@ func authenticate(token string, h http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
+// payload is a struct tracing encoding and deconding operations of HTTP payloads.
+type payload struct {
+	tracer tracing.Tracer
+}
+
+// encodeResponse encodes resp as JSON into w. Tracing is reported from the
+// context ctx and reported on tracer.
+func (p *payload) encodeResponse(ctx context.Context, w io.Writer, resp interface{}) error {
+	span, _ := p.tracer.FromCtx(ctx, "json encode response")
+	defer span.Finish()
+	err := json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// decodeResponse decodes req as JSON into r. Tracing is reported from the
+// context ctx and reported on tracer.
+func (p *payload) decodeResponse(ctx context.Context, r io.Reader, req interface{}) error {
+	span, _ := p.tracer.FromCtx(ctx, "json decode request")
+	defer span.Finish()
+	decoder := json.NewDecoder(r)
+	err := decoder.Decode(req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func ping(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "pong")
 }
 
-func status(tracer opentracing.Tracer, flowSvc *flow.Service) http.HandlerFunc {
+func status(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		values := r.URL.Query()
 		namespace := values.Get("namespace")
@@ -165,9 +199,7 @@ func status(tracer opentracing.Tracer, flowSvc *flow.Service) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, tracer, "json encode")
-		defer span.Finish()
-		err = json.NewEncoder(w).Encode(httpinternal.StatusResponse{
+		err = payload.encodeResponse(ctx, w, httpinternal.StatusResponse{
 			DefaultNamespaces: s.DefaultNamespaces,
 			Dev:               &dev,
 			Staging:           &staging,
@@ -179,15 +211,15 @@ func status(tracer opentracing.Tracer, flowSvc *flow.Service) http.HandlerFunc {
 	}
 }
 
-func rollback(flowSvc *flow.Service) http.HandlerFunc {
+func rollback(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			Error(w, "not found", http.StatusNotFound)
 			return
 		}
-		decoder := json.NewDecoder(r.Body)
+		ctx := r.Context()
 		var req httpinternal.RollbackRequest
-		err := decoder.Decode(&req)
+		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
 			log.Errorf("http: rollback failed: decode request body: %v", err)
 			Error(w, "invalid payload", http.StatusBadRequest)
@@ -216,7 +248,6 @@ func rollback(flowSvc *flow.Service) http.HandlerFunc {
 		}
 
 		logger := log.WithFields("service", req.Service, "namespace", req.Namespace, "req", req)
-		ctx := r.Context()
 		res, err := flowSvc.Rollback(ctx, flow.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
@@ -258,7 +289,7 @@ func rollback(flowSvc *flow.Service) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		err = json.NewEncoder(w).Encode(httpinternal.RollbackResponse{
+		err = payload.encodeResponse(ctx, w, httpinternal.RollbackResponse{
 			Status:             status,
 			Service:            req.Service,
 			Environment:        req.Environment,
@@ -271,12 +302,12 @@ func rollback(flowSvc *flow.Service) http.HandlerFunc {
 	}
 }
 
-func daemonWebhook(flowSvc *flow.Service) http.HandlerFunc {
+func daemonWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		decoder := json.NewDecoder(r.Body)
+		// copy span from request context but ignore any deadlines on the request context
+		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
 		var podNotify httpinternal.PodNotifyRequest
-
-		err := decoder.Decode(&podNotify)
+		err := payload.decodeResponse(ctx, r.Body, &podNotify)
 		if err != nil {
 			log.Errorf("http: daemon webhook: decode request body failed: %v", err)
 			invalidBodyError(w)
@@ -291,7 +322,7 @@ func daemonWebhook(flowSvc *flow.Service) http.HandlerFunc {
 			"artifactId", podNotify.ArtifactID,
 			"raw", podNotify)
 
-		err = flowSvc.NotifyCommitter(context.Background(), &podNotify)
+		err = flowSvc.NotifyCommitter(ctx, &podNotify)
 		if err != nil {
 			logger.Errorf("http: daemon webhook failed: pod '%s' namespace '%s' environment: '%s' notify committer: %v", podNotify.Name, podNotify.Namespace, podNotify.Environment, err)
 			unknownError(w)
@@ -302,8 +333,10 @@ func daemonWebhook(flowSvc *flow.Service) http.HandlerFunc {
 	}
 }
 
-func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
+func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// copy span from request context but ignore any deadlines on the request context
+		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
 		hook, _ := github.New(github.Options.Secret(githubWebhookSecret))
 		payload, err := hook.Parse(r, github.PushEvent)
 		if err != nil {
@@ -319,7 +352,7 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, git
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			err := gitSvc.SyncMaster()
+			err := gitSvc.SyncMaster(ctx)
 			if err != nil {
 				log.Errorf("http: github webhook: failed to sync master: %v", err)
 				w.WriteHeader(http.StatusOK)
@@ -344,7 +377,7 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, git
 
 			logger := log.WithFields("branch", branch, "service", serviceName, "commit", push.HeadCommit)
 			// lookup policies for branch
-			autoReleases, err := policySvc.GetAutoReleases(context.Background(), serviceName, branch)
+			autoReleases, err := policySvc.GetAutoReleases(ctx, serviceName, branch)
 			if err != nil {
 				logger.Errorf("http: github webhook: service '%s' branch '%s': get auto release policies failed: %v", serviceName, branch, err)
 				err := slackClient.NotifySlackPolicyFailed(push.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("failed for branch: %s, env: %s", serviceName, branch))
@@ -357,7 +390,7 @@ func githubWebhook(flowSvc *flow.Service, policySvc *policyinternal.Service, git
 			logger.Infof("http: github webhook: service '%s' branch '%s': found %d release policies", serviceName, branch, len(autoReleases))
 			var errs error
 			for _, autoRelease := range autoReleases {
-				releaseID, err := flowSvc.ReleaseBranch(context.Background(), flow.Actor{
+				releaseID, err := flowSvc.ReleaseBranch(ctx, flow.Actor{
 					Name:  push.HeadCommit.Author.Name,
 					Email: push.HeadCommit.Author.Email,
 				}, autoRelease.Environment, serviceName, autoRelease.Branch)
@@ -395,12 +428,11 @@ func isBranchPush(ref string) bool {
 	return strings.HasPrefix(ref, "refs/heads/")
 }
 
-func promote(flowSvc *flow.Service) http.HandlerFunc {
+func promote(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		decoder := json.NewDecoder(r.Body)
 		var req httpinternal.PromoteRequest
-
-		err := decoder.Decode(&req)
+		ctx := r.Context()
+		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
 			log.Errorf("http: promote: decode request body failed: %v", err)
 			invalidBodyError(w)
@@ -413,7 +445,6 @@ func promote(flowSvc *flow.Service) http.HandlerFunc {
 		}
 
 		logger := log.WithFields("service", req.Service, "namespace", req.Namespace, "req", req)
-		ctx := r.Context()
 		result, err := flowSvc.Promote(ctx, flow.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
@@ -467,7 +498,7 @@ func promote(flowSvc *flow.Service) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		err = json.NewEncoder(w).Encode(httpinternal.PromoteResponse{
+		err = payload.encodeResponse(ctx, w, httpinternal.PromoteResponse{
 			Service:         req.Service,
 			FromEnvironment: fromEnvironment,
 			ToEnvironment:   req.Environment,
@@ -480,18 +511,16 @@ func promote(flowSvc *flow.Service) http.HandlerFunc {
 	}
 }
 
-func release(flowSvc *flow.Service) http.HandlerFunc {
+func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		decoder := json.NewDecoder(r.Body)
+		ctx := r.Context()
 		var req httpinternal.ReleaseRequest
-
-		err := decoder.Decode(&req)
+		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
 			log.Errorf("http: release: decode request body failed: %v", err)
 			invalidBodyError(w)
 			return
 		}
-		ctx := r.Context()
 		logger := log.WithFields(
 			"service", req.Service,
 			"req", req)
@@ -554,7 +583,7 @@ func release(flowSvc *flow.Service) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		err = json.NewEncoder(w).Encode(httpinternal.ReleaseResponse{
+		err = payload.encodeResponse(ctx, w, httpinternal.ReleaseResponse{
 			Service:       req.Service,
 			ReleaseID:     releaseID,
 			ToEnvironment: req.Environment,
