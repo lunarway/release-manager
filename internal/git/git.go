@@ -10,8 +10,8 @@ import (
 	"path"
 	"regexp"
 	"runtime"
+	"strings"
 	"sync"
-	"time"
 
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
@@ -20,7 +20,6 @@ import (
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/format/config"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
@@ -371,46 +370,34 @@ func locateN(r *git.Repository, condition conditionFunc, notFoundErr error, n in
 func (s *Service) Commit(ctx context.Context, repo *git.Repository, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
 	defer span.Finish()
-	span, _ = s.Tracer.FromCtx(ctx, "get worktree")
-	w, err := repo.Worktree()
+	// if commit is empty
+	span, _ = s.Tracer.FromCtx(ctx, "check for changes")
+	err := execCommand(ctx, rootPath, "git", "diff", "--exit-code")
 	span.Finish()
-	if err != nil {
-		return errors.WithMessage(err, "get worktree")
+	if err == nil {
+		return ErrNothingToCommit
 	}
+	_, ok := errors.Cause(err).(*exec.ExitError)
+	if !ok {
+		return errors.WithMessage(err, "check for changes")
+	}
+
 	span, _ = s.Tracer.FromCtx(ctx, "add changes")
-	err = w.AddGlob(changesPath)
+	err = execCommand(ctx, rootPath, "git", "add", ".")
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "add changes")
 	}
 
-	span, _ = s.Tracer.FromCtx(ctx, "get status")
-	status, err := w.Status()
-	span.Finish()
-	if err != nil {
-		return errors.WithMessage(err, "status")
-	}
-	log.Infof("internal/git: Commit status:\n%s", status)
-	// if commit is empty
-	if status.IsClean() {
-		log.Debugf("internal/git: Commit: message '%s': nothing to commit", msg)
-		return ErrNothingToCommit
-	}
-
 	span, _ = s.Tracer.FromCtx(ctx, "commit")
-	_, err = w.Commit(msg, &git.CommitOptions{
-		All: true,
-		Author: &object.Signature{
-			Name:  authorName,
-			Email: authorEmail,
-			When:  time.Now(),
-		},
-		Committer: &object.Signature{
-			Name:  committerName,
-			Email: committerEmail,
-			When:  time.Now(),
-		},
-	})
+	err = execCommand(ctx, rootPath,
+		"git",
+		"-c", fmt.Sprintf(`user.name="%s"`, committerName),
+		"-c", fmt.Sprintf(`user.email="%s"`, committerEmail),
+		"commit",
+		fmt.Sprintf(`--author="%s <%s>"`, authorName, authorEmail),
+		fmt.Sprintf(`-m %s`, msg),
+	)
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "commit")
@@ -418,44 +405,43 @@ func (s *Service) Commit(ctx context.Context, repo *git.Repository, rootPath, ch
 
 	span, _ = s.Tracer.FromCtx(ctx, "push")
 	defer span.Finish()
-	return pushCommit(ctx, rootPath)
-}
-
-func pushCommit(ctx context.Context, rootPath string) error {
 	// use an external process oposed to w.Commit() to speed up the commit and
 	// reduce memory pressure
-	cmd := exec.CommandContext(ctx, "git", "push", "origin", "master")
+	return execCommand(ctx, rootPath, "git", "push", "origin", "master")
+}
+
+func execCommand(ctx context.Context, rootPath string, cmdName string, args ...string) error {
+	log.Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
+	cmd := exec.CommandContext(ctx, cmdName, args...)
 	cmd.Dir = rootPath
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return errors.WithMessage(err, "get stdout pipe for push command")
+		return errors.WithMessage(err, "get stdout pipe for command")
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return errors.WithMessage(err, "get stderr pipe for push command")
+		return errors.WithMessage(err, "get stderr pipe for command")
 	}
 	err = cmd.Start()
 	if err != nil {
-		return errors.WithMessage(err, "start push command")
+		return errors.WithMessage(err, "start command")
 	}
 
 	stdoutData, err := ioutil.ReadAll(stdout)
 	if err != nil {
-		return errors.WithMessage(err, "read stdout data of push command")
+		return errors.WithMessage(err, "read stdout data of command")
 	}
 	stderrData, err := ioutil.ReadAll(stderr)
 	if err != nil {
-		return errors.WithMessage(err, "read stderr data of push command")
+		return errors.WithMessage(err, "read stderr data of command")
 	}
 
 	err = cmd.Wait()
+	log.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
+	log.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
 	if err != nil {
-		log.Errorf("git/commit: git command stdout: %s", stdoutData)
-		log.Errorf("git/commit: git command stderr: %s", stderrData)
-		return errors.WithMessage(err, "push command failed")
+		return errors.WithMessage(err, "execute command failed")
 	}
-	log.Infof("git/commit: git command stdout: %s", stdoutData)
-	log.Infof("git/commit: git command stderr: %s", stderrData)
 	return nil
 }
 
