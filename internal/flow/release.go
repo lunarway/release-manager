@@ -140,7 +140,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		if err != nil {
 			return true, errors.WithMessagef(err, "locate release '%s'", artifactID)
 		}
-		err = s.Git.Checkout(ctx, sourceRepo, hash)
+		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 		}

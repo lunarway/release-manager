@@ -43,7 +43,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 			return true, errors.WithMessagef(err, "locate current release at '%s'", sourceConfigRepoPath)
 		}
 		log.Debugf("flow: Rollback: current release hash '%v'", currentHash)
-		err = s.Git.Checkout(ctx, r, currentHash)
+		err = s.Git.Checkout(ctx, sourceConfigRepoPath, currentHash)
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout current release hash '%v'", currentHash)
 		}
@@ -79,7 +79,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 			return true, errors.WithMessagef(err, "locate previous release at '%s'", sourceConfigRepoPath)
 		}
 		log.Debugf("flow: Rollback: new release hash '%v'", newHash)
-		err = s.Git.Checkout(ctx, r, newHash)
+		err = s.Git.Checkout(ctx, sourceConfigRepoPath, newHash)
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout previous release hash '%v'", newHash)
 		}

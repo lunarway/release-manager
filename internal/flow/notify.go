@@ -31,7 +31,7 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 	}
 	log.Infof("internal/flow: NotifyCommitter: located release of '%s' on hash '%s'", event.ArtifactID, hash)
 
-	err = s.Git.Checkout(ctx, sourceRepo, hash)
+	err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
 	if err != nil {
 		return errors.WithMessagef(err, "checkout release hash '%s'", hash)
 	}

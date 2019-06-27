@@ -98,7 +98,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 			return true, errors.WithMessagef(err, "locate release '%s'", result.ReleaseID)
 		}
 		log.Debugf("internal/flow: Promote: release hash '%v'", hash)
-		err = s.Git.Checkout(ctx, sourceRepo, hash)
+		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 		}

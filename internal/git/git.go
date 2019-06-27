@@ -160,16 +160,10 @@ func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repo
 	return r, nil
 }
 
-func (s *Service) Checkout(ctx context.Context, r *git.Repository, hash plumbing.Hash) error {
+func (s *Service) Checkout(ctx context.Context, rootPath string, hash plumbing.Hash) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Checkout")
 	defer span.Finish()
-	workTree, err := r.Worktree()
-	if err != nil {
-		return errors.WithMessage(err, "get worktree")
-	}
-	err = workTree.Checkout(&git.CheckoutOptions{
-		Hash: hash,
-	})
+	err := execCommand(ctx, rootPath, "git", "checkout", hash.String())
 	if err != nil {
 		return errors.WithMessage(err, "checkout hash")
 	}
