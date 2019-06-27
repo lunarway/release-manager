@@ -371,16 +371,22 @@ func locateN(r *git.Repository, condition conditionFunc, notFoundErr error, n in
 func (s *Service) Commit(ctx context.Context, repo *git.Repository, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
 	defer span.Finish()
+	span, _ = s.Tracer.FromCtx(ctx, "get worktree")
 	w, err := repo.Worktree()
+	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "get worktree")
 	}
+	span, _ = s.Tracer.FromCtx(ctx, "add changes")
 	err = w.AddGlob(changesPath)
+	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "add changes")
 	}
 
+	span, _ = s.Tracer.FromCtx(ctx, "get status")
 	status, err := w.Status()
+	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "status")
 	}
