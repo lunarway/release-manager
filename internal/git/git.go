@@ -346,9 +346,17 @@ func locateN(r *git.Repository, condition conditionFunc, notFoundErr error, n in
 func (s *Service) Commit(ctx context.Context, repo *git.Repository, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
 	defer span.Finish()
+
+	span, _ = s.Tracer.FromCtx(ctx, "add changes")
+	err := execCommand(ctx, rootPath, "git", "add", "-N", ".")
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "add changes")
+	}
+
 	// if commit is empty
 	span, _ = s.Tracer.FromCtx(ctx, "check for changes")
-	err := execCommand(ctx, rootPath, "git", "diff", "--exit-code")
+	err = execCommand(ctx, rootPath, "git", "diff", "--exit-code")
 	span.Finish()
 	if err == nil {
 		return ErrNothingToCommit
@@ -356,13 +364,6 @@ func (s *Service) Commit(ctx context.Context, repo *git.Repository, rootPath, ch
 	_, ok := errors.Cause(err).(*exec.ExitError)
 	if !ok {
 		return errors.WithMessage(err, "check for changes")
-	}
-
-	span, _ = s.Tracer.FromCtx(ctx, "add changes")
-	err = execCommand(ctx, rootPath, "git", "add", ".")
-	span.Finish()
-	if err != nil {
-		return errors.WithMessage(err, "add changes")
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "commit")
