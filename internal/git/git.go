@@ -221,6 +221,7 @@ func locateServiceReleaseCondition(env, service string) conditionFunc {
 // It expects the commit to have a commit messages as the one returned by
 // ReleaseCommitMessage.
 func (s *Service) LocateEnvRelease(ctx context.Context, r *git.Repository, env, artifactID string) (plumbing.Hash, error) {
+	artifactID = strings.TrimSpace(artifactID)
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateEnvRelease")
 	defer span.Finish()
 	return locate(r, locateEnvReleaseCondition(env, artifactID), ErrReleaseNotFound)
