@@ -347,29 +347,17 @@ func (s *Service) Commit(ctx context.Context, repo *git.Repository, rootPath, ch
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
 	defer span.Finish()
 
-	// check if there is a diff by adding it to the index as an "intend to add"
-	// (flag -N) and run git diff
-	span, _ = s.Tracer.FromCtx(ctx, "add for diff check")
-	err := execCommand(ctx, rootPath, "git", "add", "-N", ".")
-	span.Finish()
-	if err != nil {
-		return errors.WithMessage(err, "add changes for diff check")
-	}
-	span, _ = s.Tracer.FromCtx(ctx, "check for changes")
-	err = execCommand(ctx, rootPath, "git", "diff", "--exit-code")
-	span.Finish()
-	if err == nil {
-		return ErrNothingToCommit
-	}
-	_, ok := errors.Cause(err).(*exec.ExitError)
-	if !ok {
-		return errors.WithMessage(err, "check for changes")
-	}
-
-	err = execCommand(ctx, rootPath, "git", "add", ".")
+	err := execCommand(ctx, rootPath, "git", "add", ".")
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "add changes")
+	}
+
+	span, _ = s.Tracer.FromCtx(ctx, "check for changes")
+	err = checkStatus(ctx, rootPath)
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "check for changes")
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "commit")
@@ -424,6 +412,46 @@ func execCommand(ctx context.Context, rootPath string, cmdName string, args ...s
 	log.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
 	if err != nil {
 		return errors.WithMessage(err, "execute command failed")
+	}
+	return nil
+}
+
+func checkStatus(ctx context.Context, rootPath string) error {
+	cmdName := "git"
+	args := []string{"status", "--porcelain"}
+	log.WithFields("root", rootPath).Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
+	cmd := exec.CommandContext(ctx, cmdName, args...)
+	cmd.Dir = rootPath
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return errors.WithMessage(err, "get stdout pipe for command")
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return errors.WithMessage(err, "get stderr pipe for command")
+	}
+	err = cmd.Start()
+	if err != nil {
+		return errors.WithMessage(err, "start command")
+	}
+
+	stdoutData, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		return errors.WithMessage(err, "read stdout data of command")
+	}
+	stderrData, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		return errors.WithMessage(err, "read stderr data of command")
+	}
+
+	err = cmd.Wait()
+	log.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
+	log.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
+	if err != nil {
+		return errors.WithMessage(err, "execute command failed")
+	}
+	if len(stdoutData) == 0 {
+		return ErrNothingToCommit
 	}
 	return nil
 }
