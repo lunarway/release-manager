@@ -347,14 +347,14 @@ func (s *Service) Commit(ctx context.Context, repo *git.Repository, rootPath, ch
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
 	defer span.Finish()
 
-	span, _ = s.Tracer.FromCtx(ctx, "add changes")
+	// check if there is a diff by adding it to the index as an "intend to add"
+	// (flag -N) and run git diff
+	span, _ = s.Tracer.FromCtx(ctx, "add for diff check")
 	err := execCommand(ctx, rootPath, "git", "add", "-N", ".")
 	span.Finish()
 	if err != nil {
-		return errors.WithMessage(err, "add changes")
+		return errors.WithMessage(err, "add changes for diff check")
 	}
-
-	// if commit is empty
 	span, _ = s.Tracer.FromCtx(ctx, "check for changes")
 	err = execCommand(ctx, rootPath, "git", "diff", "--exit-code")
 	span.Finish()
@@ -364,6 +364,12 @@ func (s *Service) Commit(ctx context.Context, repo *git.Repository, rootPath, ch
 	_, ok := errors.Cause(err).(*exec.ExitError)
 	if !ok {
 		return errors.WithMessage(err, "check for changes")
+	}
+
+	err = execCommand(ctx, rootPath, "git", "add", ".")
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "add changes")
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "commit")
