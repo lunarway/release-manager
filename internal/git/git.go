@@ -385,7 +385,7 @@ func (s *Service) Commit(ctx context.Context, repo *git.Repository, rootPath, ch
 		"-c", fmt.Sprintf(`user.email="%s"`, committerEmail),
 		"commit",
 		fmt.Sprintf(`--author="%s <%s>"`, authorName, authorEmail),
-		fmt.Sprintf(`-m %s`, msg),
+		fmt.Sprintf(`-m%s`, msg),
 	)
 	span.Finish()
 	if err != nil {
