@@ -87,39 +87,21 @@ func (s *Service) clone(ctx context.Context, destination string) (*git.Repositor
 func (s *Service) SyncMaster(ctx context.Context) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.SyncMaster")
 	defer span.Finish()
-	authSSH, err := ssh.NewPublicKeysFromFile("git", s.SSHPrivateKeyPath, "")
-	if err != nil {
-		return errors.WithMessage(err, "public keys from file")
-	}
 	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
 	s.masterMutex.Lock()
 	defer s.masterMutex.Unlock()
 	span.Finish()
 
 	span, _ = s.Tracer.FromCtx(ctx, "fetch")
-	err = s.master.FetchContext(ctx, &git.FetchOptions{
-		Auth: authSSH,
-	})
+	err := execCommand(ctx, s.masterPath, "git", "fetch", "origin", "master")
 	span.Finish()
 	if err != nil {
-		if err == git.NoErrAlreadyUpToDate {
-			return nil
-		}
 		return errors.WithMessage(err, "fetch changes")
 	}
-	w, err := s.master.Worktree()
-	if err != nil {
-		return errors.WithMessage(err, "get worktree")
-	}
 	span, _ = s.Tracer.FromCtx(ctx, "pull")
-	err = w.PullContext(ctx, &git.PullOptions{
-		Auth: authSSH,
-	})
-	defer span.Finish()
+	err = execCommand(ctx, s.masterPath, "git", "pull")
+	span.Finish()
 	if err != nil {
-		if err == git.NoErrAlreadyUpToDate {
-			return nil
-		}
 		return errors.WithMessage(err, "pull latest")
 	}
 	return nil
