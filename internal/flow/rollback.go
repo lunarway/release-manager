@@ -89,7 +89,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 		}
 
 		// copy current release artifacts into env
-		destinationRepo, err := s.Git.Clone(ctx, destinationConfigRepoPath)
+		_, err = s.Git.Clone(ctx, destinationConfigRepoPath)
 		if err != nil {
 			return true, errors.WithMessagef(err, "clone destination repo into '%s'", destinationConfigRepoPath)
 		}
@@ -115,7 +115,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 		authorName := newSpec.Application.AuthorName
 		authorEmail := newSpec.Application.AuthorEmail
 		releaseMessage := git.RollbackCommitMessage(environment, service, currentSpec.ID, newSpec.ID)
-		err = s.Git.Commit(ctx, destinationRepo, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
+		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
 			if err == git.ErrNothingToCommit {
 				return true, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))

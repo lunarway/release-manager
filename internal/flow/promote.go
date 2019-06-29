@@ -103,7 +103,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 			return true, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 		}
 
-		destinationRepo, err := s.Git.Clone(ctx, destinationConfigRepoPath)
+		_, err = s.Git.Clone(ctx, destinationConfigRepoPath)
 		if err != nil {
 			return true, errors.WithMessagef(err, "clone destination repo into '%s'", destinationConfigRepoPath)
 		}
@@ -131,7 +131,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		authorEmail := sourceSpec.Application.AuthorEmail
 		releaseMessage := git.ReleaseCommitMessage(environment, service, result.ReleaseID)
 		log.Debugf("Committing release: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
-		err = s.Git.Commit(ctx, destinationRepo, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
+		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
 			if err == git.ErrNothingToCommit {
 				return true, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))

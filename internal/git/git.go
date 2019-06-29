@@ -345,7 +345,7 @@ func locateN(r *git.Repository, condition conditionFunc, notFoundErr error, n in
 	}
 }
 
-func (s *Service) Commit(ctx context.Context, repo *git.Repository, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
+func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
 	defer span.Finish()
 
