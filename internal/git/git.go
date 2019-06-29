@@ -165,7 +165,7 @@ func (s *Service) LocateRelease(ctx context.Context, r *git.Repository, artifact
 }
 
 func locateReleaseCondition(artifactID string) conditionFunc {
-	r := regexp.MustCompile(fmt.Sprintf(`(?i)release %s$`, regexp.QuoteMeta(artifactID)))
+	r := regexp.MustCompile(fmt.Sprintf(`(?i)release %s($|\r\n|\r|\n)`, regexp.QuoteMeta(artifactID)))
 	return func(commitMsg string) bool {
 		if artifactID == "" {
 			return false
@@ -211,7 +211,7 @@ func (s *Service) LocateEnvRelease(ctx context.Context, r *git.Repository, env, 
 }
 
 func locateEnvReleaseCondition(env, artifactId string) conditionFunc {
-	r := regexp.MustCompile(fmt.Sprintf(`(?i)\[%s/.*] release %s$`, regexp.QuoteMeta(env), regexp.QuoteMeta(artifactId)))
+	r := regexp.MustCompile(fmt.Sprintf(`(?i)\[%s/.*] release %s($|\r\n|\r|\n)`, regexp.QuoteMeta(env), regexp.QuoteMeta(artifactId)))
 	return func(commitMsg string) bool {
 		if env == "" {
 			return false
