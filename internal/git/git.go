@@ -24,9 +24,10 @@ import (
 )
 
 var (
-	ErrNothingToCommit  = errors.New("nothing to commit")
-	ErrReleaseNotFound  = errors.New("release not found")
-	ErrArtifactNotFound = errors.New("artifact not found")
+	ErrNothingToCommit    = errors.New("nothing to commit")
+	ErrReleaseNotFound    = errors.New("release not found")
+	ErrArtifactNotFound   = errors.New("artifact not found")
+	ErrBranchBehindOrigin = errors.New("branch behind origin")
 )
 
 type Service struct {
@@ -377,9 +378,7 @@ func (s *Service) Commit(ctx context.Context, repo *git.Repository, rootPath, ch
 
 	span, _ = s.Tracer.FromCtx(ctx, "push")
 	defer span.Finish()
-	// use an external process oposed to w.Commit() to speed up the commit and
-	// reduce memory pressure
-	return execCommand(ctx, rootPath, "git", "push", "origin", "master")
+	return gitPush(ctx, rootPath)
 }
 
 func execCommand(ctx context.Context, rootPath string, cmdName string, args ...string) error {
@@ -453,6 +452,50 @@ func checkStatus(ctx context.Context, rootPath string) error {
 	}
 	if len(stdoutData) == 0 {
 		return ErrNothingToCommit
+	}
+	return nil
+}
+
+func gitPush(ctx context.Context, rootPath string) error {
+	cmdName := "git"
+	args := []string{"push", "origin", "master", "--porcelain"}
+	log.WithFields("root", rootPath).Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
+	cmd := exec.CommandContext(ctx, cmdName, args...)
+	cmd.Dir = rootPath
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return errors.WithMessage(err, "get stdout pipe for command")
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return errors.WithMessage(err, "get stderr pipe for command")
+	}
+	err = cmd.Start()
+	if err != nil {
+		return errors.WithMessage(err, "start command")
+	}
+
+	stdoutData, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		return errors.WithMessage(err, "read stdout data of command")
+	}
+	stderrData, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		return errors.WithMessage(err, "read stderr data of command")
+	}
+
+	err = cmd.Wait()
+	log.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
+	log.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
+	match, err := regexp.Match("(?i)rejected because the remote contains work that you do", stderrData)
+	if err != nil {
+		log.Errorf("git/gitPush: failed to detect if push error is caused by master being behind: %v", err)
+	}
+	if match {
+		return ErrBranchBehindOrigin
+	}
+	if err != nil {
+		return errors.WithMessage(err, "execute command failed")
 	}
 	return nil
 }
