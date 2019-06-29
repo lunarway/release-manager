@@ -40,7 +40,7 @@ func NewJaeger() (Tracer, error) {
 		Type:  jaeger.SamplerTypeConst,
 		Param: 1,
 	}
-	cfg.Reporter.LogSpans = false
+	cfg.Reporter.LogSpans = true
 	log.WithFields("config", cfg).Infof("Tracing spans reported to '%s'", cfg.Reporter.LocalAgentHostPort)
 
 	tracer, closer, err := cfg.NewTracer(

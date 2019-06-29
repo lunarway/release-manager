@@ -25,7 +25,7 @@ func Init(c *Configuration) {
 		NameKey:        "logger",
 		CallerKey:      "caller",
 		MessageKey:     "message",
-		StacktraceKey:  "",
+		StacktraceKey:  "stacktrace",
 		LineEnding:     zapcore.DefaultLineEnding,
 		EncodeLevel:    zapcore.LowercaseLevelEncoder,
 		EncodeTime:     zapcore.ISO8601TimeEncoder,
