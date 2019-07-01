@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"runtime"
+	"strings"
 	"sync"
-	"time"
 
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
@@ -18,14 +20,14 @@ import (
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/format/config"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
 var (
-	ErrNothingToCommit  = errors.New("nothing to commit")
-	ErrReleaseNotFound  = errors.New("release not found")
-	ErrArtifactNotFound = errors.New("artifact not found")
+	ErrNothingToCommit    = errors.New("nothing to commit")
+	ErrReleaseNotFound    = errors.New("release not found")
+	ErrArtifactNotFound   = errors.New("artifact not found")
+	ErrBranchBehindOrigin = errors.New("branch behind origin")
 )
 
 type Service struct {
@@ -86,39 +88,21 @@ func (s *Service) clone(ctx context.Context, destination string) (*git.Repositor
 func (s *Service) SyncMaster(ctx context.Context) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.SyncMaster")
 	defer span.Finish()
-	authSSH, err := ssh.NewPublicKeysFromFile("git", s.SSHPrivateKeyPath, "")
-	if err != nil {
-		return errors.WithMessage(err, "public keys from file")
-	}
 	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
 	s.masterMutex.Lock()
 	defer s.masterMutex.Unlock()
 	span.Finish()
 
 	span, _ = s.Tracer.FromCtx(ctx, "fetch")
-	err = s.master.FetchContext(ctx, &git.FetchOptions{
-		Auth: authSSH,
-	})
+	err := execCommand(ctx, s.masterPath, "git", "fetch", "origin", "master")
 	span.Finish()
 	if err != nil {
-		if err == git.NoErrAlreadyUpToDate {
-			return nil
-		}
 		return errors.WithMessage(err, "fetch changes")
 	}
-	w, err := s.master.Worktree()
-	if err != nil {
-		return errors.WithMessage(err, "get worktree")
-	}
 	span, _ = s.Tracer.FromCtx(ctx, "pull")
-	err = w.PullContext(ctx, &git.PullOptions{
-		Auth: authSSH,
-	})
-	defer span.Finish()
+	err = execCommand(ctx, s.masterPath, "git", "pull")
+	span.Finish()
 	if err != nil {
-		if err == git.NoErrAlreadyUpToDate {
-			return nil
-		}
 		return errors.WithMessage(err, "pull latest")
 	}
 	return nil
@@ -159,16 +143,10 @@ func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repo
 	return r, nil
 }
 
-func (s *Service) Checkout(ctx context.Context, r *git.Repository, hash plumbing.Hash) error {
+func (s *Service) Checkout(ctx context.Context, rootPath string, hash plumbing.Hash) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Checkout")
 	defer span.Finish()
-	workTree, err := r.Worktree()
-	if err != nil {
-		return errors.WithMessage(err, "get worktree")
-	}
-	err = workTree.Checkout(&git.CheckoutOptions{
-		Hash: hash,
-	})
+	err := execCommand(ctx, rootPath, "git", "checkout", hash.String())
 	if err != nil {
 		return errors.WithMessage(err, "checkout hash")
 	}
@@ -187,7 +165,7 @@ func (s *Service) LocateRelease(ctx context.Context, r *git.Repository, artifact
 }
 
 func locateReleaseCondition(artifactID string) conditionFunc {
-	r := regexp.MustCompile(fmt.Sprintf(`(?i)release %s$`, regexp.QuoteMeta(artifactID)))
+	r := regexp.MustCompile(fmt.Sprintf(`(?i)release %s($|\r\n|\r|\n)`, regexp.QuoteMeta(artifactID)))
 	return func(commitMsg string) bool {
 		if artifactID == "" {
 			return false
@@ -226,13 +204,14 @@ func locateServiceReleaseCondition(env, service string) conditionFunc {
 // It expects the commit to have a commit messages as the one returned by
 // ReleaseCommitMessage.
 func (s *Service) LocateEnvRelease(ctx context.Context, r *git.Repository, env, artifactID string) (plumbing.Hash, error) {
+	artifactID = strings.TrimSpace(artifactID)
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateEnvRelease")
 	defer span.Finish()
 	return locate(r, locateEnvReleaseCondition(env, artifactID), ErrReleaseNotFound)
 }
 
 func locateEnvReleaseCondition(env, artifactId string) conditionFunc {
-	r := regexp.MustCompile(fmt.Sprintf(`(?i)\[%s/.*] release %s$`, regexp.QuoteMeta(env), regexp.QuoteMeta(artifactId)))
+	r := regexp.MustCompile(fmt.Sprintf(`(?i)\[%s/.*] release %s($|\r\n|\r|\n)`, regexp.QuoteMeta(env), regexp.QuoteMeta(artifactId)))
 	return func(commitMsg string) bool {
 		if env == "" {
 			return false
@@ -366,59 +345,157 @@ func locateN(r *git.Repository, condition conditionFunc, notFoundErr error, n in
 	}
 }
 
-func (s *Service) Commit(ctx context.Context, repo *git.Repository, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
+func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
 	defer span.Finish()
-	w, err := repo.Worktree()
-	if err != nil {
-		return errors.WithMessage(err, "get worktree")
-	}
-	err = w.AddGlob(changesPath)
+
+	err := execCommand(ctx, rootPath, "git", "add", ".")
+	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "add changes")
 	}
 
-	status, err := w.Status()
+	span, _ = s.Tracer.FromCtx(ctx, "check for changes")
+	err = checkStatus(ctx, rootPath)
+	span.Finish()
 	if err != nil {
-		return errors.WithMessage(err, "status")
-	}
-	log.Infof("internal/git: Commit status:\n%s", status)
-	// if commit is empty
-	if status.IsClean() {
-		log.Debugf("internal/git: Commit: message '%s': nothing to commit", msg)
-		return ErrNothingToCommit
+		return errors.WithMessage(err, "check for changes")
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "commit")
-	_, err = w.Commit(msg, &git.CommitOptions{
-		All: true,
-		Author: &object.Signature{
-			Name:  authorName,
-			Email: authorEmail,
-			When:  time.Now(),
-		},
-		Committer: &object.Signature{
-			Name:  committerName,
-			Email: committerEmail,
-			When:  time.Now(),
-		},
-	})
+	err = execCommand(ctx, rootPath,
+		"git",
+		"-c", fmt.Sprintf(`user.name="%s"`, committerName),
+		"-c", fmt.Sprintf(`user.email="%s"`, committerEmail),
+		"commit",
+		fmt.Sprintf(`--author="%s <%s>"`, authorName, authorEmail),
+		fmt.Sprintf(`-m%s`, msg),
+	)
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "commit")
 	}
 
-	authSSH, err := ssh.NewPublicKeysFromFile("git", s.SSHPrivateKeyPath, "")
-	if err != nil {
-		return errors.WithMessage(err, "public keys from file")
-	}
-
-	// TODO: this could be made optional if needed
 	span, _ = s.Tracer.FromCtx(ctx, "push")
 	defer span.Finish()
-	err = repo.PushContext(ctx, &git.PushOptions{Auth: authSSH})
+	return gitPush(ctx, rootPath)
+}
+
+func execCommand(ctx context.Context, rootPath string, cmdName string, args ...string) error {
+	log.WithFields("root", rootPath).Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
+	cmd := exec.CommandContext(ctx, cmdName, args...)
+	cmd.Dir = rootPath
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return errors.WithMessage(err, "push")
+		return errors.WithMessage(err, "get stdout pipe for command")
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return errors.WithMessage(err, "get stderr pipe for command")
+	}
+	err = cmd.Start()
+	if err != nil {
+		return errors.WithMessage(err, "start command")
+	}
+
+	stdoutData, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		return errors.WithMessage(err, "read stdout data of command")
+	}
+	stderrData, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		return errors.WithMessage(err, "read stderr data of command")
+	}
+
+	err = cmd.Wait()
+	log.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
+	log.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
+	if err != nil {
+		return errors.WithMessage(err, "execute command failed")
+	}
+	return nil
+}
+
+func checkStatus(ctx context.Context, rootPath string) error {
+	cmdName := "git"
+	args := []string{"status", "--porcelain"}
+	log.WithFields("root", rootPath).Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
+	cmd := exec.CommandContext(ctx, cmdName, args...)
+	cmd.Dir = rootPath
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return errors.WithMessage(err, "get stdout pipe for command")
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return errors.WithMessage(err, "get stderr pipe for command")
+	}
+	err = cmd.Start()
+	if err != nil {
+		return errors.WithMessage(err, "start command")
+	}
+
+	stdoutData, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		return errors.WithMessage(err, "read stdout data of command")
+	}
+	stderrData, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		return errors.WithMessage(err, "read stderr data of command")
+	}
+
+	err = cmd.Wait()
+	log.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
+	log.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
+	if err != nil {
+		return errors.WithMessage(err, "execute command failed")
+	}
+	if len(stdoutData) == 0 {
+		return ErrNothingToCommit
+	}
+	return nil
+}
+
+func gitPush(ctx context.Context, rootPath string) error {
+	cmdName := "git"
+	args := []string{"push", "origin", "master", "--porcelain"}
+	log.WithFields("root", rootPath).Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
+	cmd := exec.CommandContext(ctx, cmdName, args...)
+	cmd.Dir = rootPath
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return errors.WithMessage(err, "get stdout pipe for command")
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return errors.WithMessage(err, "get stderr pipe for command")
+	}
+	err = cmd.Start()
+	if err != nil {
+		return errors.WithMessage(err, "start command")
+	}
+
+	stdoutData, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		return errors.WithMessage(err, "read stdout data of command")
+	}
+	stderrData, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		return errors.WithMessage(err, "read stderr data of command")
+	}
+
+	err = cmd.Wait()
+	log.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
+	log.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
+	match, err := regexp.Match("(?i)rejected because the remote contains work that you do", stderrData)
+	if err != nil {
+		log.Errorf("git/gitPush: failed to detect if push error is caused by master being behind: %v", err)
+	}
+	if match {
+		return ErrBranchBehindOrigin
+	}
+	if err != nil {
+		return errors.WithMessage(err, "execute command failed")
 	}
 	return nil
 }

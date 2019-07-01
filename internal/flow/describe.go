@@ -85,7 +85,7 @@ func (s *Service) DescribeArtifact(ctx context.Context, service string, n int) (
 	var artifacts []artifact.Spec
 	log.Debugf("flow/describe: hashes %+v", hashes)
 	for _, hash := range hashes {
-		err = s.Git.Checkout(ctx, sourceRepo, hash)
+		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
 		if err != nil {
 			return nil, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 		}

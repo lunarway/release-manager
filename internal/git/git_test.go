@@ -434,6 +434,14 @@ func TestLocateEnvReleaseCondition(t *testing.T) {
 			message:    "[env/service-name] release master-1234567890-1234567890",
 			output:     true,
 		},
+		{
+			name:       "trailing newline",
+			env:        "env",
+			artifactID: "MASTER-1234567890-1234567890",
+			message:    `[env/service-name] release master-1234567890-1234567890
+`,
+			output:     true,
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {

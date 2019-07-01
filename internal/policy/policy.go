@@ -146,7 +146,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 		// file flags used. This is to avoid opening and closing to file multiple
 		// times during the operation.
 		log.Debugf("internal/policy: clone config repository")
-		repo, err := s.Git.Clone(ctx, configRepoPath)
+		_, err = s.Git.Clone(ctx, configRepoPath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("clone to '%s'", configRepoPath))
 		}
@@ -198,7 +198,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 
 		// commit changes
 		log.Debugf("internal/policy: commit policies file '%s'", policiesPath)
-		err = s.Git.Commit(ctx, repo, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg)
+		err = s.Git.Commit(ctx, configRepoPath, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg)
 		if err != nil {
 			// indicates that the applied policy was already set
 			if err == git.ErrNothingToCommit {

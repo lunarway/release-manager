@@ -39,7 +39,19 @@ type Service struct {
 // If f returns a true bool or a nil error retries are stopped and the error is
 // returned.
 func (s *Service) retry(ctx context.Context, f func(context.Context, int) (bool, error)) error {
-	return try.Do(ctx, s.Tracer, s.MaxRetries, f)
+	return try.Do(ctx, s.Tracer, s.MaxRetries, func(ctx context.Context, attempt int) (bool, error) {
+		stop, err := f(ctx, attempt)
+		if err != nil {
+			if errors.Cause(err) == git.ErrBranchBehindOrigin {
+				log.Infof("flow/retry: master repo not aligned with origin. Syncing and retrying")
+				err := s.Git.SyncMaster(ctx)
+				if err != nil {
+					return false, errors.WithMessage(err, "sync master")
+				}
+			}
+		}
+		return stop, err
+	})
 }
 
 type Environment struct {
@@ -232,7 +244,7 @@ func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, re
 	// fmt.Printf is used for logging as this is called from artifact cli only
 	fmt.Printf("Checkout config repository from '%s' into '%s'\n", gitSvc.ConfigRepoURL, resourceRoot)
 	listFiles(resourceRoot)
-	repo, err := gitSvc.Clone(ctx, artifactConfigRepoPath)
+	_, err = gitSvc.Clone(ctx, artifactConfigRepoPath)
 	if err != nil {
 		return "", errors.WithMessage(err, "clone config repo")
 	}
@@ -263,7 +275,7 @@ func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, re
 	authorEmail := artifactSpec.Application.AuthorEmail
 	commitMsg := git.ArtifactCommitMessage(artifactSpec.Service, artifactID, authorName)
 	fmt.Printf("Committing changes\n")
-	err = gitSvc.Commit(ctx, repo, ".", authorName, authorEmail, committerName, committerEmail, commitMsg)
+	err = gitSvc.Commit(ctx, destinationPath, ".", authorName, authorEmail, committerName, committerEmail, commitMsg)
 	if err != nil {
 		if err == git.ErrNothingToCommit {
 			return artifactSpec.ID, nil

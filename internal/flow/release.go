@@ -31,7 +31,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 			return true, err
 		}
 		defer close(ctx)
-		repo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
+		_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
 		if err != nil {
 			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 		}
@@ -74,7 +74,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		authorEmail := artifactSpec.Application.AuthorEmail
 		artifactID := artifactSpec.ID
 		releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID)
-		err = s.Git.Commit(ctx, repo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
+		err = s.Git.Commit(ctx, sourceConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
 			if err == git.ErrNothingToCommit {
 				return true, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
@@ -140,7 +140,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		if err != nil {
 			return true, errors.WithMessagef(err, "locate release '%s'", artifactID)
 		}
-		err = s.Git.Checkout(ctx, sourceRepo, hash)
+		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 		}
@@ -162,7 +162,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 			namespace = environment
 		}
 
-		destinationRepo, err := s.Git.Clone(ctx, destinationConfigRepoPath)
+		_, err = s.Git.Clone(ctx, destinationConfigRepoPath)
 		if err != nil {
 			return true, errors.WithMessagef(err, "clone destination repo into '%s'", destinationConfigRepoPath)
 		}
@@ -188,7 +188,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		authorName := sourceSpec.Application.AuthorName
 		authorEmail := sourceSpec.Application.AuthorEmail
 		releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID)
-		err = s.Git.Commit(ctx, destinationRepo, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
+		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
 			if err == git.ErrNothingToCommit {
 				return true, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
