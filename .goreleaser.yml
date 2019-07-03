@@ -64,31 +64,7 @@ dockers:
     - "quay.io/lunarway/release-daemon:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
 
 archives:
-  - id: server
-    format: binary
-    name_template: "{{ .Binary }}-{{ .Os }}-{{ .Arch }}"
-    replacements:
-      darwin: darwin
-      linux: linux
-      windows: windows
-      386: i386
-  - id: daemon
-    format: binary
-    name_template: "{{ .Binary }}-{{ .Os }}-{{ .Arch }}"
-    replacements:
-      darwin: darwin
-      linux: linux
-      windows: windows
-      386: i386
-  - id: artifact
-    format: binary
-    name_template: "{{ .Binary }}-{{ .Os }}-{{ .Arch }}"
-    replacements:
-      darwin: darwin
-      linux: linux
-      windows: windows
-      386: i386
-  - id: hamctl
+  - id: archives
     format: binary
     name_template: "{{ .Binary }}-{{ .Os }}-{{ .Arch }}"
     replacements:
