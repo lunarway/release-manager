@@ -3,6 +3,7 @@
 
 builds:
 - binary: artifact
+  id: artifact
   main: ./cmd/artifact/main.go
   goarch:
   - amd64
@@ -12,6 +13,7 @@ builds:
   env:
     - CGO_ENABLED=0
 - binary: hamctl
+  id: hamctl
   main: ./cmd/hamctl/main.go
   goarch:
   - amd64
@@ -21,6 +23,7 @@ builds:
   env:
     - CGO_ENABLED=0
 - binary: server
+  id: server
   main: ./cmd/server/main.go
   goarch:
   - amd64
@@ -30,6 +33,7 @@ builds:
   env:
     - CGO_ENABLED=0
 - binary: daemon
+  id: daemon
   main: ./cmd/daemon/main.go
   goarch:
   - amd64
