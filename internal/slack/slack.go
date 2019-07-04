@@ -227,3 +227,23 @@ func (c *Client) NotifySlackPolicyFailed(email, title, errorMessage string) erro
 	}
 	return nil
 }
+
+func (c *Client) NotifySlackPolicySucceeded(email, title, message string) error {
+	userID, err := c.getIdByEmail(email)
+	if err != nil {
+		return err
+	}
+	asUser := slack.MsgOptionAsUser(true)
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      title,
+		Color:      MsgColorGreen,
+		Text:       fmt.Sprintf("%s", message),
+		MarkdownIn: []string{"text", "fields"},
+	})
+
+	_, _, err = c.client.PostMessage(userID, asUser, attachments)
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -406,6 +406,10 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 					logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' to '%s': nothing to commit", serviceName, autoRelease.ID, autoRelease.Environment)
 					continue
 				}
+				err = slackClient.NotifySlackPolicySucceeded(push.HeadCommit.Author.Email, "Auto release policy detected", fmt.Sprintf("Service *%s* was auto released to *%s*", serviceName, autoRelease.Environment))
+				if err != nil {
+					log.Errorf("http: github webhook: auto-release succeeded: error notifying slack: %v", err)
+				}
 				logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' of %s to %s", serviceName, autoRelease.ID, releaseID, autoRelease.Environment)
 			}
 			if errs != nil {
