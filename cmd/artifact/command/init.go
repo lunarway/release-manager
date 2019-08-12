@@ -78,7 +78,7 @@ func initCommand(options *Options) *cobra.Command {
 				}
 
 				// create and post the initial slack message
-				title := s.Application.Name + " :pig-scoot:"
+				title := s.Application.Name + " :mario_luigi_dance:"
 				titleLink := s.CI.JobURL
 				text := fmt.Sprintf("Build for branch: <%s|*%s*>\n", s.Application.URL, s.Application.Branch)
 				color := slack.MsgColorYellow
