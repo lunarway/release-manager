@@ -477,6 +477,10 @@ func promote(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: artifact not found", req.Service, req.Environment)
 				Error(w, fmt.Sprintf("artifact not found for service '%s'. Are you missing a namespace?", req.Service), http.StatusBadRequest)
 				return
+			case flow.ErrUnknownConfiguration:
+				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: source configuration not found", req.Service, req.Environment)
+				Error(w, fmt.Sprintf("configuration for environment '%s' not found for service '%s'. Is the environment specified in 'shuttle.yaml'?", req.Environment, req.Service), http.StatusBadRequest)
+				return
 			default:
 				logger.Errorf("http: promote: service '%s' environment '%s': promote failed: %v", req.Service, req.Environment, err)
 				unknownError(w)
@@ -577,6 +581,10 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 				} else {
 					Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
 				}
+				return
+			case flow.ErrUnknownConfiguration:
+				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: source configuration not found", req.Service, req.Environment, req.Branch, req.ArtifactID)
+				Error(w, fmt.Sprintf("configuration for environment '%s' not found for service '%s'. Is the environment specified in 'shuttle.yaml'?", req.Environment, req.Service), http.StatusBadRequest)
 				return
 			default:
 				logger.Errorf("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release failed: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
