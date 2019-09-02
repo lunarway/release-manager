@@ -60,10 +60,10 @@ Release latest artifact from branch 'master' of service 'product' into environme
 			return nil
 		},
 	}
-	command.Flags().StringVar(&environment, "env", "", "environment to release to (required)")
+	command.Flags().StringVarP(&environment, "env", "e", "", "environment to release to (required)")
 	command.MarkFlagRequired("env")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
-	command.Flags().StringVar(&branch, "branch", "", "release latest artifact from this branch (mutually exclusive with --artifact)")
+	command.Flags().StringVarP(&branch, "branch", "b", "", "release latest artifact from this branch (mutually exclusive with --artifact)")
 	completion.FlagAnnotation(command, "branch", "__hamctl_get_branches")
 	command.Flags().StringVar(&artifact, "artifact", "", "release this artifact id (mutually exclusive with --branch)")
 	return command

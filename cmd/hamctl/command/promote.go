@@ -51,7 +51,7 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&environment, "env", "", "Environment to promote to (required)")
+	command.Flags().StringVarP(&environment, "env", "e", "", "Environment to promote to (required)")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	command.MarkFlagRequired("env")
 	command.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace the service is deployed to (defaults to env)")

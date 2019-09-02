@@ -67,10 +67,10 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&branch, "branch", "", "Branch to auto-release artifacts from")
+	command.Flags().StringVarP(&branch, "branch", "b", "", "Branch to auto-release artifacts from")
 	command.MarkFlagRequired("branch")
 	completion.FlagAnnotation(command, "branch", "__hamctl_get_branches")
-	command.Flags().StringVar(&env, "env", "", "Environment to release artifacts to")
+	command.Flags().StringVarP(&env, "env", "e", "", "Environment to release artifacts to")
 	command.MarkFlagRequired("env")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	return command
