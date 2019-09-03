@@ -61,7 +61,7 @@ has no effect.`,
 			return nil
 		},
 	}
-	command.Flags().StringVar(&environment, "env", "", "environment to release to (required)")
+	command.Flags().StringVarP(&environment, "env", "e", "", "environment to release to (required)")
 	command.MarkFlagRequired("env")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	command.Flags().StringVarP(&namespace, "namespace", "n", "", "namespace the service is deployed to (defaults to env)")

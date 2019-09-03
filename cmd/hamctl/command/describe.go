@@ -79,7 +79,7 @@ Format the output with a custom template:
 			return nil
 		},
 	}
-	command.Flags().StringVar(&environment, "env", "", "environment to promote to (required)")
+	command.Flags().StringVarP(&environment, "env", "e", "", "environment to promote to (required)")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	command.MarkFlagRequired("env")
 	command.Flags().StringVarP(&namespace, "namespace", "n", "", "namespace the service is deployed to (defaults to env)")
