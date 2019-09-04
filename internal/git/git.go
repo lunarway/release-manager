@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -28,6 +29,7 @@ var (
 	ErrReleaseNotFound    = errors.New("release not found")
 	ErrArtifactNotFound   = errors.New("artifact not found")
 	ErrBranchBehindOrigin = errors.New("branch behind origin")
+	ErrUnknownGit         = errors.New("unknown git error")
 )
 
 type Service struct {
@@ -412,6 +414,32 @@ func execCommand(ctx context.Context, rootPath string, cmdName string, args ...s
 	log.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
 	if err != nil {
 		return errors.WithMessage(err, "execute command failed")
+	}
+	err = isKnownGitError(stderrData)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// knownGitErrors contains error messages that should be considered as errors by
+// release-manager and because of this return an error.
+var knownGitErrors = []string{
+	"fatal: Could not read from remote repository.",
+	"Connection closed by remote host",
+	"ssh: Could not resolve hostname github.com",
+}
+
+// isKnownGitError returns an error if stderr is identified as a known Git
+// error.
+func isKnownGitError(stderrData []byte) error {
+	if len(stderrData) == 0 {
+		return nil
+	}
+	for _, e := range knownGitErrors {
+		if bytes.Contains(stderrData, []byte(e)) {
+			return ErrUnknownGit
+		}
 	}
 	return nil
 }
