@@ -1,4 +1,4 @@
-FROM golang:1.12.0 as builder
+FROM golang:1.13.0 as builder
 WORKDIR /app
 ENV CGO_ENABLED=0
 ENV GOOS=linux
@@ -12,8 +12,8 @@ COPY internal/ ./internal/
 COPY cmd/server/ ./cmd/server/
 
 RUN go build -o server cmd/server/main.go
- 
-FROM alpine:3.9
+
+FROM alpine:3.10.2
 RUN   apk update && \
       apk add --no-cache \
       openssh-keygen bash openssh-client git ca-certificates
