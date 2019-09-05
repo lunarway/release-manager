@@ -1,0 +1,12 @@
+/dist
+artifact-linux-amd64
+.tmp/
+.idea/
+/.vscode/
+/cmd/artifact/examples
+/cmd/artifact/artifact
+message.json
+artifact.json
+/profiles/
+/.git
+/main
