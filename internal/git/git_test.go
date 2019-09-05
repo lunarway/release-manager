@@ -502,3 +502,46 @@ func TestLocateArtifactServiceCondition(t *testing.T) {
 		})
 	}
 }
+
+func TestIsKnownGitError(t *testing.T) {
+	type input struct {
+	}
+	type output struct {
+	}
+	tt := []struct {
+		name   string
+		stderr string
+		err    error
+	}{
+		{
+			name:   "no data",
+			stderr: "",
+			err:    nil,
+		},
+		{
+			name:   "something unknown",
+			stderr: "something we have never seen before",
+			err:    nil,
+		},
+		{
+			name:   "connection closed by remote",
+			stderr: "ssh_exchange_idedntification: Connection closed by remote host",
+			err:    ErrUnknownGit,
+		},
+		{
+			name:   "hostname not resolved",
+			stderr: "ssh: Could not resolve hostname github.com",
+			err:    ErrUnknownGit,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isKnownGitError([]byte(tc.stderr))
+			if tc.err != nil {
+				assert.EqualError(t, err, tc.err.Error(), "error not as expected")
+			} else {
+				assert.NoError(t, err, "unexpected error")
+			}
+		})
+	}
+}
