@@ -132,7 +132,11 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 
 	switch e.Type {
 	case watch.Modified:
-		log.WithFields("pod", pod).Infof("Pod object: %s", pod.Name)
+		log.WithFields(
+			"status", pod.Status,
+			"deletionTimestamp", pod.DeletionTimestamp,
+			"namespace", pod.Namespace,
+		).Infof("Pod object: %s", pod.Name)
 		switch pod.Status.Phase {
 
 		// PodRunning means the pod has been bound to a node and all of the containers have been started.
