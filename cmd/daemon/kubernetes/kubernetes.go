@@ -8,9 +8,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -132,11 +131,16 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 
 	switch e.Type {
 	case watch.Modified:
-		log.WithFields(
+		fields := []interface{}{
 			"status", pod.Status,
-			"deletionTimestamp", pod.DeletionTimestamp,
 			"namespace", pod.Namespace,
-		).Infof("Pod object: %s", pod.Name)
+		}
+		// this hacky field contruction is necessary as *metav1.Time panics on calls
+		// to String() if the receiver is nil
+		if pod.DeletionTimestamp != nil {
+			fields = append(fields, "deletionTimestamp", pod.DeletionTimestamp)
+		}
+		log.WithFields(fields...).Infof("Pod object: %s", pod.Name)
 		switch pod.Status.Phase {
 
 		// PodRunning means the pod has been bound to a node and all of the containers have been started.
