@@ -18,7 +18,6 @@ func Init(c *Configuration) {
 	if c == nil {
 		c = &Configuration{}
 	}
-	fmt.Printf("Config: %+v\n", *c)
 	encoder := zapcore.EncoderConfig{
 		TimeKey:        "@timestamp",
 		LevelKey:       "level",
