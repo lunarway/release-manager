@@ -140,20 +140,13 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 			// after we cloned. Because of this we retry on any error.
 			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 		}
-		err = s.notifyRelease(ctx, NotifyReleaseOptions{
-			Service:       service,
-			Environment:   environment,
-			Namespace:     namespace,
-			ArtifactID:    sourceSpec.ID,
-			CommitAuthor:  sourceSpec.Application.AuthorName,
-			CommitMessage: sourceSpec.Application.Message,
-			CommitSHA:     sourceSpec.Application.SHA,
-			CommitLink:    sourceSpec.Application.URL,
-			Releaser:      actor.Name,
+		s.notifyRelease(ctx, NotifyReleaseOptions{
+			Service:     service,
+			Environment: environment,
+			Namespace:   namespace,
+			Spec:        sourceSpec,
+			Releaser:    actor.Name,
 		})
-		if err != nil {
-			log.Errorf("flow: Promote: error notifying release: %v", err)
-		}
 		return true, nil
 	})
 	if err != nil {

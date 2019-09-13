@@ -83,20 +83,13 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 			// after we cloned. Because of this we retry on any error.
 			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 		}
-		err = s.notifyRelease(ctx, NotifyReleaseOptions{
-			Service:       service,
-			Environment:   environment,
-			Namespace:     namespace,
-			ArtifactID:    artifactSpec.ID,
-			CommitAuthor:  artifactSpec.Application.AuthorName,
-			CommitMessage: artifactSpec.Application.Message,
-			CommitSHA:     artifactSpec.Application.SHA,
-			CommitLink:    artifactSpec.Application.URL,
-			Releaser:      actor.Name,
+		s.notifyRelease(ctx, NotifyReleaseOptions{
+			Service:     service,
+			Environment: environment,
+			Namespace:   namespace,
+			Spec:        artifactSpec,
+			Releaser:    actor.Name,
 		})
-		if err != nil {
-			log.Errorf("flow: ReleaseBranch: error notifying release: %v", err)
-		}
 		result = artifactID
 		log.Infof("flow: ReleaseBranch: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
 		return true, nil
@@ -197,20 +190,13 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 			// after we cloned. Because of this we retry on any error.
 			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 		}
-		err = s.notifyRelease(ctx, NotifyReleaseOptions{
-			Service:       service,
-			Environment:   environment,
-			Namespace:     namespace,
-			ArtifactID:    sourceSpec.ID,
-			CommitAuthor:  sourceSpec.Application.AuthorName,
-			CommitMessage: sourceSpec.Application.Message,
-			CommitSHA:     sourceSpec.Application.SHA,
-			CommitLink:    sourceSpec.Application.URL,
-			Releaser:      actor.Name,
+		s.notifyRelease(ctx, NotifyReleaseOptions{
+			Service:     service,
+			Environment: environment,
+			Namespace:   namespace,
+			Spec:        sourceSpec,
+			Releaser:    actor.Name,
 		})
-		if err != nil {
-			log.Errorf("flow: ReleaseBranch: error notifying release: %v", err)
-		}
 		result = artifactID
 		log.Infof("flow: ReleaseArtifactID: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
 		return true, nil

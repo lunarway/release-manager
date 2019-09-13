@@ -16,6 +16,7 @@ func NewCommand() (*cobra.Command, error) {
 	var httpOpts http.Options
 	var grafanaOpts grafanaOptions
 	var slackAuthToken string
+	var githubAPIToken string
 	var configRepoOpts configRepoOptions
 	var users []string
 	var userMappings map[string]string
@@ -42,7 +43,7 @@ func NewCommand() (*cobra.Command, error) {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(NewStart(&grafanaOpts, &slackAuthToken, &configRepoOpts, &httpOpts, &userMappings))
+	command.AddCommand(NewStart(&grafanaOpts, &slackAuthToken, &githubAPIToken, &configRepoOpts, &httpOpts, &userMappings))
 	command.PersistentFlags().IntVar(&httpOpts.Port, "http-port", 8080, "port of the http server")
 	command.PersistentFlags().DurationVar(&httpOpts.Timeout, "timeout", 20*time.Second, "HTTP server timeout for incomming requests")
 	command.PersistentFlags().StringVar(&httpOpts.HamCtlAuthToken, "hamctl-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "hamctl authentication token")
@@ -51,6 +52,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&configRepoOpts.ArtifactFileName, "artifact-filename", "artifact.json", "the filename of the artifact to be used")
 	command.PersistentFlags().StringVar(&configRepoOpts.SSHPrivateKeyPath, "ssh-private-key", "/etc/release-manager/ssh/identity", "ssh-private-key for the config repo")
 	command.PersistentFlags().StringVar(&httpOpts.GithubWebhookSecret, "github-webhook-secret", os.Getenv("GITHUB_WEBHOOK_SECRET"), "github webhook secret")
+	command.PersistentFlags().StringVar(&githubAPIToken, "github-api-token", os.Getenv("GITHUB_API_TOKEN"), "github api token for tagging releases")
 	command.PersistentFlags().StringVar(&slackAuthToken, "slack-token", os.Getenv("SLACK_TOKEN"), "token to be used to communicate with the slack api")
 	command.PersistentFlags().StringVar(&grafanaOpts.DevAPIKey, "grafana-api-key-dev", os.Getenv("GRAFANA_DEV_API_KEY"), "api key to be used to annotate in dev")
 	command.PersistentFlags().StringVar(&grafanaOpts.StagingAPIKey, "grafana-api-key-staging", os.Getenv("GRAFANA_STAGING_API_KEY"), "api key to be used to annotate in dev")
