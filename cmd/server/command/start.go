@@ -91,7 +91,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				// can be required for racing writes
 				MaxRetries: 3,
 				NotifyReleaseHook: func(ctx context.Context, opts flow.NotifyReleaseOptions) {
-					span, ctx := tracer.FromCtx(ctx, "serevier.start NotifyReleaseHook")
+					span, ctx := tracer.FromCtx(ctx, "flow.NotifyReleaseHook")
 					defer span.Finish()
 					logger := log.WithFields("service", opts.Service,
 						"environment", opts.Environment,
