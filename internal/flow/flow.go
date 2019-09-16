@@ -10,7 +10,6 @@ import (
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/git"
-	"github.com/lunarway/release-manager/internal/grafana"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
@@ -29,11 +28,22 @@ type Service struct {
 	ArtifactFileName string
 	UserMappings     map[string]string
 	Slack            *slack.Client
-	Grafana          *grafana.Service
 	Git              *git.Service
 	Tracer           tracing.Tracer
 
 	MaxRetries int
+
+	// NotifyReleaseHook is triggered in a Go routine when a release is completed.
+	// The context.Context is cancelled if the originating flow call is cancelled.
+	NotifyReleaseHook func(ctx context.Context, options NotifyReleaseOptions)
+}
+
+type NotifyReleaseOptions struct {
+	Environment string
+	Namespace   string
+	Service     string
+	Releaser    string
+	Spec        artifact.Spec
 }
 
 // retry tries the function f until max attempts is reached
@@ -302,62 +312,23 @@ func listFiles(path string) {
 	}
 }
 
-type NotifyReleaseOptions struct {
-	Environment   string
-	Namespace     string
-	Service       string
-	ArtifactID    string
-	Squad         string
-	CommitAuthor  string
-	CommitMessage string
-	CommitSHA     string
-	CommitLink    string
-	Releaser      string
-}
-
-func (s *Service) notifyRelease(ctx context.Context, opts NotifyReleaseOptions) error {
+func (s *Service) notifyRelease(ctx context.Context, opts NotifyReleaseOptions) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.notifyRelease")
 	defer span.Finish()
-	span, _ = s.Tracer.FromCtx(ctx, "notify release channel")
-	err := s.Slack.NotifySlackReleasesChannel(slack.ReleaseOptions{
-		Service:       opts.Service,
-		Environment:   opts.Environment,
-		ArtifactID:    opts.ArtifactID,
-		CommitMessage: opts.CommitMessage,
-		CommitAuthor:  opts.CommitAuthor,
-		CommitLink:    opts.CommitLink,
-		CommitSHA:     opts.CommitSHA,
-		Releaser:      opts.Releaser,
-	})
-	span.Finish()
-	if err != nil {
-		return err
+	if s.NotifyReleaseHook != nil {
+		go s.NotifyReleaseHook(noCancel{ctx: ctx}, opts)
 	}
-
-	span, _ = s.Tracer.FromCtx(ctx, "annotate grafana")
-	err = s.Grafana.Annotate(opts.Environment, grafana.AnnotateRequest{
-		What: fmt.Sprintf("Deployment: %s", opts.Service),
-		Data: fmt.Sprintf("Author: %s\nMessage: %s\nArtifactID: %s", opts.CommitAuthor, opts.CommitMessage, opts.ArtifactID),
-		Tags: []string{"deployment", opts.Service},
-	})
-	span.Finish()
-	if err != nil {
-		return err
-	}
-
-	log.WithFields("service", opts.Service,
-		"environment", opts.Environment,
-		"namespace", opts.Namespace,
-		"artifact-id", opts.ArtifactID,
-		"commit-message", opts.CommitMessage,
-		"commit-author", opts.CommitAuthor,
-		"commit-link", opts.CommitLink,
-		"commit-sha", opts.CommitSHA,
-		"releaser", opts.Releaser,
-		"type", "release").Infof("Release [%s]: %s (%s) by %s, author %s", opts.Environment, opts.Service, opts.ArtifactID, opts.Releaser, opts.CommitAuthor)
-
-	return nil
 }
+
+// noCancel is a context.Context that does not propagate cancellations.
+type noCancel struct {
+	ctx context.Context
+}
+
+func (c noCancel) Deadline() (time.Time, bool)       { return time.Time{}, false }
+func (c noCancel) Done() <-chan struct{}             { return nil }
+func (c noCancel) Err() error                        { return nil }
+func (c noCancel) Value(key interface{}) interface{} { return c.ctx.Value(key) }
 
 func (s *Service) cleanCopy(ctx context.Context, src, dest string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.cleanCopy")

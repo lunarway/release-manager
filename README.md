@@ -201,6 +201,26 @@ This is an example of applying an auto-release policy for the product service fo
 $ hamctl policy --service example apply auto-release --branch master --env dev
 ```
 
+### Notifications
+
+When releasing applications the server will notify different upstream services along with outputting an identifiable log useful for log aggregation statistics.
+
+```
+info  command/start.go:145  Release [dev]: verification (master-e8da185c2c-06249f1a78) by Bjørn Sørensen, author Bjørn Sørensen
+```
+
+A Slack message is pushed to a `#releases-<env>` Slack channel.
+
+![](docs/slack_release_message.png)
+
+Grafana is annotated with release metadata and tag `deployment`.
+
+![](docs/grafana_annotation.png)
+
+If the artifact provider is GitHub and a GitHub API token is provided (`--github-api-token`) the application source repository is tagged with `<env>` on the released Git SHA.
+
+![](docs/github_tag.png)
+
 ### Tracing support
 
 The server collects [Jaeger](https://www.jaegertracing.io/) spans. This is enabled by default and reported as service `release-manager`.

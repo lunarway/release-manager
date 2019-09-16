@@ -124,20 +124,13 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 			// after we cloned. Because of this we retry on any error.
 			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
 		}
-		err = s.notifyRelease(ctx, NotifyReleaseOptions{
-			Service:       service,
-			Environment:   environment,
-			Namespace:     namespace,
-			ArtifactID:    newSpec.ID,
-			CommitAuthor:  newSpec.Application.AuthorName,
-			CommitMessage: newSpec.Application.Message,
-			CommitSHA:     newSpec.Application.SHA,
-			CommitLink:    newSpec.Application.URL,
-			Releaser:      actor.Name,
+		s.notifyRelease(ctx, NotifyReleaseOptions{
+			Service:     service,
+			Environment: environment,
+			Namespace:   namespace,
+			Spec:        newSpec,
+			Releaser:    actor.Name,
 		})
-		if err != nil {
-			log.Errorf("flow: ReleaseBranch: error notifying release: %v", err)
-		}
 		log.Infof("flow: Rollback: rollback committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
 		result.Previous = currentSpec.ID
 		result.New = newSpec.ID
