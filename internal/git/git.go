@@ -515,14 +515,14 @@ func gitPush(ctx context.Context, rootPath string) error {
 	err = cmd.Wait()
 	log.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
 	log.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
-	match, err := regexp.Match("(?i)rejected because the remote contains work that you do", stderrData)
 	if err != nil {
-		log.Errorf("git/gitPush: failed to detect if push error is caused by master being behind: %v", err)
-	}
-	if match {
-		return ErrBranchBehindOrigin
-	}
-	if err != nil {
+		match, regexpErr := regexp.Match("(?i)rejected because the remote contains work that you do", stderrData)
+		if regexpErr != nil {
+			log.Errorf("git/gitPush: failed to detect if push error is caused by master being behind: %v", regexpErr)
+		}
+		if match {
+			return ErrBranchBehindOrigin
+		}
 		return errors.WithMessage(err, "execute command failed")
 	}
 	return nil
