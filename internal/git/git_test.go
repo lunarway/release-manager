@@ -438,9 +438,9 @@ func TestLocateEnvReleaseCondition(t *testing.T) {
 			name:       "trailing newline",
 			env:        "env",
 			artifactID: "MASTER-1234567890-1234567890",
-			message:    `[env/service-name] release master-1234567890-1234567890
+			message: `[env/service-name] release master-1234567890-1234567890
 `,
-			output:     true,
+			output: true,
 		},
 	}
 	for _, tc := range tt {
@@ -504,10 +504,6 @@ func TestLocateArtifactServiceCondition(t *testing.T) {
 }
 
 func TestIsKnownGitError(t *testing.T) {
-	type input struct {
-	}
-	type output struct {
-	}
 	tt := []struct {
 		name   string
 		stderr string
