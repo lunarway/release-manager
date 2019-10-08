@@ -237,7 +237,7 @@ func (c *Client) NotifySlackPolicySucceeded(email, title, message string) error 
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      title,
 		Color:      MsgColorGreen,
-		Text:       fmt.Sprintf("%s", message),
+		Text:       message,
 		MarkdownIn: []string{"text", "fields"},
 	})
 

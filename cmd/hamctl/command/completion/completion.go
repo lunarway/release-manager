@@ -55,7 +55,10 @@ __hamctl_get_branches()
 func Zsh(out io.Writer, hamctl *cobra.Command) error {
 	zshHead := "#compdef hamctl\n"
 
-	out.Write([]byte(zshHead))
+	_, err := out.Write([]byte(zshHead))
+	if err != nil {
+		return err
+	}
 
 	zshInitialization := `
 __hamctl_bash_source() {
@@ -182,11 +185,20 @@ __hamctl_convert_bash_to_zsh() {
 	-e "s/\\\$(type${RWORD}/\$(__hamctl_type/g" \
 	<<'BASH_COMPLETION_EOF'
 `
-	out.Write([]byte(zshInitialization))
+	_, err = out.Write([]byte(zshInitialization))
+	if err != nil {
+		return err
+	}
 
 	buf := new(bytes.Buffer)
-	hamctl.GenBashCompletion(buf)
-	out.Write(buf.Bytes())
+	err = hamctl.GenBashCompletion(buf)
+	if err != nil {
+		return err
+	}
+	_, err = out.Write(buf.Bytes())
+	if err != nil {
+		return err
+	}
 
 	zshTail := `
 BASH_COMPLETION_EOF
@@ -194,6 +206,9 @@ BASH_COMPLETION_EOF
 __hamctl_bash_source <(__hamctl_convert_bash_to_zsh)
 _complete hamctl 2>/dev/null
 `
-	out.Write([]byte(zshTail))
+	_, err = out.Write([]byte(zshTail))
+	if err != nil {
+		return err
+	}
 	return nil
 }
