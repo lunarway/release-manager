@@ -164,11 +164,9 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 			sigs := make(chan os.Signal, 1)
 			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 			go func() {
-				select {
-				case sig := <-sigs:
-					log.Infof("received os signal '%s'", sig)
-					done <- nil
-				}
+				sig := <-sigs
+				log.Infof("received os signal '%s'", sig)
+				done <- nil
 			}()
 
 			err = <-done

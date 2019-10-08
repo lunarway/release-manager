@@ -65,13 +65,14 @@ Installing bash completion on Linux
 			}
 			return nil
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			switch args[0] {
 			case "zsh":
-				completion.Zsh(os.Stdout, rootCmd)
+				return completion.Zsh(os.Stdout, rootCmd)
 			case "bash":
-				rootCmd.GenBashCompletion(os.Stdout)
+				return rootCmd.GenBashCompletion(os.Stdout)
 			default:
+				return nil
 			}
 		},
 	}

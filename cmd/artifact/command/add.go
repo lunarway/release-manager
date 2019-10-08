@@ -59,8 +59,13 @@ func appendTestSubCommand(options *Options) *cobra.Command {
 	command.Flags().IntVar(&testData.Results.Failed, "failed", 0, "")
 	command.Flags().IntVar(&testData.Results.Skipped, "skipped", 0, "")
 	command.Flags().StringVar(&testData.URL, "url", "", "")
+	// errors are skipped here as the only case they can occour are if thee flag
+	// does not exist on the command.
+	//nolint:errcheck
 	command.MarkFlagRequired("passed")
+	//nolint:errcheck
 	command.MarkFlagRequired("failed")
+	//nolint:errcheck
 	command.MarkFlagRequired("skipped")
 	return command
 }
