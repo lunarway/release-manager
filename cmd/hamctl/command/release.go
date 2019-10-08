@@ -61,6 +61,9 @@ Release latest artifact from branch 'master' of service 'product' into environme
 		},
 	}
 	command.Flags().StringVarP(&environment, "env", "e", "", "environment to release to (required)")
+	// errors are skipped here as the only case they can occour are if thee flag
+	// does not exist on the command.
+	//nolint:errcheck
 	command.MarkFlagRequired("env")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	command.Flags().StringVarP(&branch, "branch", "b", "", "release latest artifact from this branch (mutually exclusive with --artifact)")
