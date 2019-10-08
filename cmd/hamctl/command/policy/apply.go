@@ -68,9 +68,13 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 		},
 	}
 	command.Flags().StringVarP(&branch, "branch", "b", "", "Branch to auto-release artifacts from")
+	// errors are skipped here as the only case they can occour are if thee flag
+	// does not exist on the command.
+	//nolint:errcheck
 	command.MarkFlagRequired("branch")
 	completion.FlagAnnotation(command, "branch", "__hamctl_get_branches")
 	command.Flags().StringVarP(&env, "env", "e", "", "Environment to release artifacts to")
+	//nolint:errcheck
 	command.MarkFlagRequired("env")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	return command

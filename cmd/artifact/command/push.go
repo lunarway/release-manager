@@ -58,8 +58,12 @@ func pushCommand(options *Options) *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&gitSvc.SSHPrivateKeyPath, "ssh-private-key", "", "private key for the config repo")
+	// errors are skipped here as the only case they can occour are if thee flag
+	// does not exist on the command.
+	//nolint:errcheck
 	command.MarkFlagRequired("ssh-private-key")
 	command.Flags().StringVar(&gitSvc.ConfigRepoURL, "config-repo", "", "ssh url for the git config repository")
+	//nolint:errcheck
 	command.MarkFlagRequired("config-repo")
 	return command
 }

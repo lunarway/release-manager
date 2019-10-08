@@ -62,6 +62,9 @@ has no effect.`,
 		},
 	}
 	command.Flags().StringVarP(&environment, "env", "e", "", "environment to release to (required)")
+	// errors are skipped here as the only case they can occour are if thee flag
+	// does not exist on the command.
+	//nolint:errcheck
 	command.MarkFlagRequired("env")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	command.Flags().StringVarP(&namespace, "namespace", "n", "", "namespace the service is deployed to (defaults to env)")

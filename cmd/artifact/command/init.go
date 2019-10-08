@@ -130,14 +130,25 @@ func initCommand(options *Options) *cobra.Command {
 	command.Flags().StringVar(&s.Shuttle.Plan.Branch, "shuttle-plan-branch", "", "the shuttle plan branch name")
 	command.Flags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between emails used by Git and Slack, key-value pair: <email>=<slack-email>")
 
+	// errors are skipped here as the only case they can occour are if thee flag
+	// does not exist on the command.
+	//nolint:errcheck
 	command.MarkFlagRequired("artifact-id")
+	//nolint:errcheck
 	command.MarkFlagRequired("service")
+	//nolint:errcheck
 	command.MarkFlagRequired("git-author-name")
+	//nolint:errcheck
 	command.MarkFlagRequired("git-author-email")
+	//nolint:errcheck
 	command.MarkFlagRequired("git-message")
+	//nolint:errcheck
 	command.MarkFlagRequired("git-committer-name")
+	//nolint:errcheck
 	command.MarkFlagRequired("git-committer-email")
+	//nolint:errcheck
 	command.MarkFlagRequired("git-sha")
+	//nolint:errcheck
 	command.MarkFlagRequired("git-branch")
 
 	// Init ci data

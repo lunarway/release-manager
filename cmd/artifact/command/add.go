@@ -98,8 +98,13 @@ func appendBuildSubCommand(options *Options) *cobra.Command {
 	command.Flags().StringVar(&buildData.Image, "image", "", "")
 	command.Flags().StringVar(&buildData.Tag, "tag", "", "")
 	command.Flags().StringVar(&buildData.DockerVersion, "docker-version", "", "")
+	// errors are skipped here as the only case they can occour are if thee flag
+	// does not exist on the command.
+	//nolint:errcheck
 	command.MarkFlagRequired("image")
+	//nolint:errcheck
 	command.MarkFlagRequired("tag")
+	//nolint:errcheck
 	command.MarkFlagRequired("docker-version")
 	return command
 }
@@ -202,8 +207,13 @@ func appendPushSubCommand(options *Options) *cobra.Command {
 	command.Flags().StringVar(&pushData.Image, "image", "", "")
 	command.Flags().StringVar(&pushData.Tag, "tag", "", "")
 	command.Flags().StringVar(&pushData.DockerVersion, "docker-version", "", "")
+	// errors are skipped here as the only case they can occour are if thee flag
+	// does not exist on the command.
+	//nolint:errcheck
 	command.MarkFlagRequired("image")
+	//nolint:errcheck
 	command.MarkFlagRequired("tag")
+	//nolint:errcheck
 	command.MarkFlagRequired("docker-version")
 	return command
 }

@@ -81,6 +81,9 @@ Format the output with a custom template:
 	}
 	command.Flags().StringVarP(&environment, "env", "e", "", "environment to promote to (required)")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
+	// errors are skipped here as the only case they can occour are if thee flag
+	// does not exist on the command.
+	//nolint:errcheck
 	command.MarkFlagRequired("env")
 	command.Flags().StringVarP(&namespace, "namespace", "n", "", "namespace the service is deployed to (defaults to env)")
 	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")

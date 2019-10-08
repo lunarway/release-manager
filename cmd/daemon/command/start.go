@@ -57,6 +57,9 @@ func StartDaemon() *cobra.Command {
 	command.Flags().StringVar(&releaseManagerUrl, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")
 	command.Flags().StringVar(&authToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
 	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
+	// errors are skipped here as the only case they can occour are if thee flag
+	// does not exist on the command.
+	//nolint:errcheck
 	command.MarkFlagRequired("environment")
 	logConfiguration = log.RegisterFlags(command)
 	return command
