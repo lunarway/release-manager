@@ -10,8 +10,6 @@ import (
 )
 
 func TestGet(t *testing.T) {
-	type output struct {
-	}
 	tt := []struct {
 		name string
 		path string

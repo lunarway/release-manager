@@ -8,8 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var shell string
-
 func NewCompletion(rootCmd *cobra.Command) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "completion <shell>",
