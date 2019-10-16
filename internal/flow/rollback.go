@@ -22,12 +22,12 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 	defer span.Finish()
 	var result RollbackResult
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
-		sourceConfigRepoPath, closeSource, err := git.TempDir(ctx, s.Tracer, "k8s-config-rollback-source")
+		sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-rollback-source")
 		if err != nil {
 			return true, err
 		}
 		defer closeSource(ctx)
-		destinationConfigRepoPath, closeDestination, err := git.TempDir(ctx, s.Tracer, "k8s-config-rollback-destination")
+		destinationConfigRepoPath, closeDestination, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-rollback-destination")
 		if err != nil {
 			return true, err
 		}

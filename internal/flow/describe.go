@@ -23,7 +23,7 @@ type DescribeReleaseResponse struct {
 func (s *Service) DescribeRelease(ctx context.Context, namespace, environment, service string) (DescribeReleaseResponse, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.DescribeRelease")
 	defer span.Finish()
-	sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-describe-release")
+	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-describe-release")
 	if err != nil {
 		return DescribeReleaseResponse{}, err
 	}
@@ -66,7 +66,7 @@ func (s *Service) DescribeRelease(ctx context.Context, namespace, environment, s
 func (s *Service) DescribeArtifact(ctx context.Context, service string, n int) ([]artifact.Spec, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.DescribeArtifact")
 	defer span.Finish()
-	sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-describe-artifact")
+	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-describe-artifact")
 	if err != nil {
 		return nil, err
 	}

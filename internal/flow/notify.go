@@ -15,7 +15,7 @@ import (
 func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequest) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyCommitter")
 	defer span.Finish()
-	sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-notify")
+	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-notify")
 	if err != nil {
 		return err
 	}

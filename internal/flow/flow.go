@@ -92,7 +92,7 @@ type Actor struct {
 func (s *Service) Status(ctx context.Context, namespace, service string) (StatusResponse, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.Status")
 	defer span.Finish()
-	sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-status")
+	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-status")
 	if err != nil {
 		return StatusResponse{}, err
 	}
