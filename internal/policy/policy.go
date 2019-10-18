@@ -63,7 +63,7 @@ func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]Au
 func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.Get")
 	defer span.Finish()
-	configRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-notify")
+	configRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-notify")
 	if err != nil {
 		return Policies{}, err
 	}
@@ -137,7 +137,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.updatePolicies")
 	defer span.Finish()
 	return try.Do(ctx, s.Tracer, s.MaxRetries, func(ctx context.Context, attempt int) (bool, error) {
-		configRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-notify")
+		configRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-notify")
 		if err != nil {
 			return true, err
 		}

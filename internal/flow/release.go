@@ -26,7 +26,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 	defer span.Finish()
 	var result string
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
-		sourceConfigRepoPath, close, err := git.TempDir(ctx, s.Tracer, "k8s-config-release-branch")
+		sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-branch")
 		if err != nil {
 			return true, err
 		}
@@ -114,12 +114,12 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	defer span.Finish()
 	var result string
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
-		sourceConfigRepoPath, closeSource, err := git.TempDir(ctx, s.Tracer, "k8s-config-release-artifact-source")
+		sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-artifact-source")
 		if err != nil {
 			return true, err
 		}
 		defer closeSource(ctx)
-		destinationConfigRepoPath, closeDestination, err := git.TempDir(ctx, s.Tracer, "k8s-config-release-artifact-destination")
+		destinationConfigRepoPath, closeDestination, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-artifact-destination")
 		if err != nil {
 			return true, err
 		}

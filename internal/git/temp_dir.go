@@ -22,11 +22,22 @@ func TempDir(ctx context.Context, tracer tracing.Tracer, prefix string) (string,
 	return path, func(ctx context.Context) {
 		span, _ := tracer.FromCtxf(ctx, "clean temp dir for '%s'", prefix)
 		defer span.Finish()
-		go func() {
-			err := os.RemoveAll(path)
-			if err != nil {
-				log.Errorf("Removing temporary directory failed: path '%s': %v", path, err)
-			}
-		}()
+		err := os.RemoveAll(path)
+		if err != nil {
+			log.Errorf("Removing temporary directory failed: path '%s': %v", path, err)
+		}
+	}, nil
+}
+
+// TempDirSync returns a temporary directory with provided prefix.
+// The first return argument is the path. The second is a close function to
+// remove the path asynchronously.
+func TempDirAsync(ctx context.Context, tracer tracing.Tracer, prefix string) (string, func(context.Context), error) {
+	path, close, err := TempDir(ctx, tracer, prefix)
+	if err != nil {
+		return "", func(context.Context) {}, err
+	}
+	return path, func(ctx context.Context) {
+		go close(ctx)
 	}, nil
 }

@@ -39,12 +39,12 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 	defer span.Finish()
 	var result PromoteResult
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
-		sourceConfigRepoPath, closeSource, err := git.TempDir(ctx, s.Tracer, "k8s-config-promote-source")
+		sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
 		if err != nil {
 			return true, err
 		}
 		defer closeSource(ctx)
-		destinationConfigRepoPath, closeDestination, err := git.TempDir(ctx, s.Tracer, "k8s-config-promote-destination")
+		destinationConfigRepoPath, closeDestination, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-destination")
 		if err != nil {
 			return true, err
 		}
