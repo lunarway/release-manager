@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/lunarway/release-manager/cmd/server/command"
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/spf13/cobra"
 )
 
@@ -15,6 +16,7 @@ var (
 func main() {
 	c, err := command.NewCommand()
 	if err != nil {
+		log.Errorf("Error: %v", err)
 		os.Exit(1)
 	}
 
@@ -28,6 +30,7 @@ func main() {
 	c.AddCommand(versionCmd)
 	err = c.Execute()
 	if err != nil {
+		log.Errorf("Error: %v", err)
 		os.Exit(1)
 	}
 }
