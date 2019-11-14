@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/lunarway/release-manager/cmd/server/command"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var (
