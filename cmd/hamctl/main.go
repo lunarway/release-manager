@@ -15,7 +15,7 @@ var (
 func main() {
 	c, err := command.NewCommand(&version)
 	if err != nil {
-		fmt.Printf("Error: %v", err)
+		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
 	versionCmd := &cobra.Command{
@@ -28,7 +28,7 @@ func main() {
 	c.AddCommand(versionCmd)
 	err = c.Execute()
 	if err != nil {
-		fmt.Printf("Error: %v", err)
+		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
 }
