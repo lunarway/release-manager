@@ -37,7 +37,7 @@ type Service struct {
 	SSHPrivateKeyPath string
 	ConfigRepoURL     string
 
-	masterMutex sync.Mutex
+	masterMutex sync.RWMutex
 	masterPath  string
 	master      *git.Repository
 }
@@ -127,8 +127,8 @@ func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repo
 		return nil, errors.WithMessage(err, "remove existing destination")
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
-	s.masterMutex.Lock()
-	defer s.masterMutex.Unlock()
+	s.masterMutex.RLock()
+	defer s.masterMutex.RUnlock()
 	span.Finish()
 	span, _ = s.Tracer.FromCtx(ctx, "copy to destination")
 	err = copy.Copy(s.masterPath, destination)
