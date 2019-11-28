@@ -306,7 +306,8 @@ These are stored as JSON files for each service.
 When running `kubectl apply` files are applied to the cluster alphabetically so the following convention should be used by configuration generators.
 
 ```
-01-09 configmaps and CRDs
+00 CRDs
+01-09 configmaps
 10-19 secrets
 20-29 volumes
 30-39 rbac
@@ -314,6 +315,8 @@ When running `kubectl apply` files are applied to the cluster alphabetically so 
 50-59 service
 60-69 ingress
 ```
+
+Resources starting with `00_` will skip resource validation. CustomResourceDefintions does not work with the used resource validation, thus they should always start with `00_`.
 
 # Installation
 
