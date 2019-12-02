@@ -28,8 +28,9 @@ func Do(ctx context.Context, tracer tracing.Tracer, max int, f func(context.Cont
 		case <-ctx.Done():
 			return multierr.Append(errs, ctx.Err())
 		default:
-			span, ctx := tracer.FromCtxf(ctx, "attempt %d", attempt)
+			span, ctx := tracer.FromCtxf(ctx, "retry attempt")
 			defer span.Finish()
+			span.SetTag("attempt_number", fmt.Sprintf("%d", attempt))
 			stop, err := f(ctx, attempt)
 			if err == nil {
 				return nil
