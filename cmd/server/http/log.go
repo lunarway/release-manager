@@ -8,12 +8,12 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 )
 
-type loggingResponseWriter struct {
+type statusCodeResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
 }
 
-func (lrw *loggingResponseWriter) WriteHeader(code int) {
+func (lrw *statusCodeResponseWriter) WriteHeader(code int) {
 	lrw.statusCode = code
 	lrw.ResponseWriter.WriteHeader(code)
 }
@@ -22,7 +22,7 @@ func (lrw *loggingResponseWriter) WriteHeader(code int) {
 // details.
 func reqrespLogger(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		lrw := &loggingResponseWriter{w, http.StatusOK}
+		lrw := &statusCodeResponseWriter{w, http.StatusOK}
 		start := time.Now()
 		h.ServeHTTP(lrw, r)
 		if r.URL.Path == "/ping" {
