@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
@@ -48,12 +49,13 @@ type PromoteResponse struct {
 type ErrorResponse struct {
 	Status  int    `json:"status,omitempty"`
 	Message string `json:"message,omitempty"`
+	ID      string `json:"-"`
 }
 
 var _ error = &ErrorResponse{}
 
 func (e *ErrorResponse) Error() string {
-	return e.Message
+	return fmt.Sprintf("%s\nReference: %s", e.Message, e.ID)
 }
 
 type ReleaseRequest struct {

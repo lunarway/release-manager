@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
@@ -74,6 +75,21 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	return nil
 }
 
+// getRequestID returns the request ID of an HTTP request if it is set and
+// otherwise generates a new one.
+func getRequestID(r *http.Request) string {
+	requestID := r.Header.Get("x-request-id")
+	if requestID != "" {
+		return requestID
+	}
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return ""
+	}
+	r.Header.Set("x-request-id", requestID)
+	return id.String()
+}
+
 // trace adds an OpenTracing span to the request context.
 func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -83,6 +99,7 @@ func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
 		*r = *r.WithContext(ctx)
 		statusWriter := &statusCodeResponseWriter{w, http.StatusOK}
 		h(statusWriter, r)
+		span.SetTag("request.id", getRequestID(r))
 		span.SetTag("http.status_code", statusWriter.statusCode)
 		span.SetTag("http.url", r.URL.RequestURI())
 		span.SetTag("http.method", r.Method)
