@@ -13,7 +13,8 @@ import (
 // The first return argument is the path. The second is a close function to
 // remove the path.
 func TempDir(ctx context.Context, tracer tracing.Tracer, prefix string) (string, func(context.Context), error) {
-	span, _ := tracer.FromCtxf(ctx, "create temp dir for '%s'", prefix)
+	span, _ := tracer.FromCtxf(ctx, "create temp dir")
+	span.SetTag("path_prefix", prefix)
 	defer span.Finish()
 	path, err := ioutil.TempDir("", prefix)
 	if err != nil {
