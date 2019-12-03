@@ -40,14 +40,14 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
-	mux.HandleFunc("/promote", trace(tracer, "promote", authenticate(opts.HamCtlAuthToken, promote(&payloader, flowSvc))))
-	mux.HandleFunc("/release", trace(tracer, "release", authenticate(opts.HamCtlAuthToken, release(&payloader, flowSvc))))
-	mux.HandleFunc("/status", trace(tracer, "status", authenticate(opts.HamCtlAuthToken, status(&payloader, flowSvc))))
-	mux.HandleFunc("/rollback", trace(tracer, "rollback", authenticate(opts.HamCtlAuthToken, rollback(&payloader, flowSvc))))
-	mux.HandleFunc("/policies", trace(tracer, "policies", authenticate(opts.HamCtlAuthToken, policy(&payloader, policySvc))))
-	mux.HandleFunc("/describe/", trace(tracer, "describe", authenticate(opts.HamCtlAuthToken, describe(&payloader, flowSvc))))
-	mux.HandleFunc("/webhook/github", trace(tracer, "webhook/github", githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret)))
-	mux.HandleFunc("/webhook/daemon", trace(tracer, "webhook/daemon", authenticate(opts.DaemonAuthToken, daemonWebhook(&payloader, flowSvc))))
+	mux.HandleFunc("/promote", trace(tracer, authenticate(opts.HamCtlAuthToken, promote(&payloader, flowSvc))))
+	mux.HandleFunc("/release", trace(tracer, authenticate(opts.HamCtlAuthToken, release(&payloader, flowSvc))))
+	mux.HandleFunc("/status", trace(tracer, authenticate(opts.HamCtlAuthToken, status(&payloader, flowSvc))))
+	mux.HandleFunc("/rollback", trace(tracer, authenticate(opts.HamCtlAuthToken, rollback(&payloader, flowSvc))))
+	mux.HandleFunc("/policies", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(&payloader, policySvc))))
+	mux.HandleFunc("/describe/", trace(tracer, authenticate(opts.HamCtlAuthToken, describe(&payloader, flowSvc))))
+	mux.HandleFunc("/webhook/github", trace(tracer, githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret)))
+	mux.HandleFunc("/webhook/daemon", trace(tracer, authenticate(opts.DaemonAuthToken, daemonWebhook(&payloader, flowSvc))))
 
 	// profiling endpoints
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -75,10 +75,10 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 }
 
 // trace adds an OpenTracing span to the request context.
-func trace(tracer tracing.Tracer, op string, h http.HandlerFunc) http.HandlerFunc {
+func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		span, ctx := tracer.FromCtxf(ctx, fmt.Sprintf("http %s %s", r.Method, r.URL.Path))
+		span, ctx := tracer.FromCtxf(ctx, "http %s %s", r.Method, r.URL.Path)
 		defer span.Finish()
 		*r = *r.WithContext(ctx)
 		lrw := &statusCodeResponseWriter{w, http.StatusOK}
