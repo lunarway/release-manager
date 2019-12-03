@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -65,12 +66,19 @@ func (c *Client) Do(method string, path string, requestBody, responseBody interf
 	if err != nil {
 		return err
 	}
+	id, err := uuid.NewRandom()
+	if err == nil {
+		req.Header.Set("x-request-id", id.String())
+	}
 	req.Header.Set("Authorization", "Bearer "+c.Metadata.AuthToken)
 	req.Header.Set("X-Cli-Version", c.Metadata.CLIVersion)
 	req.Header.Set("X-Caller-Email", c.Metadata.CallerEmail)
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return &ErrorResponse{
+			Message: err.Error(),
+			ID:      id.String(),
+		}
 	}
 
 	decoder := json.NewDecoder(resp.Body)
@@ -80,6 +88,7 @@ func (c *Client) Do(method string, path string, requestBody, responseBody interf
 		if err != nil {
 			return errors.WithMessagef(err, "response status %s: unmarshal error response", resp.Status)
 		}
+		responseError.ID = id.String()
 		return &responseError
 	}
 	err = decoder.Decode(responseBody)

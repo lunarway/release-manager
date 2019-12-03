@@ -33,11 +33,13 @@ func reqrespLogger(h http.Handler) http.Handler {
 		statusCode := statusWriter.statusCode
 		fields := []interface{}{
 			"req", struct {
+				ID      string            `json:"id,omitempty"`
 				URL     string            `json:"url,omitempty"`
 				Method  string            `json:"method,omitempty"`
 				Path    string            `json:"path,omitempty"`
 				Headers map[string]string `json:"headers,omitempty"`
 			}{
+				ID:      getRequestID(r),
 				URL:     r.URL.RequestURI(),
 				Method:  r.Method,
 				Path:    r.URL.Path,

@@ -28,7 +28,6 @@ func main() {
 	c.AddCommand(versionCmd)
 	err = c.Execute()
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
 }
