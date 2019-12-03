@@ -81,12 +81,12 @@ func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
 		span, ctx := tracer.FromCtxf(ctx, "http %s %s", r.Method, r.URL.Path)
 		defer span.Finish()
 		*r = *r.WithContext(ctx)
-		lrw := &statusCodeResponseWriter{w, http.StatusOK}
-		h(lrw, r)
-		span.SetTag("http.status_code", lrw.statusCode)
+		statusWriter := &statusCodeResponseWriter{w, http.StatusOK}
+		h(statusWriter, r)
+		span.SetTag("http.status_code", statusWriter.statusCode)
 		span.SetTag("http.url", r.URL.RequestURI())
 		span.SetTag("http.method", r.Method)
-		if lrw.statusCode >= http.StatusInternalServerError {
+		if statusWriter.statusCode >= http.StatusInternalServerError {
 			span.SetTag("error", true)
 		}
 	})
