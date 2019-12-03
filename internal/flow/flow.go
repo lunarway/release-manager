@@ -111,7 +111,8 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 		}
 		return namespace
 	}
-	span, _ = s.Tracer.FromCtx(ctx, "envSpec dev")
+	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
+	span.SetTag("env", "dev")
 	devSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "dev", defaultNamespace("dev"))
 	if err != nil {
 		cause := errors.Cause(err)
@@ -121,7 +122,8 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 	defer span.Finish()
 
-	span, _ = s.Tracer.FromCtx(ctx, "envSpec staging")
+	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
+	span.SetTag("env", "staging")
 	stagingSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "staging", defaultNamespace("staging"))
 	if err != nil {
 		cause := errors.Cause(err)
@@ -131,7 +133,8 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 	defer span.Finish()
 
-	span, _ = s.Tracer.FromCtx(ctx, "envSpec prod")
+	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
+	span.SetTag("env", "prod")
 	prodSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "prod", defaultNamespace("prod"))
 	if err != nil {
 		cause := errors.Cause(err)

@@ -78,10 +78,17 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		span, ctx := tracer.FromCtxf(ctx, "http %s %s", r.Method, r.URL)
+		span, ctx := tracer.FromCtxf(ctx, "http %s %s", r.Method, r.URL.Path)
 		defer span.Finish()
 		*r = *r.WithContext(ctx)
-		h(w, r)
+		statusWriter := &statusCodeResponseWriter{w, http.StatusOK}
+		h(statusWriter, r)
+		span.SetTag("http.status_code", statusWriter.statusCode)
+		span.SetTag("http.url", r.URL.RequestURI())
+		span.SetTag("http.method", r.Method)
+		if statusWriter.statusCode >= http.StatusInternalServerError {
+			span.SetTag("error", true)
+		}
 	})
 }
 

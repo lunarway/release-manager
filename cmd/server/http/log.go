@@ -8,29 +8,29 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 )
 
-type loggingResponseWriter struct {
+type statusCodeResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
 }
 
-func (lrw *loggingResponseWriter) WriteHeader(code int) {
-	lrw.statusCode = code
-	lrw.ResponseWriter.WriteHeader(code)
+func (w *statusCodeResponseWriter) WriteHeader(code int) {
+	w.statusCode = code
+	w.ResponseWriter.WriteHeader(code)
 }
 
 // reqrespLogger returns an http.Handler that logs request and response
 // details.
 func reqrespLogger(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		lrw := &loggingResponseWriter{w, http.StatusOK}
+		statusWriter := &statusCodeResponseWriter{w, http.StatusOK}
 		start := time.Now()
-		h.ServeHTTP(lrw, r)
+		h.ServeHTTP(statusWriter, r)
 		if r.URL.Path == "/ping" {
 			return
 		}
 		// request duration in miliseconds
 		duration := time.Since(start).Nanoseconds() / 1e6
-		statusCode := lrw.statusCode
+		statusCode := statusWriter.statusCode
 		logger := log.With(
 			"req", struct {
 				URL     string            `json:"url,omitempty"`
