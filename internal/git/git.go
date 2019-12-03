@@ -71,15 +71,20 @@ func (s *Service) clone(ctx context.Context, destination string) (*git.Repositor
 	if err != nil {
 		return nil, errors.WithMessage(err, "public keys from file")
 	}
+	span, _ = s.Tracer.FromCtx(ctx, "remove destination")
+	span.SetTag("path", destination)
 	err = os.RemoveAll(destination)
+	span.Finish()
 	if err != nil {
 		return nil, errors.WithMessage(err, "remove existing destination")
 	}
 
+	span, _ = s.Tracer.FromCtx(ctx, "plain clone")
 	r, err := git.PlainCloneContext(ctx, destination, false, &git.CloneOptions{
 		URL:  s.ConfigRepoURL,
 		Auth: authSSH,
 	})
+	span.Finish()
 	if err != nil {
 		return nil, errors.WithMessage(err, "clone repo")
 	}
