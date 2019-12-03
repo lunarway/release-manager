@@ -21,7 +21,8 @@ func TempDir(ctx context.Context, tracer tracing.Tracer, prefix string) (string,
 		return "", func(context.Context) {}, err
 	}
 	return path, func(ctx context.Context) {
-		span, _ := tracer.FromCtxf(ctx, "clean temp dir for '%s'", prefix)
+		span, _ := tracer.FromCtxf(ctx, "clean temp dir")
+		span.SetTag("path_prefix", prefix)
 		defer span.Finish()
 		err := os.RemoveAll(path)
 		if err != nil {
