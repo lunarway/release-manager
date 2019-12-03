@@ -3,46 +3,44 @@ module github.com/lunarway/release-manager
 go 1.13
 
 require (
+	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
-	github.com/emirpasic/gods v1.12.0 // indirect
-	github.com/gogo/protobuf v1.2.1 // indirect
-	github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c // indirect
-	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
-	github.com/googleapis/gnostic v0.2.0 // indirect
-	github.com/gorilla/websocket v1.4.0 // indirect
-	github.com/gregjones/httpcache v0.0.0-20190212212710-3befbb6ad0cc // indirect
+	github.com/gogo/protobuf v1.3.1 // indirect
+	github.com/googleapis/gnostic v0.3.1 // indirect
+	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/lunarway/color v1.7.0
-	github.com/lusis/go-slackbot v0.0.0-20180109053408-401027ccfef5 // indirect
-	github.com/lusis/slack-test v0.0.0-20190408224659-6cf59653add2 // indirect
-	github.com/mattn/go-colorable v0.0.9 // indirect
-	github.com/mattn/go-isatty v0.0.4 // indirect
-	github.com/nlopes/slack v0.5.0
+	github.com/mattn/go-colorable v0.1.4 // indirect
+	github.com/mattn/go-isatty v0.0.10 // indirect
+	github.com/nlopes/slack v0.6.0
 	github.com/opentracing/opentracing-go v1.1.0
-	github.com/otiai10/copy v1.0.1
-	github.com/otiai10/curr v0.0.0-20150429015615-9b4961190c95 // indirect
-	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
+	github.com/otiai10/copy v1.0.2
+	github.com/otiai10/curr v0.0.0-20190513014714-f5a3d24e5776 // indirect
 	github.com/pkg/errors v0.8.1
-	github.com/prometheus/client_golang v0.9.4
-	github.com/spf13/cobra v0.0.4
-	github.com/spf13/pflag v1.0.3
-	github.com/stretchr/testify v1.3.0
-	github.com/uber-go/atomic v1.4.0 // indirect
-	github.com/uber/jaeger-client-go v2.16.0+incompatible
-	github.com/uber/jaeger-lib v2.0.0+incompatible
-	go.uber.org/atomic v1.3.2 // indirect
-	go.uber.org/multierr v1.1.0
-	go.uber.org/zap v1.9.1
-	golang.org/x/net v0.0.0-20190311183353-d8887717615a // indirect
-	golang.org/x/oauth2 v0.0.0-20190319182350-c85d3e98c914 // indirect
-	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
-	gopkg.in/go-playground/webhooks.v5 v5.6.0
-	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/src-d/go-git-fixtures.v3 v3.3.0 // indirect
-	gopkg.in/src-d/go-git.v4 v4.10.0
-	gopkg.in/yaml.v2 v2.2.2
-	k8s.io/api v0.0.0-20190111032252-67edc246be36
-	k8s.io/apimachinery v0.0.0-20190320104356-82cbdc1b6ac2
-	k8s.io/client-go v10.0.0+incompatible
-	k8s.io/klog v0.2.0 // indirect
-	sigs.k8s.io/yaml v1.1.0 // indirect
+	github.com/prometheus/client_golang v1.2.1
+	github.com/prometheus/client_model v0.0.0-20191202183732-d1d2010b5bee // indirect
+	github.com/prometheus/procfs v0.0.8 // indirect
+	github.com/spf13/cobra v0.0.5
+	github.com/spf13/pflag v1.0.5
+	github.com/stretchr/testify v1.4.0
+	github.com/uber/jaeger-client-go v2.20.1+incompatible
+	github.com/uber/jaeger-lib v2.2.0+incompatible
+	go.uber.org/atomic v1.5.1 // indirect
+	go.uber.org/multierr v1.4.0
+	go.uber.org/zap v1.13.0
+	golang.org/x/crypto v0.0.0-20191202143827-86a70503ff7e // indirect
+	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
+	golang.org/x/net v0.0.0-20191126235420-ef20fe5d7933 // indirect
+	golang.org/x/oauth2 v0.0.0-20191202225959-858c2ad4c8b6 // indirect
+	golang.org/x/sys v0.0.0-20191128015809-6d18c012aee9 // indirect
+	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
+	golang.org/x/tools v0.0.0-20191203044616-8db96347c98b // indirect
+	google.golang.org/appengine v1.6.5 // indirect
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
+	gopkg.in/go-playground/webhooks.v5 v5.13.0
+	gopkg.in/src-d/go-git.v4 v4.13.1
+	gopkg.in/yaml.v2 v2.2.7
+	k8s.io/api v0.0.0-20191121015604-11707872ac1c
+	k8s.io/apimachinery v0.0.0-20191123233150-4c4803ed55e3
+	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/utils v0.0.0-20191114200735-6ca3b61696b6 // indirect
 )
