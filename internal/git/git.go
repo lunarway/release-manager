@@ -351,6 +351,7 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName,
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
 	defer span.Finish()
 
+	span, _ = s.Tracer.FromCtx(ctx, "add changes")
 	err := execCommand(ctx, rootPath, "git", "add", ".")
 	span.Finish()
 	if err != nil {
