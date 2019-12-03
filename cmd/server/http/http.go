@@ -89,6 +89,11 @@ func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
 		if statusWriter.statusCode >= http.StatusInternalServerError {
 			span.SetTag("error", true)
 		}
+		err := ctx.Err()
+		if err != nil {
+			span.SetTag("error", true)
+			span.SetTag("error_message", err.Error())
+		}
 	})
 }
 
