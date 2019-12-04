@@ -14,9 +14,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
-	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
