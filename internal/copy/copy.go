@@ -1,7 +1,6 @@
 package copy
 
 import (
-	"context"
 	"io/ioutil"
 	"os/exec"
 	"strings"
@@ -11,12 +10,12 @@ import (
 )
 
 func Copy(src, dest string) error {
-	return execCommand(context.Background(), ".", "cp", "-a", src, dest)
+	return execCommand(".", "cp", "-a", src, dest)
 }
 
-func execCommand(ctx context.Context, rootPath string, cmdName string, args ...string) error {
+func execCommand(rootPath string, cmdName string, args ...string) error {
 	log.WithFields("root", rootPath).Infof("copy/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
-	cmd := exec.CommandContext(ctx, cmdName, args...)
+	cmd := exec.Command(cmdName, args...)
 	cmd.Dir = rootPath
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
