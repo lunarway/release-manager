@@ -48,20 +48,14 @@ dockers:
     binaries:
     - server
     image_templates:
-    - "quay.io/lunarway/release-manager:latest"
-    - "quay.io/lunarway/release-manager:v{{ .Major }}"
-    - "quay.io/lunarway/release-manager:v{{ .Major }}.{{ .Minor }}"
-    - "quay.io/lunarway/release-manager:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
+    - "quay.io/lunarway/release-manager:{{ .Tag }}"
     extra_files:
     - ssh_config
   - dockerfile: Dockerfile-daemon-goreleaser
     binaries:
     - daemon
     image_templates:
-    - "quay.io/lunarway/release-daemon:latest"
-    - "quay.io/lunarway/release-daemon:v{{ .Major }}"
-    - "quay.io/lunarway/release-daemon:v{{ .Major }}.{{ .Minor }}"
-    - "quay.io/lunarway/release-daemon:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
+    - "quay.io/lunarway/release-daemon:{{ .Tag }}"
 
 archives:
   - id: archives
@@ -82,6 +76,7 @@ snapshot:
 
 release:
   name_template: "v{{.Version}}"
+  prerelease: auto
 
 changelog:
   sort: asc
