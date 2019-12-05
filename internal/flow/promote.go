@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"path"
 
-	"gopkg.in/src-d/go-git.v4/plumbing"
-
+	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
-	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 // Promote promotes a specific service to environment env.

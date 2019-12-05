@@ -14,8 +14,6 @@ require (
 	github.com/mattn/go-isatty v0.0.10 // indirect
 	github.com/nlopes/slack v0.6.0
 	github.com/opentracing/opentracing-go v1.1.0
-	github.com/otiai10/copy v1.0.2
-	github.com/otiai10/curr v0.0.0-20190513014714-f5a3d24e5776 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.2.1
 	github.com/prometheus/client_model v0.0.0-20191202183732-d1d2010b5bee // indirect

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
-	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 )
 
