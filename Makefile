@@ -78,7 +78,10 @@ install-hamctl: build_hamctl
 	chmod +x cmd/hamctl
 	cp dist/hamctl /usr/local/bin/hamctl
 
-# posts a github push webhook to localhost:8080 for a product build commit
+# url to a running release-manager
+URL=localhost:8080
+
+# posts a github push webhook to $(URL) for a product build commit
 github-webhook:
 	curl -H 'X-GitHub-Event: push' \
 	-d '{ \
@@ -94,13 +97,13 @@ github-webhook:
 			] \
 		} \
 	}' \
-	localhost:8080/webhook/github
+	$(URL)/webhook/github
 
 hamctl-status:
 	curl -X GET \
 	-H 'Content-Type: application/json' \
 	-H 'Authorization: Bearer test' \
-	"localhost:8080/status?service=a"
+	"$(URL)/status?service=a"
 
 daemon-webhook-success:
 	curl -X POST \
@@ -118,7 +121,7 @@ daemon-webhook-success:
 		{ "name": "container2", "state": "Ready" } \
 	  ] \
 	}' \
-	localhost:8080/webhook/daemon
+	$(URL)/webhook/daemon
 
 daemon-webhook-crashloop:
 	curl -X POST \
@@ -137,7 +140,7 @@ daemon-webhook-crashloop:
 		{ "name": "container2", "state": "Running" } \
 	  ] \
 	}' \
-	localhost:8080/webhook/daemon
+	$(URL)/webhook/daemon
 
 daemon-webhook-configerror:
 	curl -X POST \
@@ -155,16 +158,16 @@ daemon-webhook-configerror:
 		{ "name": "container2", "state": "Running" } \
 	  ] \
 	}' \
-	localhost:8080/webhook/daemon
+	$(URL)/webhook/daemon
 
 server-profile-heap:
 	mkdir -p profiles
-	curl -o profiles/heap.pprof localhost:8080/debug/pprof/heap
+	curl -o profiles/heap.pprof $(URL)/debug/pprof/heap
 	go tool pprof -http=:8081 profiles/heap.pprof
 
 server-profile-cpu:
 	mkdir -p profiles
-	curl -o profiles/cpu.pprof localhost:8080/debug/pprof/profile?seconds=10
+	curl -o profiles/cpu.pprof $(URL)/debug/pprof/profile?seconds=10
 	go tool pprof -http=:8081 profiles/cpu.pprof
 
 jaeger:
