@@ -136,7 +136,7 @@ func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repo
 	defer s.masterMutex.RUnlock()
 	span.Finish()
 	span, _ = s.Tracer.FromCtx(ctx, "copy to destination")
-	err = copy.Copy(s.masterPath, destination)
+	err = copy.CopyDir(s.masterPath, destination)
 	span.Finish()
 	if err != nil {
 		return nil, errors.WithMessagef(err, "copy master from '%s'", s.masterPath)
