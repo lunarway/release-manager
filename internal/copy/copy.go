@@ -13,7 +13,7 @@ import (
 
 func CopyDir(src, dest string) error {
 	if !strings.HasSuffix(src, string(os.PathSeparator)) {
-		src = fmt.Sprintf("%s/", src)
+		src = fmt.Sprintf("%s/.", src)
 	}
 	return execCommand(".", "cp", "-a", src, dest)
 }
