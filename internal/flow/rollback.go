@@ -107,7 +107,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 		artifactSourcePath := path.Join(releasePath(sourceConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
 		artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
 		log.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
-		err = copy.Copy(artifactSourcePath, artifactDestinationPath)
+		err = copy.CopyFile(artifactSourcePath, artifactDestinationPath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}

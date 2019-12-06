@@ -275,7 +275,7 @@ func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, re
 		return "", errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
 	}
 	fmt.Printf("Copy configuration into destination\n")
-	err = copy.Copy(resourceRoot, destinationPath)
+	err = copy.CopyDir(resourceRoot, destinationPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", resourceRoot, destinationPath))
 	}
@@ -350,7 +350,7 @@ func (s *Service) cleanCopy(ctx context.Context, src, dest string) error {
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "copy files")
 	span.Finish()
-	err = copy.Copy(src, dest)
+	err = copy.CopyDir(src, dest)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return ErrUnknownConfiguration

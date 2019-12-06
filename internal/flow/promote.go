@@ -121,7 +121,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		artifactSourcePath := srcPath(sourceConfigRepoPath, service, "master", s.ArtifactFileName)
 		artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
 		log.Debugf("Copy artifact from: %s to %s", artifactSourcePath, artifactDestinationPath)
-		err = copy.Copy(artifactSourcePath, artifactDestinationPath)
+		err = copy.CopyFile(artifactSourcePath, artifactDestinationPath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}

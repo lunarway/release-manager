@@ -1,7 +1,9 @@
 package copy
 
 import (
+	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -9,7 +11,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-func Copy(src, dest string) error {
+func CopyDir(src, dest string) error {
+	if !strings.HasSuffix(src, string(os.PathSeparator)) {
+		src = fmt.Sprintf("%s/", src)
+	}
+	return execCommand(".", "cp", "-a", src, dest)
+}
+
+func CopyFile(src, dest string) error {
 	return execCommand(".", "cp", "-a", src, dest)
 }
 
