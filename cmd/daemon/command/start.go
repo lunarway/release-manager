@@ -85,7 +85,7 @@ func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, a
 	})
 
 	if err != nil {
-		log.Errorf("error encoding StatusNotifyRequest: %v", err)
+		log.Errorf("error encoding StatusNotifyRequest: %+v", err)
 		return
 	}
 
