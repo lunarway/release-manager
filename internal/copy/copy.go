@@ -5,10 +5,16 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
+)
+
+var (
+	// ErrUnknownSource indicates that the source directory was not found.
+	ErrUnknownSource = errors.New("copy: unknown source")
 )
 
 func CopyDir(src, dest string) error {
@@ -52,6 +58,13 @@ func execCommand(rootPath string, cmdName string, args ...string) error {
 	log.Infof("copy/execCommand: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
 	log.Infof("copy/execCommand: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
 	if err != nil {
+		match, regexpErr := regexp.Match("(?i)No such file or directory", stderrData)
+		if regexpErr != nil {
+			log.Errorf("copy/execCommand: failed to detect if cp error is caused by unknown source: %v", regexpErr)
+		}
+		if match {
+			return ErrUnknownSource
+		}
 		return errors.WithMessage(err, "execute command failed")
 	}
 	return nil
