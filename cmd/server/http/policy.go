@@ -2,9 +2,11 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
@@ -68,9 +70,16 @@ func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service)
 				cancelled(w)
 				return
 			}
-			logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release failed: %v", req.Service, req.Branch, req.Environment, err)
-			unknownError(w)
-			return
+			switch errorCause(err) {
+			case git.ErrBranchBehindOrigin:
+				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': %v", req.Service, req.Branch, req.Environment, err)
+				Error(w, fmt.Sprintf("could not apply policy right now. Please try again in a moment."), http.StatusServiceUnavailable)
+				return
+			default:
+				logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release failed: %v", req.Service, req.Branch, req.Environment, err)
+				unknownError(w)
+				return
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -178,13 +187,19 @@ func deletePolicies(payload *payload, policySvc *policyinternal.Service) http.Ha
 				cancelled(w)
 				return
 			}
-			if errorCause(err) == policyinternal.ErrNotFound {
+			switch errorCause(err) {
+			case policyinternal.ErrNotFound:
 				Error(w, "no policies exist", http.StatusNotFound)
 				return
+			case git.ErrBranchBehindOrigin:
+				logger.Infof("http: policy: delete: service '%s' ids %v: %v", req.Service, ids, err)
+				Error(w, fmt.Sprintf("could not delete policy right now. Please try again in a moment."), http.StatusServiceUnavailable)
+				return
+			default:
+				logger.Errorf("http: policy: delete: service '%s' ids %v: delete failed: %v", req.Service, ids, err)
+				unknownError(w)
+				return
 			}
-			logger.Errorf("http: policy: delete: service '%s' ids %v: delete failed: %v", req.Service, ids, err)
-			unknownError(w)
-			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")

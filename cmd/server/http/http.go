@@ -296,6 +296,10 @@ func rollback(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
 				Error(w, fmt.Sprintf("no release of service '%s' available for rollback in environment '%s'", req.Service, req.Environment), http.StatusBadRequest)
 				return
+			case git.ErrBranchBehindOrigin:
+				logger.Infof("http: rollback: service '%s' environment '%s': %v", req.Service, req.Environment, err)
+				Error(w, fmt.Sprintf("could not roll back right now. Please try again in a moment."), http.StatusServiceUnavailable)
+				return
 			case artifact.ErrFileNotFound:
 				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
 				Error(w, fmt.Sprintf("no release of service '%s' available for rollback in environment '%s'. Are you missing a namespace?", req.Service, req.Environment), http.StatusBadRequest)
@@ -493,6 +497,10 @@ func promote(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			case git.ErrNothingToCommit:
 				statusString = "Environment is already up-to-date"
 				logger.Infof("http: promote: service '%s' environment '%s': promote skipped: environment up to date", req.Service, req.Environment)
+			case git.ErrBranchBehindOrigin:
+				logger.Infof("http: promote: service '%s' environment '%s': %v", req.Service, req.Environment, err)
+				Error(w, fmt.Sprintf("could not promote right now. Please try again in a moment."), http.StatusServiceUnavailable)
+				return
 			case flow.ErrUnknownEnvironment:
 				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: %v", req.Service, req.Environment, err)
 				Error(w, fmt.Sprintf("unknown environment: %s", req.Environment), http.StatusBadRequest)
@@ -601,6 +609,10 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			case git.ErrArtifactNotFound:
 				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: artifact not found", req.Service, req.Environment, req.Branch, req.ArtifactID)
 				Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
+				return
+			case git.ErrBranchBehindOrigin:
+				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
+				Error(w, fmt.Sprintf("could not release right now. Please try again in a moment."), http.StatusServiceUnavailable)
 				return
 			case artifact.ErrFileNotFound:
 				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: artifact not found", req.Service, req.Environment, req.Branch, req.ArtifactID)
