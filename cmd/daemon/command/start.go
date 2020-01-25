@@ -107,7 +107,7 @@ func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, a
 		if err != nil {
 			log.Errorf("failed to read response body: %+v", err)
 		}
-		log.Errorf("release-manager returned %d status-code in notify webhook: %s", resp.Status, body)
+		log.Errorf("release-manager returned %s status-code in notify webhook: %s", resp.Status, body)
 		return
 	}
 }
