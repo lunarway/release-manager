@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -84,25 +85,29 @@ func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, a
 	})
 
 	if err != nil {
-		log.Errorf("error encoding StatusNotifyRequest")
+		log.Errorf("error encoding StatusNotifyRequest: %v", err)
 		return
 	}
 
 	url := releaseManagerUrl + "/webhook/daemon"
 	req, err := http.NewRequest(http.MethodPost, url, b)
 	if err != nil {
-		log.Errorf("error generating PodNotifyRequest to %s", url)
+		log.Errorf("error generating PodNotifyRequest to %s: %+v", url, err)
 		return
 	}
 
 	req.Header.Set("Authorization", "Bearer "+authToken)
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Errorf("error posting PodNotifyRequest to %s", url)
+		log.Errorf("error posting PodNotifyRequest to %s: %+v", url, err)
 		return
 	}
 	if resp.StatusCode != 200 {
-		log.Errorf("release-manager returned status-code in notify webhook: %d", resp.Status)
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Errorf("failed to read response body: %+v", err)
+		}
+		log.Errorf("release-manager returned %d status-code in notify webhook: %s", resp.Status, body)
 		return
 	}
 }
