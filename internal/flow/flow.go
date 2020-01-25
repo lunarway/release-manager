@@ -352,7 +352,7 @@ func (s *Service) cleanCopy(ctx context.Context, src, dest string) error {
 	span.Finish()
 	err = copy.CopyDir(src, dest)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Cause(err) == copy.ErrUnknownSource {
 			return ErrUnknownConfiguration
 		}
 		return errors.WithMessage(err, "copy files")
