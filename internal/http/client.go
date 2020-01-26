@@ -3,8 +3,10 @@ package http
 import (
 	"bytes"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -75,6 +77,13 @@ func (c *Client) Do(method string, path string, requestBody, responseBody interf
 	req.Header.Set("X-Caller-Email", c.Metadata.CallerEmail)
 	resp, err := client.Do(req)
 	if err != nil {
+		var dnsError *net.DNSError
+		var urlError *url.Error
+		if stderrors.As(err, &dnsError) || (stderrors.As(err, &urlError) && stderrors.Is(err, io.EOF)) {
+			return &ErrorResponse{
+				Message: "could not connect to the release-manager server. Are you connected to the internet and, if required, a VPN?",
+			}
+		}
 		return &ErrorResponse{
 			Message: err.Error(),
 			ID:      id.String(),
