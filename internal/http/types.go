@@ -55,7 +55,10 @@ type ErrorResponse struct {
 var _ error = &ErrorResponse{}
 
 func (e *ErrorResponse) Error() string {
-	return fmt.Sprintf("%s\nReference: %s", e.Message, e.ID)
+	if e.ID != "" {
+		return fmt.Sprintf("%s\nReference: %s", e.Message, e.ID)
+	}
+	return e.Message
 }
 
 type ReleaseRequest struct {
