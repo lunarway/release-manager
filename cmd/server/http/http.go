@@ -356,7 +356,7 @@ func daemonWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			"raw", podNotify)
 
 		err = flowSvc.NotifyCommitter(ctx, &podNotify)
-		if err != nil {
+		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
 			logger.Errorf("http: daemon webhook failed: pod '%s' namespace '%s' environment: '%s' notify committer: %v", podNotify.Name, podNotify.Namespace, podNotify.Environment, err)
 			unknownError(w)
 			return
@@ -440,7 +440,9 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 				}
 				err = slackClient.NotifySlackPolicySucceeded(payload.HeadCommit.Author.Email, "Auto release policy detected", fmt.Sprintf("Service *%s* was auto released to *%s*", serviceName, autoRelease.Environment))
 				if err != nil {
-					log.Errorf("http: github webhook: auto-release succeeded: error notifying slack: %v", err)
+					if errors.Cause(err) != slack.ErrUnknownEmail {
+						log.Errorf("http: github webhook: auto-release succeeded: error notifying slack: %v", err)
+					}
 				}
 				logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' of %s to %s", serviceName, autoRelease.ID, releaseID, autoRelease.Environment)
 			}
