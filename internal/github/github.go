@@ -51,15 +51,17 @@ func (s *Service) TagRepo(ctx context.Context, repository, tag, sha string) erro
 		return err
 	}
 	defer resp.Body.Close()
+
+	logger := log.WithContext(ctx)
 	switch resp.StatusCode {
 	case http.StatusCreated:
 		return nil
 	case http.StatusUnprocessableEntity:
 		errorBody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			log.Errorf("internal/github: failed too read error body of request")
+			logger.Errorf("internal/github: failed too read error body of request")
 		}
-		log.Info("internal/github: failed to create tag: trying to update instead: http status %v: body: %s", resp.Status, errorBody)
+		logger.Info("internal/github: failed to create tag: trying to update instead: http status %v: body: %s", resp.Status, errorBody)
 		err = s.updateTag(ctx, repository, tag, sha)
 		if err != nil {
 			return errors.WithMessage(err, "update tag")
@@ -68,7 +70,7 @@ func (s *Service) TagRepo(ctx context.Context, repository, tag, sha string) erro
 	default:
 		errorBody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			log.Errorf("internal/github: failed too read error body of request")
+			logger.Errorf("internal/github: failed too read error body of request")
 		}
 		return fmt.Errorf("internal/github: http request failed: %s %s: status %v: body: %s", req.Method, req.URL, resp.Status, errorBody)
 	}
@@ -95,7 +97,7 @@ func (s *Service) updateTag(ctx context.Context, repository, tag, sha string) er
 	if resp.StatusCode != http.StatusOK {
 		errorBody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			log.Errorf("internal/github: failed too read error body of request")
+			log.WithContext(ctx).Errorf("internal/github: failed too read error body of request")
 		}
 		return fmt.Errorf("internal/github: http request failed: %s %s: status %v: body: %s", req.Method, req.URL, resp.Status, errorBody)
 	}

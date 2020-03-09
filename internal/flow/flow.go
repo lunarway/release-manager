@@ -54,7 +54,7 @@ func (s *Service) retry(ctx context.Context, f func(context.Context, int) (bool,
 		stop, err := f(ctx, attempt)
 		if err != nil {
 			if errors.Cause(err) == git.ErrBranchBehindOrigin {
-				log.Infof("flow/retry: master repo not aligned with origin. Syncing and retrying")
+				log.WithContext(ctx).Infof("flow/retry: master repo not aligned with origin. Syncing and retrying")
 				err := s.Git.SyncMaster(ctx)
 				if err != nil {
 					return false, errors.WithMessage(err, "sync master")
@@ -193,7 +193,7 @@ func envSpec(root, artifactFileName, service, env, namespace string) (artifact.S
 }
 
 // sourceSpec returns the Spec of the current release.
-func sourceSpec(root, artifactFileName, service, env, namespace string) (artifact.Spec, error) {
+func sourceSpec(ctx context.Context, root, artifactFileName, service, env, namespace string) (artifact.Spec, error) {
 	var specPath string
 	switch env {
 	case "dev":
@@ -213,7 +213,7 @@ func sourceSpec(root, artifactFileName, service, env, namespace string) (artifac
 	default:
 		return artifact.Spec{}, ErrUnknownEnvironment
 	}
-	log.Infof("Get artifact spec from %s", specPath)
+	log.WithContext(ctx).Infof("Get artifact spec from %s", specPath)
 	return artifact.Get(specPath)
 }
 
@@ -264,7 +264,7 @@ func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, re
 		return "", errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
 	}
 	fmt.Printf("Copy configuration into destination\n")
-	err = copy.CopyDir(resourceRoot, destinationPath)
+	err = copy.CopyDir(ctx, resourceRoot, destinationPath)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", resourceRoot, destinationPath))
 	}
@@ -339,7 +339,7 @@ func (s *Service) cleanCopy(ctx context.Context, src, dest string) error {
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "copy files")
 	span.Finish()
-	err = copy.CopyDir(src, dest)
+	err = copy.CopyDir(ctx, src, dest)
 	if err != nil {
 		if errors.Cause(err) == copy.ErrUnknownSource {
 			return ErrUnknownConfiguration

@@ -29,7 +29,7 @@ func (s *Service) DescribeRelease(ctx context.Context, namespace, environment, s
 	}
 	defer close(ctx)
 
-	log.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
+	log.WithContext(ctx).Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
 	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		return DescribeReleaseResponse{}, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
@@ -72,7 +72,8 @@ func (s *Service) DescribeArtifact(ctx context.Context, service string, n int) (
 	}
 	defer close(ctx)
 
-	log.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
+	logger := log.WithContext(ctx)
+	logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
 	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		return nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
@@ -83,7 +84,7 @@ func (s *Service) DescribeArtifact(ctx context.Context, service string, n int) (
 		return nil, errors.WithMessage(err, "locate artifacts")
 	}
 	var artifacts []artifact.Spec
-	log.Debugf("flow/describe: hashes %+v", hashes)
+	logger.Debugf("flow/describe: hashes %+v", hashes)
 	for _, hash := range hashes {
 		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
 		if err != nil {
@@ -91,7 +92,7 @@ func (s *Service) DescribeArtifact(ctx context.Context, service string, n int) (
 		}
 		branch, err := git.BranchFromHead(ctx, sourceRepo, s.ArtifactFileName, service)
 		if err != nil {
-			log.Errorf("flow/describe: get branch from head failed at hash '%s': skipping hash: %v", hash, err)
+			logger.Errorf("flow/describe: get branch from head failed at hash '%s': skipping hash: %v", hash, err)
 			continue
 		}
 		artifactPath := path.Join(artifactPath(sourceConfigRepoPath, service, branch), s.ArtifactFileName)

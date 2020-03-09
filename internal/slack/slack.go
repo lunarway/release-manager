@@ -1,6 +1,7 @@
 package slack
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -31,17 +32,17 @@ func NewClient(token string, emailMappings map[string]string) (*Client, error) {
 	return &client, nil
 }
 
-func (c *Client) getIdByEmail(email string) (string, error) {
+func (c *Client) getIdByEmail(ctx context.Context, email string) (string, error) {
 	if !strings.Contains(email, "@lunarway.com") {
 		// check for fallback emails
 		lwEmail, ok := c.emailMappings[email]
 		if !ok {
-			log.Errorf("%s is not a Lunar Way email and no mapping exist", email)
+			log.WithContext(ctx).Errorf("%s is not a Lunar Way email and no mapping exist", email)
 			return "", ErrUnknownEmail
 		}
 		email = lwEmail
 	}
-	user, err := c.client.GetUserByEmail(email)
+	user, err := c.client.GetUserByEmailContext(ctx, email)
 	if err != nil {
 		return "", err
 	}
@@ -65,7 +66,7 @@ func (c *Client) UpdateSlackBuildStatus(channel, title, titleLink, text, color, 
 }
 
 func (c *Client) PostSlackBuildStarted(email, title, titleLink, text, color string) (string, string, error) {
-	userID, err := c.getIdByEmail(email)
+	userID, err := c.getIdByEmail(context.Background(), email)
 	if err != nil {
 		return "", "", err
 	}
@@ -85,25 +86,25 @@ func (c *Client) PostSlackBuildStarted(email, title, titleLink, text, color stri
 	return respChannel, timestamp, err
 }
 
-func (c *Client) PostPrivateMessage(email string, podNotify *http.PodNotifyRequest) error {
-	userID, err := c.getIdByEmail(email)
+func (c *Client) PostPrivateMessage(ctx context.Context, email string, podNotify *http.PodNotifyRequest) error {
+	userID, err := c.getIdByEmail(ctx, email)
 	if err != nil {
 		return err
 	}
 	asUser := slack.MsgOptionAsUser(true)
 	switch podNotify.State {
 	case "CrashLoopBackOff":
-		_, _, err := c.client.PostMessage(userID, asUser, crashLoopBackOffErrorMessage(podNotify))
+		_, _, err := c.client.PostMessageContext(ctx, userID, asUser, crashLoopBackOffErrorMessage(podNotify))
 		if err != nil {
 			return err
 		}
 	case "CreateContainerConfigError":
-		_, _, err := c.client.PostMessage(userID, asUser, createConfigErrorMessage(podNotify))
+		_, _, err := c.client.PostMessageContext(ctx, userID, asUser, createConfigErrorMessage(podNotify))
 		if err != nil {
 			return err
 		}
 	case "Running", "Ready":
-		_, _, err := c.client.PostMessage(userID, asUser, successMessage(podNotify))
+		_, _, err := c.client.PostMessageContext(ctx, userID, asUser, successMessage(podNotify))
 		if err != nil {
 			return err
 		}
@@ -163,7 +164,7 @@ type ReleaseOptions struct {
 	Environment   string
 }
 
-func (c *Client) NotifySlackReleasesChannel(options ReleaseOptions) error {
+func (c *Client) NotifySlackReleasesChannel(ctx context.Context, options ReleaseOptions) error {
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      fmt.Sprintf("%s (%s)", options.Service, options.ArtifactID),
@@ -172,7 +173,7 @@ func (c *Client) NotifySlackReleasesChannel(options ReleaseOptions) error {
 		Text:       fmt.Sprintf("*Author:* %s, *Releaser:* %s\n*Message:* _%s_", options.CommitAuthor, options.Releaser, options.CommitMessage),
 		MarkdownIn: []string{"text", "fields"},
 	})
-	_, _, err := c.client.PostMessage(fmt.Sprintf("#releases-%s", options.Environment), asUser, attachments)
+	_, _, err := c.client.PostMessageContext(ctx, fmt.Sprintf("#releases-%s", options.Environment), asUser, attachments)
 	if err != nil {
 		return err
 	}
@@ -207,8 +208,8 @@ func (c *Client) NotifySlackBuildsChannel(options BuildsOptions) error {
 	return err
 }
 
-func (c *Client) NotifySlackPolicyFailed(email, title, errorMessage string) error {
-	userID, err := c.getIdByEmail(email)
+func (c *Client) NotifySlackPolicyFailed(ctx context.Context, email, title, errorMessage string) error {
+	userID, err := c.getIdByEmail(ctx, email)
 	if err != nil {
 		return err
 	}
@@ -220,15 +221,15 @@ func (c *Client) NotifySlackPolicyFailed(email, title, errorMessage string) erro
 		MarkdownIn: []string{"text", "fields"},
 	})
 
-	_, _, err = c.client.PostMessage(userID, asUser, attachments)
+	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Client) NotifySlackPolicySucceeded(email, title, message string) error {
-	userID, err := c.getIdByEmail(email)
+func (c *Client) NotifySlackPolicySucceeded(ctx context.Context, email, title, message string) error {
+	userID, err := c.getIdByEmail(ctx, email)
 	if err != nil {
 		return err
 	}
@@ -240,7 +241,7 @@ func (c *Client) NotifySlackPolicySucceeded(email, title, message string) error 
 		MarkdownIn: []string{"text", "fields"},
 	})
 
-	_, _, err = c.client.PostMessage(userID, asUser, attachments)
+	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
 	if err != nil {
 		return err
 	}

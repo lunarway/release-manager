@@ -109,3 +109,28 @@ func (l *Logger) Debug(args ...interface{}) {
 func (l *Logger) Debugf(template string, args ...interface{}) {
 	l.sugar.Debugf(template, args...)
 }
+
+// WithFields returns a logger with custom structured fields added to the 'fields' key in the log entries.
+// The arguments are passed to the underlying sugared zap logger. See the zap documentation for details.
+// If an argument is a zap.Field it is logged accordingly, otherwise the arguments are treated as key value pairs.
+//
+// For example,
+//   log.WithFields("hello", "world").WithFields(zap.String("zapKey", "zapValue")).Info("msg")
+// logs the following fields (some fields omitted)
+//   { "message": "msg", "fields": { "hello": "world", "zapKey": "zapValue" }}
+func (l *Logger) WithFields(args ...interface{}) *Logger {
+	args = append([]interface{}{zap.Namespace("fields")}, args...)
+	return l.With(args...)
+}
+
+// With returns a logger with custom structured fields added to the root of the log entries.
+// The arguments are passed to the underlying sugared zap logger. See the zap documentation for details.
+// If an argument is a zap.Field it is logged accordingly, otherwise the arguments are treated as key value pairs.
+//
+// For example,
+//   log.With("hello", "world").With(zap.String("zapKey", "zapValue")).Info("msg")
+// logs the following fields (some fields omitted)
+//   { "message": "msg", "hello": "world", "zapKey": "zapValue"}
+func (l *Logger) With(args ...interface{}) *Logger {
+	return &Logger{sugar: l.sugar.With(args...)}
+}

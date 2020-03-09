@@ -1,6 +1,7 @@
 package copy_test
 
 import (
+	"context"
 	"os"
 	"path"
 	"testing"
@@ -46,7 +47,7 @@ func TestCopyDir(t *testing.T) {
 			t.Logf("Using pwd: %s", pwd)
 			absSrc := path.Join(pwd, tc.src)
 			absDest := path.Join(pwd, tc.dest)
-			err = copy.CopyDir(absSrc, absDest)
+			err = copy.CopyDir(context.Background(), absSrc, absDest)
 			defer os.RemoveAll(absDest)
 			if tc.err != nil {
 				assert.EqualError(t, err, tc.err.Error(), "wrong error")

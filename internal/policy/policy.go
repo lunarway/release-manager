@@ -133,17 +133,20 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 			return true, err
 		}
 		defer close(ctx)
+
+		logger := log.WithContext(ctx)
+
 		// read part of this code is the same as the Get function but differs in the
 		// file flags used. This is to avoid opening and closing to file multiple
 		// times during the operation.
-		log.Debugf("internal/policy: clone config repository")
+		logger.Debugf("internal/policy: clone config repository")
 		_, err = s.Git.Clone(ctx, configRepoPath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("clone to '%s'", configRepoPath))
 		}
 
 		// make sure policy directory exists
-		log.Debugf("internal/policy: ensure policies directory")
+		logger.Debugf("internal/policy: ensure policies directory")
 		policiesDir := path.Join(configRepoPath, "policies")
 		err = os.MkdirAll(policiesDir, os.ModePerm)
 		if err != nil {
@@ -151,7 +154,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 		}
 
 		policiesPath := path.Join(policiesDir, fmt.Sprintf("%s.json", svc))
-		log.Debugf("internal/policy: open policies file '%s'", policiesPath)
+		logger.Debugf("internal/policy: open policies file '%s'", policiesPath)
 		policiesFile, err := os.OpenFile(policiesPath, os.O_CREATE|os.O_RDWR, os.ModePerm)
 		if err != nil {
 			return true, errors.WithMessagef(err, "open policies in '%s'", policiesPath)
@@ -159,12 +162,12 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 		defer policiesFile.Close()
 
 		// read existing policies
-		log.Debugf("internal/policy: parse policies file '%s'", policiesPath)
+		logger.Debugf("internal/policy: parse policies file '%s'", policiesPath)
 		policies, err := parse(policiesFile)
 		if err != nil {
 			return true, errors.WithMessagef(err, "parse policies in '%s'", policiesPath)
 		}
-		log.Debugf("internal/policy: parseed policy: %+v", policies)
+		logger.Debugf("internal/policy: parseed policy: %+v", policies)
 
 		policies.Service = svc
 		f(&policies)
@@ -181,14 +184,14 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 		if err != nil {
 			return true, errors.WithMessagef(err, "reset seek on '%s'", policiesPath)
 		}
-		log.Debugf("internal/policy: persist policies file '%s'", policiesPath)
+		logger.Debugf("internal/policy: persist policies file '%s'", policiesPath)
 		err = persist(policiesFile, policies)
 		if err != nil {
 			return true, errors.WithMessagef(err, "write policies in '%s'", policiesPath)
 		}
 
 		// commit changes
-		log.Debugf("internal/policy: commit policies file '%s'", policiesPath)
+		logger.Debugf("internal/policy: commit policies file '%s'", policiesPath)
 		err = s.Git.Commit(ctx, configRepoPath, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg)
 		if err != nil {
 			// indicates that the applied policy was already set

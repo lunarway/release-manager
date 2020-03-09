@@ -31,7 +31,9 @@ func reqrespLogger(h http.Handler) http.Handler {
 		// request duration in miliseconds
 		duration := time.Since(start).Nanoseconds() / 1e6
 		statusCode := statusWriter.statusCode
+		requestID := getRequestID(r)
 		fields := []interface{}{
+			"requestId", requestID,
 			"req", struct {
 				ID      string            `json:"id,omitempty"`
 				URL     string            `json:"url,omitempty"`
@@ -39,7 +41,7 @@ func reqrespLogger(h http.Handler) http.Handler {
 				Path    string            `json:"path,omitempty"`
 				Headers map[string]string `json:"headers,omitempty"`
 			}{
-				ID:      getRequestID(r),
+				ID:      requestID,
 				URL:     r.URL.RequestURI(),
 				Method:  r.Method,
 				Path:    r.URL.Path,
