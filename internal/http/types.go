@@ -79,15 +79,17 @@ type ReleaseResponse struct {
 }
 
 type PodNotifyRequest struct {
-	Namespace   string      `json:"namespace"`
-	Name        string      `json:"name"`
-	State       string      `json:"state"`
-	Reason      string      `json:"reason"`
-	Message     string      `json:"message"`
-	Containers  []Container `json:"containers"`
-	ArtifactID  string      `json:"artifactId"`
-	Logs        string      `json:"logs"`
-	Environment string      `json:"environment"`
+	Namespace      string      `json:"namespace"`
+	Name           string      `json:"name"`
+	State          string      `json:"state"`
+	Reason         string      `json:"reason"`
+	Message        string      `json:"message"`
+	Containers     []Container `json:"containers"`
+	ArtifactID     string      `json:"artifactId"`
+	Logs           string      `json:"logs"`
+	Environment    string      `json:"environment"`
+	CommitterEmail string      `json:"committerEmail"`
+	AuthorEmail    string      `json:"authorEmail"`
 }
 
 type Container struct {

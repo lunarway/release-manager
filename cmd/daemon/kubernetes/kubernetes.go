@@ -128,6 +128,8 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 	}
 
 	artifactId := pod.Annotations["lunarway.com/artifact-id"]
+	authorEmail := pod.Annotations["lunarway.com/author"]
+	committerEmail := pod.Annotations["lunarway.com/committer"]
 
 	switch e.Type {
 	case watch.Modified:
@@ -181,13 +183,15 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 
 			if containsState(containers, "CrashLoopBackOff") {
 				event := PodEvent{
-					Namespace:  pod.Namespace,
-					Name:       pod.Name,
-					ArtifactID: artifactId,
-					State:      "CrashLoopBackOff",
-					Containers: containers,
-					Reason:     "CrashLoopBackOff",
-					Message:    message,
+					Namespace:      pod.Namespace,
+					Name:           pod.Name,
+					ArtifactID:     artifactId,
+					State:          "CrashLoopBackOff",
+					Containers:     containers,
+					Reason:         "CrashLoopBackOff",
+					Message:        message,
+					AuthorEmail:    authorEmail,
+					CommitterEmail: committerEmail,
 				}
 				err := failed(&event)
 				if err != nil {
@@ -196,13 +200,15 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 				return
 			} else if allContainersReady(containers) {
 				event := PodEvent{
-					Namespace:  pod.Namespace,
-					Name:       pod.Name,
-					ArtifactID: artifactId,
-					State:      "Ready",
-					Containers: containers,
-					Reason:     "",
-					Message:    message,
+					Namespace:      pod.Namespace,
+					Name:           pod.Name,
+					ArtifactID:     artifactId,
+					State:          "Ready",
+					Containers:     containers,
+					Reason:         "",
+					Message:        message,
+					AuthorEmail:    authorEmail,
+					CommitterEmail: committerEmail,
 				}
 				err := succeeded(&event)
 				if err != nil {
@@ -216,12 +222,14 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 			// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
 		case v1.PodFailed:
 			event := PodEvent{
-				Namespace:  pod.Namespace,
-				Name:       pod.Name,
-				ArtifactID: artifactId,
-				State:      string(v1.PodFailed),
-				Reason:     pod.Status.Reason,
-				Message:    pod.Status.Message,
+				Namespace:      pod.Namespace,
+				Name:           pod.Name,
+				ArtifactID:     artifactId,
+				State:          string(v1.PodFailed),
+				Reason:         pod.Status.Reason,
+				Message:        pod.Status.Message,
+				AuthorEmail:    authorEmail,
+				CommitterEmail: committerEmail,
 			}
 			err := failed(&event)
 			if err != nil {
@@ -267,13 +275,15 @@ func statusNotifier(e watch.Event, succeeded, failed NotifyFunc) {
 
 			if containsState(containers, "CreateContainerConfigError") {
 				event := PodEvent{
-					Namespace:  pod.Namespace,
-					Name:       pod.Name,
-					ArtifactID: artifactId,
-					State:      "CreateContainerConfigError",
-					Containers: containers,
-					Reason:     "CreateContainerConfigError",
-					Message:    message,
+					Namespace:      pod.Namespace,
+					Name:           pod.Name,
+					ArtifactID:     artifactId,
+					State:          "CreateContainerConfigError",
+					Containers:     containers,
+					Reason:         "CreateContainerConfigError",
+					Message:        message,
+					AuthorEmail:    authorEmail,
+					CommitterEmail: committerEmail,
 				}
 				err := failed(&event)
 				if err != nil {

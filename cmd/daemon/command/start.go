@@ -73,15 +73,17 @@ func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, a
 
 	b := &bytes.Buffer{}
 	err := json.NewEncoder(b).Encode(httpinternal.PodNotifyRequest{
-		Name:        event.Name,
-		Namespace:   event.Namespace,
-		Message:     event.Message,
-		Reason:      event.Reason,
-		State:       event.State,
-		Containers:  mapContainers(event.Containers),
-		ArtifactID:  event.ArtifactID,
-		Logs:        logs,
-		Environment: environment,
+		Name:           event.Name,
+		Namespace:      event.Namespace,
+		Message:        event.Message,
+		Reason:         event.Reason,
+		State:          event.State,
+		Containers:     mapContainers(event.Containers),
+		ArtifactID:     event.ArtifactID,
+		Logs:           logs,
+		Environment:    environment,
+		AuthorEmail:    event.AuthorEmail,
+		CommitterEmail: event.CommitterEmail,
 	})
 
 	if err != nil {
