@@ -13,10 +13,7 @@ import (
 func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequest) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyCommitter")
 	defer span.Finish()
-	email := event.CommitterEmail
-	if email == "" {
-		email = event.AuthorEmail
-	}
+	email := event.AuthorEmail
 	if !strings.Contains(email, "@lunarway.com") {
 		//check UserMappings
 		lwEmail, ok := s.UserMappings[email]
