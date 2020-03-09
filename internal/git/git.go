@@ -60,7 +60,7 @@ func (s *Service) InitMasterRepo(ctx context.Context) (func(context.Context), er
 	defer s.masterMutex.Unlock()
 	s.master = repo
 	s.MasterPath = path
-	log.Infof("Master repo cloned into '%s'", path)
+	log.WithContext(ctx).Infof("Master repo cloned into '%s'", path)
 	return close, nil
 }
 
@@ -136,7 +136,7 @@ func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repo
 	defer s.masterMutex.RUnlock()
 	span.Finish()
 	span, _ = s.Tracer.FromCtx(ctx, "copy to destination")
-	err = copy.CopyDir(s.MasterPath, destination)
+	err = copy.CopyDir(ctx, s.MasterPath, destination)
 	span.Finish()
 	if err != nil {
 		return nil, errors.WithMessagef(err, "copy master from '%s'", s.MasterPath)
@@ -390,7 +390,8 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName,
 }
 
 func execCommand(ctx context.Context, rootPath string, cmdName string, args ...string) error {
-	log.WithFields("root", rootPath).Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
+	logger := log.WithContext(ctx).WithFields("root", rootPath)
+	logger.Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, cmdName, args...)
 	cmd.Dir = rootPath
 	stdout, err := cmd.StdoutPipe()
@@ -416,8 +417,8 @@ func execCommand(ctx context.Context, rootPath string, cmdName string, args ...s
 	}
 
 	err = cmd.Wait()
-	log.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
-	log.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
+	logger.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
+	logger.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
 	if err != nil {
 		return errors.WithMessage(err, "execute command failed")
 	}
@@ -453,7 +454,8 @@ func isKnownGitError(stderrData []byte) error {
 func checkStatus(ctx context.Context, rootPath string) error {
 	cmdName := "git"
 	args := []string{"status", "--porcelain"}
-	log.WithFields("root", rootPath).Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
+	logger := log.WithContext(ctx).WithFields("root", rootPath)
+	logger.Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, cmdName, args...)
 	cmd.Dir = rootPath
 	stdout, err := cmd.StdoutPipe()
@@ -479,8 +481,8 @@ func checkStatus(ctx context.Context, rootPath string) error {
 	}
 
 	err = cmd.Wait()
-	log.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
-	log.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
+	logger.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
+	logger.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
 	if err != nil {
 		return errors.WithMessage(err, "execute command failed")
 	}
@@ -493,7 +495,8 @@ func checkStatus(ctx context.Context, rootPath string) error {
 func gitPush(ctx context.Context, rootPath string) error {
 	cmdName := "git"
 	args := []string{"push", "origin", "master", "--porcelain"}
-	log.WithFields("root", rootPath).Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
+	logger := log.WithContext(ctx).WithFields("root", rootPath)
+	logger.Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, cmdName, args...)
 	cmd.Dir = rootPath
 	stdout, err := cmd.StdoutPipe()
@@ -519,12 +522,12 @@ func gitPush(ctx context.Context, rootPath string) error {
 	}
 
 	err = cmd.Wait()
-	log.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
-	log.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
+	logger.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
+	logger.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
 	if err != nil {
 		match, regexpErr := regexp.Match("(?i)rejected because the remote contains work that you do", stderrData)
 		if regexpErr != nil {
-			log.Errorf("git/gitPush: failed to detect if push error is caused by master being behind: %v", regexpErr)
+			logger.Errorf("git/gitPush: failed to detect if push error is caused by master being behind: %v", regexpErr)
 		}
 		if match {
 			return ErrBranchBehindOrigin

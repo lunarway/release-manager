@@ -41,7 +41,8 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
-		log.Infof("flow: ReleaseBranch: release branch: id '%s'", artifactSpec.ID)
+		logger := log.WithContext(ctx)
+		logger.Infof("flow: ReleaseBranch: release branch: id '%s'", artifactSpec.ID)
 
 		// default to environment name for the namespace if none is specified
 		namespace := artifactSpec.Namespace
@@ -54,7 +55,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		artifactPath := srcPath(sourceConfigRepoPath, service, branch, environment)
 		// repo/{env}/releases/{ns}/{service}
 		destinationPath := releasePath(sourceConfigRepoPath, service, environment, namespace)
-		log.Infof("flow: ReleaseBranch: copy resources from %s to %s", artifactPath, destinationPath)
+		logger.Infof("flow: ReleaseBranch: copy resources from %s to %s", artifactPath, destinationPath)
 
 		err = s.cleanCopy(ctx, artifactPath, destinationPath)
 		if err != nil {
@@ -64,8 +65,8 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		// copy artifact spec
 		// repo/{env}/releases/{ns}/{service}/{artifactFileName}
 		artifactDestinationPath := path.Join(releasePath(sourceConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
-		log.Infof("flow: ReleaseBranch: copy artifact from %s to %s", artifactSpecPath, artifactDestinationPath)
-		err = copy.CopyFile(artifactSpecPath, artifactDestinationPath)
+		logger.Infof("flow: ReleaseBranch: copy artifact from %s to %s", artifactSpecPath, artifactDestinationPath)
+		err = copy.CopyFile(ctx, artifactSpecPath, artifactDestinationPath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSpecPath, artifactDestinationPath))
 		}
@@ -91,7 +92,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 			Releaser:    actor.Name,
 		})
 		result = artifactID
-		log.Infof("flow: ReleaseBranch: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
+		logger.Infof("flow: ReleaseBranch: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
 		return true, nil
 	})
 	if err != nil {
@@ -146,8 +147,8 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
-
-		log.Infof("flow: ReleaseArtifactID: hash '%s' id '%s'", hash, sourceSpec.ID)
+		logger := log.WithContext(ctx)
+		logger.Infof("flow: ReleaseArtifactID: hash '%s' id '%s'", hash, sourceSpec.ID)
 
 		// default to environment name for the namespace if none is specified
 		namespace := sourceSpec.Namespace
@@ -163,7 +164,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		// release service to env from original release
 		sourcePath := srcPath(sourceConfigRepoPath, service, branch, environment)
 		destinationPath := releasePath(destinationConfigRepoPath, service, environment, namespace)
-		log.Infof("flow: ReleaseArtifactID: copy resources from %s to %s", sourcePath, destinationPath)
+		logger.Infof("flow: ReleaseArtifactID: copy resources from %s to %s", sourcePath, destinationPath)
 
 		err = s.cleanCopy(ctx, sourcePath, destinationPath)
 		if err != nil {
@@ -172,8 +173,8 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		// copy artifact spec
 		artifactSourcePath := srcPath(sourceConfigRepoPath, service, branch, s.ArtifactFileName)
 		artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
-		log.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
-		err = copy.CopyFile(artifactSourcePath, artifactDestinationPath)
+		logger.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
+		err = copy.CopyFile(ctx, artifactSourcePath, artifactDestinationPath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}
@@ -198,7 +199,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 			Releaser:    actor.Name,
 		})
 		result = artifactID
-		log.Infof("flow: ReleaseArtifactID: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
+		logger.Infof("flow: ReleaseArtifactID: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
 		return true, nil
 	})
 	if err != nil {

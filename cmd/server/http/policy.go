@@ -31,10 +31,11 @@ func policy(payload *payload, policySvc *policyinternal.Service) http.HandlerFun
 func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+		logger := log.WithContext(ctx)
 		var req httpinternal.ApplyAutoReleasePolicyRequest
 		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
-			log.Errorf("http: policy: apply: decode request body failed: %v", err)
+			logger.Errorf("http: policy: apply: decode request body failed: %v", err)
 			invalidBodyError(w)
 			return
 		}
@@ -58,7 +59,7 @@ func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service)
 			requiredFieldError(w, "committerEmail")
 			return
 		}
-		logger := log.WithFields("service", req.Service, "req", req)
+		logger = logger.WithFields("service", req.Service, "req", req)
 		logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release policy started", req.Service, req.Branch, req.Environment)
 		id, err := policySvc.ApplyAutoRelease(ctx, policyinternal.Actor{
 			Name:  req.CommitterName,
@@ -105,8 +106,8 @@ func listPolicies(payload *payload, policySvc *policyinternal.Service) http.Hand
 			return
 		}
 
-		logger := log.WithFields("service", service)
 		ctx := r.Context()
+		logger := log.WithContext(ctx).WithFields("service", service)
 		policies, err := policySvc.Get(ctx, service)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
@@ -150,10 +151,11 @@ func mapAutoReleasePolicies(policies []policyinternal.AutoReleasePolicy) []httpi
 func deletePolicies(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+		logger := log.WithContext(ctx)
 		var req httpinternal.DeletePolicyRequest
 		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
-			log.Errorf("http: policy: delete: decode request body failed: %v", err)
+			logger.Errorf("http: policy: delete: decode request body failed: %v", err)
 			invalidBodyError(w)
 			return
 		}
@@ -175,7 +177,7 @@ func deletePolicies(payload *payload, policySvc *policyinternal.Service) http.Ha
 			return
 		}
 
-		logger := log.WithFields("service", req.Service, "req", req)
+		logger = logger.WithFields("service", req.Service, "req", req)
 
 		deleted, err := policySvc.Delete(ctx, policyinternal.Actor{
 			Name:  req.CommitterName,
@@ -209,7 +211,7 @@ func deletePolicies(payload *payload, policySvc *policyinternal.Service) http.Ha
 			Count:   deleted,
 		})
 		if err != nil {
-			log.Errorf("http: policy: delete: service '%s' ids %v: marshal response failed: %v", req.Service, ids, err)
+			logger.Errorf("http: policy: delete: service '%s' ids %v: marshal response failed: %v", req.Service, ids, err)
 		}
 	}
 }

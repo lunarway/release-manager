@@ -96,10 +96,11 @@ func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
 		ctx := r.Context()
 		span, ctx := tracer.FromCtxf(ctx, "http %s %s", r.Method, r.URL.Path)
 		defer span.Finish()
-		*r = *r.WithContext(ctx)
+		requestID := getRequestID(r)
+		*r = *r.WithContext(log.AddContext(ctx, "requestId", requestID))
 		statusWriter := &statusCodeResponseWriter{w, http.StatusOK}
 		h(statusWriter, r)
-		span.SetTag("request.id", getRequestID(r))
+		span.SetTag("request.id", requestID)
 		span.SetTag("http.status_code", statusWriter.statusCode)
 		span.SetTag("http.url", r.URL.RequestURI())
 		span.SetTag("http.method", r.Method)
@@ -175,8 +176,8 @@ func status(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			return
 		}
 
-		logger := log.WithFields("service", service, "namespace", namespace)
 		ctx := r.Context()
+		logger := log.WithContext(ctx).WithFields("service", service, "namespace", namespace)
 		s, err := flowSvc.Status(ctx, namespace, service)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
@@ -247,10 +248,11 @@ func rollback(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			return
 		}
 		ctx := r.Context()
+		logger := log.WithContext(ctx)
 		var req httpinternal.RollbackRequest
 		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
-			log.Errorf("http: rollback failed: decode request body: %v", err)
+			logger.Errorf("http: rollback failed: decode request body: %v", err)
 			Error(w, "invalid payload", http.StatusBadRequest)
 			return
 		}
@@ -276,7 +278,7 @@ func rollback(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			req.Namespace = req.Environment
 		}
 
-		logger := log.WithFields("service", req.Service, "namespace", req.Namespace, "req", req)
+		logger = logger.WithFields("service", req.Service, "namespace", req.Namespace, "req", req)
 		res, err := flowSvc.Rollback(ctx, flow.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
@@ -339,14 +341,15 @@ func daemonWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
 		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
+		logger := log.WithContext(ctx)
 		var podNotify httpinternal.PodNotifyRequest
 		err := payload.decodeResponse(ctx, r.Body, &podNotify)
 		if err != nil {
-			log.Errorf("http: daemon webhook: decode request body failed: %v", err)
+			logger.Errorf("http: daemon webhook: decode request body failed: %v", err)
 			invalidBodyError(w)
 			return
 		}
-		logger := log.WithFields("pod", podNotify.Name,
+		logger = logger.WithFields("pod", podNotify.Name,
 			"namespace", podNotify.Namespace,
 			"environment", podNotify.Environment,
 			"state", podNotify.State,
@@ -370,30 +373,31 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
 		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
+		logger := log.WithContext(ctx)
 		hook, _ := github.New(github.Options.Secret(githubWebhookSecret))
 		payload, err := hook.Parse(r, github.PushEvent)
 		if err != nil {
-			log.Errorf("http: github webhook: decode request body failed: %v", err)
+			logger.Errorf("http: github webhook: decode request body failed: %v", err)
 			invalidBodyError(w)
 			return
 		}
 		switch payload := payload.(type) {
 		case github.PushPayload:
 			if !isBranchPush(payload.Ref) {
-				log.Infof("http: github webhook: ref '%s' is not a branch push", payload.Ref)
+				logger.Infof("http: github webhook: ref '%s' is not a branch push", payload.Ref)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
 			err := gitSvc.SyncMaster(ctx)
 			if err != nil {
-				log.Errorf("http: github webhook: failed to sync master: %v", err)
+				logger.Errorf("http: github webhook: failed to sync master: %v", err)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
 			rgx := regexp.MustCompile(`\[(.*?)\]`)
 			matches := rgx.FindStringSubmatch(payload.HeadCommit.Message)
 			if len(matches) < 2 {
-				log.Infof("http: github webhook: no service match from commit '%s'", payload.HeadCommit.Message)
+				logger.Infof("http: github webhook: no service match from commit '%s'", payload.HeadCommit.Message)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
@@ -402,19 +406,19 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 			// locate branch of commit
 			branch, ok := git.BranchName(payload.HeadCommit.Modified, flowSvc.ArtifactFileName, serviceName)
 			if !ok {
-				log.Infof("http: github webhook: service '%s': branch name not found", serviceName)
+				logger.Infof("http: github webhook: service '%s': branch name not found", serviceName)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
 
-			logger := log.WithFields("branch", branch, "service", serviceName, "commit", payload.HeadCommit)
+			logger = logger.WithFields("branch", branch, "service", serviceName, "commit", payload.HeadCommit)
 			// lookup policies for branch
 			autoReleases, err := policySvc.GetAutoReleases(ctx, serviceName, branch)
 			if err != nil {
 				logger.Errorf("http: github webhook: service '%s' branch '%s': get auto release policies failed: %v", serviceName, branch, err)
-				err := slackClient.NotifySlackPolicyFailed(payload.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("failed for branch: %s, env: %s", serviceName, branch))
+				err := slackClient.NotifySlackPolicyFailed(ctx, payload.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("failed for branch: %s, env: %s", serviceName, branch))
 				if err != nil {
-					log.Errorf("http: github webhook: get auto-release policies: error notifying slack: %v", err)
+					logger.Errorf("http: github webhook: get auto-release policies: error notifying slack: %v", err)
 				}
 				unknownError(w)
 				return
@@ -429,33 +433,33 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 				if err != nil {
 					if errorCause(err) != git.ErrNothingToCommit {
 						errs = multierr.Append(errs, err)
-						err := slackClient.NotifySlackPolicyFailed(payload.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("Service %s was not released into %s from branch %s.\nYou can deploy manually using `hamctl`:\nhamctl release --service %[1]s --branch %[3]s --env %[2]s", serviceName, autoRelease.Environment, autoRelease.Branch))
+						err := slackClient.NotifySlackPolicyFailed(ctx, payload.HeadCommit.Author.Email, "Auto release policy failed", fmt.Sprintf("Service %s was not released into %s from branch %s.\nYou can deploy manually using `hamctl`:\nhamctl release --service %[1]s --branch %[3]s --env %[2]s", serviceName, autoRelease.Environment, autoRelease.Branch))
 						if err != nil {
-							log.Errorf("http: github webhook: auto-release failed: error notifying slack: %v", err)
+							logger.Errorf("http: github webhook: auto-release failed: error notifying slack: %v", err)
 						}
 						continue
 					}
 					logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' to '%s': nothing to commit", serviceName, autoRelease.ID, autoRelease.Environment)
 					continue
 				}
-				err = slackClient.NotifySlackPolicySucceeded(payload.HeadCommit.Author.Email, "Auto release policy detected", fmt.Sprintf("Service *%s* was auto released to *%s*", serviceName, autoRelease.Environment))
+				err = slackClient.NotifySlackPolicySucceeded(ctx, payload.HeadCommit.Author.Email, "Auto release policy detected", fmt.Sprintf("Service *%s* was auto released to *%s*", serviceName, autoRelease.Environment))
 				if err != nil {
 					if errors.Cause(err) != slack.ErrUnknownEmail {
-						log.Errorf("http: github webhook: auto-release succeeded: error notifying slack: %v", err)
+						logger.Errorf("http: github webhook: auto-release succeeded: error notifying slack: %v", err)
 					}
 				}
 				logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' of %s to %s", serviceName, autoRelease.ID, releaseID, autoRelease.Environment)
 			}
 			if errs != nil {
-				log.Errorf("http: github webhook: service '%s' branch '%s': auto-release failed with one or more errors: %v", serviceName, branch, errs)
+				logger.Errorf("http: github webhook: service '%s' branch '%s': auto-release failed with one or more errors: %v", serviceName, branch, errs)
 				unknownError(w)
 				return
 			}
-			log.Infof("http: github webhook: handled successfully: service '%s' branch '%s' commit '%s'", serviceName, branch, payload.HeadCommit.ID)
+			logger.Infof("http: github webhook: handled successfully: service '%s' branch '%s' commit '%s'", serviceName, branch, payload.HeadCommit.ID)
 			w.WriteHeader(http.StatusOK)
 			return
 		default:
-			log.WithFields("payload", payload).Infof("http: github webhook: payload type '%T': ignored", payload)
+			logger.WithFields("payload", payload).Infof("http: github webhook: payload type '%T': ignored", payload)
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -470,9 +474,10 @@ func promote(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req httpinternal.PromoteRequest
 		ctx := r.Context()
+		logger := log.WithContext(ctx)
 		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
-			log.Errorf("http: promote: decode request body failed: %v", err)
+			logger.Errorf("http: promote: decode request body failed: %v", err)
 			invalidBodyError(w)
 			return
 		}
@@ -482,7 +487,7 @@ func promote(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			req.Namespace = req.Environment
 		}
 
-		logger := log.WithFields("service", req.Service, "namespace", req.Namespace, "req", req)
+		logger = logger.WithFields("service", req.Service, "namespace", req.Namespace, "req", req)
 		result, err := flowSvc.Promote(ctx, flow.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
@@ -560,14 +565,15 @@ func promote(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+		logger := log.WithContext(ctx)
 		var req httpinternal.ReleaseRequest
 		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
-			log.Errorf("http: release: decode request body failed: %v", err)
+			logger.Errorf("http: release: decode request body failed: %v", err)
 			invalidBodyError(w)
 			return
 		}
-		logger := log.WithFields(
+		logger = logger.WithFields(
 			"service", req.Service,
 			"req", req)
 		var releaseID string

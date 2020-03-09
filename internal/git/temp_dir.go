@@ -26,7 +26,7 @@ func TempDir(ctx context.Context, tracer tracing.Tracer, prefix string) (string,
 		defer span.Finish()
 		err := os.RemoveAll(path)
 		if err != nil {
-			log.Errorf("Removing temporary directory failed: path '%s': %v", path, err)
+			log.WithContext(ctx).Errorf("Removing temporary directory failed: path '%s': %v", path, err)
 		}
 	}, nil
 }

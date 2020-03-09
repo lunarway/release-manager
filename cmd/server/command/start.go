@@ -93,7 +93,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				NotifyReleaseHook: func(ctx context.Context, opts flow.NotifyReleaseOptions) {
 					span, ctx := tracer.FromCtx(ctx, "flow.NotifyReleaseHook")
 					defer span.Finish()
-					logger := log.WithFields("service", opts.Service,
+					logger := log.WithContext(ctx).WithFields("service", opts.Service,
 						"environment", opts.Environment,
 						"namespace", opts.Namespace,
 						"artifact-id", opts.Spec.ID,
@@ -108,7 +108,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 						"type", "release")
 
 					span, _ = tracer.FromCtx(ctx, "notify release channel")
-					err := slackClient.NotifySlackReleasesChannel(slack.ReleaseOptions{
+					err := slackClient.NotifySlackReleasesChannel(ctx, slack.ReleaseOptions{
 						Service:       opts.Service,
 						Environment:   opts.Environment,
 						ArtifactID:    opts.Spec.ID,
@@ -124,7 +124,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 					}
 
 					span, _ = tracer.FromCtx(ctx, "annotate grafana")
-					err = grafanaSvc.Annotate(opts.Environment, grafana.AnnotateRequest{
+					err = grafanaSvc.Annotate(ctx, opts.Environment, grafana.AnnotateRequest{
 						What: fmt.Sprintf("Deployment: %s", opts.Service),
 						Data: fmt.Sprintf("Author: %s\nMessage: %s\nArtifactID: %s", opts.Spec.Application.AuthorName, opts.Spec.Application.Message, opts.Spec.ID),
 						Tags: []string{"deployment", opts.Service},

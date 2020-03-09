@@ -42,7 +42,8 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 		if err != nil {
 			return true, errors.WithMessagef(err, "locate current release at '%s'", sourceConfigRepoPath)
 		}
-		log.Debugf("flow: Rollback: current release hash '%v'", currentHash)
+		logger := log.WithContext(ctx)
+		logger.Debugf("flow: Rollback: current release hash '%v'", currentHash)
 		err = s.Git.Checkout(ctx, sourceConfigRepoPath, currentHash)
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout current release hash '%v'", currentHash)
@@ -51,7 +52,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 		if namespace == "" {
 			namespace = environment
 		}
-		log.Infof("flow: Rollback: using namespace '%s'", namespace)
+		logger.Infof("flow: Rollback: using namespace '%s'", namespace)
 
 		currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
 		if err != nil {
@@ -69,7 +70,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 		// It only affects "dev" promotes as we read from the artifacts here where we
 		// can find the artifact without taking the namespace into account.
 		if currentSpec.Namespace != "" && namespace != currentSpec.Namespace {
-			log.Infof("flow: Rollback: overwriting namespace '%s' to '%s'", namespace, currentSpec.Namespace)
+			logger.Infof("flow: Rollback: overwriting namespace '%s' to '%s'", namespace, currentSpec.Namespace)
 			namespace = currentSpec.Namespace
 			result.OverwritingNamespace = currentSpec.Namespace
 		}
@@ -78,7 +79,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 		if err != nil {
 			return true, errors.WithMessagef(err, "locate previous release at '%s'", sourceConfigRepoPath)
 		}
-		log.Debugf("flow: Rollback: new release hash '%v'", newHash)
+		logger.Debugf("flow: Rollback: new release hash '%v'", newHash)
 		err = s.Git.Checkout(ctx, sourceConfigRepoPath, newHash)
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout previous release hash '%v'", newHash)
@@ -97,7 +98,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 		// release service to env from original release
 		sourcePath := releasePath(sourceConfigRepoPath, service, environment, namespace)
 		destinationPath := releasePath(destinationConfigRepoPath, service, environment, namespace)
-		log.Infof("flow: ReleaseArtifactID: copy resources from %s to %s", sourcePath, destinationPath)
+		logger.Infof("flow: ReleaseArtifactID: copy resources from %s to %s", sourcePath, destinationPath)
 
 		err = s.cleanCopy(ctx, sourcePath, destinationPath)
 		if err != nil {
@@ -106,8 +107,8 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 		// copy artifact spec
 		artifactSourcePath := path.Join(releasePath(sourceConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
 		artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
-		log.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
-		err = copy.CopyFile(artifactSourcePath, artifactDestinationPath)
+		logger.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
+		err = copy.CopyFile(ctx, artifactSourcePath, artifactDestinationPath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}
@@ -131,7 +132,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 			Spec:        newSpec,
 			Releaser:    actor.Name,
 		})
-		log.Infof("flow: Rollback: rollback committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
+		logger.Infof("flow: Rollback: rollback committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
 		result.Previous = currentSpec.ID
 		result.New = newSpec.ID
 		return true, nil

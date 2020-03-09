@@ -48,8 +48,10 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 			return true, err
 		}
 		defer closeDestination(ctx)
+
+		logger := log.WithContext(ctx)
 		// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
-		log.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
+		logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
 		sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 		if err != nil {
 			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
@@ -59,9 +61,9 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		if namespace == "" {
 			namespace = environment
 		}
-		log.Infof("flow: Promote: using namespace '%s'", namespace)
+		logger.Infof("flow: Promote: using namespace '%s'", namespace)
 
-		sourceSpec, err := sourceSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+		sourceSpec, err := sourceSpec(ctx, sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
@@ -77,7 +79,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		// It only affects "dev" promotes as we read from the artifacts here where we
 		// can find the artifact without taking the namespace into account.
 		if sourceSpec.Namespace != "" && namespace != sourceSpec.Namespace {
-			log.Infof("flow: Promote: overwriting namespace '%s' to '%s'", namespace, sourceSpec.Namespace)
+			logger.Infof("flow: Promote: overwriting namespace '%s' to '%s'", namespace, sourceSpec.Namespace)
 			namespace = sourceSpec.Namespace
 			result.OverwritingNamespace = sourceSpec.Namespace
 		}
@@ -96,7 +98,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		if err != nil {
 			return true, errors.WithMessagef(err, "locate release '%s'", result.ReleaseID)
 		}
-		log.Debugf("internal/flow: Promote: release hash '%v'", hash)
+		logger.Debugf("internal/flow: Promote: release hash '%v'", hash)
 		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout release hash '%s'", hash)
@@ -110,7 +112,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		// release service to env from original release
 		sourcePath := srcPath(sourceConfigRepoPath, service, "master", environment)
 		destinationPath := releasePath(destinationConfigRepoPath, service, environment, namespace)
-		log.Debugf("Copy resources from: %s to %s", sourcePath, destinationPath)
+		logger.Debugf("Copy resources from: %s to %s", sourcePath, destinationPath)
 
 		err = s.cleanCopy(ctx, sourcePath, destinationPath)
 		if err != nil {
@@ -120,8 +122,8 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		// copy artifact spec
 		artifactSourcePath := srcPath(sourceConfigRepoPath, service, "master", s.ArtifactFileName)
 		artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
-		log.Debugf("Copy artifact from: %s to %s", artifactSourcePath, artifactDestinationPath)
-		err = copy.CopyFile(artifactSourcePath, artifactDestinationPath)
+		logger.Debugf("Copy artifact from: %s to %s", artifactSourcePath, artifactDestinationPath)
+		err = copy.CopyFile(ctx, artifactSourcePath, artifactDestinationPath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}
@@ -129,7 +131,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		authorName := sourceSpec.Application.AuthorName
 		authorEmail := sourceSpec.Application.AuthorEmail
 		releaseMessage := git.ReleaseCommitMessage(environment, service, result.ReleaseID)
-		log.Debugf("Committing release: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
+		logger.Debugf("Committing release: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
 		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
 			if err == git.ErrNothingToCommit {

@@ -2,6 +2,7 @@ package grafana
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -31,7 +32,7 @@ type AnnotateResponse struct {
 	Id      int64  `json:"id,omitempty"`
 }
 
-func (s *Service) Annotate(env string, body AnnotateRequest) error {
+func (s *Service) Annotate(ctx context.Context, env string, body AnnotateRequest) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -58,9 +59,10 @@ func (s *Service) Annotate(env string, body AnnotateRequest) error {
 		return err
 	}
 
+	logger := log.WithContext(ctx)
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		log.Infof("grafana: response body: %s", body)
+		logger.Infof("grafana: response body: %s", body)
 		return errors.New("grafana: status code not ok")
 	}
 	var responseBody AnnotateResponse
@@ -69,6 +71,6 @@ func (s *Service) Annotate(env string, body AnnotateRequest) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("grafana: AnnotateResponse: message: %s, id: %d", responseBody.Message, responseBody.Id)
+	logger.Infof("grafana: AnnotateResponse: message: %s, id: %d", responseBody.Message, responseBody.Id)
 	return nil
 }

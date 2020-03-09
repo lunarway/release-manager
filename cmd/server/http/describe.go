@@ -25,14 +25,14 @@ func describe(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			notFound(w)
 			return
 		}
-
+		ctx := r.Context()
 		switch p.Resource() {
 		case "release":
-			describeRelease(payload, flowSvc, p.Namespace(), p.Environment(), p.Service())(w, r)
+			describeRelease(ctx, payload, flowSvc, p.Namespace(), p.Environment(), p.Service())(w, r)
 		case "artifact":
-			describeArtifact(payload, flowSvc, p.Service())(w, r)
+			describeArtifact(ctx, payload, flowSvc, p.Service())(w, r)
 		default:
-			log.Errorf("describe path not found: %+v", p)
+			log.WithContext(ctx).Errorf("describe path not found: %+v", p)
 			notFound(w)
 		}
 	}
@@ -75,7 +75,7 @@ func (p *describePath) Namespace() string {
 	return namespace
 }
 
-func describeRelease(payload *payload, flowSvc *flow.Service, namespace, environment, service string) http.HandlerFunc {
+func describeRelease(ctx context.Context, payload *payload, flowSvc *flow.Service, namespace, environment, service string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if emptyString(service) {
 			requiredFieldError(w, "service")
@@ -85,7 +85,7 @@ func describeRelease(payload *payload, flowSvc *flow.Service, namespace, environ
 			requiredFieldError(w, "environment")
 			return
 		}
-		logger := log.WithFields("service", service, "environment", environment, "namespace", namespace)
+		logger := log.WithContext(ctx).WithFields("service", service, "environment", environment, "namespace", namespace)
 		ctx := r.Context()
 		resp, err := flowSvc.DescribeRelease(ctx, namespace, environment, service)
 		if err != nil {
@@ -121,7 +121,7 @@ func describeRelease(payload *payload, flowSvc *flow.Service, namespace, environ
 	}
 }
 
-func describeArtifact(payload *payload, flowSvc *flow.Service, service string) http.HandlerFunc {
+func describeArtifact(ctx context.Context, payload *payload, flowSvc *flow.Service, service string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if emptyString(service) {
 			requiredFieldError(w, "service")
@@ -137,7 +137,7 @@ func describeArtifact(payload *payload, flowSvc *flow.Service, service string) h
 			Error(w, fmt.Sprintf("invalid value '%s' of count. Must be a positive integer.", countParam), http.StatusBadRequest)
 			return
 		}
-		logger := log.WithFields("service", service, "count", count)
+		logger := log.WithContext(ctx).WithFields("service", service, "count", count)
 		ctx := r.Context()
 		resp, err := flowSvc.DescribeArtifact(ctx, service, count)
 		if err != nil {
