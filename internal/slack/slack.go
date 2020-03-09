@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/nlopes/slack"
@@ -86,7 +85,7 @@ func (c *Client) PostSlackBuildStarted(email, title, titleLink, text, color stri
 	return respChannel, timestamp, err
 }
 
-func (c *Client) PostPrivateMessage(email, env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) error {
+func (c *Client) PostPrivateMessage(email string, podNotify *http.PodNotifyRequest) error {
 	userID, err := c.getIdByEmail(email)
 	if err != nil {
 		return err
@@ -94,17 +93,17 @@ func (c *Client) PostPrivateMessage(email, env, service string, artifact artifac
 	asUser := slack.MsgOptionAsUser(true)
 	switch podNotify.State {
 	case "CrashLoopBackOff":
-		_, _, err := c.client.PostMessage(userID, asUser, crashLoopBackOffErrorMessage(env, service, artifact, podNotify))
+		_, _, err := c.client.PostMessage(userID, asUser, crashLoopBackOffErrorMessage(podNotify))
 		if err != nil {
 			return err
 		}
 	case "CreateContainerConfigError":
-		_, _, err := c.client.PostMessage(userID, asUser, createConfigErrorMessage(env, service, artifact, podNotify))
+		_, _, err := c.client.PostMessage(userID, asUser, createConfigErrorMessage(podNotify))
 		if err != nil {
 			return err
 		}
 	case "Running", "Ready":
-		_, _, err := c.client.PostMessage(userID, asUser, successMessage(env, service, artifact, podNotify))
+		_, _, err := c.client.PostMessage(userID, asUser, successMessage(podNotify))
 		if err != nil {
 			return err
 		}
@@ -114,39 +113,39 @@ func (c *Client) PostPrivateMessage(email, env, service string, artifact artifac
 	return nil
 }
 
-func successMessage(env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) slack.MsgOption {
+func successMessage(podNotify *http.PodNotifyRequest) slack.MsgOption {
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf("%s (%s)", service, artifact.ID),
-		Text:       fmt.Sprintf("*Environment:* %s\n:white_check_mark: *%s* (%s)", env, podNotify.Name, podNotify.State),
+		Title:      fmt.Sprintf("[%s] :white_check_mark: %s (%s)", podNotify.Environment, podNotify.Name, podNotify.State),
+		Text:       fmt.Sprintf("Artifact id %s", podNotify.ArtifactID),
 		Color:      "#73bf69",
 		MarkdownIn: []string{"text", "fields"},
 	})
 }
 
-func createConfigErrorMessage(env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) slack.MsgOption {
+func createConfigErrorMessage(podNotify *http.PodNotifyRequest) slack.MsgOption {
 	messageField := slack.AttachmentField{
 		Title: "Error",
 		Value: fmt.Sprintf("```%s```", podNotify.Message),
 		Short: false,
 	}
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf("%s (%s)", service, artifact.ID),
-		Text:       fmt.Sprintf("*Environment:* %s\n:no_entry: *%s* (%s)\n", env, podNotify.Name, podNotify.State),
+		Title:      fmt.Sprintf("[%s] :no_entry: %s (%s)", podNotify.Environment, podNotify.Name, podNotify.State),
+		Text:       fmt.Sprintf("Artifact id %s", podNotify.ArtifactID),
 		Color:      "#e24d42",
 		MarkdownIn: []string{"text", "fields"},
 		Fields:     []slack.AttachmentField{messageField},
 	})
 }
 
-func crashLoopBackOffErrorMessage(env, service string, artifact artifact.Spec, podNotify *http.PodNotifyRequest) slack.MsgOption {
+func crashLoopBackOffErrorMessage(podNotify *http.PodNotifyRequest) slack.MsgOption {
 	logField := slack.AttachmentField{
 		Title: "Logs",
 		Value: fmt.Sprintf("```%s```", podNotify.Logs),
 		Short: false,
 	}
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf("%s (%s)", service, artifact.ID),
-		Text:       fmt.Sprintf("*Environment:* %s\n:no_entry: *%s* (%s)\n", env, podNotify.Name, podNotify.State),
+		Title:      fmt.Sprintf("[%s] :no_entry: %s (%s)", podNotify.Environment, podNotify.Name, podNotify.State),
+		Text:       fmt.Sprintf("Artifact id %s", podNotify.ArtifactID),
 		Color:      "#e24d42",
 		MarkdownIn: []string{"text", "fields"},
 		Fields:     []slack.AttachmentField{logField},

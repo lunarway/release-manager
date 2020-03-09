@@ -2,13 +2,15 @@ package kubernetes
 
 // PodEvent represents Pod termination event
 type PodEvent struct {
-	Namespace  string      `json:"namespace"`
-	Name       string      `json:"name"`
-	State      string      `json:"state"`
-	Reason     string      `json:"reason"`
-	Message    string      `json:"message"`
-	Containers []Container `json:"containers"`
-	ArtifactID string      `json:"artifactId"`
+	Namespace      string      `json:"namespace"`
+	Name           string      `json:"name"`
+	State          string      `json:"state"`
+	Reason         string      `json:"reason"`
+	Message        string      `json:"message"`
+	Containers     []Container `json:"containers"`
+	ArtifactID     string      `json:"artifactId"`
+	CommitterEmail string      `json:"committerEmail"`
+	AuthorEmail    string      `json:"authorEmail"`
 }
 
 type Container struct {
