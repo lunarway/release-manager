@@ -115,7 +115,7 @@ func (c *Client) PostPrivateMessage(email string, podNotify *http.PodNotifyReque
 
 func successMessage(podNotify *http.PodNotifyRequest) slack.MsgOption {
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf("[%s] :white_check_mark: %s (%s)", podNotify.Environment, podNotify.Name, podNotify.State),
+		Title:      fmt.Sprintf(":white_check_mark: [%s] %s (%s)", podNotify.Environment, podNotify.Name, podNotify.State),
 		Text:       fmt.Sprintf("Artifact id %s", podNotify.ArtifactID),
 		Color:      "#73bf69",
 		MarkdownIn: []string{"text", "fields"},
@@ -129,7 +129,7 @@ func createConfigErrorMessage(podNotify *http.PodNotifyRequest) slack.MsgOption 
 		Short: false,
 	}
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf("[%s] :no_entry: %s (%s)", podNotify.Environment, podNotify.Name, podNotify.State),
+		Title:      fmt.Sprintf(":no_entry: [%s] %s (%s)", podNotify.Environment, podNotify.Name, podNotify.State),
 		Text:       fmt.Sprintf("Artifact id %s", podNotify.ArtifactID),
 		Color:      "#e24d42",
 		MarkdownIn: []string{"text", "fields"},
@@ -144,7 +144,7 @@ func crashLoopBackOffErrorMessage(podNotify *http.PodNotifyRequest) slack.MsgOpt
 		Short: false,
 	}
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf("[%s] :no_entry: %s (%s)", podNotify.Environment, podNotify.Name, podNotify.State),
+		Title:      fmt.Sprintf(":no_entry: [%s] %s (%s)", podNotify.Environment, podNotify.Name, podNotify.State),
 		Text:       fmt.Sprintf("Artifact id %s", podNotify.ArtifactID),
 		Color:      "#e24d42",
 		MarkdownIn: []string{"text", "fields"},
