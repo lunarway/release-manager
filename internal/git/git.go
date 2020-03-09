@@ -36,9 +36,9 @@ type Service struct {
 	Tracer            tracing.Tracer
 	SSHPrivateKeyPath string
 	ConfigRepoURL     string
+	MasterPath        string
 
 	masterMutex sync.RWMutex
-	masterPath  string
 	master      *git.Repository
 }
 
@@ -59,7 +59,7 @@ func (s *Service) InitMasterRepo(ctx context.Context) (func(context.Context), er
 	s.masterMutex.Lock()
 	defer s.masterMutex.Unlock()
 	s.master = repo
-	s.masterPath = path
+	s.MasterPath = path
 	log.Infof("Master repo cloned into '%s'", path)
 	return close, nil
 }
@@ -101,13 +101,13 @@ func (s *Service) SyncMaster(ctx context.Context) error {
 	span.Finish()
 
 	span, _ = s.Tracer.FromCtx(ctx, "fetch")
-	err := execCommand(ctx, s.masterPath, "git", "fetch", "origin", "master")
+	err := execCommand(ctx, s.MasterPath, "git", "fetch", "origin", "master")
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "fetch changes")
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "pull")
-	err = execCommand(ctx, s.masterPath, "git", "pull")
+	err = execCommand(ctx, s.MasterPath, "git", "pull")
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "pull latest")
@@ -136,10 +136,10 @@ func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repo
 	defer s.masterMutex.RUnlock()
 	span.Finish()
 	span, _ = s.Tracer.FromCtx(ctx, "copy to destination")
-	err = copy.CopyDir(s.masterPath, destination)
+	err = copy.CopyDir(s.MasterPath, destination)
 	span.Finish()
 	if err != nil {
-		return nil, errors.WithMessagef(err, "copy master from '%s'", s.masterPath)
+		return nil, errors.WithMessagef(err, "copy master from '%s'", s.MasterPath)
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "open repo")
 	r, err := git.PlainOpen(destination)
