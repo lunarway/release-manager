@@ -63,19 +63,10 @@ func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]Au
 func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.Get")
 	defer span.Finish()
-	configRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-notify")
-	if err != nil {
-		return Policies{}, err
-	}
-	defer close(ctx)
-	_, err = s.Git.Clone(ctx, configRepoPath)
-	if err != nil {
-		return Policies{}, errors.WithMessage(err, fmt.Sprintf("clone to path '%s'", configRepoPath))
-	}
 
 	// make sure policy directory exists
-	policiesDir := path.Join(configRepoPath, "policies")
-	err = os.MkdirAll(policiesDir, os.ModePerm)
+	policiesDir := path.Join(s.Git.MasterPath, "policies")
+	err := os.MkdirAll(policiesDir, os.ModePerm)
 	if err != nil {
 		return Policies{}, errors.WithMessagef(err, "make policies directory '%s'", policiesDir)
 	}
