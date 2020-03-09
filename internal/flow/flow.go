@@ -92,17 +92,6 @@ type Actor struct {
 func (s *Service) Status(ctx context.Context, namespace, service string) (StatusResponse, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.Status")
 	defer span.Finish()
-	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-status")
-	if err != nil {
-		return StatusResponse{}, err
-	}
-	defer close(ctx)
-	// find current released artifact.json for each environment
-	log.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
-	_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
-	if err != nil {
-		return StatusResponse{}, errors.WithMessage(err, fmt.Sprintf("clone into '%s'", sourceConfigRepoPath))
-	}
 
 	defaultNamespaces := namespace == ""
 	defaultNamespace := func(env string) string {
@@ -113,7 +102,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "dev")
-	devSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "dev", defaultNamespace("dev"))
+	devSpec, err := envSpec(s.Git.MasterPath, s.ArtifactFileName, service, "dev", defaultNamespace("dev"))
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -124,7 +113,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "staging")
-	stagingSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "staging", defaultNamespace("staging"))
+	stagingSpec, err := envSpec(s.Git.MasterPath, s.ArtifactFileName, service, "staging", defaultNamespace("staging"))
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -135,7 +124,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "prod")
-	prodSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, "prod", defaultNamespace("prod"))
+	prodSpec, err := envSpec(s.Git.MasterPath, s.ArtifactFileName, service, "prod", defaultNamespace("prod"))
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
