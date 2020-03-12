@@ -11,10 +11,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// Init initializes the global logger with proided level.
-//
-// Default level is zapcore.InfoLevel and non-development.
-func Init(c *Configuration) {
+// New allocates and returns a Logger instance.
+func New(c *Configuration) *Logger {
 	if c == nil {
 		c = &Configuration{}
 	}
@@ -45,7 +43,14 @@ func Init(c *Configuration) {
 		config.EncoderConfig.TimeKey = ""
 	}
 	zapLogger, _ := config.Build(zap.AddCallerSkip(2))
-	logger = &Logger{sugar: zapLogger.Sugar()}
+	return &Logger{sugar: zapLogger.Sugar()}
+}
+
+// Init initializes the global logger with provided level.
+//
+// Default level is zapcore.InfoLevel and non-development.
+func Init(c *Configuration) {
+	logger = New(c)
 }
 
 // Configuration represents a log configuration.

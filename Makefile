@@ -41,6 +41,9 @@ endif
 test:
 	go test -v ./...
 
+integration-test:
+	RELEASE_MANAGER_INTEGRATION_RABBITMQ_HOST=localhost go test -v ./...
+
 server: build_server
 	USER_MAPPINGS="kaspernissen@gmail.com=kni@lunarway.com,something@gmail.com=some@lunarway.com" HAMCTL_AUTH_TOKEN=test DAEMON_AUTH_TOKEN=test ./dist/server start --ssh-private-key ~/.ssh/github --slack-token ${SLACK_TOKEN} --grafana-api-key-dev ${GRAFANA_API_KEY} --grafana-dev-url ${GRAFANA_URL}
 
@@ -173,3 +176,7 @@ server-profile-cpu:
 jaeger:
 	open http://localhost:16686
 	docker run --rm -p 5775:5775/udp -p 6831:6831/udp -p 6832:6832/udp -p 5778:5778 -p 16686:16686 -p 14268:14268 -p 9411:9411 -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 jaegertracing/all-in-one:1.7
+
+rabbitmq:
+	@echo "Starting RabbitMQ. See admin dashboard on http://localhost:15672"
+	docker run --rm --hostname rabbitmq -p 5672:5672 -p 15672:15672 -e RABBITMQ_DEFAULT_USER=lunar -e RABBITMQ_DEFAULT_PASS=lunar rabbitmq:3-management

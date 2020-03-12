@@ -20,6 +20,7 @@ require (
 	github.com/prometheus/procfs v0.0.8 // indirect
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5
+	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71
 	github.com/stretchr/testify v1.4.0
 	github.com/uber/jaeger-client-go v2.20.1+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible
