@@ -165,7 +165,7 @@ func (s *Worker) Publish(event Publishable) error {
 		"res", map[string]interface{}{
 			"status":       "ok",
 			"responseTime": duration,
-		}).Info("[publisher] [OK] Published message successfullyt")
+		}).Info("[publisher] [OK] Published message successfully")
 	return nil
 }
 
