@@ -2,6 +2,7 @@ package rabbitmq
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
@@ -79,23 +80,33 @@ func (c *consumer) Start(logger *log.Logger, handler func([]byte) error) error {
 	}
 
 	for msg := range msgs {
-		logger := logger.WithFields(
-			"exchange", msg.Exchange,
+		logger := logger.With(
 			"routingKey", msg.RoutingKey,
 			"messageId", msg.MessageId,
-			"timestamp", msg.Timestamp,
 			"headers", fmt.Sprintf("%#v", msg.Headers),
 		)
 		logger.Infof("Received message from exchange=%s routingKey=%s messageId=%s timestamp=%s", msg.Exchange, msg.RoutingKey, msg.MessageId, msg.Timestamp)
+		now := time.Now()
 		err := handler(msg.Body)
+		duration := time.Since(now).Milliseconds()
 		if err != nil {
-			logger.WithFields("error", fmt.Sprintf("%+v", err)).Errorf("Failed to handle message: nacking and requeing: %v", err)
-			err := msg.Nack(false, true)
-			if err != nil {
-				logger.WithFields("error", fmt.Sprintf("%+v", err)).Errorf("Failed to nack message: %v", err)
-			}
+			logger.With("res", map[string]interface{}{
+				"status":       "failed",
+				"responseTime": duration,
+				"error":        fmt.Sprintf("%+v", err),
+			}).Errorf("[FAILED] Failed to handle message: nacking and requeing: %v", err)
+			// TODO: remove comments to allow for redelivery. This will put events
+			// into the unacknowledged state
+
+			// err := msg.Nack(false, true) if err != nil {
+			//  logger.WithFields("error", fmt.Sprintf("%+v", err)).Errorf("Failed to nack message: %v", err)
+			// }
 			continue
 		}
+		logger.With("res", map[string]interface{}{
+			"status":       "ok",
+			"responseTime": duration,
+		}).Info("[OK] Event handled successfully")
 		err = msg.Ack(false)
 		if err != nil {
 			logger.Errorf("Failed to ack message: %v", err)
