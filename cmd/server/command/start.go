@@ -94,7 +94,8 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				// to avoid this chicken and egg issue. It is not a real problem as the
 				// consumer is started later on and this we are sure this gets set, it
 				// just complicates the flow of the code.
-				PublishPromote: nil,
+				PublishPromote:           nil,
+				PublishReleaseArtifactID: nil,
 				// retries for comitting changes into config repo
 				// can be required for racing writes
 				MaxRetries: 3,
@@ -182,8 +183,17 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 						if err != nil {
 							return errors.WithMessage(err, "unmarshal event")
 						}
-						log.Infof("received event: %s", d)
+						log.Infof("received promote event: %s", d)
 						return flowSvc.ExecPromote(context.Background(), event)
+					},
+					flow.ReleaseArtifactIDEvent{}.Type(): func(d []byte) error {
+						var event flow.ReleaseArtifactIDEvent
+						err := json.Unmarshal(d, &event)
+						if err != nil {
+							return errors.WithMessage(err, "unmarshal event")
+						}
+						log.Infof("received release artifact id event: %s", d)
+						return flowSvc.ExecReleaseArtifactID(context.Background(), event)
 					},
 				},
 			})
@@ -191,6 +201,9 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				return err
 			}
 			flowSvc.PublishPromote = func(event flow.PromoteEvent) error {
+				return broker.Publish(event)
+			}
+			flowSvc.PublishReleaseArtifactID = func(event flow.ReleaseArtifactIDEvent) error {
 				return broker.Publish(event)
 			}
 			defer func() {
