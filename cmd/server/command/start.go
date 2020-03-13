@@ -176,7 +176,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				Prefetch:                10,
 				Logger:                  log.With("name", "rabbitmq"),
 				Handlers: map[string]func(d []byte) error{
-					(flow.PromoteEvent{}).Type(): func(d []byte) error {
+					flow.PromoteEvent{}.Type(): func(d []byte) error {
 						var event flow.PromoteEvent
 						err := json.Unmarshal(d, &event)
 						if err != nil {

@@ -17,6 +17,18 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+type testEvent struct {
+	Message string `json:"message"`
+}
+
+func (testEvent) Type() string {
+	return "test-event"
+}
+
+func (t testEvent) Body() interface{} {
+	return t
+}
+
 // TestWorker_PublishAndConsumer tests that we can publish and receive messages
 // with a worker.
 func TestWorker_PublishAndConsumer(t *testing.T) {
@@ -30,10 +42,6 @@ func TestWorker_PublishAndConsumer(t *testing.T) {
 		},
 		Development: true,
 	})
-
-	type testMessage struct {
-		Message string `json:"message"`
-	}
 
 	publishedMessages := 100
 	var receivedCount int32
@@ -53,18 +61,20 @@ func TestWorker_PublishAndConsumer(t *testing.T) {
 		RoutingKey:              "#",
 		Prefetch:                10,
 		Logger:                  logger,
-		Handler: func(d []byte) error {
-			newCount := atomic.AddInt32(&receivedCount, 1)
-			if int(newCount) == publishedMessages {
-				close(receivedAllEvents)
-			}
-			var msg testMessage
-			err := json.Unmarshal(d, &msg)
-			if err != nil {
-				return err
-			}
-			logger.Infof("Received %s", msg.Message)
-			return nil
+		Handlers: map[string]func(d []byte) error{
+			testEvent{}.Type(): func(d []byte) error {
+				newCount := atomic.AddInt32(&receivedCount, 1)
+				if int(newCount) == publishedMessages {
+					close(receivedAllEvents)
+				}
+				var msg testEvent
+				err := json.Unmarshal(d, &msg)
+				if err != nil {
+					return err
+				}
+				logger.Infof("Received %s", msg.Message)
+				return nil
+			},
 		},
 	})
 	if !assert.NoError(t, err, "unexpected init error") {
@@ -88,7 +98,7 @@ func TestWorker_PublishAndConsumer(t *testing.T) {
 		defer publisherWg.Done()
 		for i := 1; i <= publishedMessages; i++ {
 			logger.Infof("TEST: Published message %d", i)
-			err := worker.Publish(testMessage{
+			err := worker.Publish(testEvent{
 				Message: fmt.Sprintf("Message %d", i),
 			})
 			assert.NoError(t, err, "unexpected error publishing message")
