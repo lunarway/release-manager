@@ -33,6 +33,7 @@ type Service struct {
 
 	PublishPromote           func(PromoteEvent) error
 	PublishReleaseArtifactID func(ReleaseArtifactIDEvent) error
+	PublishReleaseBranch     func(ReleaseBranchEvent) error
 
 	MaxRetries int
 

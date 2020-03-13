@@ -24,8 +24,65 @@ import (
 func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, service, branch string) (string, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ReleaseBranch")
 	defer span.Finish()
-	var result string
+	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-branch")
+	if err != nil {
+		return "", err
+	}
+	defer close(ctx)
+	_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
+	if err != nil {
+		return "", errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+	}
+	// repo/artifacts/{service}/{branch}/{artifactFileName}
+	artifactSpecPath := path.Join(artifactPath(sourceConfigRepoPath, service, branch), s.ArtifactFileName)
+	artifactSpec, err := artifact.Get(artifactSpecPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
+	}
+	logger := log.WithContext(ctx)
+	logger.Infof("flow: ReleaseBranch: release branch: id '%s'", artifactSpec.ID)
+
+	// default to environment name for the namespace if none is specified
+	namespace := artifactSpec.Namespace
+	if namespace == "" {
+		namespace = environment
+	}
+
+	err = s.PublishReleaseBranch(ReleaseBranchEvent{
+		Branch:      branch,
+		Actor:       actor,
+		Environment: environment,
+		Namespace:   namespace,
+		Service:     service,
+	})
+	if err != nil {
+		return "", errors.WithMessage(err, "publish event")
+	}
+	return artifactSpec.ID, nil
+}
+
+type ReleaseBranchEvent struct {
+	Service     string `json:"service,omitempty"`
+	Environment string `json:"environment,omitempty"`
+	Namespace   string `json:"namespace,omitempty"`
+	Branch      string `json:"branch,omitempty"`
+	Actor       Actor  `json:"actor,omitempty"`
+}
+
+func (ReleaseBranchEvent) Type() string {
+	return "release.branch"
+}
+
+func (p ReleaseBranchEvent) Body() interface{} {
+	return p
+}
+
+func (s *Service) ExecReleaseBranch(ctx context.Context, event ReleaseBranchEvent) error {
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.ExecReleaseBranch")
+	defer span.Finish()
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
+		logger := log.WithContext(ctx)
+
 		sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-branch")
 		if err != nil {
 			return true, err
@@ -35,19 +92,18 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		if err != nil {
 			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 		}
+
+		service := event.Service
+		branch := event.Branch
+		environment := event.Environment
+		namespace := event.Namespace
+		actor := event.Actor
+
 		// repo/artifacts/{service}/{branch}/{artifactFileName}
 		artifactSpecPath := path.Join(artifactPath(sourceConfigRepoPath, service, branch), s.ArtifactFileName)
 		artifactSpec, err := artifact.Get(artifactSpecPath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
-		}
-		logger := log.WithContext(ctx)
-		logger.Infof("flow: ReleaseBranch: release branch: id '%s'", artifactSpec.ID)
-
-		// default to environment name for the namespace if none is specified
-		namespace := artifactSpec.Namespace
-		if namespace == "" {
-			namespace = environment
 		}
 
 		// release service to env from the artifact path
@@ -77,8 +133,10 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID)
 		err = s.Git.Commit(ctx, sourceConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
-			if err == git.ErrNothingToCommit {
-				return true, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
+			if errors.Cause(err) == git.ErrNothingToCommit {
+				logger.Infof("Environment is up to date: dropping event: %v", err)
+				// TODO: notify actor that there was nothing to commit
+				return true, nil
 			}
 			// we can see races here where other changes are committed to the master repo
 			// after we cloned. Because of this we retry on any error.
@@ -91,14 +149,13 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 			Spec:        artifactSpec,
 			Releaser:    actor.Name,
 		})
-		result = artifactID
 		logger.Infof("flow: ReleaseBranch: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
 		return true, nil
 	})
 	if err != nil {
-		return "", err
+		return err
 	}
-	return result, nil
+	return nil
 }
 
 type ReleaseArtifactIDEvent struct {

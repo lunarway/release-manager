@@ -96,6 +96,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				// just complicates the flow of the code.
 				PublishPromote:           nil,
 				PublishReleaseArtifactID: nil,
+				PublishReleaseBranch:     nil,
 				// retries for comitting changes into config repo
 				// can be required for racing writes
 				MaxRetries: 3,
@@ -195,6 +196,15 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 						log.Infof("received release artifact id event: %s", d)
 						return flowSvc.ExecReleaseArtifactID(context.Background(), event)
 					},
+					flow.ReleaseBranchEvent{}.Type(): func(d []byte) error {
+						var event flow.ReleaseBranchEvent
+						err := json.Unmarshal(d, &event)
+						if err != nil {
+							return errors.WithMessage(err, "unmarshal event")
+						}
+						log.Infof("received release branch event: %s", d)
+						return flowSvc.ExecReleaseBranch(context.Background(), event)
+					},
 				},
 			})
 			if err != nil {
@@ -204,6 +214,9 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				return broker.Publish(event)
 			}
 			flowSvc.PublishReleaseArtifactID = func(event flow.ReleaseArtifactIDEvent) error {
+				return broker.Publish(event)
+			}
+			flowSvc.PublishReleaseBranch = func(event flow.ReleaseBranchEvent) error {
 				return broker.Publish(event)
 			}
 			defer func() {
