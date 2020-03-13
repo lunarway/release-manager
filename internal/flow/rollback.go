@@ -9,6 +9,7 @@ import (
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 type RollbackResult struct {
@@ -21,73 +22,129 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.Rollback")
 	defer span.Finish()
 	var result RollbackResult
+	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-rollback-source")
+	if err != nil {
+		return RollbackResult{}, err
+	}
+	defer closeSource(ctx)
+
+	r, err := s.Git.Clone(ctx, sourceConfigRepoPath)
+	if err != nil {
+		return RollbackResult{}, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+	}
+
+	// locate current release
+	currentHash, err := s.Git.LocateServiceRelease(ctx, r, environment, service)
+	if err != nil {
+		return RollbackResult{}, errors.WithMessagef(err, "locate current release at '%s'", sourceConfigRepoPath)
+	}
+	logger := log.WithContext(ctx)
+	logger.Debugf("flow: Rollback: current release hash '%v'", currentHash)
+	err = s.Git.Checkout(ctx, sourceConfigRepoPath, currentHash)
+	if err != nil {
+		return RollbackResult{}, errors.WithMessagef(err, "checkout current release hash '%v'", currentHash)
+	}
+	// default to environment name for the namespace if none is specified
+	if namespace == "" {
+		namespace = environment
+	}
+	logger.Infof("flow: Rollback: using namespace '%s'", namespace)
+
+	currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+	if err != nil {
+		return RollbackResult{}, errors.WithMessagef(err, "get spec of current release hash '%v'", currentHash)
+	}
+
+	// if artifact has no namespace we only allow using the environment as
+	// namespace.
+	if currentSpec.Namespace == "" && namespace != environment {
+		return RollbackResult{}, errors.WithMessagef(ErrNamespaceNotAllowedByArtifact, "namespace '%s'", namespace)
+	}
+
+	// a developer can mistakenly specify the wrong namespace when promoting and
+	// we will not be able to detect it before this point.
+	// It only affects "dev" promotes as we read from the artifacts here where we
+	// can find the artifact without taking the namespace into account.
+	if currentSpec.Namespace != "" && namespace != currentSpec.Namespace {
+		logger.Infof("flow: Rollback: overwriting namespace '%s' to '%s'", namespace, currentSpec.Namespace)
+		namespace = currentSpec.Namespace
+		result.OverwritingNamespace = currentSpec.Namespace
+	}
+	// locate new release (the previous released artifact for this service)
+	newHash, err := s.Git.LocateServiceReleaseRollbackSkip(ctx, r, environment, service, 1)
+	if err != nil {
+		return RollbackResult{}, errors.WithMessagef(err, "locate previous release at '%s'", sourceConfigRepoPath)
+	}
+	logger.Debugf("flow: Rollback: new release hash '%v'", newHash)
+	err = s.Git.Checkout(ctx, sourceConfigRepoPath, newHash)
+	if err != nil {
+		return RollbackResult{}, errors.WithMessagef(err, "checkout previous release hash '%v'", newHash)
+	}
+	err = s.PublishRollback(RollbackEvent{
+		Service:     service,
+		NewHash:     newHash.String(),
+		Actor:       actor,
+		Environment: environment,
+		Namespace:   namespace,
+	})
+	if err != nil {
+		return RollbackResult{}, errors.WithMessage(err, "publish event")
+	}
+	return result, nil
+}
+
+type RollbackEvent struct {
+	Service           string `json:"service,omitempty"`
+	Environment       string `json:"environment,omitempty"`
+	Namespace         string `json:"namespace,omitempty"`
+	CurrentArtifactID string `json:"currentArtifactID,omitempty"`
+	NewHash           string `json:"newHash,omitempty"`
+	Actor             Actor  `json:"actor,omitempty"`
+}
+
+func (RollbackEvent) Type() string {
+	return "rollback"
+}
+
+func (p RollbackEvent) Body() interface{} {
+	return p
+}
+
+func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.Rollback")
+	defer span.Finish()
+
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
+		logger := log.WithContext(ctx)
+
 		sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-rollback-source")
 		if err != nil {
 			return true, err
 		}
 		defer closeSource(ctx)
+
+		_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
+		if err != nil {
+			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+		}
+
+		service := event.Service
+		environment := event.Environment
+		namespace := event.Namespace
+		currentSpecID := event.CurrentArtifactID
+		actor := event.Actor
+		newHash := plumbing.NewHash(event.NewHash)
+
+		err = s.Git.Checkout(ctx, sourceConfigRepoPath, newHash)
+		if err != nil {
+			return true, errors.WithMessagef(err, "checkout previous release hash '%v'", newHash)
+		}
+
 		destinationConfigRepoPath, closeDestination, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-rollback-destination")
 		if err != nil {
 			return true, err
 		}
 		defer closeDestination(ctx)
-		r, err := s.Git.Clone(ctx, sourceConfigRepoPath)
-		if err != nil {
-			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
-		}
-
-		// locate current release
-		currentHash, err := s.Git.LocateServiceRelease(ctx, r, environment, service)
-		if err != nil {
-			return true, errors.WithMessagef(err, "locate current release at '%s'", sourceConfigRepoPath)
-		}
-		logger := log.WithContext(ctx)
-		logger.Debugf("flow: Rollback: current release hash '%v'", currentHash)
-		err = s.Git.Checkout(ctx, sourceConfigRepoPath, currentHash)
-		if err != nil {
-			return true, errors.WithMessagef(err, "checkout current release hash '%v'", currentHash)
-		}
-		// default to environment name for the namespace if none is specified
-		if namespace == "" {
-			namespace = environment
-		}
-		logger.Infof("flow: Rollback: using namespace '%s'", namespace)
-
-		currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
-		if err != nil {
-			return true, errors.WithMessagef(err, "get spec of current release hash '%v'", currentHash)
-		}
-
-		// if artifact has no namespace we only allow using the environment as
-		// namespace.
-		if currentSpec.Namespace == "" && namespace != environment {
-			return true, errors.WithMessagef(ErrNamespaceNotAllowedByArtifact, "namespace '%s'", namespace)
-		}
-
-		// a developer can mistakenly specify the wrong namespace when promoting and
-		// we will not be able to detect it before this point.
-		// It only affects "dev" promotes as we read from the artifacts here where we
-		// can find the artifact without taking the namespace into account.
-		if currentSpec.Namespace != "" && namespace != currentSpec.Namespace {
-			logger.Infof("flow: Rollback: overwriting namespace '%s' to '%s'", namespace, currentSpec.Namespace)
-			namespace = currentSpec.Namespace
-			result.OverwritingNamespace = currentSpec.Namespace
-		}
-		// locate new release (the previous released artifact for this service)
-		newHash, err := s.Git.LocateServiceReleaseRollbackSkip(ctx, r, environment, service, 1)
-		if err != nil {
-			return true, errors.WithMessagef(err, "locate previous release at '%s'", sourceConfigRepoPath)
-		}
-		logger.Debugf("flow: Rollback: new release hash '%v'", newHash)
-		err = s.Git.Checkout(ctx, sourceConfigRepoPath, newHash)
-		if err != nil {
-			return true, errors.WithMessagef(err, "checkout previous release hash '%v'", newHash)
-		}
-		newSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
-		if err != nil {
-			return true, errors.WithMessagef(err, "get spec of previous release hash '%v'", newHash)
-		}
 
 		// copy current release artifacts into env
 		_, err = s.Git.Clone(ctx, destinationConfigRepoPath)
@@ -113,13 +170,20 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}
 
+		newSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+		if err != nil {
+			return true, errors.WithMessagef(err, "get spec of previous release hash '%v'", newHash)
+		}
+
 		authorName := newSpec.Application.AuthorName
 		authorEmail := newSpec.Application.AuthorEmail
-		releaseMessage := git.RollbackCommitMessage(environment, service, currentSpec.ID, newSpec.ID)
+		releaseMessage := git.RollbackCommitMessage(environment, service, currentSpecID, newSpec.ID)
 		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
-			if err == git.ErrNothingToCommit {
-				return true, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
+			if errors.Cause(err) == git.ErrNothingToCommit {
+				logger.Infof("Environment is up to date: dropping event: %v", err)
+				// TODO: notify actor that there was nothing to commit
+				return true, nil
 			}
 			// we can see races here where other changes are committed to the master repo
 			// after we cloned. Because of this we retry on any error.
@@ -133,12 +197,13 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 			Releaser:    actor.Name,
 		})
 		logger.Infof("flow: Rollback: rollback committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
-		result.Previous = currentSpec.ID
-		result.New = newSpec.ID
+		// TODO: notify user of the result of this rollback
+		// result.Previous = currentSpecID
+		// result.New = newSpec.ID
 		return true, nil
 	})
 	if err != nil {
-		return RollbackResult{}, err
+		return err
 	}
-	return result, nil
+	return nil
 }

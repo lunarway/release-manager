@@ -32,6 +32,7 @@ type Service struct {
 	Tracer           tracing.Tracer
 
 	PublishPromote           func(PromoteEvent) error
+	PublishRollback          func(RollbackEvent) error
 	PublishReleaseArtifactID func(ReleaseArtifactIDEvent) error
 	PublishReleaseBranch     func(ReleaseBranchEvent) error
 

@@ -97,6 +97,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				PublishPromote:           nil,
 				PublishReleaseArtifactID: nil,
 				PublishReleaseBranch:     nil,
+				PublishRollback:          nil,
 				// retries for comitting changes into config repo
 				// can be required for racing writes
 				MaxRetries: 3,
@@ -205,6 +206,15 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 						log.Infof("received release branch event: %s", d)
 						return flowSvc.ExecReleaseBranch(context.Background(), event)
 					},
+					flow.RollbackEvent{}.Type(): func(d []byte) error {
+						var event flow.RollbackEvent
+						err := json.Unmarshal(d, &event)
+						if err != nil {
+							return errors.WithMessage(err, "unmarshal event")
+						}
+						log.Infof("received rollback event: %s", d)
+						return flowSvc.ExecRollback(context.Background(), event)
+					},
 				},
 			})
 			if err != nil {
@@ -217,6 +227,9 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				return broker.Publish(event)
 			}
 			flowSvc.PublishReleaseBranch = func(event flow.ReleaseBranchEvent) error {
+				return broker.Publish(event)
+			}
+			flowSvc.PublishRollback = func(event flow.RollbackEvent) error {
 				return broker.Publish(event)
 			}
 			defer func() {
