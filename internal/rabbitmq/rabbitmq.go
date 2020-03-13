@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
@@ -132,7 +133,33 @@ func (s *Worker) StartConsumer() error {
 
 // Publish publishes a message on a configured RabbitMQ exchange.
 func (s *Worker) Publish(message interface{}) error {
-	return s.currentPublisher.Publish("random-message-id", message)
+	s.config.Logger.Debug("Publishing message")
+	now := time.Now()
+	uuid, err := uuid.NewRandom()
+	if err != nil {
+		s.config.Logger.Errorf("Failed to create a random message ID. Continue execution: %v", err)
+	}
+	err = s.currentPublisher.Publish(uuid.String(), message)
+	duration := time.Since(now).Milliseconds()
+	if err != nil {
+		s.config.Logger.With(
+			"messageId", uuid.String(),
+			"res", map[string]interface{}{
+				"status":       "failed",
+				"responseTime": duration,
+				"error":        err,
+			}).Errorf("[publisher] [FAILED] Failed to publish message: %v", err)
+		return err
+	}
+	s.config.Logger.With(
+		"messageId", uuid.String(),
+		// TODO: get correlation ID here
+		"correlationId", "",
+		"res", map[string]interface{}{
+			"status":       "ok",
+			"responseTime": duration,
+		}).Info("[publisher] [OK] Published message successfullyt")
+	return nil
 }
 
 func (s *Worker) connect() error {
