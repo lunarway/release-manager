@@ -65,7 +65,7 @@ func (c *consumer) Close() error {
 	return nil
 }
 
-func (c *consumer) Start(logger *log.Logger, handler func([]byte) error) error {
+func (c *consumer) Start(logger *log.Logger, handlers map[string]func([]byte) error) error {
 	msgs, err := c.channel.Consume(
 		c.queue.Name,      // queue
 		"release-manager", // consumer
@@ -83,10 +83,25 @@ func (c *consumer) Start(logger *log.Logger, handler func([]byte) error) error {
 		logger := logger.With(
 			"routingKey", msg.RoutingKey,
 			"messageId", msg.MessageId,
+			"eventType", msg.Type,
+			"correlationId", msg.CorrelationId,
 			"headers", fmt.Sprintf("%#v", msg.Headers),
 		)
 		logger.Infof("Received message from exchange=%s routingKey=%s messageId=%s timestamp=%s", msg.Exchange, msg.RoutingKey, msg.MessageId, msg.Timestamp)
 		now := time.Now()
+
+		handler, ok := handlers[msg.Type]
+		if !ok {
+			logger.With("res", map[string]interface{}{
+				"status": "failed",
+				"error":  "unprocessable",
+			}).Errorf("[consumer] [UNPROCESSABLE] Failed to handle message: no handler registered for event type '%s': dropping it", msg.Type)
+			err := msg.Nack(false, false)
+			if err != nil {
+				logger.Errorf("Failed to nack message: %v", err)
+			}
+			continue
+		}
 		err := handler(msg.Body)
 		duration := time.Since(now).Milliseconds()
 		if err != nil {
@@ -94,7 +109,7 @@ func (c *consumer) Start(logger *log.Logger, handler func([]byte) error) error {
 				"status":       "failed",
 				"responseTime": duration,
 				"error":        fmt.Sprintf("%+v", err),
-			}).Errorf("[FAILED] Failed to handle message: nacking and requeing: %v", err)
+			}).Errorf("[consumer] [FAILED] Failed to handle message: nacking and requeing: %v", err)
 			// TODO: remove comments to allow for redelivery. This will put events
 			// into the unacknowledged state
 

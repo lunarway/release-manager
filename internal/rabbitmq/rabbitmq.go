@@ -45,7 +45,7 @@ type Config struct {
 	Prefetch                int
 	MaxReconnectionAttempts int
 	ReconnectionTimeout     time.Duration
-	Handler                 func([]byte) error
+	Handlers                map[string]func([]byte) error
 	AMQPConfig              *amqp.Config
 	Logger                  *log.Logger
 }
@@ -123,7 +123,7 @@ func (s *Worker) StartConsumer() error {
 		// worker has a new connection that can be used to consume messages with the handler
 		case conn := <-s.currentConsumer:
 			// this call is blocking as long as the connection is available.
-			err := conn.Start(s.config.Logger, s.config.Handler)
+			err := conn.Start(s.config.Logger, s.config.Handlers)
 			if err != nil {
 				return err
 			}
@@ -131,19 +131,25 @@ func (s *Worker) StartConsumer() error {
 	}
 }
 
+type Publishable interface {
+	Type() string
+	Body() interface{}
+}
+
 // Publish publishes a message on a configured RabbitMQ exchange.
-func (s *Worker) Publish(message interface{}) error {
-	s.config.Logger.Debug("Publishing message")
+func (s *Worker) Publish(event Publishable) error {
+	s.config.Logger.WithFields("body", event.Body()).Debug("Publishing message")
 	now := time.Now()
 	uuid, err := uuid.NewRandom()
 	if err != nil {
 		s.config.Logger.Errorf("Failed to create a random message ID. Continue execution: %v", err)
 	}
-	err = s.currentPublisher.Publish(uuid.String(), message)
+	err = s.currentPublisher.Publish(event.Type(), uuid.String(), event.Body())
 	duration := time.Since(now).Milliseconds()
 	if err != nil {
 		s.config.Logger.With(
 			"messageId", uuid.String(),
+			"eventType", event.Type(),
 			"res", map[string]interface{}{
 				"status":       "failed",
 				"responseTime": duration,
@@ -153,6 +159,7 @@ func (s *Worker) Publish(message interface{}) error {
 	}
 	s.config.Logger.With(
 		"messageId", uuid.String(),
+		"eventType", event.Type(),
 		// TODO: get correlation ID here
 		"correlationId", "",
 		"res", map[string]interface{}{

@@ -28,15 +28,19 @@ func newPublisher(amqpConn *amqp.Connection, exchangeName string) (*publisher, e
 	}, nil
 }
 
-func (p *publisher) Publish(messageID string, message interface{}) error {
+func (p *publisher) Publish(eventType string, messageID string, message interface{}) error {
 	data, err := json.Marshal(message)
 	if err != nil {
 		return errors.WithMessage(err, "marshal message")
 	}
 	pub := amqp.Publishing{
 		ContentType: "application/json",
+		Type:        eventType,
 		Body:        data,
 		MessageId:   messageID,
+		// TODO: add the request ID here for mapping logs etc. all the way through a
+		// request.
+		CorrelationId: "",
 	}
 	// TODO: add publisher confirms to the channel and wait for acknowledgement
 	// before returning

@@ -30,6 +30,7 @@ type Service struct {
 	Slack            *slack.Client
 	Git              *git.Service
 	Tracer           tracing.Tracer
+	PublishPromote   func(PromoteEvent) error
 
 	MaxRetries int
 

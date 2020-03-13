@@ -2,11 +2,13 @@ package command
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/lunarway/release-manager/cmd/server/http"
 	"github.com/lunarway/release-manager/internal/flow"
@@ -15,6 +17,7 @@ import (
 	"github.com/lunarway/release-manager/internal/grafana"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
+	"github.com/lunarway/release-manager/internal/rabbitmq"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
@@ -87,6 +90,11 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				Slack:            slackClient,
 				Git:              &gitSvc,
 				Tracer:           tracer,
+				// TODO: figure out a better way of splitting the consumer and publisher
+				// to avoid this chicken and egg issue. It is not a real problem as the
+				// consumer is started later on and this we are sure this gets set, it
+				// just complicates the flow of the code.
+				PublishPromote: nil,
 				// retries for comitting changes into config repo
 				// can be required for racing writes
 				MaxRetries: 3,
@@ -149,6 +157,48 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 					logger.Infof("Release [%s]: %s (%s) by %s, author %s", opts.Environment, opts.Service, opts.Spec.ID, opts.Releaser, opts.Spec.Application.AuthorName)
 				},
 			}
+
+			exchange := "release-manager"
+			queue := "release-manager"
+			broker, err := rabbitmq.NewWorker(rabbitmq.Config{
+				Connection: rabbitmq.ConnectionConfig{
+					Host:        "localhost",
+					User:        "lunar",
+					Password:    "lunar",
+					VirtualHost: "/",
+					Port:        5672,
+				},
+				MaxReconnectionAttempts: 5,
+				ReconnectionTimeout:     1 * time.Second,
+				Exchange:                exchange,
+				Queue:                   queue,
+				RoutingKey:              "#",
+				Prefetch:                10,
+				Logger:                  log.With("name", "rabbitmq"),
+				Handlers: map[string]func(d []byte) error{
+					(flow.PromoteEvent{}).Type(): func(d []byte) error {
+						var event flow.PromoteEvent
+						err := json.Unmarshal(d, &event)
+						if err != nil {
+							return errors.WithMessage(err, "unmarshal event")
+						}
+						log.Infof("received event: %s", d)
+						return flowSvc.ExecPromote(context.Background(), event)
+					},
+				},
+			})
+			if err != nil {
+				return err
+			}
+			flowSvc.PublishPromote = func(event flow.PromoteEvent) error {
+				return broker.Publish(event)
+			}
+			defer func() {
+				err := broker.Close()
+				if err != nil {
+					log.Errorf("Failed to close broker: %v", err)
+				}
+			}()
 			policySvc := policy.Service{
 				Tracer: tracer,
 				Git:    &gitSvc,
@@ -162,6 +212,10 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 					done <- errors.WithMessage(err, "new http server")
 					return
 				}
+			}()
+			go func() {
+				err := broker.StartConsumer()
+				done <- errors.WithMessage(err, "rabbitmq broker")
 			}()
 
 			sigs := make(chan os.Signal, 1)
