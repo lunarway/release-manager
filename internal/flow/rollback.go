@@ -111,7 +111,7 @@ func (p RollbackEvent) Body() interface{} {
 }
 
 func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {
-	span, ctx := s.Tracer.FromCtx(ctx, "flow.Rollback")
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.ExecRollback")
 	defer span.Finish()
 
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
