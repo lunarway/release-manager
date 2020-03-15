@@ -77,8 +77,8 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		}
 
 		// TODO: we don't know if there is any changes to commit at this point, but
-		// it might be nice to be able to answer that directly. A git status after a
-		// copy might be ok?
+		// it might be nice to be able to answer that directly. we could check the
+		// current artifact ID in the environment right away?
 
 		err = s.PublishPromote(ctx, PromoteEvent{
 			Hash:        hash.String(),
