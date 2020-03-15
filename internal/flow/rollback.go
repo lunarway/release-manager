@@ -80,7 +80,7 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 	if err != nil {
 		return RollbackResult{}, errors.WithMessagef(err, "checkout previous release hash '%v'", newHash)
 	}
-	err = s.PublishRollback(RollbackEvent{
+	err = s.PublishRollback(ctx, RollbackEvent{
 		Service:     service,
 		NewHash:     newHash.String(),
 		Actor:       actor,

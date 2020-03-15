@@ -1,6 +1,7 @@
 package rabbitmq
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -98,7 +99,7 @@ func TestWorker_PublishAndConsumer(t *testing.T) {
 		defer publisherWg.Done()
 		for i := 1; i <= publishedMessages; i++ {
 			logger.Infof("TEST: Published message %d", i)
-			err := worker.Publish(testEvent{
+			err := worker.Publish(context.Background(), testEvent{
 				Message: fmt.Sprintf("Message %d", i),
 			})
 			assert.NoError(t, err, "unexpected error publishing message")

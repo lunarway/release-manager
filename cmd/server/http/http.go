@@ -97,7 +97,9 @@ func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
 		span, ctx := tracer.FromCtxf(ctx, "http %s %s", r.Method, r.URL.Path)
 		defer span.Finish()
 		requestID := getRequestID(r)
-		*r = *r.WithContext(log.AddContext(ctx, "requestId", requestID))
+		ctx = tracing.WithRequestID(ctx, requestID)
+		ctx = log.AddContext(ctx, "requestId", requestID)
+		*r = *r.WithContext(ctx)
 		statusWriter := &statusCodeResponseWriter{w, http.StatusOK}
 		h(statusWriter, r)
 		span.SetTag("request.id", requestID)

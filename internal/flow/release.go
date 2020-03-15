@@ -48,7 +48,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		namespace = environment
 	}
 
-	err = s.PublishReleaseBranch(ReleaseBranchEvent{
+	err = s.PublishReleaseBranch(ctx, ReleaseBranchEvent{
 		Branch:      branch,
 		Actor:       actor,
 		Environment: environment,
@@ -227,7 +227,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		namespace = environment
 	}
 
-	err = s.PublishReleaseArtifactID(ReleaseArtifactIDEvent{
+	err = s.PublishReleaseArtifactID(ctx, ReleaseArtifactIDEvent{
 		ArtifactID:  artifactID,
 		Actor:       actor,
 		Branch:      branch,

@@ -220,17 +220,17 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 			if err != nil {
 				return err
 			}
-			flowSvc.PublishPromote = func(event flow.PromoteEvent) error {
-				return broker.Publish(event)
+			flowSvc.PublishPromote = func(ctx context.Context, event flow.PromoteEvent) error {
+				return broker.Publish(ctx, event)
 			}
-			flowSvc.PublishReleaseArtifactID = func(event flow.ReleaseArtifactIDEvent) error {
-				return broker.Publish(event)
+			flowSvc.PublishReleaseArtifactID = func(ctx context.Context, event flow.ReleaseArtifactIDEvent) error {
+				return broker.Publish(ctx, event)
 			}
-			flowSvc.PublishReleaseBranch = func(event flow.ReleaseBranchEvent) error {
-				return broker.Publish(event)
+			flowSvc.PublishReleaseBranch = func(ctx context.Context, event flow.ReleaseBranchEvent) error {
+				return broker.Publish(ctx, event)
 			}
-			flowSvc.PublishRollback = func(event flow.RollbackEvent) error {
-				return broker.Publish(event)
+			flowSvc.PublishRollback = func(ctx context.Context, event flow.RollbackEvent) error {
+				return broker.Publish(ctx, event)
 			}
 			defer func() {
 				err := broker.Close()

@@ -1,6 +1,7 @@
 package rabbitmq
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -24,7 +25,7 @@ type Worker struct {
 	// currentConsumer provides an active connection to consume from.
 	currentConsumer chan *consumer
 	// currentConsumer provides an active connection to publish on.
-	currentPublisher *publisher
+	currentPublisher publisher
 	// shutdown is used to terminate the different Go routines in the worker. It
 	// will be closed as a signal to stop.
 	shutdown chan struct{}
@@ -35,6 +36,11 @@ type Worker struct {
 	// connection and that the worker should stop consuming and publishing
 	// messages.
 	fatalError chan error
+}
+
+type publisher interface {
+	Publish(ctx context.Context, eventType, messageID string, message interface{}) error
+	Close() error
 }
 
 type Config struct {
@@ -137,35 +143,15 @@ type Publishable interface {
 }
 
 // Publish publishes a message on a configured RabbitMQ exchange.
-func (s *Worker) Publish(event Publishable) error {
-	s.config.Logger.WithFields("body", event.Body()).Debug("Publishing message")
-	now := time.Now()
+func (s *Worker) Publish(ctx context.Context, event Publishable) error {
 	uuid, err := uuid.NewRandom()
 	if err != nil {
 		s.config.Logger.Errorf("Failed to create a random message ID. Continue execution: %v", err)
 	}
-	err = s.currentPublisher.Publish(event.Type(), uuid.String(), event.Body())
-	duration := time.Since(now).Milliseconds()
+	err = s.currentPublisher.Publish(ctx, event.Type(), uuid.String(), event.Body())
 	if err != nil {
-		s.config.Logger.With(
-			"messageId", uuid.String(),
-			"eventType", event.Type(),
-			"res", map[string]interface{}{
-				"status":       "failed",
-				"responseTime": duration,
-				"error":        err,
-			}).Errorf("[publisher] [FAILED] Failed to publish message: %v", err)
 		return err
 	}
-	s.config.Logger.With(
-		"messageId", uuid.String(),
-		"eventType", event.Type(),
-		// TODO: get correlation ID here
-		"correlationId", "",
-		"res", map[string]interface{}{
-			"status":       "ok",
-			"responseTime": duration,
-		}).Info("[publisher] [OK] Published message successfully")
 	return nil
 }
 
@@ -196,9 +182,13 @@ func (s *Worker) connect() error {
 		return errors.WithMessage(err, "create consumer")
 	}
 
-	s.currentPublisher, err = newPublisher(amqpConn, c.Exchange)
+	rawPublisher, err := newPublisher(amqpConn, c.Exchange)
 	if err != nil {
 		return errors.WithMessage(err, "create publisher")
+	}
+	s.currentPublisher = &loggingPublisher{
+		publisher: rawPublisher,
+		logger:    c.Logger,
 	}
 
 	// listen for connection failures on the specific connection along with

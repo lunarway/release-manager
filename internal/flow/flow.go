@@ -31,10 +31,10 @@ type Service struct {
 	Git              *git.Service
 	Tracer           tracing.Tracer
 
-	PublishPromote           func(PromoteEvent) error
-	PublishRollback          func(RollbackEvent) error
-	PublishReleaseArtifactID func(ReleaseArtifactIDEvent) error
-	PublishReleaseBranch     func(ReleaseBranchEvent) error
+	PublishPromote           func(context.Context, PromoteEvent) error
+	PublishRollback          func(context.Context, RollbackEvent) error
+	PublishReleaseArtifactID func(context.Context, ReleaseArtifactIDEvent) error
+	PublishReleaseBranch     func(context.Context, ReleaseBranchEvent) error
 
 	MaxRetries int
 

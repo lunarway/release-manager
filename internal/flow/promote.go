@@ -80,7 +80,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		// it might be nice to be able to answer that directly. A git status after a
 		// copy might be ok?
 
-		err = s.PublishPromote(PromoteEvent{
+		err = s.PublishPromote(ctx, PromoteEvent{
 			Hash:        hash.String(),
 			Service:     service,
 			Environment: environment,
