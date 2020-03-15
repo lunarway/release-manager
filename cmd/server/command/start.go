@@ -17,7 +17,6 @@ import (
 	"github.com/lunarway/release-manager/internal/grafana"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
-	"github.com/lunarway/release-manager/internal/rabbitmq"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
