@@ -141,7 +141,7 @@ func (p PromoteEvent) Body() interface{} {
 // Copy artifacts from the current release into the new environment and commit
 // the changes
 func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
-	span, ctx := s.Tracer.FromCtx(ctx, "flow.Promote")
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.ExecPromote")
 	defer span.Finish()
 	var result PromoteResult
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
