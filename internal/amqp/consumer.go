@@ -87,7 +87,7 @@ func (c *consumer) Start(logger *log.Logger, handlers map[string]func([]byte) er
 			"correlationId", msg.CorrelationId,
 			"headers", fmt.Sprintf("%#v", msg.Headers),
 		)
-		logger.Infof("Received message from exchange=%s routingKey=%s messageId=%s correlationId=%s timestamp=%s", msg.Exchange, msg.RoutingKey, msg.MessageId, msg.CorrelationId, msg.Timestamp)
+		logger.Infof("Received message type=%s from exchange=%s routingKey=%s messageId=%s correlationId=%s timestamp=%s", msg.Type, msg.Exchange, msg.RoutingKey, msg.MessageId, msg.CorrelationId, msg.Timestamp)
 		now := time.Now()
 
 		handler, ok := handlers[msg.Type]

@@ -196,7 +196,6 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 						if err != nil {
 							return errors.WithMessage(err, "unmarshal event")
 						}
-						log.Infof("received promote event: %s", d)
 						return flowSvc.ExecPromote(context.Background(), event)
 					},
 					flow.ReleaseArtifactIDEvent{}.Type(): func(d []byte) error {
@@ -205,7 +204,6 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 						if err != nil {
 							return errors.WithMessage(err, "unmarshal event")
 						}
-						log.Infof("received release artifact id event: %s", d)
 						return flowSvc.ExecReleaseArtifactID(context.Background(), event)
 					},
 					flow.ReleaseBranchEvent{}.Type(): func(d []byte) error {
@@ -214,7 +212,6 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 						if err != nil {
 							return errors.WithMessage(err, "unmarshal event")
 						}
-						log.Infof("received release branch event: %s", d)
 						return flowSvc.ExecReleaseBranch(context.Background(), event)
 					},
 					flow.RollbackEvent{}.Type(): func(d []byte) error {
@@ -223,7 +220,6 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 						if err != nil {
 							return errors.WithMessage(err, "unmarshal event")
 						}
-						log.Infof("received rollback event: %s", d)
 						return flowSvc.ExecRollback(context.Background(), event)
 					},
 				},
