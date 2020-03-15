@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/cmd/server/http"
+	"github.com/lunarway/release-manager/internal/amqp"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/github"
@@ -32,13 +33,26 @@ type grafanaOptions struct {
 	ProdURL       string
 }
 
+type amqpOptions struct {
+	Host                    string
+	User                    string
+	Password                string
+	Port                    int
+	VirtualHost             string
+	MaxReconnectionAttempts int
+	ReconnectionTimeout     time.Duration
+	Prefetch                int
+	Exchange                string
+	Queue                   string
+}
+
 type configRepoOptions struct {
 	ConfigRepo        string
 	ArtifactFileName  string
 	SSHPrivateKeyPath string
 }
 
-func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToken *string, configRepoOpts *configRepoOptions, httpOpts *http.Options, userMappings *map[string]string) *cobra.Command {
+func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToken *string, configRepoOpts *configRepoOptions, httpOpts *http.Options, amqpOptions *amqpOptions, userMappings *map[string]string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-manager",
@@ -160,22 +174,20 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				},
 			}
 
-			exchange := "release-manager"
-			queue := "release-manager"
 			broker, err := amqp.NewWorker(amqp.Config{
 				Connection: amqp.ConnectionConfig{
-					Host:        "localhost",
-					User:        "lunar",
-					Password:    "lunar",
-					VirtualHost: "/",
-					Port:        5672,
+					Host:        amqpOptions.Host,
+					User:        amqpOptions.User,
+					Password:    amqpOptions.Password,
+					VirtualHost: amqpOptions.VirtualHost,
+					Port:        amqpOptions.Port,
 				},
-				MaxReconnectionAttempts: 5,
-				ReconnectionTimeout:     1 * time.Second,
-				Exchange:                exchange,
-				Queue:                   queue,
+				MaxReconnectionAttempts: amqpOptions.MaxReconnectionAttempts,
+				ReconnectionTimeout:     amqpOptions.ReconnectionTimeout,
+				Exchange:                amqpOptions.Exchange,
+				Queue:                   amqpOptions.Queue,
 				RoutingKey:              "#",
-				Prefetch:                10,
+				Prefetch:                amqpOptions.Prefetch,
 				Logger:                  log.With("system", "amqp"),
 				Handlers: map[string]func(d []byte) error{
 					flow.PromoteEvent{}.Type(): func(d []byte) error {

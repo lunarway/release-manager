@@ -45,8 +45,25 @@ integration-test: rabbitmq-background
 	@echo "Running integration tests against RabbitMQ on localhost"
 	RELEASE_MANAGER_INTEGRATION_RABBITMQ_HOST=localhost go test -count=1 -v ./...
 
+AUTH_TOKEN=test
+SSH_PRIVATE_KEY=~/.ssh/github
+CONFIG_REPO=git@github.com:lunarway/release-manager-test-config-repo.git
+AMQP_USER=lunar
+AMQP_PASSWORD=lunar
+
 server: build_server
-	USER_MAPPINGS="kaspernissen@gmail.com=kni@lunarway.com,something@gmail.com=some@lunarway.com" HAMCTL_AUTH_TOKEN=test DAEMON_AUTH_TOKEN=test ./dist/server start --ssh-private-key ~/.ssh/github --slack-token ${SLACK_TOKEN} --grafana-api-key-dev ${GRAFANA_API_KEY} --grafana-dev-url ${GRAFANA_URL}
+	./dist/server start \
+		--ssh-private-key ${SSH_PRIVATE_KEY} \
+		--slack-token ${SLACK_TOKEN} \
+		--grafana-api-key-dev ${GRAFANA_API_KEY} \
+		--grafana-dev-url ${GRAFANA_URL} \
+		--hamctl-auth-token ${AUTH_TOKEN} \
+		--daemon-auth-token ${AUTH_TOKEN} \
+		--log.level debug \
+		--log.development t \
+		--config-repo ${CONFIG_REPO} \
+		--amqp-user ${AMQP_USER} \
+		--amqp-password ${AMQP_PASSWORD}
 
 artifact-init:
 	USER_MAPPINGS="kaspernissen@gmail.com=kni@lunarway.com,something@gmail.com=some@lunarway.com" ./dist/artifact init --slack-token ${SLACK_TOKEN} --artifact-id "master-deed62270f-854d930ecb" --name "lunar-way-product-service" --service "product" --git-author-name "Kasper Nissen" --git-author-email "kaspernissen@gmail.com" --git-message "This is a test message" --git-committer-name "Bjørn Sørensen" --git-committer-email "test@gmail.com" --git-sha deed62270f24f1ca8cf2c19b505b2c88036e1b1c --git-branch master --url "https://bitbucket.org/LunarWay/lunar-way-product-service/commits/a05e314599a7c202724d46a009fcc0f493bce035" --ci-job-url "https://jenkins.dev.lunarway.com/job/bitbucket/job/lunar-way-product-service/job/master/170/display/redirect"

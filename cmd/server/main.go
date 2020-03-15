@@ -14,6 +14,9 @@ var (
 )
 
 func main() {
+	var logConfiguration *log.Configuration
+	logConfiguration.ParseFromEnvironmnet()
+	log.Init(logConfiguration)
 	c, err := command.NewCommand()
 	if err != nil {
 		log.Errorf("Error: %v", err)
