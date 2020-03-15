@@ -73,7 +73,7 @@ func (c *ConnectionConfig) String() string {
 }
 
 // NewWorker allocates and returns a Worker consuming and publising messages on
-// a RabbitMQ exchange.
+// an AMQP exchange.
 func NewWorker(c Config) (*Worker, error) {
 	worker := Worker{
 		shutdown:         make(chan struct{}),
@@ -110,7 +110,7 @@ func (s *Worker) Close() error {
 
 // ErrWorkerClosed is returned by the Consumer's Start method after a call to
 // Close.
-var ErrWorkerClosed = errors.New("rabbitmq: Worker closed")
+var ErrWorkerClosed = errors.New("amqp: Worker closed")
 
 // StartConsumer starts the consumer on the worker. The method is blocking and
 // will only return if the worker is stopped with Close or the connection is
@@ -142,7 +142,7 @@ type Publishable interface {
 	Body() interface{}
 }
 
-// Publish publishes a message on a configured RabbitMQ exchange.
+// Publish publishes a message on a configured AMQP exchange.
 func (s *Worker) Publish(ctx context.Context, event Publishable) error {
 	uuid, err := uuid.NewRandom()
 	if err != nil {
@@ -229,7 +229,7 @@ func (s *Worker) connect() error {
 		case s.currentConsumer <- consumer:
 		}
 	}()
-	c.Logger.Info("Connected to RabbitMQ successfully")
+	c.Logger.Info("Connected to AMQP successfully")
 	return nil
 }
 
@@ -252,20 +252,20 @@ func (s *Worker) reconnector() {
 	}
 }
 
-// reconnect attempts to reconnec to RabbitMQ within configured
+// reconnect attempts to reconnect to AMQP within configured
 // maxReconnectionCount. If unsuccessful fatalError is triggered and false is
 // returned. If successful true is returned and connection is reestablished.
 func (s *Worker) reconnect(reason *amqp.Error) bool {
 	var reconnectCount int
 	for reconnectCount = 0; reconnectCount < s.config.MaxReconnectionAttempts; reconnectCount++ {
-		s.config.Logger.Infof("Reconnecting to RabbitMQ after connection closed: attempt %d of %d: %v", reconnectCount+1, s.config.MaxReconnectionAttempts, reason)
+		s.config.Logger.Infof("Reconnecting to AMQP after connection closed: attempt %d of %d: %v", reconnectCount+1, s.config.MaxReconnectionAttempts, reason)
 		err := s.connect()
 		if err != nil {
-			s.config.Logger.Infof("Failed to reconnect to RabbitMQ: %v", err)
+			s.config.Logger.Infof("Failed to reconnect to AMQP: %v", err)
 			time.Sleep(s.config.ReconnectionTimeout)
 			continue
 		}
-		s.config.Logger.Info("Successfully reconnected to RabbitMQ")
+		s.config.Logger.Info("Successfully reconnected to AMQP")
 		return true
 	}
 	reason.Reason = fmt.Sprintf("Tried to reconnect %d times. Giving up: %s", reconnectCount, reason.Reason)

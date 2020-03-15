@@ -162,8 +162,8 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 
 			exchange := "release-manager"
 			queue := "release-manager"
-			broker, err := rabbitmq.NewWorker(rabbitmq.Config{
-				Connection: rabbitmq.ConnectionConfig{
+			broker, err := amqp.NewWorker(amqp.Config{
+				Connection: amqp.ConnectionConfig{
 					Host:        "localhost",
 					User:        "lunar",
 					Password:    "lunar",
@@ -176,7 +176,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				Queue:                   queue,
 				RoutingKey:              "#",
 				Prefetch:                10,
-				Logger:                  log.With("name", "rabbitmq"),
+				Logger:                  log.With("system", "amqp"),
 				Handlers: map[string]func(d []byte) error{
 					flow.PromoteEvent{}.Type(): func(d []byte) error {
 						var event flow.PromoteEvent
@@ -253,7 +253,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 			}()
 			go func() {
 				err := broker.StartConsumer()
-				done <- errors.WithMessage(err, "rabbitmq broker")
+				done <- errors.WithMessage(err, "amqp broker")
 			}()
 
 			sigs := make(chan os.Signal, 1)
