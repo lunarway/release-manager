@@ -252,7 +252,7 @@ func (s *Worker) reconnector() {
 	}
 }
 
-// reconnect attempts to reconnecto to RabbitMQ within configured
+// reconnect attempts to reconnec to RabbitMQ within configured
 // maxReconnectionCount. If unsuccessful fatalError is triggered and false is
 // returned. If successful true is returned and connection is reestablished.
 func (s *Worker) reconnect(reason *amqp.Error) bool {
