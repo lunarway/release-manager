@@ -50,6 +50,9 @@ SSH_PRIVATE_KEY=~/.ssh/github
 CONFIG_REPO=git@github.com:lunarway/release-manager-test-config-repo.git
 AMQP_USER=lunar
 AMQP_PASSWORD=lunar
+GRAFANA_URL=localhost
+GRAFANA_API_KEY=grafana-api-key
+SLACK_TOKEN=slack-token
 
 server: build_server
 	./dist/server start \
