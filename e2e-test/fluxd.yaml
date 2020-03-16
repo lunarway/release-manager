@@ -154,3 +154,4 @@ spec:
             - --listen-metrics=:3031
             - --sync-garbage-collection=true
             - --registry-disable-scanning
+            - --k8s-secret-name=flux-git-deploy
