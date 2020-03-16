@@ -205,9 +205,6 @@ func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {
 			Releaser:    actor.Name,
 		})
 		logger.Infof("flow: Rollback: rollback committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
-		// TODO: notify user of the result of this rollback
-		// result.Previous = currentSpecID
-		// result.New = newSpec.ID
 		return true, nil
 	})
 	if err != nil {
