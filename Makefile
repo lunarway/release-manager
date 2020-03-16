@@ -203,7 +203,7 @@ e2e-setup-fluxd:
 	kubectl apply -f e2e-test/fluxd.yaml
 
 e2e-run-local-daemon:
-	go run ./cmd/daemon start --environment local --release-manager-url http://localhost:10080
+	go run ./cmd/daemon start --environment local --kubeconfig $(KUBECONFIG) --release-manager-url http://localhost:10080
 
 e2e-run-local-manager:
 	go run ./cmd/server start --ssh-private-key ~/.ssh/id_rsa --config-repo file://$(current_dir)e2e-test/source-git-repo --http-port 10080
