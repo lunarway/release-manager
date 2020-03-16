@@ -8,3 +8,4 @@ artifact-linux-amd64
 message.json
 artifact.json
 /profiles/
+e2e-test/source-git-repo/

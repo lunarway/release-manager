@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/lunarway/release-manager/internal/log"
@@ -28,16 +27,8 @@ var (
 	ErrWatcherClosed = errors.New("channel closed")
 )
 
-func NewClient() (*Client, error) {
-	var config *rest.Config
-	var err error
-	kubeconfig := os.Getenv("KUBECONFIG")
-	if kubeconfig == "" {
-		config, err = rest.InClusterConfig()
-	} else {
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
-	}
-
+func NewClient(kubeConfigPath string) (*Client, error) {
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
 		return nil, err
 	}

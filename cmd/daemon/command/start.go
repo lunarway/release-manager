@@ -16,7 +16,7 @@ import (
 )
 
 func StartDaemon() *cobra.Command {
-	var authToken, releaseManagerUrl, environment string
+	var authToken, releaseManagerUrl, environment, kubeConfigPath string
 	var logConfiguration *log.Configuration
 	var command = &cobra.Command{
 		Use:   "start",
@@ -25,7 +25,7 @@ func StartDaemon() *cobra.Command {
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 
-			kubectl, err := kubernetes.NewClient()
+			kubectl, err := kubernetes.NewClient(kubeConfigPath)
 			if err != nil {
 				return err
 			}
@@ -61,6 +61,7 @@ func StartDaemon() *cobra.Command {
 	command.Flags().StringVar(&releaseManagerUrl, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")
 	command.Flags().StringVar(&authToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
 	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
+	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "path to kubeconfig file. If not specified, then daemon is expected to run inside kubernetes")
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
 	//nolint:errcheck
