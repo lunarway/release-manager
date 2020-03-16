@@ -80,6 +80,12 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 	if err != nil {
 		return RollbackResult{}, errors.WithMessagef(err, "checkout previous release hash '%v'", newHash)
 	}
+
+	newSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+	if err != nil {
+		return RollbackResult{}, errors.WithMessagef(err, "get spec of previous release hash '%v'", newHash)
+	}
+
 	err = s.PublishRollback(ctx, RollbackEvent{
 		Service:     service,
 		NewHash:     newHash.String(),
@@ -90,6 +96,8 @@ func (s *Service) Rollback(ctx context.Context, actor Actor, environment, namesp
 	if err != nil {
 		return RollbackResult{}, errors.WithMessage(err, "publish event")
 	}
+	result.Previous = currentSpec.ID
+	result.New = newSpec.ID
 	return result, nil
 }
 
