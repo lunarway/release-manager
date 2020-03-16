@@ -24,10 +24,13 @@ func StartDaemon() *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
+
 			kubectl, err := kubernetes.NewClient()
 			if err != nil {
 				return err
 			}
+
+			log.Info("Deamon started")
 
 			succeededFunc := func(event *kubernetes.PodEvent) error {
 				notifyReleaseManager(event, "", releaseManagerUrl, authToken, environment)

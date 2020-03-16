@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/lunarway/release-manager/internal/log"
@@ -15,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Client struct {
@@ -27,7 +29,15 @@ var (
 )
 
 func NewClient() (*Client, error) {
-	config, err := rest.InClusterConfig()
+	var config *rest.Config
+	var err error
+	kubeconfig := os.Getenv("KUBECONFIG")
+	if kubeconfig == "" {
+		config, err = rest.InClusterConfig()
+	} else {
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+	}
+
 	if err != nil {
 		return nil, err
 	}
