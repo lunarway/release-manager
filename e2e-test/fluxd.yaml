@@ -63,15 +63,6 @@ subjects:
     name: flux
     namespace: default
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: flux-recv
-data:
-  fluxrecv.yaml: |
-    fluxRecvVersion: 1
-    endpoints: []
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -102,10 +93,6 @@ spec:
           secret:
             secretName: flux-git-deploy
             defaultMode: 0400 # when mounted read-only, we won't be able to chmodª
-        - name: fluxrecv-config
-          configMap:
-            name: flux-recv
-            defaultMode: 0400
         - name: git-keygen
           emptyDir:
             medium: Memory
@@ -132,9 +119,6 @@ spec:
             - name: KUBECONFIG
               value: /root/.kubectl/config
           volumeMounts:
-            # - name: git-key
-            #   mountPath: /etc/fluxd/ssh
-            #   readOnly: true
             - name: git-keygen
               mountPath: /var/fluxd/keygen
             - name: tmp
