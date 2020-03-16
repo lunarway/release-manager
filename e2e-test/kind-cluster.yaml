@@ -7,5 +7,5 @@ nodes:
         hostPort: 3030
         protocol: tcp
     extraMounts:
-      - hostPath: ./e2e-test/sourcegitrepo
-        containerPath: /sourcegitrepo
+      - hostPath: ./e2e-test/source-git-repo
+        containerPath: /source-git-repo

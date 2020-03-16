@@ -1,4 +1,8 @@
 .DEFAULT: build
+
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+current_dir := $(dir $(mkfile_path))
+
 build: build_hamctl build_server build_artifact build_daemon
 
 build_artifact:
@@ -188,10 +192,10 @@ e2e-teardown:
 	kind delete cluster
 
 e2e-setup-git:
-	rm -rf e2e-test/sourcegitrepo
-	mkdir -p e2e-test/sourcegitrepo/local/releases/default
-	echo "Hello World" > e2e-test/sourcegitrepo/README.md
-	cd e2e-test/sourcegitrepo;\
+	rm -rf e2e-test/source-git-repo
+	mkdir -p e2e-test/source-git-repo/local/releases/default
+	echo "Hello World" > e2e-test/source-git-repo/README.md
+	cd e2e-test/source-git-repo;\
 	git init;\
 	git add .;\
 	git commit -m "Add readme"
@@ -206,7 +210,7 @@ e2e-run-local-daemon:
 	go run ./cmd/daemon start --environment local --release-manager-url http://localhost:10080
 
 e2e-run-local-manager:
-	go run ./cmd/server start --ssh-private-key ~/.ssh/id_rsa --config-repo file:///Users/Emil/Workspace/lunarway/release-manager/e2e-test/sourcegitrepo --http-port 10080
+	go run ./cmd/server start --ssh-private-key ~/.ssh/id_rsa --config-repo file://$(current_dir)e2e-test/source-git-repo --http-port 10080
 
 e2e-do-release:
 	echo "apiVersion: v1\n\
@@ -215,7 +219,7 @@ metadata:\n\
   name: test\n\
   namespace: default\n\
 data:\n\
-  somevalue: $$(date)" > ./e2e-test/sourcegitrepo/local/releases/default/test.yaml
-	cd ./e2e-test/sourcegitrepo;\
+  somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
+	cd ./e2e-test/source-git-repo;\
 	git add .;\
 	git commit -m "Add readme"

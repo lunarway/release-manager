@@ -114,9 +114,9 @@ spec:
         - name: kubedir
           configMap:
             name: flux-kube-config
-        - name: sourcegitrepo
+        - name: source-git-repo
           hostPath:
-            path: /sourcegitrepo
+            path: /source-git-repo
       containers:
         - name: flux
           image: docker.io/fluxcd/flux:1.18.0
@@ -140,12 +140,12 @@ spec:
               mountPath: /tmp
             - name: kubedir
               mountPath: /root/.kubectl
-            - name: sourcegitrepo
-              mountPath: /sourcegitrepo
+            - name: source-git-repo
+              mountPath: /source-git-repo
           args:
             - --ssh-keygen-dir=/var/fluxd/keygen
             - --git-readonly=true
-            - --git-url=file:///sourcegitrepo
+            - --git-url=file:///source-git-repo
             - --git-branch=master
             - --git-path=local/releases
             - --git-poll-interval=5s
