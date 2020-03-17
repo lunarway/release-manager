@@ -208,6 +208,10 @@ rabbitmq-background:
 	@echo "Starting RabbitMQ in background"
 	-docker run --rm --hostname rabbitmq -p 5672:5672 -p 15672:15672 -e RABBITMQ_DEFAULT_USER=lunar -e RABBITMQ_DEFAULT_PASS=lunar --name ${RABBITMQ_INTEGRATION_HOST_CONTAINER} -d rabbitmq:3-management
 
+rabbitmq-background-stop:
+	@echo "Stopping RabbitMQ in background"
+	-docker kill ${RABBITMQ_INTEGRATION_HOST_CONTAINER}
+
 rabbitmq:
 	@echo "Starting RabbitMQ. See admin dashboard on http://localhost:15672"
 	docker run --rm --hostname rabbitmq -p 5672:5672 -p 15672:15672 -e RABBITMQ_DEFAULT_USER=lunar -e RABBITMQ_DEFAULT_PASS=lunar rabbitmq:3-management
