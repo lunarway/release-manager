@@ -163,6 +163,23 @@ func (s *Worker) connect() error {
 	connectionClosedListener := make(chan *amqp.Error)
 	amqpConn.NotifyClose(connectionClosedListener)
 
+	exchangeChannel, err := amqpConn.Channel()
+	if err != nil {
+		return errors.WithMessage(err, "open channel for exchange declaration")
+	}
+	err = exchangeChannel.ExchangeDeclare(
+		c.Exchange,
+		"topic", // kind
+		true,    // durable
+		false,   // autoDelete
+		false,   // internal
+		false,   // noWait
+		nil,     // args
+	)
+	if err != nil {
+		return errors.WithMessage(err, "declare exchange")
+	}
+
 	// TODO: this could be instantiated from a list of exchange and queue pairs to
 	// setup more than one consumer
 	consumer, err := newConsumer(amqpConn, c.Exchange, c.Queue, c.RoutingKey, c.Prefetch)
@@ -250,16 +267,4 @@ func (s *Worker) reconnect() {
 		s.config.Logger.Info("Successfully reconnected to AMQP")
 		return
 	}
-}
-
-func declareExchange(channel *amqp.Channel, exchangeName string) error {
-	return channel.ExchangeDeclare(
-		exchangeName,
-		"topic", // kind
-		true,    // durable
-		false,   // autoDelete
-		false,   // internal
-		false,   // noWait
-		nil,     // args
-	)
 }

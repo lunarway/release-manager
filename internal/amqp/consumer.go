@@ -27,11 +27,6 @@ func newConsumer(amqpConn *amqp.Connection, exchangeName, queueName, routingKey 
 		}
 	}
 
-	err = declareExchange(channel, exchangeName)
-	if err != nil {
-		return nil, errors.WithMessage(err, "declare exchange")
-	}
-
 	amqpQueue, err := channel.QueueDeclare(
 		queueName, // name
 		true,      // durable

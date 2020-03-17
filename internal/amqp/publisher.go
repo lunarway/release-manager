@@ -22,10 +22,6 @@ func newPublisher(amqpConn *amqp.Connection, exchangeName string) (publisher, er
 	if err != nil {
 		return nil, errors.WithMessage(err, "get channel")
 	}
-	err = declareExchange(channel, exchangeName)
-	if err != nil {
-		return nil, errors.WithMessage(err, "declare exchange")
-	}
 	return &rawPublisher{
 		channel:      channel,
 		exchangeName: exchangeName,
