@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Client struct {
@@ -26,8 +27,8 @@ var (
 	ErrWatcherClosed = errors.New("channel closed")
 )
 
-func NewClient() (*Client, error) {
-	config, err := rest.InClusterConfig()
+func NewClient(kubeConfigPath string) (*Client, error) {
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
 		return nil, err
 	}

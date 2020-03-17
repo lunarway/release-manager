@@ -1,4 +1,8 @@
 .DEFAULT: build
+
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+current_dir := $(dir $(mkfile_path))
+
 build: build_hamctl build_server build_artifact build_daemon
 
 build_artifact:
@@ -173,3 +177,45 @@ server-profile-cpu:
 jaeger:
 	open http://localhost:16686
 	docker run --rm -p 5775:5775/udp -p 6831:6831/udp -p 6832:6832/udp -p 5778:5778 -p 16686:16686 -p 14268:14268 -p 9411:9411 -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 jaegertracing/all-in-one:1.7
+
+e2e-setup: e2e-setup-git e2e-setup-kind e2e-setup-fluxd
+	@echo "\nSetup complete\n\nRun the following to continue:\n\
+	- make e2e-run-local-daemon\n\
+	- make e2e-run-local-manager\n\
+	- make e2e-do-release"
+
+e2e-teardown:
+	kind delete cluster
+
+e2e-setup-git:
+	rm -rf e2e-test/source-git-repo
+	mkdir -p e2e-test/source-git-repo/local/releases/default
+	echo "Hello World" > e2e-test/source-git-repo/README.md
+	cd e2e-test/source-git-repo;\
+	git init;\
+	git add .;\
+	git commit -m "Add readme"
+
+e2e-setup-kind:
+	kind create cluster --config e2e-test/kind-cluster.yaml
+
+e2e-setup-fluxd:
+	kubectl apply -f e2e-test/fluxd.yaml
+
+e2e-run-local-daemon:
+	go run ./cmd/daemon start --environment local --kubeconfig $(KUBECONFIG) --release-manager-url http://localhost:10080
+
+e2e-run-local-manager:
+	go run ./cmd/server start --ssh-private-key ~/.ssh/id_rsa --config-repo file://$(current_dir)e2e-test/source-git-repo --http-port 10080
+
+e2e-do-release:
+	echo "apiVersion: v1\n\
+kind: ConfigMap\n\
+metadata:\n\
+  name: test\n\
+  namespace: default\n\
+data:\n\
+  somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
+	cd ./e2e-test/source-git-repo;\
+	git add .;\
+	git commit -m "Add readme"

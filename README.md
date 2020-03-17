@@ -351,6 +351,13 @@ $ make test
 go test -v ./...
 ```
 
+## e2e setup
+
+To help development it is possible to use the e2e setup. This setup will start a kubernetes cluster locally and run fluxd, release-daemon and release-manager.
+
+To start the setup use the make target `e2e-setup` and follow the guides afterwards. To teardown the test environment use `e2e-teardown`.
+
+
 # Release
 
 There are multiple applications in this repo.
