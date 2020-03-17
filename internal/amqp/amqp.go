@@ -76,17 +76,6 @@ func NewWorker(c Config) (*Worker, error) {
 		connectionClosed: make(chan *amqp.Error),
 		config:           c,
 	}
-	worker.config.Logger = c.Logger.WithFields(
-		"host", c.Connection.Host,
-		"user", c.Connection.User,
-		"port", c.Connection.Port,
-		"virtualHost", c.Connection.VirtualHost,
-		"exchange", c.Exchange,
-		"queue", c.Queue,
-		"prefetch", c.Prefetch,
-		"reconnectionTimeout", c.ReconnectionTimeout,
-		"amqpConfig", fmt.Sprintf("%#v", c.AMQPConfig),
-	)
 
 	err := worker.connect()
 	if err != nil {
@@ -145,10 +134,21 @@ func (s *Worker) Publish(ctx context.Context, event Publishable) error {
 
 func (s *Worker) connect() error {
 	c := s.config
-	c.Logger.Infof("Connecting to: %s", c.Connection.String())
+	logger := c.Logger.WithFields(
+		"host", c.Connection.Host,
+		"user", c.Connection.User,
+		"port", c.Connection.Port,
+		"virtualHost", c.Connection.VirtualHost,
+		"exchange", c.Exchange,
+		"queue", c.Queue,
+		"prefetch", c.Prefetch,
+		"reconnectionTimeout", c.ReconnectionTimeout,
+		"amqpConfig", fmt.Sprintf("%#v", c.AMQPConfig),
+	)
+	logger.Infof("Connecting to: %s", c.Connection.String())
 
 	if c.AMQPConfig != nil && c.Connection.VirtualHost != c.AMQPConfig.Vhost {
-		c.Logger.Infof("AMQP config overwrites provided virtual host")
+		logger.Infof("AMQP config overwrites provided virtual host")
 	}
 	if c.AMQPConfig == nil {
 		c.AMQPConfig = &amqp.Config{
@@ -217,7 +217,7 @@ func (s *Worker) connect() error {
 		case s.currentConsumer <- consumer:
 		}
 	}()
-	c.Logger.Info("Connected to AMQP successfully")
+	logger.Info("Connected to AMQP successfully")
 	return nil
 }
 
@@ -230,18 +230,17 @@ func (s *Worker) reconnector() {
 			s.config.Logger.Info("Reconnector received shutdown signal")
 			return
 		case reason := <-s.connectionClosed:
-			s.config.Logger.Info("Reconnector received connection closed signal")
-			s.reconnect(reason)
+			s.config.Logger.Infof("Reconnector received connection closed signal: %v", reason)
+			s.reconnect()
 		}
 	}
 }
 
-// reconnect attempts to reconnect to AMQP within configured
-// maxReconnectionCount. If unsuccessful fatalError is triggered and false is
-// returned. If successful true is returned and connection is reestablished.
-func (s *Worker) reconnect(reason *amqp.Error) {
+// reconnect attempts to reconnect to AMQP with the configured reconnection
+// timeout between attempts.
+func (s *Worker) reconnect() {
 	for reconnectCount := 1; ; reconnectCount++ {
-		s.config.Logger.Infof("Reconnecting to AMQP after connection closed: attempt %d: %v", reconnectCount, reason)
+		s.config.Logger.Infof("Reconnecting to AMQP after connedction closed: attempt %d", reconnectCount)
 		err := s.connect()
 		if err != nil {
 			s.config.Logger.Infof("Failed to reconnect to AMQP: %v", err)
