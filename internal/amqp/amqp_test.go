@@ -211,7 +211,7 @@ func TestWorker_reconnection(t *testing.T) {
 		}
 
 		// wait some seconds before publishing again for retries to take place
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 
 		err = worker.Publish(context.Background(), testEvent{
 			Message: "message 2",
