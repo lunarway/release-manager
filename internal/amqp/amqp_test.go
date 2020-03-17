@@ -3,7 +3,6 @@ package amqp
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -55,13 +54,12 @@ func TestWorker_PublishAndConsumer(t *testing.T) {
 			VirtualHost: "/",
 			Port:        5672,
 		},
-		MaxReconnectionAttempts: 0,
-		ReconnectionTimeout:     50 * time.Millisecond,
-		Exchange:                exchange,
-		Queue:                   queue,
-		RoutingKey:              "#",
-		Prefetch:                10,
-		Logger:                  logger,
+		ReconnectionTimeout: 50 * time.Millisecond,
+		Exchange:            exchange,
+		Queue:               queue,
+		RoutingKey:          "#",
+		Prefetch:            10,
+		Logger:              logger,
 		Handlers: map[string]func(d []byte) error{
 			testEvent{}.Type(): func(d []byte) error {
 				newCount := atomic.AddInt32(&receivedCount, 1)
@@ -123,9 +121,9 @@ func TestWorker_PublishAndConsumer(t *testing.T) {
 	assert.Equal(t, publishedMessages, int(receivedCount), "received messages count not as expected")
 }
 
-// TestWorker_StartConsumer_reconnection tests the reconnection mechanism of the
-// worker ensuring that network failures and alike are handled accordingly.
-func TestWorker_StartConsumer_reconnection(t *testing.T) {
+// TestWorker_reconnection tests the reconnection mechanism of the worker
+// ensuring that network failures and alike are mitigated by reconnecting.
+func TestWorker_reconnection(t *testing.T) {
 	rabbitHost := test.RabbitMQIntegration(t)
 	logger := log.New(&log.Configuration{
 		Level: log.Level{
@@ -137,17 +135,13 @@ func TestWorker_StartConsumer_reconnection(t *testing.T) {
 	var conn net.Conn
 	// maxDials returns a dial function for amqp.Config configured to reject dials
 	// after max attempts.
-	maxDials := func(max int) func(string, string) (net.Conn, error) {
+	dialFunc := func() func(string, string) (net.Conn, error) {
 		dials := 1
 		return func(network, addr string) (net.Conn, error) {
 			logger.Infof("Dialling attempt %d", dials)
 			defer func() {
 				dials = dials + 1
 			}()
-			if dials > max {
-				logger.Infof("Dialling attempt %d blocked", dials)
-				return nil, errors.New("dial blocked")
-			}
 			var err error
 			conn, err = net.DialTimeout(network, addr, 10*time.Second)
 			if err != nil {
@@ -160,95 +154,86 @@ func TestWorker_StartConsumer_reconnection(t *testing.T) {
 			return conn, nil
 		}
 	}
-	tt := []struct {
-		name                    string
-		maxReconnectionAttempts int
-		maxSuccessfullDials     int
-		workerError             string
-	}{
-		{
-			name:                    "zero reconnection attempts",
-			maxReconnectionAttempts: 0,
-			maxSuccessfullDials:     1,
-			workerError:             "Tried to reconnect 0 times. Giving up",
+
+	epoch := time.Now().UnixNano()
+	var consumedCount int32
+	worker, err := NewWorker(Config{
+		Connection: ConnectionConfig{
+
+			Host:        rabbitHost,
+			User:        "lunar",
+			Password:    "lunar",
+			VirtualHost: "/",
+			Port:        5672,
 		},
-		{
-			name:                    "no recovery",
-			maxReconnectionAttempts: 2,
-			maxSuccessfullDials:     1,
-			workerError:             "Tried to reconnect 2 times. Giving up",
+		ReconnectionTimeout: 1 * time.Millisecond,
+		Exchange:            fmt.Sprintf("%s_%d", t.Name(), epoch),
+		Queue:               fmt.Sprintf("%s_%d", t.Name(), epoch),
+		RoutingKey:          "#",
+		AMQPConfig: &amqp.Config{
+			Dial:  dialFunc(),
+			Vhost: "/",
 		},
-		{
-			name:                    "recovery after a dial error",
-			maxReconnectionAttempts: 2,
-			maxSuccessfullDials:     2,
-			workerError:             ErrWorkerClosed.Error(),
+		Logger: logger,
+		Handlers: map[string]func([]byte) error{
+			testEvent{}.Type(): func(d []byte) error {
+				logger.Infof("Handled %s", d)
+				atomic.AddInt32(&consumedCount, 1)
+				return nil
+			},
 		},
+	})
+	if !assert.NoError(t, err, "unexpected init error") {
+		return
 	}
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			worker, err := NewWorker(Config{
-				Connection: ConnectionConfig{
 
-					Host:        rabbitHost,
-					User:        "lunar",
-					Password:    "lunar",
-					VirtualHost: "/",
-					Port:        5672,
-				},
-				MaxReconnectionAttempts: tc.maxReconnectionAttempts,
-				ReconnectionTimeout:     50 * time.Millisecond,
-				Exchange:                "release-manager",
-				Queue:                   "test-queue",
-				RoutingKey:              "#",
-				AMQPConfig: &amqp.Config{
-					Dial:  maxDials(tc.maxSuccessfullDials),
-					Vhost: "/",
-				},
-				Logger: logger,
-			})
-			if !assert.NoError(t, err, "unexpected init error") {
-				return
-			}
+	// setup a go routine that will publish a message, kill the connection and
+	// publish a new message
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		// sleep for a short amount of time to let the worker.Start method be
+		// called outside to Go routine
+		time.Sleep(10 * time.Millisecond)
 
-			// setup a go routine that kills the connection after 1 second.
-			var wg sync.WaitGroup
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				// sleep for a short amount of time to let the worker.Start method be
-				// called outside to Go routine
-				time.Sleep(10 * time.Millisecond)
-
-				logger.Infof("TEST: Killing TCP connection to RabbitMQ")
-				err = conn.Close()
-				if err != nil {
-					t.Errorf("close net.Conn to AMQP failed: %v", err)
-					return
-				}
-
-				// wait some seconds before shutting down for retries to take place
-				time.Sleep(200 * time.Millisecond)
-				logger.Infof("TEST: Shutting down worker...")
-
-				// shutdown rabbit connection
-				err = worker.Close()
-				assert.NoError(t, err, "unexpected close error")
-			}()
-
-			// this is the functional assertion. We expect Start to block until as
-			// long as we are able to keep a connection open with retries. If we
-			// have no more retry attempts left the function will return with an
-			// error.
-			err = worker.StartConsumer()
-			logger.Infof("TEST: worker error: %v", err)
-			if assert.Error(t, err, "expected a worker error") {
-				assert.Regexp(t, tc.workerError, err.Error(), "error string not as expected")
-			} else {
-				// the worker should always return an error when terminating.
-				t.Fatal("expected a worker error but received none")
-			}
-			wg.Wait()
+		err := worker.Publish(context.Background(), testEvent{
+			Message: "message 1",
 		})
-	}
+		if err != nil {
+			t.Errorf("publish message 1: %v", err)
+		}
+
+		logger.Infof("TEST: Killing TCP connection to RabbitMQ")
+		err = conn.Close()
+		if err != nil {
+			t.Errorf("close net.Conn to AMQP failed: %v", err)
+		}
+
+		// wait some seconds before publishing again for retries to take place
+		time.Sleep(50 * time.Millisecond)
+
+		err = worker.Publish(context.Background(), testEvent{
+			Message: "message 2",
+		})
+		if err != nil {
+			t.Errorf("publish message 2: %v", err)
+		}
+
+		time.Sleep(100 * time.Millisecond)
+		logger.Infof("TEST: Shutting down worker...")
+		// shutdown rabbit connection
+		err = worker.Close()
+		assert.NoError(t, err, "unexpected close error")
+	}()
+
+	// this is the functional assertion. We expect Start to block until as
+	// long as we are able to keep a connection open with retries. If we
+	// have no more retry attempts left the function will return with an
+	// error.
+	err = worker.StartConsumer()
+	logger.Infof("TEST: worker error: %v", err)
+	assert.EqualError(t, err, ErrWorkerClosed.Error(), "consumer returned unexpected error")
+	wg.Wait()
+	assert.Equal(t, int32(2), consumedCount, "did not receive two messages as exected")
 }

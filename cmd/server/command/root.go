@@ -68,7 +68,6 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&amqpOpts.User, "amqp-user", "", "AMQP user name")
 	command.PersistentFlags().StringVar(&amqpOpts.Password, "amqp-password", "", "AMQP password")
 	command.PersistentFlags().StringVar(&amqpOpts.VirtualHost, "amqp-virtualhost", "/", "AMQP virtual host")
-	command.PersistentFlags().IntVar(&amqpOpts.MaxReconnectionAttempts, "amqp-max-reconnection-attempts", 5, "AMQP maximum reconnection attempts")
 	command.PersistentFlags().DurationVar(&amqpOpts.ReconnectionTimeout, "amqp-reconnection-timeouts", 5*time.Second, "AMQP reconnection attempt timeout")
 	command.PersistentFlags().IntVar(&amqpOpts.Prefetch, "amqp-prefetch", 1, "AMQP queue prefetch")
 	command.PersistentFlags().StringVar(&amqpOpts.Exchange, "amqp-exchange", "release-manager", "AMQP exchange")

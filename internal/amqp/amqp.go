@@ -32,10 +32,6 @@ type Worker struct {
 	// connectionClosed is used to signal that a connection was lost and that the
 	// reconnector should attempt to reestablish it.
 	connectionClosed chan *amqp.Error
-	// fatalError is used to signal that the worker was unable to recreate a
-	// connection and that the worker should stop consuming and publishing
-	// messages.
-	fatalError chan error
 }
 
 type publisher interface {
@@ -44,16 +40,15 @@ type publisher interface {
 }
 
 type Config struct {
-	Connection              ConnectionConfig
-	Exchange                string
-	Queue                   string
-	RoutingKey              string
-	Prefetch                int
-	MaxReconnectionAttempts int
-	ReconnectionTimeout     time.Duration
-	Handlers                map[string]func([]byte) error
-	AMQPConfig              *amqp.Config
-	Logger                  *log.Logger
+	Connection          ConnectionConfig
+	Exchange            string
+	Queue               string
+	RoutingKey          string
+	Prefetch            int
+	ReconnectionTimeout time.Duration
+	Handlers            map[string]func([]byte) error
+	AMQPConfig          *amqp.Config
+	Logger              *log.Logger
 }
 
 type ConnectionConfig struct {
@@ -78,7 +73,6 @@ func NewWorker(c Config) (*Worker, error) {
 	worker := Worker{
 		shutdown:         make(chan struct{}),
 		currentConsumer:  make(chan *consumer),
-		fatalError:       make(chan error),
 		connectionClosed: make(chan *amqp.Error),
 		config:           c,
 	}
@@ -90,7 +84,6 @@ func NewWorker(c Config) (*Worker, error) {
 		"exchange", c.Exchange,
 		"queue", c.Queue,
 		"prefetch", c.Prefetch,
-		"maxReconnectionAttempts", c.MaxReconnectionAttempts,
 		"reconnectionTimeout", c.ReconnectionTimeout,
 		"amqpConfig", fmt.Sprintf("%#v", c.AMQPConfig),
 	)
@@ -113,18 +106,13 @@ func (s *Worker) Close() error {
 var ErrWorkerClosed = errors.New("amqp: Worker closed")
 
 // StartConsumer starts the consumer on the worker. The method is blocking and
-// will only return if the worker is stopped with Close or the connection is
-// lost and cannot be recreated.
+// will only return if the worker is stopped with Close.
 func (s *Worker) StartConsumer() error {
 	for {
 		select {
 		// worker is instructed to shutdown from a Close call
 		case <-s.shutdown:
 			return ErrWorkerClosed
-
-		// worker is unable to recover a network failure and should stop
-		case err := <-s.fatalError:
-			return err
 
 		// worker has a new connection that can be used to consume messages with the handler
 		case conn := <-s.currentConsumer:
@@ -243,11 +231,7 @@ func (s *Worker) reconnector() {
 			return
 		case reason := <-s.connectionClosed:
 			s.config.Logger.Info("Reconnector received connection closed signal")
-			success := s.reconnect(reason)
-			if !success {
-				s.config.Logger.Info("Reconnection not successful")
-				return
-			}
+			s.reconnect(reason)
 		}
 	}
 }
@@ -255,10 +239,9 @@ func (s *Worker) reconnector() {
 // reconnect attempts to reconnect to AMQP within configured
 // maxReconnectionCount. If unsuccessful fatalError is triggered and false is
 // returned. If successful true is returned and connection is reestablished.
-func (s *Worker) reconnect(reason *amqp.Error) bool {
-	var reconnectCount int
-	for reconnectCount = 0; reconnectCount < s.config.MaxReconnectionAttempts; reconnectCount++ {
-		s.config.Logger.Infof("Reconnecting to AMQP after connection closed: attempt %d of %d: %v", reconnectCount+1, s.config.MaxReconnectionAttempts, reason)
+func (s *Worker) reconnect(reason *amqp.Error) {
+	for reconnectCount := 1; ; reconnectCount++ {
+		s.config.Logger.Infof("Reconnecting to AMQP after connection closed: attempt %d: %v", reconnectCount, reason)
 		err := s.connect()
 		if err != nil {
 			s.config.Logger.Infof("Failed to reconnect to AMQP: %v", err)
@@ -266,11 +249,8 @@ func (s *Worker) reconnect(reason *amqp.Error) bool {
 			continue
 		}
 		s.config.Logger.Info("Successfully reconnected to AMQP")
-		return true
+		return
 	}
-	reason.Reason = fmt.Sprintf("Tried to reconnect %d times. Giving up: %s", reconnectCount, reason.Reason)
-	s.fatalError <- reason
-	return false
 }
 
 func declareExchange(channel *amqp.Channel, exchangeName string) error {

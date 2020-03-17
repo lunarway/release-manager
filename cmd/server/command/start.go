@@ -34,16 +34,15 @@ type grafanaOptions struct {
 }
 
 type amqpOptions struct {
-	Host                    string
-	User                    string
-	Password                string
-	Port                    int
-	VirtualHost             string
-	MaxReconnectionAttempts int
-	ReconnectionTimeout     time.Duration
-	Prefetch                int
-	Exchange                string
-	Queue                   string
+	Host                string
+	User                string
+	Password            string
+	Port                int
+	VirtualHost         string
+	ReconnectionTimeout time.Duration
+	Prefetch            int
+	Exchange            string
+	Queue               string
 }
 
 type configRepoOptions struct {
@@ -182,13 +181,12 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 					VirtualHost: amqpOptions.VirtualHost,
 					Port:        amqpOptions.Port,
 				},
-				MaxReconnectionAttempts: amqpOptions.MaxReconnectionAttempts,
-				ReconnectionTimeout:     amqpOptions.ReconnectionTimeout,
-				Exchange:                amqpOptions.Exchange,
-				Queue:                   amqpOptions.Queue,
-				RoutingKey:              "#",
-				Prefetch:                amqpOptions.Prefetch,
-				Logger:                  log.With("system", "amqp"),
+				ReconnectionTimeout: amqpOptions.ReconnectionTimeout,
+				Exchange:            amqpOptions.Exchange,
+				Queue:               amqpOptions.Queue,
+				RoutingKey:          "#",
+				Prefetch:            amqpOptions.Prefetch,
+				Logger:              log.With("system", "amqp"),
 				Handlers: map[string]func(d []byte) error{
 					flow.PromoteEvent{}.Type(): func(d []byte) error {
 						var event flow.PromoteEvent
