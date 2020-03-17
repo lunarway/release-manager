@@ -1,0 +1,11 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 3030
+        hostPort: 3030
+        protocol: tcp
+    extraMounts:
+      - hostPath: ./e2e-test/source-git-repo
+        containerPath: /source-git-repo
