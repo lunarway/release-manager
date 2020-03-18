@@ -8,5 +8,5 @@ COPY ssh_config /etc/ssh/ssh_config
 
 ENTRYPOINT [ "/server", "start" ]
 
-COPY  server /
+COPY server /
 
