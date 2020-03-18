@@ -3,7 +3,7 @@ go:
 - "1.13.x"
 script:
 - go build ./...
-- go test ./...
+- make integration-test
 services:
 - docker
 after_success:

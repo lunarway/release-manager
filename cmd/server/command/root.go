@@ -13,6 +13,7 @@ import (
 
 // NewCommand returns a new instance of a hamctl command.
 func NewCommand() (*cobra.Command, error) {
+	var amqpOpts amqpOptions
 	var httpOpts http.Options
 	var grafanaOpts grafanaOptions
 	var slackAuthToken string
@@ -43,7 +44,7 @@ func NewCommand() (*cobra.Command, error) {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(NewStart(&grafanaOpts, &slackAuthToken, &githubAPIToken, &configRepoOpts, &httpOpts, &userMappings))
+	command.AddCommand(NewStart(&grafanaOpts, &slackAuthToken, &githubAPIToken, &configRepoOpts, &httpOpts, &amqpOpts, &userMappings))
 	command.PersistentFlags().IntVar(&httpOpts.Port, "http-port", 8080, "port of the http server")
 	command.PersistentFlags().DurationVar(&httpOpts.Timeout, "timeout", 20*time.Second, "HTTP server timeout for incomming requests")
 	command.PersistentFlags().StringVar(&httpOpts.HamCtlAuthToken, "hamctl-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "hamctl authentication token")
@@ -61,6 +62,17 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&grafanaOpts.StagingURL, "grafana-staging-url", os.Getenv("GRAFANA_STAGING_URL"), "grafana staging url")
 	command.PersistentFlags().StringVar(&grafanaOpts.ProdURL, "grafana-prod-url", os.Getenv("GRAFANA_PROD_URL"), "grafana prod url")
 	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between emails used by Git and Slack, key-value pair: <email>=<slack-email>")
+
+	command.PersistentFlags().StringVar(&amqpOpts.Host, "amqp-host", "localhost", "AMQP host URL")
+	command.PersistentFlags().IntVar(&amqpOpts.Port, "amqp-port", 5672, "AMQP host port")
+	command.PersistentFlags().StringVar(&amqpOpts.User, "amqp-user", "", "AMQP user name")
+	command.PersistentFlags().StringVar(&amqpOpts.Password, "amqp-password", "", "AMQP password")
+	command.PersistentFlags().StringVar(&amqpOpts.VirtualHost, "amqp-virtualhost", "/", "AMQP virtual host")
+	command.PersistentFlags().DurationVar(&amqpOpts.ReconnectionTimeout, "amqp-reconnection-timeouts", 5*time.Second, "AMQP reconnection attempt timeout")
+	command.PersistentFlags().IntVar(&amqpOpts.Prefetch, "amqp-prefetch", 1, "AMQP queue prefetch")
+	command.PersistentFlags().StringVar(&amqpOpts.Exchange, "amqp-exchange", "release-manager", "AMQP exchange")
+	command.PersistentFlags().StringVar(&amqpOpts.Queue, "amqp-queue", "release-manager", "AMQP queue")
+
 	logConfiguration = log.RegisterFlags(command)
 
 	return command, nil

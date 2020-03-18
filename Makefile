@@ -45,8 +45,32 @@ endif
 test:
 	go test -v ./...
 
+integration-test: rabbitmq-background
+	@echo "Running integration tests against RabbitMQ on localhost"
+	RELEASE_MANAGER_INTEGRATION_RABBITMQ_HOST=localhost go test -count=1 -v ./...
+
+AUTH_TOKEN=test
+SSH_PRIVATE_KEY=~/.ssh/github
+CONFIG_REPO=git@github.com:lunarway/release-manager-test-config-repo.git
+AMQP_USER=lunar
+AMQP_PASSWORD=lunar
+GRAFANA_URL=localhost
+GRAFANA_API_KEY=grafana-api-key
+SLACK_TOKEN=slack-token
+
 server: build_server
-	USER_MAPPINGS="kaspernissen@gmail.com=kni@lunarway.com,something@gmail.com=some@lunarway.com" HAMCTL_AUTH_TOKEN=test DAEMON_AUTH_TOKEN=test ./dist/server start --ssh-private-key ~/.ssh/github --slack-token ${SLACK_TOKEN} --grafana-api-key-dev ${GRAFANA_API_KEY} --grafana-dev-url ${GRAFANA_URL}
+	./dist/server start \
+		--ssh-private-key ${SSH_PRIVATE_KEY} \
+		--slack-token ${SLACK_TOKEN} \
+		--grafana-api-key-dev ${GRAFANA_API_KEY} \
+		--grafana-dev-url ${GRAFANA_URL} \
+		--hamctl-auth-token ${AUTH_TOKEN} \
+		--daemon-auth-token ${AUTH_TOKEN} \
+		--log.level debug \
+		--log.development t \
+		--config-repo ${CONFIG_REPO} \
+		--amqp-user ${AMQP_USER} \
+		--amqp-password ${AMQP_PASSWORD}
 
 artifact-init:
 	USER_MAPPINGS="kaspernissen@gmail.com=kni@lunarway.com,something@gmail.com=some@lunarway.com" ./dist/artifact init --slack-token ${SLACK_TOKEN} --artifact-id "master-deed62270f-854d930ecb" --name "lunar-way-product-service" --service "product" --git-author-name "Kasper Nissen" --git-author-email "kaspernissen@gmail.com" --git-message "This is a test message" --git-committer-name "Bjørn Sørensen" --git-committer-email "test@gmail.com" --git-sha deed62270f24f1ca8cf2c19b505b2c88036e1b1c --git-branch master --url "https://bitbucket.org/LunarWay/lunar-way-product-service/commits/a05e314599a7c202724d46a009fcc0f493bce035" --ci-job-url "https://jenkins.dev.lunarway.com/job/bitbucket/job/lunar-way-product-service/job/master/170/display/redirect"
@@ -177,6 +201,20 @@ server-profile-cpu:
 jaeger:
 	open http://localhost:16686
 	docker run --rm -p 5775:5775/udp -p 6831:6831/udp -p 6832:6832/udp -p 5778:5778 -p 16686:16686 -p 14268:14268 -p 9411:9411 -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 jaegertracing/all-in-one:1.7
+
+RABBITMQ_INTEGRATION_HOST_CONTAINER=rm-rabbitmq
+
+rabbitmq-background:
+	@echo "Starting RabbitMQ in background"
+	-docker run --rm --hostname rabbitmq -p 5672:5672 -p 15672:15672 -e RABBITMQ_DEFAULT_USER=lunar -e RABBITMQ_DEFAULT_PASS=lunar --name ${RABBITMQ_INTEGRATION_HOST_CONTAINER} -d rabbitmq:3-management
+
+rabbitmq-background-stop:
+	@echo "Stopping RabbitMQ in background"
+	-docker kill ${RABBITMQ_INTEGRATION_HOST_CONTAINER}
+
+rabbitmq:
+	@echo "Starting RabbitMQ. See admin dashboard on http://localhost:15672"
+	docker run --rm --hostname rabbitmq -p 5672:5672 -p 15672:15672 -e RABBITMQ_DEFAULT_USER=lunar -e RABBITMQ_DEFAULT_PASS=lunar rabbitmq:3-management
 
 e2e-setup: e2e-setup-git e2e-setup-kind e2e-setup-fluxd
 	@echo "\nSetup complete\n\nRun the following to continue:\n\

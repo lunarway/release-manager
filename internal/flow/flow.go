@@ -31,6 +31,11 @@ type Service struct {
 	Git              *git.Service
 	Tracer           tracing.Tracer
 
+	PublishPromote           func(context.Context, PromoteEvent) error
+	PublishRollback          func(context.Context, RollbackEvent) error
+	PublishReleaseArtifactID func(context.Context, ReleaseArtifactIDEvent) error
+	PublishReleaseBranch     func(context.Context, ReleaseBranchEvent) error
+
 	MaxRetries int
 
 	// NotifyReleaseHook is triggered in a Go routine when a release is completed.

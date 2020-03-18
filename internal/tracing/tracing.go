@@ -12,6 +12,20 @@ import (
 	"github.com/uber/jaeger-lib/metrics/prometheus"
 )
 
+type requestIDKey struct{}
+
+func WithRequestID(ctx context.Context, requestID string) context.Context {
+	return context.WithValue(ctx, requestIDKey{}, requestID)
+}
+
+func RequestIDFromContext(ctx context.Context) string {
+	v, ok := ctx.Value(requestIDKey{}).(string)
+	if !ok {
+		return ""
+	}
+	return v
+}
+
 // Tracer describes a tracing adapter interface.
 type Tracer interface {
 	io.Closer

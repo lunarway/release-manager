@@ -2,13 +2,16 @@ package command
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/lunarway/release-manager/cmd/server/http"
+	"github.com/lunarway/release-manager/internal/amqp"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/github"
@@ -30,13 +33,25 @@ type grafanaOptions struct {
 	ProdURL       string
 }
 
+type amqpOptions struct {
+	Host                string
+	User                string
+	Password            string
+	Port                int
+	VirtualHost         string
+	ReconnectionTimeout time.Duration
+	Prefetch            int
+	Exchange            string
+	Queue               string
+}
+
 type configRepoOptions struct {
 	ConfigRepo        string
 	ArtifactFileName  string
 	SSHPrivateKeyPath string
 }
 
-func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToken *string, configRepoOpts *configRepoOptions, httpOpts *http.Options, userMappings *map[string]string) *cobra.Command {
+func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToken *string, configRepoOpts *configRepoOptions, httpOpts *http.Options, amqpOptions *amqpOptions, userMappings *map[string]string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-manager",
@@ -87,6 +102,14 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				Slack:            slackClient,
 				Git:              &gitSvc,
 				Tracer:           tracer,
+				// TODO: figure out a better way of splitting the consumer and publisher
+				// to avoid this chicken and egg issue. It is not a real problem as the
+				// consumer is started later on and this we are sure this gets set, it
+				// just complicates the flow of the code.
+				PublishPromote:           nil,
+				PublishReleaseArtifactID: nil,
+				PublishReleaseBranch:     nil,
+				PublishRollback:          nil,
 				// retries for comitting changes into config repo
 				// can be required for racing writes
 				MaxRetries: 3,
@@ -149,6 +172,77 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 					logger.Infof("Release [%s]: %s (%s) by %s, author %s", opts.Environment, opts.Service, opts.Spec.ID, opts.Releaser, opts.Spec.Application.AuthorName)
 				},
 			}
+
+			broker, err := amqp.NewWorker(amqp.Config{
+				Connection: amqp.ConnectionConfig{
+					Host:        amqpOptions.Host,
+					User:        amqpOptions.User,
+					Password:    amqpOptions.Password,
+					VirtualHost: amqpOptions.VirtualHost,
+					Port:        amqpOptions.Port,
+				},
+				ReconnectionTimeout: amqpOptions.ReconnectionTimeout,
+				Exchange:            amqpOptions.Exchange,
+				Queue:               amqpOptions.Queue,
+				RoutingKey:          "#",
+				Prefetch:            amqpOptions.Prefetch,
+				Logger:              log.With("system", "amqp"),
+				Handlers: map[string]func(d []byte) error{
+					flow.PromoteEvent{}.Type(): func(d []byte) error {
+						var event flow.PromoteEvent
+						err := json.Unmarshal(d, &event)
+						if err != nil {
+							return errors.WithMessage(err, "unmarshal event")
+						}
+						return flowSvc.ExecPromote(context.Background(), event)
+					},
+					flow.ReleaseArtifactIDEvent{}.Type(): func(d []byte) error {
+						var event flow.ReleaseArtifactIDEvent
+						err := json.Unmarshal(d, &event)
+						if err != nil {
+							return errors.WithMessage(err, "unmarshal event")
+						}
+						return flowSvc.ExecReleaseArtifactID(context.Background(), event)
+					},
+					flow.ReleaseBranchEvent{}.Type(): func(d []byte) error {
+						var event flow.ReleaseBranchEvent
+						err := json.Unmarshal(d, &event)
+						if err != nil {
+							return errors.WithMessage(err, "unmarshal event")
+						}
+						return flowSvc.ExecReleaseBranch(context.Background(), event)
+					},
+					flow.RollbackEvent{}.Type(): func(d []byte) error {
+						var event flow.RollbackEvent
+						err := json.Unmarshal(d, &event)
+						if err != nil {
+							return errors.WithMessage(err, "unmarshal event")
+						}
+						return flowSvc.ExecRollback(context.Background(), event)
+					},
+				},
+			})
+			if err != nil {
+				return err
+			}
+			flowSvc.PublishPromote = func(ctx context.Context, event flow.PromoteEvent) error {
+				return broker.Publish(ctx, event)
+			}
+			flowSvc.PublishReleaseArtifactID = func(ctx context.Context, event flow.ReleaseArtifactIDEvent) error {
+				return broker.Publish(ctx, event)
+			}
+			flowSvc.PublishReleaseBranch = func(ctx context.Context, event flow.ReleaseBranchEvent) error {
+				return broker.Publish(ctx, event)
+			}
+			flowSvc.PublishRollback = func(ctx context.Context, event flow.RollbackEvent) error {
+				return broker.Publish(ctx, event)
+			}
+			defer func() {
+				err := broker.Close()
+				if err != nil {
+					log.Errorf("Failed to close broker: %v", err)
+				}
+			}()
 			policySvc := policy.Service{
 				Tracer: tracer,
 				Git:    &gitSvc,
@@ -162,6 +256,10 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 					done <- errors.WithMessage(err, "new http server")
 					return
 				}
+			}()
+			go func() {
+				err := broker.StartConsumer()
+				done <- errors.WithMessage(err, "amqp broker")
 			}()
 
 			sigs := make(chan os.Signal, 1)

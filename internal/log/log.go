@@ -1,6 +1,8 @@
 package log
 
 import (
+	"context"
+
 	"go.uber.org/zap"
 )
 
@@ -133,4 +135,14 @@ func (l *Logger) WithFields(args ...interface{}) *Logger {
 //   { "message": "msg", "hello": "world", "zapKey": "zapValue"}
 func (l *Logger) With(args ...interface{}) *Logger {
 	return &Logger{sugar: l.sugar.With(args...)}
+}
+
+// WithContext returns a Logger instance. Every logged line with the returned
+// logger will contain the extracted fields (if any) from the context.
+func (l *Logger) WithContext(ctx context.Context) *Logger {
+	fields, ok := ctx.Value(contextKey{}).([]interface{})
+	if !ok {
+		return l
+	}
+	return l.With(fields...)
 }

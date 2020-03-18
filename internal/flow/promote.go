@@ -12,27 +12,9 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
-// Promote promotes a specific service to environment env.
-//
-// By convention, promotion means:
-//
-//    Move released version of the previous environment into this environment
-//
-// Promotion follows this convention
-//
-//   master -> dev -> staging -> prod
-//
-// Flow
-//
-// Checkout the current kubernetes configuration status and find the
-// artifact.json spec for the service and previous environment.
-// Use the artifact ID as a key for locating the artifacts.
-//
-// Find the commit with the artifact ID and checkout the config repository at
-// this point.
-//
-// Copy artifacts from the current release into the new environment and commit
-// the changes
+// Promote promotes a specific service to environment env. The flow is async in
+// that this method validates the inputs and publishes an event that is handled
+// later on by ExecPromote.
 func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespace, service string) (PromoteResult, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.Promote")
 	defer span.Finish()
@@ -43,11 +25,6 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 			return true, err
 		}
 		defer closeSource(ctx)
-		destinationConfigRepoPath, closeDestination, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-destination")
-		if err != nil {
-			return true, err
-		}
-		defer closeDestination(ctx)
 
 		logger := log.WithContext(ctx)
 		// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
@@ -98,11 +75,107 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		if err != nil {
 			return true, errors.WithMessagef(err, "locate release '%s'", result.ReleaseID)
 		}
+
+		// TODO: we don't know if there is any changes to commit at this point, but
+		// it might be nice to be able to answer that directly. we could check the
+		// current artifact ID in the environment right away?
+
+		err = s.PublishPromote(ctx, PromoteEvent{
+			Hash:        hash.String(),
+			Service:     service,
+			Environment: environment,
+			Namespace:   namespace,
+			Actor:       actor,
+		})
+		if err != nil {
+			return true, errors.WithMessage(err, "publish message")
+		}
+		return true, nil
+	})
+	if err != nil {
+		return PromoteResult{}, err
+	}
+	return result, nil
+}
+
+type PromoteResult struct {
+	ReleaseID            string
+	OverwritingNamespace string
+}
+
+type PromoteEvent struct {
+	Hash        string `json:"hash,omitempty"`
+	Service     string `json:"service,omitempty"`
+	Environment string `json:"environment,omitempty"`
+	Namespace   string `json:"namespace,omitempty"`
+	Actor       Actor  `json:"actor,omitempty"`
+}
+
+func (PromoteEvent) Type() string {
+	return "promote"
+}
+
+func (p PromoteEvent) Body() interface{} {
+	return p
+}
+
+// ExecPromote promotes a specific service to environment env.
+//
+// By convention, promotion means:
+//
+//    Move released version of the previous environment into this environment
+//
+// Promotion follows this convention
+//
+//   master -> dev -> staging -> prod
+//
+// Flow
+//
+// Checkout the current kubernetes configuration status and find the
+// artifact.json spec for the service and previous environment.
+// Use the artifact ID as a key for locating the artifacts.
+//
+// Find the commit with the artifact ID and checkout the config repository at
+// this point.
+//
+// Copy artifacts from the current release into the new environment and commit
+// the changes
+func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.ExecPromote")
+	defer span.Finish()
+	var result PromoteResult
+	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
+		logger := log.WithContext(ctx)
+
+		sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
+		if err != nil {
+			return true, err
+		}
+		defer closeSource(ctx)
+
+		// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
+		logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
+		_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
+		if err != nil {
+			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+		}
+
+		hash := plumbing.NewHash(p.Hash)
+		service := p.Service
+		environment := p.Environment
+		namespace := p.Namespace
+		actor := p.Actor
 		logger.Debugf("internal/flow: Promote: release hash '%v'", hash)
 		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 		}
+
+		destinationConfigRepoPath, closeDest, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-dest")
+		if err != nil {
+			return true, err
+		}
+		defer closeDest(ctx)
 
 		_, err = s.Git.Clone(ctx, destinationConfigRepoPath)
 		if err != nil {
@@ -128,14 +201,20 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}
 
+		sourceSpec, err := sourceSpec(ctx, sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+		if err != nil {
+			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
+		}
 		authorName := sourceSpec.Application.AuthorName
 		authorEmail := sourceSpec.Application.AuthorEmail
 		releaseMessage := git.ReleaseCommitMessage(environment, service, result.ReleaseID)
 		logger.Debugf("Committing release: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
 		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
-			if err == git.ErrNothingToCommit {
-				return true, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
+			if errors.Cause(err) == git.ErrNothingToCommit {
+				logger.Infof("Environment is up to date: dropping event: %v", err)
+				// TODO: notify actor that there was nothing to commit
+				return true, nil
 			}
 			// we can see races here where other changes are committed to the master repo
 			// after we cloned. Because of this we retry on any error.
@@ -151,12 +230,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		return true, nil
 	})
 	if err != nil {
-		return PromoteResult{}, err
+		return err
 	}
-	return result, nil
-}
-
-type PromoteResult struct {
-	ReleaseID            string
-	OverwritingNamespace string
+	return nil
 }
