@@ -52,14 +52,10 @@ integration-test: rabbitmq-background
 AUTH_TOKEN=test
 SSH_PRIVATE_KEY=~/.ssh/github
 CONFIG_REPO=git@github.com:lunarway/release-manager-test-config-repo.git
-AMQP_USER=lunar
-AMQP_PASSWORD=lunar
 GRAFANA_URL=localhost
 GRAFANA_API_KEY=grafana-api-key
 SLACK_TOKEN=slack-token
-
-server: build_server
-	./dist/server start \
+SERVER_START=./dist/server start \
 		--ssh-private-key ${SSH_PRIVATE_KEY} \
 		--slack-token ${SLACK_TOKEN} \
 		--grafana-api-key-dev ${GRAFANA_API_KEY} \
@@ -68,7 +64,18 @@ server: build_server
 		--daemon-auth-token ${AUTH_TOKEN} \
 		--log.level debug \
 		--log.development t \
-		--config-repo ${CONFIG_REPO} \
+		--config-repo ${CONFIG_REPO}
+
+server-memory: build_server
+		$(SERVER_START) \
+		--broker-type memory
+
+AMQP_USER=lunar
+AMQP_PASSWORD=lunar
+
+server-rabbitmq: build_server
+		$(SERVER_START) \
+		--broker-type amqp \
 		--amqp-user ${AMQP_USER} \
 		--amqp-password ${AMQP_PASSWORD}
 

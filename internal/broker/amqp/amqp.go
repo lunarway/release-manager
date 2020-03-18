@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lunarway/release-manager/internal/broker"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
@@ -35,7 +36,7 @@ type Worker struct {
 }
 
 type publisher interface {
-	Publish(ctx context.Context, eventType, messageID string, message interface{}) error
+	Publish(ctx context.Context, eventType, messageID string, message []byte) error
 	Close() error
 }
 
@@ -46,7 +47,6 @@ type Config struct {
 	RoutingKey          string
 	Prefetch            int
 	ReconnectionTimeout time.Duration
-	Handlers            map[string]func([]byte) error
 	AMQPConfig          *amqp.Config
 	Logger              *log.Logger
 }
@@ -90,23 +90,19 @@ func (s *Worker) Close() error {
 	return nil
 }
 
-// ErrWorkerClosed is returned by the Consumer's Start method after a call to
-// Close.
-var ErrWorkerClosed = errors.New("amqp: Worker closed")
-
 // StartConsumer starts the consumer on the worker. The method is blocking and
 // will only return if the worker is stopped with Close.
-func (s *Worker) StartConsumer() error {
+func (s *Worker) StartConsumer(handlers map[string]func([]byte) error) error {
 	for {
 		select {
 		// worker is instructed to shutdown from a Close call
 		case <-s.shutdown:
-			return ErrWorkerClosed
+			return broker.ErrBrokerClosed
 
 		// worker has a new connection that can be used to consume messages with the handler
 		case conn := <-s.currentConsumer:
 			// this call is blocking as long as the connection is available.
-			err := conn.Start(s.config.Logger, s.config.Handlers)
+			err := conn.Start(s.config.Logger, handlers)
 			if err != nil {
 				return err
 			}
@@ -114,18 +110,17 @@ func (s *Worker) StartConsumer() error {
 	}
 }
 
-type Publishable interface {
-	Type() string
-	Body() interface{}
-}
-
 // Publish publishes a message on a configured AMQP exchange.
-func (s *Worker) Publish(ctx context.Context, event Publishable) error {
+func (s *Worker) Publish(ctx context.Context, event broker.Publishable) error {
 	uuid, err := uuid.NewRandom()
 	if err != nil {
 		s.config.Logger.Errorf("Failed to create a random message ID. Continue execution: %v", err)
 	}
-	err = s.currentPublisher.Publish(ctx, event.Type(), uuid.String(), event.Body())
+	body, err := event.Marshal()
+	if err != nil {
+		return errors.WithMessage(err, "get message body")
+	}
+	err = s.currentPublisher.Publish(ctx, event.Type(), uuid.String(), body)
 	if err != nil {
 		return err
 	}

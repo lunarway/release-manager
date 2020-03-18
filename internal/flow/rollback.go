@@ -2,6 +2,7 @@ package flow
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path"
 
@@ -114,8 +115,12 @@ func (RollbackEvent) Type() string {
 	return "rollback"
 }
 
-func (p RollbackEvent) Body() interface{} {
-	return p
+func (p RollbackEvent) Marshal() ([]byte, error) {
+	return json.Marshal(p)
+}
+
+func (p *RollbackEvent) Unmarshal(data []byte) error {
+	return json.Unmarshal(data, p)
 }
 
 func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {

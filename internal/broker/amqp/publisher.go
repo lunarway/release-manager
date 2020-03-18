@@ -2,7 +2,6 @@ package amqp
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/lunarway/release-manager/internal/log"
@@ -28,21 +27,17 @@ func newPublisher(amqpConn *amqp.Connection, exchangeName string) (publisher, er
 	}, nil
 }
 
-func (p *rawPublisher) Publish(ctx context.Context, eventType, messageID string, message interface{}) error {
-	data, err := json.Marshal(message)
-	if err != nil {
-		return errors.WithMessage(err, "marshal message")
-	}
+func (p *rawPublisher) Publish(ctx context.Context, eventType, messageID string, message []byte) error {
 	pub := amqp.Publishing{
 		ContentType:   "application/json",
 		Type:          eventType,
-		Body:          data,
+		Body:          message,
 		MessageId:     messageID,
 		CorrelationId: tracing.RequestIDFromContext(ctx),
 	}
 	// TODO: add publisher confirms to the channel and wait for acknowledgement
 	// before returning
-	err = p.channel.Publish(p.exchangeName, p.routingKey, false, false, pub)
+	err := p.channel.Publish(p.exchangeName, p.routingKey, false, false, pub)
 	if err != nil {
 		return err
 	}
@@ -62,7 +57,7 @@ type loggingPublisher struct {
 	logger    *log.Logger
 }
 
-func (p *loggingPublisher) Publish(ctx context.Context, eventType, messageID string, message interface{}) error {
+func (p *loggingPublisher) Publish(ctx context.Context, eventType, messageID string, message []byte) error {
 	logger := p.logger.WithContext(ctx).WithFields("body", message)
 	logger.Debug("Publishing message")
 	now := time.Now()
