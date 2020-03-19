@@ -2,6 +2,7 @@ package flow
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path"
 
@@ -115,8 +116,12 @@ func (PromoteEvent) Type() string {
 	return "promote"
 }
 
-func (p PromoteEvent) Body() interface{} {
-	return p
+func (p PromoteEvent) Marshal() ([]byte, error) {
+	return json.Marshal(p)
+}
+
+func (p *PromoteEvent) Unmarshal(data []byte) error {
+	return json.Unmarshal(data, p)
 }
 
 // ExecPromote promotes a specific service to environment env.

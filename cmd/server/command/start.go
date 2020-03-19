@@ -2,7 +2,6 @@ package command
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -11,7 +10,9 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/cmd/server/http"
-	"github.com/lunarway/release-manager/internal/amqp"
+	"github.com/lunarway/release-manager/internal/broker"
+	"github.com/lunarway/release-manager/internal/broker/amqp"
+	"github.com/lunarway/release-manager/internal/broker/memory"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/github"
@@ -33,6 +34,37 @@ type grafanaOptions struct {
 	ProdURL       string
 }
 
+// brokerType represents a configured broker type. It implements pflag.Value to
+// support input validation and typesafety.
+type brokerType string
+
+const (
+	BrokerTypeAMQP   brokerType = "amqp"
+	BrokerTypeMemory brokerType = "memory"
+)
+
+func (t *brokerType) String() string {
+	return string(*t)
+}
+func (t *brokerType) Set(s string) error {
+	switch brokerType(s) {
+	case BrokerTypeMemory, BrokerTypeAMQP:
+		*t = brokerType(s)
+		return nil
+	default:
+		return errors.New("broker not supported")
+	}
+}
+func (t *brokerType) Type() string {
+	return "string"
+}
+
+type brokerOptions struct {
+	Type   brokerType
+	AMQP   amqpOptions
+	Memory memoryOptions
+}
+
 type amqpOptions struct {
 	Host                string
 	User                string
@@ -45,13 +77,17 @@ type amqpOptions struct {
 	Queue               string
 }
 
+type memoryOptions struct {
+	QueueSize int
+}
+
 type configRepoOptions struct {
 	ConfigRepo        string
 	ArtifactFileName  string
 	SSHPrivateKeyPath string
 }
 
-func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToken *string, configRepoOpts *configRepoOptions, httpOpts *http.Options, amqpOptions *amqpOptions, userMappings *map[string]string) *cobra.Command {
+func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToken *string, configRepoOpts *configRepoOptions, httpOpts *http.Options, brokerOptions *brokerOptions, userMappings *map[string]string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-manager",
@@ -173,72 +209,59 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				},
 			}
 
-			broker, err := amqp.NewWorker(amqp.Config{
-				Connection: amqp.ConnectionConfig{
-					Host:        amqpOptions.Host,
-					User:        amqpOptions.User,
-					Password:    amqpOptions.Password,
-					VirtualHost: amqpOptions.VirtualHost,
-					Port:        amqpOptions.Port,
+			eventHandlers := map[string]func([]byte) error{
+				flow.PromoteEvent{}.Type(): func(d []byte) error {
+					var event flow.PromoteEvent
+					err := event.Unmarshal(d)
+					if err != nil {
+						return errors.WithMessage(err, "unmarshal event")
+					}
+					return flowSvc.ExecPromote(context.Background(), event)
 				},
-				ReconnectionTimeout: amqpOptions.ReconnectionTimeout,
-				Exchange:            amqpOptions.Exchange,
-				Queue:               amqpOptions.Queue,
-				RoutingKey:          "#",
-				Prefetch:            amqpOptions.Prefetch,
-				Logger:              log.With("system", "amqp"),
-				Handlers: map[string]func(d []byte) error{
-					flow.PromoteEvent{}.Type(): func(d []byte) error {
-						var event flow.PromoteEvent
-						err := json.Unmarshal(d, &event)
-						if err != nil {
-							return errors.WithMessage(err, "unmarshal event")
-						}
-						return flowSvc.ExecPromote(context.Background(), event)
-					},
-					flow.ReleaseArtifactIDEvent{}.Type(): func(d []byte) error {
-						var event flow.ReleaseArtifactIDEvent
-						err := json.Unmarshal(d, &event)
-						if err != nil {
-							return errors.WithMessage(err, "unmarshal event")
-						}
-						return flowSvc.ExecReleaseArtifactID(context.Background(), event)
-					},
-					flow.ReleaseBranchEvent{}.Type(): func(d []byte) error {
-						var event flow.ReleaseBranchEvent
-						err := json.Unmarshal(d, &event)
-						if err != nil {
-							return errors.WithMessage(err, "unmarshal event")
-						}
-						return flowSvc.ExecReleaseBranch(context.Background(), event)
-					},
-					flow.RollbackEvent{}.Type(): func(d []byte) error {
-						var event flow.RollbackEvent
-						err := json.Unmarshal(d, &event)
-						if err != nil {
-							return errors.WithMessage(err, "unmarshal event")
-						}
-						return flowSvc.ExecRollback(context.Background(), event)
-					},
+				flow.ReleaseArtifactIDEvent{}.Type(): func(d []byte) error {
+					var event flow.ReleaseArtifactIDEvent
+					err := event.Unmarshal(d)
+					if err != nil {
+						return errors.WithMessage(err, "unmarshal event")
+					}
+					return flowSvc.ExecReleaseArtifactID(context.Background(), event)
 				},
-			})
-			if err != nil {
-				return err
+				flow.ReleaseBranchEvent{}.Type(): func(d []byte) error {
+					var event flow.ReleaseBranchEvent
+					err := event.Unmarshal(d)
+					if err != nil {
+						return errors.WithMessage(err, "unmarshal event")
+					}
+					return flowSvc.ExecReleaseBranch(context.Background(), event)
+				},
+				flow.RollbackEvent{}.Type(): func(d []byte) error {
+					var event flow.RollbackEvent
+					err := event.Unmarshal(d)
+					if err != nil {
+						return errors.WithMessage(err, "unmarshal event")
+					}
+					return flowSvc.ExecRollback(context.Background(), event)
+				},
 			}
+			brokerImpl, err := getBroker(brokerOptions)
+			if err != nil {
+				return errors.WithMessage(err, "setup broker")
+			}
+
 			flowSvc.PublishPromote = func(ctx context.Context, event flow.PromoteEvent) error {
-				return broker.Publish(ctx, event)
+				return brokerImpl.Publish(ctx, &event)
 			}
 			flowSvc.PublishReleaseArtifactID = func(ctx context.Context, event flow.ReleaseArtifactIDEvent) error {
-				return broker.Publish(ctx, event)
+				return brokerImpl.Publish(ctx, &event)
 			}
 			flowSvc.PublishReleaseBranch = func(ctx context.Context, event flow.ReleaseBranchEvent) error {
-				return broker.Publish(ctx, event)
+				return brokerImpl.Publish(ctx, &event)
 			}
 			flowSvc.PublishRollback = func(ctx context.Context, event flow.RollbackEvent) error {
-				return broker.Publish(ctx, event)
+				return brokerImpl.Publish(ctx, &event)
 			}
 			defer func() {
-				err := broker.Close()
+				err := brokerImpl.Close()
 				if err != nil {
 					log.Errorf("Failed to close broker: %v", err)
 				}
@@ -258,7 +281,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				}
 			}()
 			go func() {
-				err := broker.StartConsumer()
+				err := brokerImpl.StartConsumer(eventHandlers)
 				done <- errors.WithMessage(err, "amqp broker")
 			}()
 
@@ -280,4 +303,38 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 		},
 	}
 	return command
+}
+
+func getBroker(c *brokerOptions) (broker.Broker, error) {
+	switch c.Type {
+	case BrokerTypeAMQP:
+		amqpOptions := c.AMQP
+		log.Info("Using an AMQP broker")
+		return amqp.NewWorker(amqp.Config{
+			Connection: amqp.ConnectionConfig{
+				Host:        amqpOptions.Host,
+				User:        amqpOptions.User,
+				Password:    amqpOptions.Password,
+				VirtualHost: amqpOptions.VirtualHost,
+				Port:        amqpOptions.Port,
+			},
+			ReconnectionTimeout: amqpOptions.ReconnectionTimeout,
+			Exchange:            amqpOptions.Exchange,
+			Queue:               amqpOptions.Queue,
+			RoutingKey:          "#",
+			Prefetch:            amqpOptions.Prefetch,
+			Logger:              log.With("system", "amqp"),
+		})
+	case BrokerTypeMemory:
+		queueSize := c.Memory.QueueSize
+		if queueSize <= 0 {
+			queueSize = 5
+		}
+		log.Infof("Using an in-memory broker with queue size %d", queueSize)
+		return memory.New(log.With("system", "memory"), queueSize), nil
+	default:
+		// this should never happen as the flags are validated against available
+		// values
+		return nil, errors.New("no broker selected")
+	}
 }

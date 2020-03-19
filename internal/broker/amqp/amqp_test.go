@@ -10,12 +10,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lunarway/release-manager/internal/broker"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/test"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
 )
+
+var _ broker.Broker = &Worker{}
+var _ broker.Publishable = &testEvent{}
 
 type testEvent struct {
 	Message string `json:"message"`
@@ -25,8 +29,12 @@ func (testEvent) Type() string {
 	return "test-event"
 }
 
-func (t testEvent) Body() interface{} {
-	return t
+func (t testEvent) Marshal() ([]byte, error) {
+	return json.Marshal(t)
+}
+
+func (t *testEvent) Unmarshal(d []byte) error {
+	return json.Unmarshal(d, t)
 }
 
 // TestWorker_PublishAndConsumer tests that we can publish and receive messages
@@ -60,7 +68,16 @@ func TestWorker_PublishAndConsumer(t *testing.T) {
 		RoutingKey:          "#",
 		Prefetch:            10,
 		Logger:              logger,
-		Handlers: map[string]func(d []byte) error{
+	})
+	if !assert.NoError(t, err, "unexpected init error") {
+		return
+	}
+
+	var consumerWg sync.WaitGroup
+	consumerWg.Add(1)
+	go func() {
+		defer consumerWg.Done()
+		err := worker.StartConsumer(map[string]func([]byte) error{
 			testEvent{}.Type(): func(d []byte) error {
 				newCount := atomic.AddInt32(&receivedCount, 1)
 				if int(newCount) == publishedMessages {
@@ -74,20 +91,8 @@ func TestWorker_PublishAndConsumer(t *testing.T) {
 				logger.Infof("Received %s", msg.Message)
 				return nil
 			},
-		},
-	})
-	if !assert.NoError(t, err, "unexpected init error") {
-		return
-	}
-
-	var consumerWg sync.WaitGroup
-	consumerWg.Add(1)
-	go func() {
-		defer consumerWg.Done()
-		err := worker.StartConsumer()
-		if err != ErrWorkerClosed {
-			assert.NoError(t, err, "unexpected consumer error")
-		}
+		})
+		assert.EqualError(t, err, broker.ErrBrokerClosed.Error(), "unexpected consumer error")
 	}()
 
 	var publisherWg sync.WaitGroup
@@ -97,7 +102,7 @@ func TestWorker_PublishAndConsumer(t *testing.T) {
 		defer publisherWg.Done()
 		for i := 1; i <= publishedMessages; i++ {
 			logger.Infof("TEST: Published message %d", i)
-			err := worker.Publish(context.Background(), testEvent{
+			err := worker.Publish(context.Background(), &testEvent{
 				Message: fmt.Sprintf("Message %d", i),
 			})
 			assert.NoError(t, err, "unexpected error publishing message")
@@ -175,13 +180,6 @@ func TestWorker_reconnection(t *testing.T) {
 			Vhost: "/",
 		},
 		Logger: logger,
-		Handlers: map[string]func([]byte) error{
-			testEvent{}.Type(): func(d []byte) error {
-				logger.Infof("Handled %s", d)
-				atomic.AddInt32(&consumedCount, 1)
-				return nil
-			},
-		},
 	})
 	if !assert.NoError(t, err, "unexpected init error") {
 		return
@@ -197,7 +195,7 @@ func TestWorker_reconnection(t *testing.T) {
 		// called outside to Go routine
 		time.Sleep(10 * time.Millisecond)
 
-		err := worker.Publish(context.Background(), testEvent{
+		err := worker.Publish(context.Background(), &testEvent{
 			Message: "message 1",
 		})
 		if err != nil {
@@ -213,7 +211,7 @@ func TestWorker_reconnection(t *testing.T) {
 		// wait some seconds before publishing again for retries to take place
 		time.Sleep(100 * time.Millisecond)
 
-		err = worker.Publish(context.Background(), testEvent{
+		err = worker.Publish(context.Background(), &testEvent{
 			Message: "message 2",
 		})
 		if err != nil {
@@ -231,9 +229,15 @@ func TestWorker_reconnection(t *testing.T) {
 	// long as we are able to keep a connection open with retries. If we
 	// have no more retry attempts left the function will return with an
 	// error.
-	err = worker.StartConsumer()
+	err = worker.StartConsumer(map[string]func([]byte) error{
+		testEvent{}.Type(): func(d []byte) error {
+			logger.Infof("Handled %s", d)
+			atomic.AddInt32(&consumedCount, 1)
+			return nil
+		},
+	})
 	logger.Infof("TEST: worker error: %v", err)
-	assert.EqualError(t, err, ErrWorkerClosed.Error(), "consumer returned unexpected error")
+	assert.EqualError(t, err, broker.ErrBrokerClosed.Error(), "consumer returned unexpected error")
 	wg.Wait()
 	assert.Equal(t, int32(2), consumedCount, "did not receive two messages as exected")
 }

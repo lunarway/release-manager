@@ -13,7 +13,7 @@ import (
 
 // NewCommand returns a new instance of a hamctl command.
 func NewCommand() (*cobra.Command, error) {
-	var amqpOpts amqpOptions
+	var brokerOpts brokerOptions
 	var httpOpts http.Options
 	var grafanaOpts grafanaOptions
 	var slackAuthToken string
@@ -44,7 +44,7 @@ func NewCommand() (*cobra.Command, error) {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(NewStart(&grafanaOpts, &slackAuthToken, &githubAPIToken, &configRepoOpts, &httpOpts, &amqpOpts, &userMappings))
+	command.AddCommand(NewStart(&grafanaOpts, &slackAuthToken, &githubAPIToken, &configRepoOpts, &httpOpts, &brokerOpts, &userMappings))
 	command.PersistentFlags().IntVar(&httpOpts.Port, "http-port", 8080, "port of the http server")
 	command.PersistentFlags().DurationVar(&httpOpts.Timeout, "timeout", 20*time.Second, "HTTP server timeout for incomming requests")
 	command.PersistentFlags().StringVar(&httpOpts.HamCtlAuthToken, "hamctl-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "hamctl authentication token")
@@ -63,17 +63,26 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&grafanaOpts.ProdURL, "grafana-prod-url", os.Getenv("GRAFANA_PROD_URL"), "grafana prod url")
 	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between emails used by Git and Slack, key-value pair: <email>=<slack-email>")
 
-	command.PersistentFlags().StringVar(&amqpOpts.Host, "amqp-host", "localhost", "AMQP host URL")
-	command.PersistentFlags().IntVar(&amqpOpts.Port, "amqp-port", 5672, "AMQP host port")
-	command.PersistentFlags().StringVar(&amqpOpts.User, "amqp-user", "", "AMQP user name")
-	command.PersistentFlags().StringVar(&amqpOpts.Password, "amqp-password", "", "AMQP password")
-	command.PersistentFlags().StringVar(&amqpOpts.VirtualHost, "amqp-virtualhost", "/", "AMQP virtual host")
-	command.PersistentFlags().DurationVar(&amqpOpts.ReconnectionTimeout, "amqp-reconnection-timeouts", 5*time.Second, "AMQP reconnection attempt timeout")
-	command.PersistentFlags().IntVar(&amqpOpts.Prefetch, "amqp-prefetch", 1, "AMQP queue prefetch")
-	command.PersistentFlags().StringVar(&amqpOpts.Exchange, "amqp-exchange", "release-manager", "AMQP exchange")
-	command.PersistentFlags().StringVar(&amqpOpts.Queue, "amqp-queue", "release-manager", "AMQP queue")
-
+	registerBrokerFlags(command, &brokerOpts)
 	logConfiguration = log.RegisterFlags(command)
 
 	return command, nil
+}
+
+func registerBrokerFlags(cmd *cobra.Command, c *brokerOptions) {
+	cmd.PersistentFlags().Var(&c.Type, "broker-type", "configure what broker to use. Available values are \"memory\" and \"amqp\"")
+
+	// in-memory options
+	cmd.PersistentFlags().IntVar(&c.Memory.QueueSize, "memory-queue-size", 5, "in-memory queue size")
+
+	// amqp options
+	cmd.PersistentFlags().StringVar(&c.AMQP.Host, "amqp-host", "localhost", "AMQP host URL")
+	cmd.PersistentFlags().IntVar(&c.AMQP.Port, "amqp-port", 5672, "AMQP host port")
+	cmd.PersistentFlags().StringVar(&c.AMQP.User, "amqp-user", "", "AMQP user name")
+	cmd.PersistentFlags().StringVar(&c.AMQP.Password, "amqp-password", "", "AMQP password")
+	cmd.PersistentFlags().StringVar(&c.AMQP.VirtualHost, "amqp-virtualhost", "/", "AMQP virtual host")
+	cmd.PersistentFlags().DurationVar(&c.AMQP.ReconnectionTimeout, "amqp-reconnection-timeouts", 5*time.Second, "AMQP reconnection attempt timeout")
+	cmd.PersistentFlags().IntVar(&c.AMQP.Prefetch, "amqp-prefetch", 1, "AMQP queue prefetch")
+	cmd.PersistentFlags().StringVar(&c.AMQP.Exchange, "amqp-exchange", "release-manager", "AMQP exchange")
+	cmd.PersistentFlags().StringVar(&c.AMQP.Queue, "amqp-queue", "release-manager", "AMQP queue")
 }

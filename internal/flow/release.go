@@ -2,6 +2,7 @@ package flow
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path"
 
@@ -73,8 +74,12 @@ func (ReleaseBranchEvent) Type() string {
 	return "release.branch"
 }
 
-func (p ReleaseBranchEvent) Body() interface{} {
-	return p
+func (p ReleaseBranchEvent) Marshal() ([]byte, error) {
+	return json.Marshal(p)
+}
+
+func (p *ReleaseBranchEvent) Unmarshal(data []byte) error {
+	return json.Unmarshal(data, p)
 }
 
 func (s *Service) ExecReleaseBranch(ctx context.Context, event ReleaseBranchEvent) error {
@@ -171,8 +176,12 @@ func (ReleaseArtifactIDEvent) Type() string {
 	return "release.artifactId"
 }
 
-func (p ReleaseArtifactIDEvent) Body() interface{} {
-	return p
+func (p ReleaseArtifactIDEvent) Marshal() ([]byte, error) {
+	return json.Marshal(p)
+}
+
+func (p *ReleaseArtifactIDEvent) Unmarshal(data []byte) error {
+	return json.Unmarshal(data, p)
 }
 
 // ReleaseArtifactID releases a specific artifact to environment env.
