@@ -268,14 +268,14 @@ e2e-build-local-daemon:
 	env GOOS=linux go build -o $(current_dir)e2e-test/binaries/daemon ./cmd/daemon
 
 e2e-rebuild-local-daemon: e2e-build-local-daemon
-	kubectl delete pods deploy/release-daemon
+	kubectl delete pods -l app=release-daemon
 
 e2e-build-local-manager:
 	mkdir -p $(current_dir)e2e-test/binaries
 	env GOOS=linux go build -o $(current_dir)e2e-test/binaries/server ./cmd/server
 
 e2e-rebuild-local-manager: e2e-build-local-manager
-	kubectl delete pods deploy/release-manager
+	kubectl delete pods -l app=release-manager
 
 # e2e-run-local-daemon:
 # 	go run ./cmd/daemon start --environment local --kubeconfig $(KUBECONFIG) --release-manager-url http://localhost:10080
