@@ -4,15 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-
-	"github.com/justinbarrick/fluxcloud/pkg/msg"
 )
 
 type FakeExporter struct {
-	Sent []msg.Message
+	Sent []Message
 }
 
-func (f *FakeExporter) Send(_ context.Context, _ *http.Client, message msg.Message) error {
+func (f *FakeExporter) Send(_ context.Context, _ *http.Client, message Message) error {
 	f.Sent = append(f.Sent, message)
 	return nil
 }
