@@ -139,3 +139,4 @@ spec:
             - --sync-garbage-collection=true
             - --registry-disable-scanning
             - --k8s-secret-name=flux-git-deploy
+            - --connect=ws://release-daemon:8080

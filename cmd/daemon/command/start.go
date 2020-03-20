@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/lunarway/release-manager/cmd/daemon/apis"
 	"github.com/lunarway/release-manager/cmd/daemon/kubernetes"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
@@ -31,6 +32,15 @@ func StartDaemon() *cobra.Command {
 			}
 
 			log.Info("Deamon started")
+
+			config := &apis.DefaultConfig{}
+			formatter, err := apis.NewDefaultFormatter(config)
+			apiconfig := apis.NewAPIConfig(formatter, []apis.Exporter{}, config)
+
+			apis.HandleWebsocket(apiconfig)
+			apis.HandleV6(apiconfig)
+
+			apiconfig.Listen(":8080")
 
 			succeededFunc := func(event *kubernetes.PodEvent) error {
 				notifyReleaseManager(event, "", releaseManagerUrl, authToken, environment)
