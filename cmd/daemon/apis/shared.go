@@ -21,15 +21,6 @@ type Message struct {
 type Exporter interface {
 	// Send a message through the exporter.
 	Send(c context.Context, client *http.Client, message Message) error
-
-	// Return a new line as a string for the exporter.
-	NewLine() string
-
-	// Return a link formatted for the exporter.
-	FormatLink(link string, name string) string
-
-	// Returns the name of the exporter.
-	Name() string
 }
 
 // Interface for fetching configuration settings
@@ -40,10 +31,6 @@ type Config interface {
 
 	// Get a required setting by name.
 	Required(key string) (string, error)
-}
-
-type Formatter interface {
-	FormatEvent(event fluxevent.Event, exporter Exporter) Message
 }
 
 // Parse a flux event from Json into a flux Event struct.

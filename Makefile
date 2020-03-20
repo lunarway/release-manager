@@ -293,4 +293,29 @@ data:\n\
   somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
 	cd ./e2e-test/source-git-repo;\
 	git add .;\
-	git commit -m "Add readme"
+	git commit -m "Update at $$(date)"
+
+e2e-do-another-release:
+	echo "apiVersion: v1\n\
+kind: ConfigMap\n\
+metadata:\n\
+  name: another-test\n\
+  namespace: default\n\
+data:\n\
+  some-other-value: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/another-test.yaml
+	cd ./e2e-test/source-git-repo;\
+	git add .;\
+	git commit -m "Update at $$(date)"
+
+
+e2e-do-bad-release:
+	echo "apiVersion: v1\n\
+kind: ConfigMap\n\
+metadata:\n\
+  name: test\n\
+  namespace: default\n\
+baddata:\n\
+  somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
+	cd ./e2e-test/source-git-repo;\
+	git add .;\
+	git commit -m "Update at $$(date)"

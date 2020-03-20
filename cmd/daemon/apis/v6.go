@@ -3,46 +3,35 @@ package apis
 import (
 	"bytes"
 	"io/ioutil"
-	"log"
 	"net/http"
 )
 
 // Handle Flux events
 func HandleV6(config APIConfig) (err error) {
 	config.Server.HandleFunc("/v6/events", func(w http.ResponseWriter, r *http.Request) {
-		log.Print("Request for:", r.URL)
+		config.Log.With("URL", r.URL).Info("Request for URL")
 
 		eventStr, err := ioutil.ReadAll(r.Body)
-		log.Print(string(eventStr))
+		config.Log.With("EventStr", string(eventStr)).Info("Got flux event")
 
 		event, err := ParseFluxEvent(bytes.NewBuffer(eventStr))
 		if err != nil {
-			log.Print(err.Error())
+			config.Log.With("error", err.Error()).Error("got error parsing flux event")
 			http.Error(w, err.Error(), 400)
 			return
 		}
 
-		var sendError bool
-		for _, exporter := range config.Exporter {
-			message := config.Formatter.FormatEvent(event, exporter)
-			if message.Title == "" {
-				w.WriteHeader(200)
-				return
-			}
+		exporter := config.Exporter
 
-			err = exporter.Send(r.Context(), config.Client, message)
-			if err != nil {
-				log.Printf("Exporter %v got an error: %v", exporter.Name(), err.Error())
-				sendError = true
-				continue
-			}
-		}
-		// catching error after all the exporters have ran
-		// if any exporter failed we will return 500 on the /v6/events endpoint
-		if sendError {
+		err = exporter.Send(r.Context(), config.Client, Message{
+			Event: event,
+		})
+		if err != nil {
+			config.Log.With("Error", err.Error()).Errorf("Exporter %T got an error", exporter)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+
 		w.WriteHeader(200)
 	})
 

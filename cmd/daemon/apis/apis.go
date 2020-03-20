@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/lunarway/release-manager/internal/log"
 	"go.opencensus.io/exporter/jaeger"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/trace"
@@ -12,24 +13,24 @@ import (
 
 // All of the configuration necessary to run a fluxcloud API
 type APIConfig struct {
-	Server    *http.ServeMux
-	Client    *http.Client
-	Exporter  []Exporter
-	Formatter Formatter
-	Config    Config
+	Server   *http.ServeMux
+	Client   *http.Client
+	Exporter Exporter
+	Config   Config
+	Log      *log.Logger
 }
 
 // Initialize API configuration
-func NewAPIConfig(f Formatter, e []Exporter, c Config) APIConfig {
+func NewAPIConfig(e Exporter, c Config, logger *log.Logger) APIConfig {
 	return APIConfig{
 		Server: http.NewServeMux(),
 		Client: &http.Client{
 			Timeout:   120 * time.Second,
 			Transport: &ochttp.Transport{},
 		},
-		Formatter: f,
-		Exporter:  e,
-		Config:    c,
+		Exporter: e,
+		Config:   c,
+		Log:      logger,
 	}
 }
 
