@@ -17,7 +17,7 @@ type Client struct {
 }
 
 var (
-	// ErrUnknownEmail indicates that an email not from the lunarway.com domain
+	// ErrUnknownEmail indicates that an email not from the lunar.app domain
 	// is used and no email mapping exists.
 	ErrUnknownEmail = errors.New("not a lunarway email")
 )
@@ -33,7 +33,7 @@ func NewClient(token string, emailMappings map[string]string) (*Client, error) {
 }
 
 func (c *Client) getIdByEmail(ctx context.Context, email string) (string, error) {
-	if !strings.Contains(email, "@lunarway.com") {
+	if !strings.Contains(email, "@lunar.app") {
 		// check for fallback emails
 		lwEmail, ok := c.emailMappings[email]
 		if !ok {
@@ -154,14 +154,15 @@ func crashLoopBackOffErrorMessage(podNotify *http.PodNotifyRequest) slack.MsgOpt
 }
 
 type ReleaseOptions struct {
-	Service       string
-	ArtifactID    string
-	CommitSHA     string
-	CommitLink    string
-	CommitMessage string
-	CommitAuthor  string
-	Releaser      string
-	Environment   string
+	Service           string
+	ArtifactID        string
+	CommitSHA         string
+	CommitLink        string
+	CommitMessage     string
+	CommitAuthor      string
+	CommitAuthorEmail string
+	Releaser          string
+	Environment       string
 }
 
 func (c *Client) NotifySlackReleasesChannel(ctx context.Context, options ReleaseOptions) error {
@@ -246,4 +247,24 @@ func (c *Client) NotifySlackPolicySucceeded(ctx context.Context, email, title, m
 		return err
 	}
 	return nil
+}
+
+func (c *Client) NotifyAuthorEventProcessed(ctx context.Context, options ReleaseOptions) error {
+	userID, err := c.getIdByEmail(ctx, options.CommitAuthorEmail)
+	if err != nil {
+		return err
+	}
+	asUser := slack.MsgOptionAsUser(true)
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      fmt.Sprintf(":rocket: Release Manager: Release for %s processed", options.Service),
+		TitleLink:  options.CommitLink,
+		Color:      MsgColorGreen,
+		Text:       fmt.Sprintf("Artifact ID: %s", options.ArtifactID),
+		MarkdownIn: []string{"text", "fields"},
+	})
+	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
+	if err != nil {
+		return err
+	}
+	return err
 }
