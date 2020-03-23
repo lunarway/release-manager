@@ -33,7 +33,7 @@ func initCommand(options *Options) *cobra.Command {
 				return err
 			}
 			isLunarWayEmail := func(email string) bool {
-				return strings.Contains(email, "@lunarway.com")
+				return strings.Contains(email, "@lunar.app")
 			}
 			if !isLunarWayEmail(s.Application.AuthorEmail) {
 				lwEmail, ok := options.UserMappings[s.Application.AuthorEmail]

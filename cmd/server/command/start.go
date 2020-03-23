@@ -166,20 +166,29 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 						"releaser", opts.Releaser,
 						"type", "release")
 
+					releaseOptions := slack.ReleaseOptions{
+						Service:           opts.Service,
+						Environment:       opts.Environment,
+						ArtifactID:        opts.Spec.ID,
+						CommitMessage:     opts.Spec.Application.Message,
+						CommitAuthor:      opts.Spec.Application.AuthorName,
+						CommitAuthorEmail: opts.Spec.Application.AuthorEmail,
+						CommitLink:        opts.Spec.Application.URL,
+						CommitSHA:         opts.Spec.Application.SHA,
+						Releaser:          opts.Releaser,
+					}
 					span, _ = tracer.FromCtx(ctx, "notify release channel")
-					err := slackClient.NotifySlackReleasesChannel(ctx, slack.ReleaseOptions{
-						Service:       opts.Service,
-						Environment:   opts.Environment,
-						ArtifactID:    opts.Spec.ID,
-						CommitMessage: opts.Spec.Application.Message,
-						CommitAuthor:  opts.Spec.Application.AuthorName,
-						CommitLink:    opts.Spec.Application.URL,
-						CommitSHA:     opts.Spec.Application.SHA,
-						Releaser:      opts.Releaser,
-					})
+					err := slackClient.NotifySlackReleasesChannel(ctx, releaseOptions)
 					span.Finish()
 					if err != nil {
 						logger.Errorf("flow.NotifyReleaseHook: failed to post releases slack message: %v", err)
+					}
+
+					span, _ = tracer.FromCtx(ctx, "notify author")
+					err = slackClient.NotifyAuthorEventProcessed(ctx, releaseOptions)
+					span.Finish()
+					if err != nil {
+						logger.Errorf("flow.NotifyReleaseHook: failed to post slack release message to author: %v", err)
 					}
 
 					span, _ = tracer.FromCtx(ctx, "annotate grafana")

@@ -14,7 +14,7 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyCommitter")
 	defer span.Finish()
 	email := event.AuthorEmail
-	if !strings.Contains(email, "@lunarway.com") {
+	if !strings.Contains(email, "@lunar.app") {
 		//check UserMappings
 		lwEmail, ok := s.UserMappings[email]
 		if !ok {
