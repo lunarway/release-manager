@@ -188,7 +188,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 					err = slackClient.NotifyAuthorEventProcessed(ctx, releaseOptions)
 					span.Finish()
 					if err != nil {
-						logger.Errorf("flow.NotifyReleaseHook: failed to post slack release message to author: %v", err)
+						logger.Errorf("flow.NotifyReleaseHook: failed to post slack event processed message to author: %v", err)
 					}
 
 					span, _ = tracer.FromCtx(ctx, "annotate grafana")
