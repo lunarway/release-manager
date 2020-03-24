@@ -17,7 +17,7 @@ import (
 )
 
 func StartDaemon() *cobra.Command {
-	var authToken, releaseManagerUrl, environment, kubeConfigPath string
+	var authToken, releaseManagerUrl, environment, kubeConfigPath, apiBinding string
 	var logConfiguration *log.Configuration
 	var command = &cobra.Command{
 		Use:   "start",
@@ -37,10 +37,19 @@ func StartDaemon() *cobra.Command {
 				Log: log.With("type", "exporter"),
 			}, log.With("type", "api"))
 
-			apis.HandleWebsocket(apiconfig)
-			apis.HandleV6(apiconfig)
+			err = apis.HandleWebsocket(apiconfig)
+			if err != nil {
+				return err
+			}
+			err = apis.HandleV6(apiconfig)
+			if err != nil {
+				return err
+			}
 
-			apiconfig.Listen(":8080")
+			err = apiconfig.Listen(apiBinding)
+			if err != nil {
+				return err
+			}
 
 			succeededFunc := func(event *kubernetes.PodEvent) error {
 				notifyReleaseManager(event, "", releaseManagerUrl, authToken, environment)
@@ -72,6 +81,7 @@ func StartDaemon() *cobra.Command {
 	command.Flags().StringVar(&authToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
 	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
 	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "path to kubeconfig file. If not specified, then daemon is expected to run inside kubernetes")
+	command.Flags().StringVar(&apiBinding, "api-binding", ":8080", "binding of the daemon api server")
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
 	//nolint:errcheck
