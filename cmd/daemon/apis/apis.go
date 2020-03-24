@@ -16,12 +16,12 @@ type APIConfig struct {
 	Server   *http.ServeMux
 	Client   *http.Client
 	Exporter Exporter
-	Config   Config
-	Log      *log.Logger
+	// Config   Config
+	Log *log.Logger
 }
 
 // Initialize API configuration
-func NewAPIConfig(e Exporter, c Config, logger *log.Logger) APIConfig {
+func NewAPIConfig(e Exporter, logger *log.Logger) APIConfig {
 	return APIConfig{
 		Server: http.NewServeMux(),
 		Client: &http.Client{
@@ -29,7 +29,6 @@ func NewAPIConfig(e Exporter, c Config, logger *log.Logger) APIConfig {
 			Transport: &ochttp.Transport{},
 		},
 		Exporter: e,
-		Config:   c,
 		Log:      logger,
 	}
 }

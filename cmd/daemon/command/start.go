@@ -33,10 +33,9 @@ func StartDaemon() *cobra.Command {
 
 			log.Info("Deamon started")
 
-			config := &apis.DefaultConfig{}
 			apiconfig := apis.NewAPIConfig(&apis.LogExporter{
 				Log: log.With("type", "exporter"),
-			}, config, log.With("type", "api"))
+			}, log.With("type", "api"))
 
 			apis.HandleWebsocket(apiconfig)
 			apis.HandleV6(apiconfig)
