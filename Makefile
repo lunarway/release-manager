@@ -47,7 +47,12 @@ test:
 
 integration-test: rabbitmq-background
 	@echo "Running integration tests against RabbitMQ on localhost"
+ifneq ($(VERBOSE),)
 	RELEASE_MANAGER_INTEGRATION_RABBITMQ_HOST=localhost go test -count=1 -v ./...
+else
+	RELEASE_MANAGER_INTEGRATION_RABBITMQ_HOST=localhost go test -count=1 ./...
+endif
+
 
 AUTH_TOKEN=test
 SSH_PRIVATE_KEY=~/.ssh/github
@@ -213,7 +218,7 @@ RABBITMQ_INTEGRATION_HOST_CONTAINER=rm-rabbitmq
 
 rabbitmq-background:
 	@echo "Starting RabbitMQ in background"
-	-docker run --rm --hostname rabbitmq -p 5672:5672 -p 15672:15672 -e RABBITMQ_DEFAULT_USER=lunar -e RABBITMQ_DEFAULT_PASS=lunar --name ${RABBITMQ_INTEGRATION_HOST_CONTAINER} -d rabbitmq:3-management
+	-bash -c "docker run --rm --hostname rabbitmq -p 5672:5672 -p 15672:15672 -e RABBITMQ_DEFAULT_USER=lunar -e RABBITMQ_DEFAULT_PASS=lunar --name ${RABBITMQ_INTEGRATION_HOST_CONTAINER} -d rabbitmq:3-management || true"
 
 rabbitmq-background-stop:
 	@echo "Stopping RabbitMQ in background"
@@ -270,6 +275,9 @@ e2e-build-local-daemon:
 e2e-rebuild-local-daemon: e2e-build-local-daemon
 	kubectl delete pods -l app=release-daemon
 
+e2e-watch-local-daemon:
+	nodemon --ext .go --watch "cmd/daemon/**" --exec "set -e; make e2e-rebuild-local-daemon; while true; do kubectl logs deploy/release-daemon -f || true; done;"
+
 e2e-build-local-manager:
 	mkdir -p $(current_dir)e2e-test/binaries
 	env GOOS=linux go build -o $(current_dir)e2e-test/binaries/server ./cmd/server
@@ -277,11 +285,8 @@ e2e-build-local-manager:
 e2e-rebuild-local-manager: e2e-build-local-manager
 	kubectl delete pods -l app=release-manager
 
-# e2e-run-local-daemon:
-# 	go run ./cmd/daemon start --environment local --kubeconfig $(KUBECONFIG) --release-manager-url http://localhost:10080
-
-# e2e-run-local-manager:
-# 	go run ./cmd/server start --ssh-private-key ~/.ssh/id_rsa --config-repo file://$(current_dir)e2e-test/source-git-repo --http-port 10080
+e2e-watch-local-manager:
+	nodemon --ext .go --watch "cmd/server/**" --exec "set -e; make e2e-rebuild-local-server; while true; do kubectl logs deploy/release-manager -f || true; done;"
 
 e2e-do-release:
 	echo "apiVersion: v1\n\
