@@ -2,22 +2,22 @@ kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
   - role: control-plane
-    extraPortMappings:
-      - containerPort: 3030 # fluxd
-        hostPort: 3030
-        protocol: tcp
-      - containerPort: 8080 # release-manager
-        hostPort: 8080
-        protocol: tcp
-      - containerPort: 9080 # release-daemon
-        hostPort: 9080
-        protocol: tcp
-      - containerPort: 9900
-        hostPort: 9900
-        protocol: tcp
-      - containerPort: 15672 # rabbitmq admin
-        hostPort: 15672
-        protocol: tcp
+    # extraPortMappings:
+    #   - containerPort: 3030 # fluxd
+    #     hostPort: 3030
+    #     protocol: tcp
+    #   - containerPort: 8080 # release-manager
+    #     hostPort: 8080
+    #     protocol: tcp
+    #   - containerPort: 9080 # release-daemon
+    #     hostPort: 9080
+    #     protocol: tcp
+    #   - containerPort: 9900
+    #     hostPort: 9900
+    #     protocol: tcp
+    #   - containerPort: 15672 # rabbitmq admin
+    #     hostPort: 15672
+    #     protocol: tcp
     extraMounts:
       - hostPath: ./e2e-test/source-git-repo
         containerPath: /source-git-repo
