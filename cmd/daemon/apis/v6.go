@@ -2,6 +2,7 @@ package apis
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 )
@@ -12,6 +13,9 @@ func HandleV6(config APIConfig) (err error) {
 		config.Log.With("URL", r.URL).Info("Request for URL")
 
 		eventStr, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Could not read request body: %s", err), 500)
+		}
 		config.Log.With("EventStr", string(eventStr)).Info("Got flux event")
 
 		event, err := ParseFluxEvent(bytes.NewBuffer(eventStr))

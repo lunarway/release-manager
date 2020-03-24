@@ -30,7 +30,11 @@ func TestHandleV6(t *testing.T) {
 		Log:      log.With("type", "apiConfig"),
 	}
 
-	HandleV6(apiConfig)
+	err := HandleV6(apiConfig)
+	if err != nil {
+		assert.Failf(t, "failed with error", "failed with error %s", err)
+		return
+	}
 
 	event := NewFluxSyncEvent()
 	data, _ := json.Marshal(event)
@@ -44,6 +48,14 @@ func TestHandleV6(t *testing.T) {
 	// formatted := formatter.FormatEvent(event, fakeExporter)
 	// assert.Equal(t, formatted.Title, fakeExporter.Sent[0].Title, formatted.Title)
 	// assert.Equal(t, formatted.Body, fakeExporter.Sent[0].Body, formatted.Body)
+}
+
+func TestFluxEventsMocks(t *testing.T) {
+	NewFluxSyncEvent()
+	NewFluxSyncErrorEvent()
+	NewFluxCommitEvent()
+	NewFluxAutoReleaseEvent()
+	NewFluxUpdatePolicyEvent()
 }
 
 func NewFluxSyncEvent() fluxevent.Event {
