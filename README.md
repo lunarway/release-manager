@@ -13,12 +13,12 @@ We will however, have it public available for reference. This might change over 
 The release-manager consist of 4 different "microservices" with each having a specific responsibility in the pipeline. The applications are basically utilities for moving files around a Git repository.
  The four applications are:
 
-| Application  | Description |
-| ------------- | ------------- |
-| artifact  | a simple tool for generating an artifact.json blob with information from the CI pipeline  |
-| server  | the API-server where clients (hamtcl) connects to, and daemon reports events to. It further implements different flows, e.g., promote a release, release an artifact   |
-| hamctl  | a CLI client for interacting with the release-manager server  |
-| daemon  | a daemon reporting events about cluster component status back to the release-manager server   |
+| Application | Description                                                                                                                                                          |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| artifact    | a simple tool for generating an artifact.json blob with information from the CI pipeline                                                                             |
+| server      | the API-server where clients (hamtcl) connects to, and daemon reports events to. It further implements different flows, e.g., promote a release, release an artifact |
+| hamctl      | a CLI client for interacting with the release-manager server                                                                                                         |
+| daemon      | a daemon reporting events about cluster component status back to the release-manager server                                                                          |
 
 A simplified overview of all the components involved in the flow can be seen below:
 ![](docs/gitops_workflow_white_bg.png)
@@ -355,7 +355,17 @@ go test -v ./...
 
 To help development it is possible to use the e2e setup. This setup will start a kubernetes cluster locally and run fluxd, release-daemon and release-manager.
 
-To start the setup use the make target `e2e-setup` and follow the guides afterwards. To teardown the test environment use `e2e-teardown`.
+| Action                   | Command                          | Description                                                                                          |
+| ------------------------ | -------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Start e2e setup          | `make e2e-setup`                 | Start and initiate kind and e2e setup                                                                |
+| Rebuild manager          | `make e2e-rebuild-local-manager` | Rebuild the manager and restart pod in e2e cluster                                                   |
+| Rebuild daemon           | `make e2e-rebuild-local-daemon`  | Like "Rebuild manager" but for the daemon                                                            |
+| Watch manager            | `make e2e-rebuild-local-manager` | Watch source code changes and rebuild the manager and restart pod in e2e cluster. Requires `nodemon` |
+| Watch daemon             | `make e2e-rebuild-local-daemon`  | Like "Watch manager" but for the daemon                                                              |
+| Do dummy release         | `make e2e-do-release`            | Do a release in git repo to trigger fluxd change                                                     |
+| Do failing dummy release | `make e2e-do-bad-release`        | Do a bad release in git repo to trigger fluxd error                                                  |
+| Do another dummy release | `make e2e-do-another-release`    | Do another kind of release in git repo to trigger fluxd change                                       |
+| Stop e2e setup           | `make e2e-teardown`              | Stop and cleanup the e2e setup                                                                       |
 
 
 # Release
