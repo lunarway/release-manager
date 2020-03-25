@@ -1,4 +1,4 @@
-package flux
+package flux_test
 
 import (
 	"bytes"
@@ -8,9 +8,10 @@ import (
 	"testing"
 
 	"github.com/justinbarrick/fluxcloud/pkg/utils"
+	"github.com/lunarway/release-manager/cmd/daemon/flux"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/stretchr/testify/assert"
-	fluxevent "github.com/weaveworks/flux/event"
+	"github.com/weaveworks/flux/event"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -24,13 +25,13 @@ func TestHandleV6(t *testing.T) {
 
 	fakeExporter := &FakeExporter{}
 
-	apiConfig := API{
+	api := flux.API{
 		Server:   http.NewServeMux(),
 		Exporter: fakeExporter,
 		Log:      log.With("type", "apiConfig"),
 	}
 
-	err := HandleV6(apiConfig)
+	err := flux.HandleV6(api)
 	if err != nil {
 		assert.Failf(t, "failed with error", "failed with error %s", err)
 		return
@@ -58,7 +59,7 @@ func TestFluxEventsMocks(t *testing.T) {
 	NewFluxUpdatePolicyEvent()
 }
 
-func NewFluxSyncEvent() fluxevent.Event {
+func NewFluxSyncEvent() event.Event {
 	event, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
@@ -84,7 +85,7 @@ func NewFluxSyncEvent() fluxevent.Event {
 	return event
 }
 
-func NewFluxSyncErrorEvent() fluxevent.Event {
+func NewFluxSyncErrorEvent() event.Event {
 	event, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
   "id": 0,
   "serviceIDs": [
@@ -122,7 +123,7 @@ func NewFluxSyncErrorEvent() fluxevent.Event {
 	return event
 }
 
-func NewFluxCommitEvent() fluxevent.Event {
+func NewFluxCommitEvent() event.Event {
 	event, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
@@ -161,7 +162,7 @@ func NewFluxCommitEvent() fluxevent.Event {
 	return event
 }
 
-func NewFluxAutoReleaseEvent() fluxevent.Event {
+func NewFluxAutoReleaseEvent() event.Event {
 	event, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
@@ -203,7 +204,7 @@ func NewFluxAutoReleaseEvent() fluxevent.Event {
 	return event
 }
 
-func NewFluxUpdatePolicyEvent() fluxevent.Event {
+func NewFluxUpdatePolicyEvent() event.Event {
 	event, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
