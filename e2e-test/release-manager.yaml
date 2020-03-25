@@ -101,9 +101,6 @@ spec:
             - name: http
               containerPort: 8080
               #hostPort: 9080
-            - name: grpc
-              containerPort: 7900
-              #hostPort: 9900
           volumeMounts:
             - name: git-key
               mountPath: /etc/release-manager/ssh
