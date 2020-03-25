@@ -1,4 +1,4 @@
-package apis
+package flux
 
 import (
 	"net/http"
@@ -9,9 +9,9 @@ import (
 var upgrader = websocket.Upgrader{}
 
 // Handle Flux WebSocket connections
-func HandleWebsocket(config APIConfig) error {
-	log := config.Log.With("subtype", "websocket")
-	config.Server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+func HandleWebsocket(api API) error {
+	log := api.Log.With("subtype", "websocket")
+	api.Server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.With("URL", r.URL).Info("Request for URL")
 		c, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {

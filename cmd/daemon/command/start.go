@@ -7,12 +7,15 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
-	"github.com/lunarway/release-manager/cmd/daemon/apis"
+	"github.com/lunarway/release-manager/cmd/daemon/flux"
 	"github.com/lunarway/release-manager/cmd/daemon/kubernetes"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -23,6 +26,8 @@ func StartDaemon() *cobra.Command {
 		Use:   "start",
 		Short: "start the release-daemon",
 		RunE: func(c *cobra.Command, args []string) error {
+			done := make(chan error, 1)
+
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 
@@ -33,23 +38,28 @@ func StartDaemon() *cobra.Command {
 
 			log.Info("Deamon started")
 
-			apiconfig := apis.NewAPIConfig(&apis.LogExporter{
-				Log: log.With("type", "exporter"),
-			}, log.With("type", "api"))
+			go func() {
+				apiconfig := flux.NewAPI(&flux.LogExporter{
+					Log: log.With("type", "exporter"),
+				}, log.With("type", "api"))
 
-			err = apis.HandleWebsocket(apiconfig)
-			if err != nil {
-				return err
-			}
-			err = apis.HandleV6(apiconfig)
-			if err != nil {
-				return err
-			}
+				err = flux.HandleWebsocket(apiconfig)
+				if err != nil {
+					done <- errors.WithMessage(err, "flux-api: handle websocket err")
+					return
+				}
+				err = flux.HandleV6(apiconfig)
+				if err != nil {
+					done <- errors.WithMessage(err, "flux-api: handle v6 err")
+					return
+				}
 
-			err = apiconfig.Listen(apiBinding)
-			if err != nil {
-				return err
-			}
+				err = apiconfig.Listen(apiBinding)
+				if err != nil {
+					done <- errors.WithMessage(err, "flux-api: listen err")
+					return
+				}
+			}()
 
 			succeededFunc := func(event *kubernetes.PodEvent) error {
 				notifyReleaseManager(event, "", releaseManagerUrl, authToken, environment)
@@ -69,12 +79,31 @@ func StartDaemon() *cobra.Command {
 				return nil
 			}
 
-			for {
-				err = kubectl.WatchPods(context.Background(), succeededFunc, failedFunc)
-				if err != nil && err != kubernetes.ErrWatcherClosed {
-					return err
+			go func() {
+				for {
+					err = kubectl.WatchPods(context.Background(), succeededFunc, failedFunc)
+					if err != nil && err != kubernetes.ErrWatcherClosed {
+						done <- errors.WithMessage(err, "kubectl watcher: watcher closed")
+						return
+					}
 				}
+			}()
+
+			sigs := make(chan os.Signal, 1)
+			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+			go func() {
+				sig := <-sigs
+				log.Infof("received os signal '%s'", sig)
+				done <- nil
+			}()
+
+			err = <-done
+			if err != nil {
+				log.Errorf("Exited unknown error: %v", err)
+				os.Exit(1)
 			}
+			log.Infof("Program ended")
+			return nil
 		},
 	}
 	command.Flags().StringVar(&releaseManagerUrl, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")

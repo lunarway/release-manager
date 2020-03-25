@@ -1,10 +1,9 @@
-package apis
+package flux
 
 import (
 	"context"
 	"encoding/json"
 	"io"
-	"net/http"
 
 	fluxevent "github.com/weaveworks/flux/event"
 )
@@ -20,7 +19,7 @@ type Message struct {
 // An exporter sends a formatted event to an upstream.
 type Exporter interface {
 	// Send a message through the exporter.
-	Send(c context.Context, client *http.Client, message Message) error
+	Send(c context.Context, message Message) error
 }
 
 // Parse a flux event from Json into a flux Event struct.

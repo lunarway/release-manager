@@ -1,4 +1,4 @@
-package apis
+package flux
 
 import (
 	"bytes"
@@ -24,7 +24,7 @@ func TestHandleV6(t *testing.T) {
 
 	fakeExporter := &FakeExporter{}
 
-	apiConfig := APIConfig{
+	apiConfig := API{
 		Server:   http.NewServeMux(),
 		Exporter: fakeExporter,
 		Log:      log.With("type", "apiConfig"),
