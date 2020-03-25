@@ -22,8 +22,9 @@ type Exporter interface {
 	Send(c context.Context, message Message) error
 }
 
-// Parse a flux event from Json into a flux Event struct.
-func ParseFluxEvent(reader io.Reader) (event fluxevent.Event, err error) {
-	err = json.NewDecoder(reader).Decode(&event)
-	return
+// ParseFluxEvent for doing flux event from Json into a flux Event struct.
+func ParseFluxEvent(reader io.Reader) (fluxevent.Event, error) {
+	var event fluxevent.Event
+	err := json.NewDecoder(reader).Decode(&event)
+	return event, err
 }
