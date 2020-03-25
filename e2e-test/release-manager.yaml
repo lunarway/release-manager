@@ -19,10 +19,6 @@ spec:
       protocol: TCP
       port: 8080
       targetPort: 8080
-    - name: grpc
-      protocol: TCP
-      port: 7900
-      targetPort: 7900
 ---
 apiVersion: apps/v1
 kind: Deployment
