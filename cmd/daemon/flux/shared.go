@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io"
 
-	fluxevent "github.com/weaveworks/flux/event"
+	"github.com/weaveworks/flux/event"
 )
 
 type Message struct {
@@ -13,7 +13,7 @@ type Message struct {
 	Body      string
 	Type      string
 	Title     string
-	Event     fluxevent.Event
+	Event     event.Event
 }
 
 // An exporter sends a formatted event to an upstream.
@@ -23,8 +23,8 @@ type Exporter interface {
 }
 
 // ParseFluxEvent for doing flux event from Json into a flux Event struct.
-func ParseFluxEvent(reader io.Reader) (fluxevent.Event, error) {
-	var event fluxevent.Event
-	err := json.NewDecoder(reader).Decode(&event)
-	return event, err
+func ParseFluxEvent(reader io.Reader) (event.Event, error) {
+	var evt event.Event
+	err := json.NewDecoder(reader).Decode(&evt)
+	return evt, err
 }

@@ -37,12 +37,12 @@ func TestHandleV6(t *testing.T) {
 		return
 	}
 
-	event := NewFluxSyncEvent()
-	data, _ := json.Marshal(event)
+	evt := NewFluxSyncEvent()
+	data, _ := json.Marshal(evt)
 	req, _ := http.NewRequest("POST", "http://127.0.0.1:3030/v6/events", bytes.NewBuffer(data))
 
 	recorder := httptest.NewRecorder()
-	apiConfig.Server.ServeHTTP(recorder, req)
+	api.Server.ServeHTTP(recorder, req)
 	resp := recorder.Result()
 	assert.Equal(t, 200, resp.StatusCode)
 
@@ -60,7 +60,7 @@ func TestFluxEventsMocks(t *testing.T) {
 }
 
 func NewFluxSyncEvent() event.Event {
-	event, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
+	evt, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
         "default:deployment/test"
@@ -82,11 +82,11 @@ func NewFluxSyncEvent() event.Event {
     }
 }`))
 
-	return event
+	return evt
 }
 
 func NewFluxSyncErrorEvent() event.Event {
-	event, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
+	evt, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
   "id": 0,
   "serviceIDs": [
     "default:persistentvolumeclaim/test"
@@ -120,11 +120,11 @@ func NewFluxSyncErrorEvent() event.Event {
   }
 }`))
 
-	return event
+	return evt
 }
 
 func NewFluxCommitEvent() event.Event {
-	event, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
+	evt, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
         "default:deployment/test"
@@ -159,11 +159,11 @@ func NewFluxCommitEvent() event.Event {
     }
 }`))
 
-	return event
+	return evt
 }
 
 func NewFluxAutoReleaseEvent() event.Event {
-	event, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
+	evt, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
         "default:deployment/test"
@@ -201,11 +201,11 @@ func NewFluxAutoReleaseEvent() event.Event {
     }
 }`))
 
-	return event
+	return evt
 }
 
 func NewFluxUpdatePolicyEvent() event.Event {
-	event, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
+	evt, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
         "default:deployment/test"
@@ -226,5 +226,5 @@ func NewFluxUpdatePolicyEvent() event.Event {
         }
     }
 }`))
-	return event
+	return evt
 }
