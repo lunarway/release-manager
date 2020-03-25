@@ -2,7 +2,6 @@ package flux
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 )
@@ -14,13 +13,16 @@ func HandleV6(api API) (err error) {
 
 		eventStr, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Could not read request body: %s", err), 500)
+			api.Log.With("error", err).Error("Body could not be read")
+			http.Error(w, "Could not read request body", http.StatusInternalServerError)
+			return
 		}
 
 		event, err := ParseFluxEvent(bytes.NewBuffer(eventStr))
 		if err != nil {
-			api.Log.With("error", err.Error()).Error("got error parsing flux event")
-			http.Error(w, err.Error(), 400)
+			api.Log.With("error", err.Error()).Error("Error parsing flux event")
+			http.Error(w, "Error parsing flux event", http.StatusInternalServerError)
+			return
 			return
 		}
 
@@ -31,11 +33,11 @@ func HandleV6(api API) (err error) {
 		})
 		if err != nil {
 			api.Log.With("Error", err.Error()).Errorf("Exporter %T got an error", exporter)
-			http.Error(w, err.Error(), 500)
+			http.Error(w, "Unknown error exporting the flux event", http.StatusInternalServerError)
 			return
 		}
 
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 	})
 
 	return nil
