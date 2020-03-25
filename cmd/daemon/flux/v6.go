@@ -1,8 +1,6 @@
 package flux
 
 import (
-	"bytes"
-	"io/ioutil"
 	"net/http"
 )
 
@@ -11,18 +9,11 @@ func HandleV6(api API) (err error) {
 	api.Server.HandleFunc("/v6/events", func(w http.ResponseWriter, r *http.Request) {
 		api.Log.With("URL", r.URL).Info("Request for URL")
 
-		eventStr, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			api.Log.With("error", err).Error("Body could not be read")
-			http.Error(w, "Could not read request body", http.StatusInternalServerError)
-			return
-		}
-
-		event, err := ParseFluxEvent(bytes.NewBuffer(eventStr))
+		defer r.Body.Close()
+		event, err := ParseFluxEvent(r.Body)
 		if err != nil {
 			api.Log.With("error", err.Error()).Error("Error parsing flux event")
 			http.Error(w, "Error parsing flux event", http.StatusInternalServerError)
-			return
 			return
 		}
 
