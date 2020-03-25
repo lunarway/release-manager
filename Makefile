@@ -276,7 +276,7 @@ e2e-rebuild-local-daemon: e2e-build-local-daemon
 	kubectl delete pods -l app=release-daemon
 
 e2e-watch-local-daemon:
-	nodemon --ext .go --watch "cmd/daemon/**" --exec "set -e; make e2e-rebuild-local-daemon; while true; do kubectl logs deploy/release-daemon -f || true; done;"
+	nodemon --ext .go --watch "cmd/daemon/**" --watch "internal/**" --exec "set -e; make e2e-rebuild-local-daemon; while true; do kubectl logs deploy/release-daemon -f || true; done;"
 
 e2e-build-local-manager:
 	mkdir -p $(current_dir)e2e-test/binaries
@@ -286,7 +286,7 @@ e2e-rebuild-local-manager: e2e-build-local-manager
 	kubectl delete pods -l app=release-manager
 
 e2e-watch-local-manager:
-	nodemon --ext .go --watch "cmd/server/**" --exec "set -e; make e2e-rebuild-local-server; while true; do kubectl logs deploy/release-manager -f || true; done;"
+	nodemon --ext .go --watch "cmd/server/**" --watch "internal/**" --exec "set -e; make e2e-rebuild-local-manager; while true; do kubectl logs deploy/release-manager -f || true; done;"
 
 e2e-do-release:
 	echo "apiVersion: v1\n\
