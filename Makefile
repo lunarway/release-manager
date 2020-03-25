@@ -259,7 +259,7 @@ e2e-setup-daemon: e2e-build-local-daemon
 	kubectl apply -f $(current_dir)e2e-test/release-daemon.yaml
 
 e2e-setup-manager: e2e-build-local-manager
-  # copy ssh-config to satishfy Dockerfile-server-goreleaser
+	# copy ssh-config to satishfy Dockerfile-server-goreleaser
 	cp $(current_dir)ssh_config $(current_dir)e2e-test/binaries/ssh-config
 	docker build -f $(current_dir)Dockerfile-server-goreleaser -t kind-release-manager:local $(current_dir)e2e-test/binaries
 	kind load docker-image kind-release-manager:local
