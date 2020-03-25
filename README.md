@@ -353,7 +353,21 @@ go test -v ./...
 
 ## e2e setup
 
-To help development it is possible to use the e2e setup. This setup will start a kubernetes cluster locally and run fluxd, release-daemon and release-manager.
+To help development it is possible to use the e2e setup.
+
+This setup is based a kubernetes cluster managed by `kind`. The following resources is setup up
+
+| Name              | Description                                                                                                                                                                                                                                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `source-git-repo` | A local git repository in `e2e-test/source-git-repo` that is used as the config repository.                                                                                                                                                                                                                  |
+| `fluxd`           | The fluxd service inside the k8s cluster, which is connected to the `source-git-repo`. It is polling the repo for changes every 5s, so it triggers as soon as a commit is done in `source-git-repo`, like a webhook from github normally would. Additionally fluxd is setup to `--connect` to release-daemon |
+| `release-daemon`  | A locally built binary of the release-daemon, but running inside the k8s cluster. The binary is mounted from local `e2e-test/binaries` for quick rebuild, so the pod can just be restarted while developing. This is done using the **rebuild** or **watch** actions.                                        |
+| `release-server`  | A locally built binary of the release-daemon, that is running in the same manner as the `release-daemon`                                                                                                                                                                                                     |
+| `rabbitmq`        | A simply setup rabbitmq server for the release-manager                                                                                                                                                                                                                                                       |
+
+### e2e actions
+
+To use the e2e setup there are the following actions supported:
 
 | Action                   | Command                          | Description                                                                                          |
 | ------------------------ | -------------------------------- | ---------------------------------------------------------------------------------------------------- |
