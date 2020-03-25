@@ -116,8 +116,8 @@ func (c *Client) PostPrivateMessage(ctx context.Context, email string, podNotify
 
 func successMessage(podNotify *http.PodNotifyRequest) slack.MsgOption {
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":white_check_mark: [%s] %s (%s)", podNotify.Environment, podNotify.Name, podNotify.State),
-		Text:       fmt.Sprintf("Artifact id %s", podNotify.ArtifactID),
+		Title:      fmt.Sprintf(":kubernetes: k8s (%s)", podNotify.Environment),
+		Text:       fmt.Sprintf(":white_check_mark: %s (%s)\nArtifact: %s", podNotify.Name, podNotify.State, podNotify.ArtifactID),
 		Color:      "#73bf69",
 		MarkdownIn: []string{"text", "fields"},
 	})
@@ -130,8 +130,8 @@ func createConfigErrorMessage(podNotify *http.PodNotifyRequest) slack.MsgOption 
 		Short: false,
 	}
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":no_entry: [%s] %s (%s)", podNotify.Environment, podNotify.Name, podNotify.State),
-		Text:       fmt.Sprintf("Artifact id %s", podNotify.ArtifactID),
+		Title:      fmt.Sprintf(":kubernetes: k8s (%s)", podNotify.Environment),
+		Text:       fmt.Sprintf(":no_entry: %s (%s)\nArtifact%s", podNotify.Name, podNotify.State, podNotify.ArtifactID),
 		Color:      "#e24d42",
 		MarkdownIn: []string{"text", "fields"},
 		Fields:     []slack.AttachmentField{messageField},
@@ -145,8 +145,8 @@ func crashLoopBackOffErrorMessage(podNotify *http.PodNotifyRequest) slack.MsgOpt
 		Short: false,
 	}
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":no_entry: [%s] %s (%s)", podNotify.Environment, podNotify.Name, podNotify.State),
-		Text:       fmt.Sprintf("Artifact id %s", podNotify.ArtifactID),
+		Title:      fmt.Sprintf(":kubernetes: k8s (%s)", podNotify.Environment),
+		Text:       fmt.Sprintf(":no_entry: %s (%s)\nArtifact: %s", podNotify.Name, podNotify.State, podNotify.ArtifactID),
 		Color:      "#e24d42",
 		MarkdownIn: []string{"text", "fields"},
 		Fields:     []slack.AttachmentField{logField},
@@ -256,10 +256,9 @@ func (c *Client) NotifyAuthorEventProcessed(ctx context.Context, options Release
 	}
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":rocket: Release Manager: Release for %s processed", options.Service),
-		TitleLink:  options.CommitLink,
+		Title:      fmt.Sprintf(":rocket: Release Manager"),
 		Color:      MsgColorGreen,
-		Text:       fmt.Sprintf("Artifact ID: %s", options.ArtifactID),
+		Text:       fmt.Sprintf("Release for %s processed\nArtifact: <%s|*%s*>", options.Service, options.CommitLink, options.ArtifactID),
 		MarkdownIn: []string{"text", "fields"},
 	})
 	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
