@@ -21,7 +21,7 @@ func successfulCommand(options *Options) *cobra.Command {
 			}
 			err = client.UpdateMessage(path.Join(options.RootPath, options.MessageFileName), func(m slack.Message) slack.Message {
 				m.Color = slack.MsgColorGreen
-				m.Title = m.Service + " :white_check_mark:"
+				m.Title = ":jenkins: Jenkins :white_check_mark:"
 				return m
 			})
 			if err != nil {

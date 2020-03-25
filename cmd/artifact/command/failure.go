@@ -23,7 +23,7 @@ func failureCommand(options *Options) *cobra.Command {
 			err = client.UpdateMessage(path.Join(options.RootPath, options.MessageFileName), func(m slack.Message) slack.Message {
 				m.Color = slack.MsgColorRed
 				m.Text += fmt.Sprintf(":no_entry: *%s*", errorMessage)
-				m.Title = m.Service + " :no_entry:"
+				m.Title = ":jenkins: Jenkins :no_entry:"
 				return m
 			})
 			if err != nil {
