@@ -31,11 +31,7 @@ func TestHandleV6(t *testing.T) {
 		Log:      log.With("type", "apiConfig"),
 	}
 
-	err := flux.HandleV6(api)
-	if err != nil {
-		assert.Failf(t, "failed with error", "failed with error %s", err)
-		return
-	}
+	flux.HandleV6(api)
 
 	evt := NewFluxSyncEvent()
 	data, _ := json.Marshal(evt)

@@ -4,8 +4,8 @@ import (
 	"net/http"
 )
 
-// Handle Flux events
-func HandleV6(api API) (err error) {
+// HandleV6 Flux events
+func HandleV6(api API) {
 	api.Server.HandleFunc("/v6/events", func(w http.ResponseWriter, r *http.Request) {
 		api.Log.With("url", r.URL).Info("Request for URL")
 
@@ -30,6 +30,4 @@ func HandleV6(api API) (err error) {
 
 		w.WriteHeader(http.StatusOK)
 	})
-
-	return nil
 }

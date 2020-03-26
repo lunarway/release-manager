@@ -6,8 +6,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Handle Flux WebSocket connections
-func HandleWebsocket(api API) error {
+// HandleWebsocket handles Flux WebSocket connections
+func HandleWebsocket(api API) {
 	var upgrader = websocket.Upgrader{}
 	log := api.Log.With("subtype", "websocket")
 	api.Server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -40,6 +40,4 @@ func HandleWebsocket(api API) error {
 			}
 		}
 	})
-
-	return nil
 }

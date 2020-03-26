@@ -39,22 +39,14 @@ func StartDaemon() *cobra.Command {
 			log.Info("Deamon started")
 
 			go func() {
-				apiconfig := flux.NewAPI(&flux.LogExporter{
+				api := flux.NewAPI(&flux.LogExporter{
 					Log: log.With("type", "exporter"),
 				}, log.With("type", "api"))
 
-				err = flux.HandleWebsocket(apiconfig)
-				if err != nil {
-					done <- errors.WithMessage(err, "flux-api: handle websocket err")
-					return
-				}
-				err = flux.HandleV6(apiconfig)
-				if err != nil {
-					done <- errors.WithMessage(err, "flux-api: handle v6 err")
-					return
-				}
+				flux.HandleWebsocket(api)
+				flux.HandleV6(api)
 
-				err = apiconfig.Listen(fluxApiBinding)
+				err = api.Listen(fluxApiBinding)
 				if err != nil {
 					done <- errors.WithMessage(err, "flux-api: listen err")
 					return
