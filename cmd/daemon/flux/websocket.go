@@ -6,10 +6,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{}
-
 // Handle Flux WebSocket connections
 func HandleWebsocket(api API) error {
+	var upgrader = websocket.Upgrader{}
 	log := api.Log.With("subtype", "websocket")
 	api.Server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.With("URL", r.URL).Info("Request for URL")
