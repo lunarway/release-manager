@@ -7,7 +7,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/justinbarrick/fluxcloud/pkg/utils"
 	"github.com/lunarway/release-manager/cmd/daemon/flux"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/stretchr/testify/assert"
@@ -56,7 +55,7 @@ func TestFluxEventsMocks(t *testing.T) {
 }
 
 func NewFluxSyncEvent() event.Event {
-	evt, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
+	evt, _ := flux.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
         "default:deployment/test"
@@ -82,7 +81,7 @@ func NewFluxSyncEvent() event.Event {
 }
 
 func NewFluxSyncErrorEvent() event.Event {
-	evt, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
+	evt, _ := flux.ParseFluxEvent(bytes.NewBufferString(`{
   "id": 0,
   "serviceIDs": [
     "default:persistentvolumeclaim/test"
@@ -120,7 +119,7 @@ func NewFluxSyncErrorEvent() event.Event {
 }
 
 func NewFluxCommitEvent() event.Event {
-	evt, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
+	evt, _ := flux.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
         "default:deployment/test"
@@ -159,7 +158,7 @@ func NewFluxCommitEvent() event.Event {
 }
 
 func NewFluxAutoReleaseEvent() event.Event {
-	evt, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
+	evt, _ := flux.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
         "default:deployment/test"
@@ -201,7 +200,7 @@ func NewFluxAutoReleaseEvent() event.Event {
 }
 
 func NewFluxUpdatePolicyEvent() event.Event {
-	evt, _ := utils.ParseFluxEvent(bytes.NewBufferString(`{
+	evt, _ := flux.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
         "default:deployment/test"

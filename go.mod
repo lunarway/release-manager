@@ -3,23 +3,30 @@ module github.com/lunarway/release-manager
 go 1.13
 
 require (
+	github.com/Masterminds/semver v1.4.2 // indirect
 	github.com/VividCortex/gohistogram v1.0.0 // indirect
+	github.com/aws/aws-sdk-go v1.16.26 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
+	github.com/docker/distribution v0.0.0-20180611183926-749f6afb4572 // indirect
+	github.com/docker/go-metrics v0.0.0-20180209012529-399ea8c73916 // indirect
+	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/gorilla/websocket v1.4.1
-	github.com/justinbarrick/fluxcloud v0.3.9
 	github.com/lunarway/color v1.7.0
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10 // indirect
 	github.com/nlopes/slack v0.6.0
+	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pkg/errors v0.8.1
+	github.com/pkg/term v0.0.0-20180730021639-bffc007b7fd5 // indirect
 	github.com/prometheus/client_golang v1.2.1
 	github.com/prometheus/client_model v0.0.0-20191202183732-d1d2010b5bee // indirect
 	github.com/prometheus/procfs v0.0.8 // indirect
+	github.com/ryanuber/go-glob v0.0.0-20160226084822-572520ed46db // indirect
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5
 	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71

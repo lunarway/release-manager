@@ -1,7 +1,11 @@
 package flux
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
+
+	"github.com/weaveworks/flux/event"
 )
 
 // HandleV6 Flux events
@@ -30,4 +34,11 @@ func HandleV6(api API) {
 
 		w.WriteHeader(http.StatusOK)
 	})
+}
+
+// ParseFluxEvent for doing flux event from Json into a flux Event struct.
+func ParseFluxEvent(reader io.Reader) (event.Event, error) {
+	var evt event.Event
+	err := json.NewDecoder(reader).Decode(&evt)
+	return evt, err
 }
