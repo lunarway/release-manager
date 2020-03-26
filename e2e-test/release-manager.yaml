@@ -1,142 +1,113 @@
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: flux-kube-config
-  namespace: default
-data:
-  config: |
-    apiVersion: v1
-    clusters: []
-    contexts:
-    - context:
-        cluster: ""
-        namespace: default
-        user: ""
-      name: default
-    current-context: default
-    kind: Config
-    preferences: {}
-    users: []
----
-apiVersion: v1
 data:
   # A pre generated random ssh-key, thats needed by fluxd, but isn't too important
   identity: LS0tLS1CRUdJTiBPUEVOU1NIIFBSSVZBVEUgS0VZLS0tLS0KYjNCbGJuTnphQzFyWlhrdGRqRUFBQUFBQkc1dmJtVUFBQUFFYm05dVpRQUFBQUFBQUFBQkFBQUJGd0FBQUFkemMyZ3RjbgpOaEFBQUFBd0VBQVFBQUFRRUF5Q0JEcHZXc29xY1JoRXIvcWcvZmduS3NIaTljT1Boa1BvWXRnN2dZU0xGdUJ6Rks0RDV6CkZOZjNIbXR1K0trM3N4RU41QlVqK3RWY2k1YlkreHlQWEdUNjlqS01rOHJKcUErRDJrNmo1U1A4aUY4NG5ZQk82NGNIakYKWkEwT3NhM1RiQ21QSEt4S0lma1ZVYTZLbHBCZUc2TEwwcjlEcnNBcDNnK2dqbE5DTnZrWnRpbUVNVTIxOWhWQkxLM1VBcQpadzgxZU5HejNCRmhJdHM5aXI5SWRiLzZycm80YksreDRnMzdFOFBjb3cxYWhRRGJQM2loVThGM3N2TlZjd3RnMmVuZnVxCmkrNG0zdzE2VEE4TWljSmNwYWJOV1lqNnNneGwxbVB5bW85YzNjNDk0Z3puK0lUNHRWWGpwVnRWb0Y4MG9JZjlEYjBqeTQKTlpSOGRSSklCUUFBQTloejNLd1hjOXlzRndBQUFBZHpjMmd0Y25OaEFBQUJBUURJSUVPbTlheWlweEdFU3YrcUQ5K0NjcQp3ZUwxdzQrR1EraGkyRHVCaElzVzRITVVyZ1BuTVUxL2NlYTI3NHFUZXpFUTNrRlNQNjFWeUxsdGo3SEk5Y1pQcjJNb3lUCnlzbW9ENFBhVHFQbEkveUlYemlkZ0U3cmh3ZU1Wa0RRNnhyZE5zS1k4Y3JFb2grUlZScm9xV2tGNGJvc3ZTdjBPdXdDbmUKRDZDT1UwSTIrUm0yS1lReFRiWDJGVUVzcmRRQ3BuRHpWNDBiUGNFV0VpMnoyS3YwaDF2L3F1dWpoc3I3SGlEZnNUdzl5agpEVnFGQU5zL2VLRlR3WGV5ODFWekMyRFo2ZCs2cUw3aWJmRFhwTUR3eUp3bHlscHMxWmlQcXlER1hXWS9LYWoxemR6ajNpCkRPZjRoUGkxVmVPbFcxV2dYelNnaC8wTnZTUExnMWxIeDFFa2dGQUFBQUF3RUFBUUFBQVFCWTVvUkhFZEdydTUyN2IvbWMKMlVwSHo1c0lHYS9WR3ZxbEQ4UCtSSFI5TGx5YlUxbFl2a1V2R0RVTnpWblJtcEpFdUttOERXd2JURmE5SjdpaDdIRCs4VgpqT3IydmxaMnNuZmlUcmdJMnNCODF4NHlMcVRJcENkSXgwMmdnWEJxbTdaVTBTMWk1bUpVTHlzNlN0Z0R4SVFac0xyc2xzCnlCUDVvWnJFVjlsQnpFYSttUXF3NWlodG1JUnlIWDNadFZEYkQ5VUJKZ01MbVAvY3Q1YlJ4RjhXTFU5R3hWd2xob1Q0aFEKQ2pBRlJBUlpBeHczTmlUUVVReDhYUDgydnhjZmdwTDJrc1k2dFFwSWdNREovNjJrYjNSaVJocjBGTGlKaGw2WkNCd2hJcApjK05UVzVhcXNTRWF0OURRRWRYcmNuK2hzTEtOZGVoUHUxeGxmS3IvYzRGdEFBQUFnUURtcGwrMU9GdXFwaTQrYnI0d3EyCmtkY1AvRk9jQlZuWXpwODE4eG1TQzNnMlc5YXlrb2FCem9jaTFNaXBoQVRWbTB1RDBzWHN2YXEzYW9ESWhBQ2FNL2t6bjkKcmNGb0JqeDFNUXYxVWUrWEJHWWN6S2V2OHFzR1ZYaWpwSnhIRGdNZkhTWmJHcEVzNmFhanpyNlJjeW1YR20wdVI3UGxFNApWQXU0L2JtdXljR2dBQUFJRUE3UWl3WHdaQzlnUWY1NVlpUDNsM1dDU3JBUFJ5Qjd2WXQxQW1BeWplRDM5K2lNcGNrVDViClRLWUo5ckcraWsvWHZNSVJKM1cyYW9LREMzd25STWhOMGdvcHpWTU9ZMVlnV2Vid0ZJdWwvcjRTZW5Jb0l3TG5Vcm1TYjEKK0YrUzVZRWRMUHBibGZRa1kxdDlzbUNqUzFIcTVVVkZ3VGw0KzdpK3Z3OS8zNVRjc0FBQUNCQU5namtXelBMNHg4cHB5dwptY2YwMkxBMVVZbE5idEpSbGk5aktTRE1wOGtxNkJWSjh4SGwwcWVHNWwxYWkvaTAvaWxWd3ZYb1JKYnBuSThPUFlJNW43Cm0vZWtSd3doamtWWnBoMDNEbExtckc4dkZVZUNtOFZuT2tNQk00YmVZSnd1ZGhBOWMxSzdUcHJkNkRaaUFzNGxMMXBDQTUKeWZkWkJ2UVhRdC9qYXdkdkFBQUFIa1Z0YVd4QVJXMXBiSE10VFdGalFtOXZheTFRY204dE1pNXNiMk5oYkFFQ0F3UT0KLS0tLS1FTkQgT1BFTlNTSCBQUklWQVRFIEtFWS0tLS0tCg==
 kind: Secret
 metadata:
   creationTimestamp: null
-  name: flux-git-deploy
+  name: release-manager-git-deploy
 ---
 apiVersion: v1
-kind: ServiceAccount
+kind: Service
 metadata:
-  labels:
-    name: flux
-  name: flux
-  namespace: default
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRole
-metadata:
-  labels:
-    name: flux
-  name: flux
-rules:
-  - apiGroups: ["*"]
-    resources: ["*"]
-    verbs: ["*"]
-  - nonResourceURLs: ["*"]
-    verbs: ["*"]
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    name: flux
-  name: flux
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: flux
-subjects:
-  - kind: ServiceAccount
-    name: flux
-    namespace: default
+  name: release-manager
+spec:
+  selector:
+    app: release-manager
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: flux
-  namespace: default
+  name: release-manager
   labels:
-    name: flux
+    app: release-manager
     type: deployment
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: release-manager
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 1
-  selector:
-    matchLabels:
-      name: flux
   template:
     metadata:
+      name: release-manager
       labels:
-        name: flux
+        app: release-manager
         type: deployment
     spec:
-      serviceAccountName: flux
       volumes:
         - name: git-key
           secret:
-            secretName: flux-git-deploy
-            defaultMode: 0400 # when mounted read-only, we won't be able to chmodª
-        - name: git-keygen
-          emptyDir:
-            medium: Memory
+            secretName: release-manager-git-deploy
+            defaultMode: 256 # permissions 0400 in bit mode
         - name: tmp
           emptyDir:
             medium: Memory
-        - name: kubedir
-          configMap:
-            name: flux-kube-config
+        - name: binaries
+          hostPath:
+            path: /binaries
         - name: source-git-repo
           hostPath:
             path: /source-git-repo
       containers:
-        - name: flux
-          image: docker.io/fluxcd/flux:1.18.0
-          imagePullPolicy: IfNotPresent
-          resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
-          ports:
-            - containerPort: 3030 # informational
+        - name: release-manager
+          image: kind-release-manager:local
+          args:
+            - --timeout
+            - 300s
+            - --amqp-user
+            - lunar
+            - --amqp-password
+            - lunar
+            - --amqp-host
+            - rabbitmq
           env:
-            - name: KUBECONFIG
-              value: /root/.kubectl/config
+            - name: CONFIG_REPO
+              value: file:///source-git-repo
+            - name: HAMCTL_AUTH_TOKEN
+              value: hamctl-auth-token
+            - name: DAEMON_AUTH_TOKEN
+              value: daemon-auth-token
+          # - name: GITHUB_WEBHOOK_SECRE T
+          # - name: GITHUB_API_TOKEN
+          # - name: SLACK_TOKEN
+          # - name: GRAFANA_DEV_API_KEY
+          # - name: GRAFANA_STAGING_API_KEY
+          # - name: GRAFANA_PROD_API_KEY
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 6
+            failureThreshold: 15
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 5
+          ports:
+            - name: http
+              containerPort: 8080
+              #hostPort: 9080
           volumeMounts:
-            - name: git-keygen
-              mountPath: /var/fluxd/keygen
+            - name: git-key
+              mountPath: /etc/release-manager/ssh
             - name: tmp
               mountPath: /tmp
-            - name: kubedir
-              mountPath: /root/.kubectl
+            - name: binaries
+              mountPath: /server
+              subPath: server
             - name: source-git-repo
               mountPath: /source-git-repo
-          args:
-            - --ssh-keygen-dir=/var/fluxd/keygen
-            - --git-readonly=true
-            - --git-url=file:///source-git-repo
-            - --git-branch=master
-            - --git-path=local/releases
-            - --git-poll-interval=5s
-            - --sync-interval=5s
-            - --listen-metrics=:3031
-            - --sync-garbage-collection=true
-            - --registry-disable-scanning
-            - --k8s-secret-name=flux-git-deploy
-            - --connect=ws://release-daemon:8080

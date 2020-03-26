@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-daemon
+spec:
+  selector:
+    app: release-daemon
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    name: release-daemon
+  name: release-daemon
+  namespace: default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: release-daemon
+  namespace: default
+  labels:
+    type: deployment
+    app: release-daemon
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: release-daemon
+  template:
+    metadata:
+      name: release-daemon
+      labels:
+        app: release-daemon
+        type: deployment
+    spec:
+      volumes:
+        - name: binaries
+          hostPath:
+            path: /binaries
+      serviceAccountName: release-daemon
+      containers:
+        - name: release-daemon
+          image: kind-release-daemon:local
+          args: ["--environment", "local"]
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100M
+          env:
+            - name: DAEMON_AUTH_TOKEN
+              value: daemon-auth-token
+            - name: RELEASE_MANAGER_ADDRESS
+              value: http://release-manager:8080
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: binaries
+              mountPath: /daemon
+              subPath: daemon
+      imagePullSecrets:
+        - name: lunarway-kubernetes-pull-secret
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  labels:
+    name: release-daemon
+  name: release-daemon
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+  - nonResourceURLs: ["*"]
+    verbs: ["*"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    name: release-daemon
+  name: release-daemon
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: release-daemon
+subjects:
+  - kind: ServiceAccount
+    name: release-daemon
+    namespace: default

@@ -13,12 +13,12 @@ We will however, have it public available for reference. This might change over 
 The release-manager consist of 4 different "microservices" with each having a specific responsibility in the pipeline. The applications are basically utilities for moving files around a Git repository.
  The four applications are:
 
-| Application  | Description |
-| ------------- | ------------- |
-| artifact  | a simple tool for generating an artifact.json blob with information from the CI pipeline  |
-| server  | the API-server where clients (hamtcl) connects to, and daemon reports events to. It further implements different flows, e.g., promote a release, release an artifact   |
-| hamctl  | a CLI client for interacting with the release-manager server  |
-| daemon  | a daemon reporting events about cluster component status back to the release-manager server   |
+| Application | Description                                                                                                                                                          |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| artifact    | a simple tool for generating an artifact.json blob with information from the CI pipeline                                                                             |
+| server      | the API-server where clients (hamtcl) connects to, and daemon reports events to. It further implements different flows, e.g., promote a release, release an artifact |
+| hamctl      | a CLI client for interacting with the release-manager server                                                                                                         |
+| daemon      | a daemon reporting events about cluster component status back to the release-manager server                                                                          |
 
 A simplified overview of all the components involved in the flow can be seen below:
 ![](docs/gitops_workflow_white_bg.png)
@@ -353,9 +353,33 @@ go test -v ./...
 
 ## e2e setup
 
-To help development it is possible to use the e2e setup. This setup will start a kubernetes cluster locally and run fluxd, release-daemon and release-manager.
+To help development it is possible to use the e2e setup.
 
-To start the setup use the make target `e2e-setup` and follow the guides afterwards. To teardown the test environment use `e2e-teardown`.
+This setup is based a kubernetes cluster managed by `kind`. The following resources is setup up
+
+| Name              | Description                                                                                                                                                                                                                                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `source-git-repo` | A local git repository in `e2e-test/source-git-repo` that is used as the config repository.                                                                                                                                                                                                                  |
+| `fluxd`           | The fluxd service inside the k8s cluster, which is connected to the `source-git-repo`. It is polling the repo for changes every 5s, so it triggers as soon as a commit is done in `source-git-repo`, like a webhook from github normally would. Additionally fluxd is setup to `--connect` to release-daemon |
+| `release-daemon`  | A locally built binary of the release-daemon, but running inside the k8s cluster. The binary is mounted from local `e2e-test/binaries` for quick rebuild, so the pod can just be restarted while developing. This is done using the **rebuild** or **watch** actions.                                        |
+| `release-server`  | A locally built binary of the release-daemon, that is running in the same manner as the `release-daemon`                                                                                                                                                                                                     |
+| `rabbitmq`        | A simply setup rabbitmq server for the release-manager                                                                                                                                                                                                                                                       |
+
+### e2e actions
+
+To use the e2e setup there are the following actions supported:
+
+| Action                   | Command                          | Description                                                                                          |
+| ------------------------ | -------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Start e2e setup          | `make e2e-setup`                 | Start and initiate kind and e2e setup                                                                |
+| Rebuild manager          | `make e2e-rebuild-local-manager` | Rebuild the manager and restart pod in e2e cluster                                                   |
+| Rebuild daemon           | `make e2e-rebuild-local-daemon`  | Like "Rebuild manager" but for the daemon                                                            |
+| Watch manager            | `make e2e-rebuild-local-manager` | Watch source code changes and rebuild the manager and restart pod in e2e cluster. Requires `nodemon` |
+| Watch daemon             | `make e2e-rebuild-local-daemon`  | Like "Watch manager" but for the daemon                                                              |
+| Do dummy release         | `make e2e-do-release`            | Do a release in git repo to trigger fluxd change                                                     |
+| Do failing dummy release | `make e2e-do-bad-release`        | Do a bad release in git repo to trigger fluxd error                                                  |
+| Do another dummy release | `make e2e-do-another-release`    | Do another kind of release in git repo to trigger fluxd change                                       |
+| Stop e2e setup           | `make e2e-teardown`              | Stop and cleanup the e2e setup                                                                       |
 
 
 # Release

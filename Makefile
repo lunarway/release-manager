@@ -47,7 +47,12 @@ test:
 
 integration-test: rabbitmq-background
 	@echo "Running integration tests against RabbitMQ on localhost"
+ifneq ($(VERBOSE),)
 	RELEASE_MANAGER_INTEGRATION_RABBITMQ_HOST=localhost go test -count=1 -v ./...
+else
+	RELEASE_MANAGER_INTEGRATION_RABBITMQ_HOST=localhost go test -count=1 ./...
+endif
+
 
 AUTH_TOKEN=test
 SSH_PRIVATE_KEY=~/.ssh/github
@@ -223,7 +228,8 @@ rabbitmq:
 	@echo "Starting RabbitMQ. See admin dashboard on http://localhost:15672"
 	docker run --rm --hostname rabbitmq -p 5672:5672 -p 15672:15672 -e RABBITMQ_DEFAULT_USER=lunar -e RABBITMQ_DEFAULT_PASS=lunar rabbitmq:3-management
 
-e2e-setup: e2e-setup-git e2e-setup-kind e2e-setup-fluxd
+e2e-setup: e2e-setup-git e2e-setup-kind e2e-setup-rabbitmq e2e-setup-manager e2e-setup-daemon e2e-setup-fluxd
+
 	@echo "\nSetup complete\n\nRun the following to continue:\n\
 	- make e2e-run-local-daemon\n\
 	- make e2e-run-local-manager\n\
@@ -244,14 +250,43 @@ e2e-setup-git:
 e2e-setup-kind:
 	kind create cluster --config e2e-test/kind-cluster.yaml
 
+e2e-setup-rabbitmq:
+	kubectl apply -f $(current_dir)e2e-test/rabbitmq.yaml
+
+e2e-setup-daemon: e2e-build-local-daemon
+	docker build -f $(current_dir)Dockerfile-daemon-goreleaser -t kind-release-daemon:local $(current_dir)e2e-test/binaries
+	kind load docker-image kind-release-daemon:local
+	kubectl apply -f $(current_dir)e2e-test/release-daemon.yaml
+
+e2e-setup-manager: e2e-build-local-manager
+	# copy ssh-config to satishfy Dockerfile-server-goreleaser
+	cp $(current_dir)ssh_config $(current_dir)e2e-test/binaries/ssh-config
+	docker build -f $(current_dir)Dockerfile-server-goreleaser -t kind-release-manager:local $(current_dir)e2e-test/binaries
+	kind load docker-image kind-release-manager:local
+	kubectl apply -f $(current_dir)e2e-test/release-manager.yaml
+
 e2e-setup-fluxd:
 	kubectl apply -f e2e-test/fluxd.yaml
 
-e2e-run-local-daemon:
-	go run ./cmd/daemon start --environment local --kubeconfig $(KUBECONFIG) --release-manager-url http://localhost:10080
+e2e-build-local-daemon:
+	mkdir -p $(current_dir)e2e-test/binaries
+	env GOOS=linux go build -o $(current_dir)e2e-test/binaries/daemon ./cmd/daemon
 
-e2e-run-local-manager:
-	go run ./cmd/server start --ssh-private-key ~/.ssh/id_rsa --config-repo file://$(current_dir)e2e-test/source-git-repo --http-port 10080
+e2e-rebuild-local-daemon: e2e-build-local-daemon
+	kubectl delete pods -l app=release-daemon
+
+e2e-watch-local-daemon:
+	nodemon --ext .go --watch "cmd/daemon/**" --watch "internal/**" --exec "set -e; make e2e-rebuild-local-daemon; while true; do kubectl logs deploy/release-daemon -f || true; done;"
+
+e2e-build-local-manager:
+	mkdir -p $(current_dir)e2e-test/binaries
+	env GOOS=linux go build -o $(current_dir)e2e-test/binaries/server ./cmd/server
+
+e2e-rebuild-local-manager: e2e-build-local-manager
+	kubectl delete pods -l app=release-manager
+
+e2e-watch-local-manager:
+	nodemon --ext .go --watch "cmd/server/**" --watch "internal/**" --exec "set -e; make e2e-rebuild-local-manager; while true; do kubectl logs deploy/release-manager -f || true; done;"
 
 e2e-do-release:
 	echo "apiVersion: v1\n\
@@ -263,4 +298,29 @@ data:\n\
   somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
 	cd ./e2e-test/source-git-repo;\
 	git add .;\
-	git commit -m "Add readme"
+	git commit -m "Update at $$(date)"
+
+e2e-do-another-release:
+	echo "apiVersion: v1\n\
+kind: ConfigMap\n\
+metadata:\n\
+  name: another-test\n\
+  namespace: default\n\
+data:\n\
+  some-other-value: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/another-test.yaml
+	cd ./e2e-test/source-git-repo;\
+	git add .;\
+	git commit -m "Update at $$(date)"
+
+
+e2e-do-bad-release:
+	echo "apiVersion: v1\n\
+kind: ConfigMap\n\
+metadata:\n\
+  name: test\n\
+  namespace: default\n\
+baddata:\n\
+  somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
+	cd ./e2e-test/source-git-repo;\
+	git add .;\
+	git commit -m "Update at $$(date)"
