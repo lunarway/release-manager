@@ -239,5 +239,8 @@ func TestWorker_reconnection(t *testing.T) {
 	logger.Infof("TEST: worker error: %v", err)
 	assert.EqualError(t, err, broker.ErrBrokerClosed.Error(), "consumer returned unexpected error")
 	wg.Wait()
-	assert.Equal(t, int32(2), consumedCount, "did not receive two messages as exected")
+	// we might see more than two consumed messages. In case of acknowledgement
+	// fails due to the channel being killed, we receive the same message multiple
+	// times
+	assert.GreaterOrEqual(t, int32(2), consumedCount, "did not receive at least two messages as expected")
 }
