@@ -231,8 +231,6 @@ rabbitmq:
 e2e-setup: e2e-setup-git e2e-setup-kind e2e-setup-rabbitmq e2e-setup-manager e2e-setup-daemon e2e-setup-fluxd
 
 	@echo "\nSetup complete\n\nRun the following to continue:\n\
-	- make e2e-run-local-daemon\n\
-	- make e2e-run-local-manager\n\
 	- make e2e-do-release"
 
 e2e-teardown:
@@ -260,7 +258,7 @@ e2e-setup-daemon: e2e-build-local-daemon
 
 e2e-setup-manager: e2e-build-local-manager
 	# copy ssh-config to satishfy Dockerfile-server-goreleaser
-	cp $(current_dir)ssh_config $(current_dir)e2e-test/binaries/ssh-config
+	cp $(current_dir)ssh_config $(current_dir)e2e-test/binaries/ssh_config
 	docker build -f $(current_dir)Dockerfile-server-goreleaser -t kind-release-manager:local $(current_dir)e2e-test/binaries
 	kind load docker-image kind-release-manager:local
 	kubectl apply -f $(current_dir)e2e-test/release-manager.yaml
@@ -299,6 +297,18 @@ data:\n\
 	cd ./e2e-test/source-git-repo;\
 	git add .;\
 	git commit -m "Update at $$(date)"
+
+e2e-do-release-correct-format:
+	echo "apiVersion: v1\n\
+kind: ConfigMap\n\
+metadata:\n\
+  name: test\n\
+  namespace: default\n\
+data:\n\
+  somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
+	cd ./e2e-test/source-git-repo;\
+	git add .;\
+	git commit -m "[dev/houston-web] release master-5975d93540-ddcd22312b by kni@lunar.app"
 
 e2e-do-another-release:
 	echo "apiVersion: v1\n\
