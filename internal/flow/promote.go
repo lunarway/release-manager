@@ -212,7 +212,7 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 		}
 		authorName := sourceSpec.Application.AuthorName
 		authorEmail := sourceSpec.Application.AuthorEmail
-		releaseMessage := git.ReleaseCommitMessage(environment, service, result.ReleaseID)
+		releaseMessage := git.ReleaseCommitMessage(environment, service, result.ReleaseID, authorEmail)
 		logger.Debugf("Committing release: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
 		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
