@@ -190,7 +190,7 @@ func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {
 
 		authorName := newSpec.Application.AuthorName
 		authorEmail := newSpec.Application.AuthorEmail
-		releaseMessage := git.RollbackCommitMessage(environment, service, currentSpecID, newSpec.ID)
+		releaseMessage := git.RollbackCommitMessage(environment, service, currentSpecID, newSpec.ID, authorEmail)
 		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
 			if errors.Cause(err) == git.ErrNothingToCommit {

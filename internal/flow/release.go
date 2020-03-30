@@ -135,7 +135,7 @@ func (s *Service) ExecReleaseBranch(ctx context.Context, event ReleaseBranchEven
 		authorName := artifactSpec.Application.AuthorName
 		authorEmail := artifactSpec.Application.AuthorEmail
 		artifactID := artifactSpec.ID
-		releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID)
+		releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID, authorEmail)
 		err = s.Git.Commit(ctx, sourceConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
 			if errors.Cause(err) == git.ErrNothingToCommit {
@@ -308,7 +308,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		}
 		authorName := sourceSpec.Application.AuthorName
 		authorEmail := sourceSpec.Application.AuthorEmail
-		releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID)
+		releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID, authorEmail)
 		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {
 			if errors.Cause(err) == git.ErrNothingToCommit {

@@ -123,6 +123,42 @@ func TestLocateReleaseCondition(t *testing.T) {
 			message:    "[env/service-name] release master-1234567890-1234567890",
 			output:     true,
 		},
+		{
+			name:       "empty artifact ID and author email",
+			artifactID: "",
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     false,
+		},
+		{
+			name:       "regexp like artifact id and author email",
+			artifactID: `(\`,
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     false,
+		},
+		{
+			name:       "partial artifact id and author email",
+			artifactID: "master-1234",
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     false,
+		},
+		{
+			name:       "partial artifact id with complete application hash and author email",
+			artifactID: "master-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     false,
+		},
+		{
+			name:       "exact artifact id and author email",
+			artifactID: "master-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     true,
+		},
+		{
+			name:       "wrong cased artifact id and author email",
+			artifactID: "MASTER-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     true,
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
@@ -201,6 +237,13 @@ func TestLocateServiceReleaseCondition(t *testing.T) {
 			env:     "env",
 			service: "SERVICE-NAME",
 			message: "[env/service-name] release master-1234567890-1234567890",
+			output:  true,
+		},
+		{
+			name:    "exact env and service and author email",
+			env:     "env",
+			service: "service-name",
+			message: "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
 			output:  true,
 		},
 	}
@@ -290,6 +333,74 @@ func TestLocateServiceReleaseRollbackSkipCondition(t *testing.T) {
 			cases: []result{
 				{"[env/service-name] release master-1234567890-1234567890", false},
 				{"[env/service-name] rollback master-1234567890-1234567890 to master-0123456789-0123456789", true},
+			},
+		},
+		{
+			name:    "empty env and author email",
+			env:     "",
+			service: "service",
+			skip:    0,
+			cases: []result{
+				{"[env/service-name] release master-1234567890-1234567890 by test@lunar.app", false},
+			},
+		},
+		{
+			name:    "empty service and author email",
+			env:     "env",
+			service: "",
+			skip:    0,
+			cases: []result{
+				{"[env/service-name] release master-1234567890-1234567890 by test@lunar.app", false},
+			},
+		},
+		{
+			name:    "exact release commit on first case and 0 skip and author email",
+			env:     "env",
+			service: "service-name",
+			skip:    0,
+			cases: []result{
+				{"[env/service-name] release master-1234567890-1234567890 by test@lunar.app", true},
+				{"[env/service-name] release master-0123456789-0123456789 by test@lunar.app", false},
+			},
+		},
+		{
+			name:    "exact release commit on second case and 1 skip and author email",
+			env:     "env",
+			service: "service-name",
+			skip:    1,
+			cases: []result{
+				{"[env/service-name] release master-1234567890-1234567890 by test@lunar.app", false},
+				{"[env/service-name] release master-0123456789-0123456789 by test@lunar.app", true},
+			},
+		},
+		{
+			name:    "wrong case release commit on second case and 1 skip and author email",
+			env:     "env",
+			service: "SERVICE-NAME",
+			skip:    1,
+			cases: []result{
+				{"[env/service-name] release master-1234567890-1234567890 by test@lunar.app", false},
+				{"[env/service-name] release master-0123456789-0123456789 by test@lunar.app", true},
+			},
+		},
+		{
+			name:    "exact rollback commit on second case and 1 skip and author email",
+			env:     "env",
+			service: "service-name",
+			skip:    1,
+			cases: []result{
+				{"[env/service-name] release master-1234567890-1234567890 by test@lunar.app", false},
+				{"[env/service-name] rollback master-1234567890-1234567890 to master-0123456789-0123456789 by test@lunar.app", true},
+			},
+		},
+		{
+			name:    "wrong case service rollback commit on second case and 1 skip and author email",
+			env:     "env",
+			service: "SERVICE-NAME",
+			skip:    1,
+			cases: []result{
+				{"[env/service-name] release master-1234567890-1234567890 by test@lunar.app", false},
+				{"[env/service-name] rollback master-1234567890-1234567890 to master-0123456789-0123456789 by test@lunar.app", true},
 			},
 		},
 	}
@@ -439,6 +550,77 @@ func TestLocateEnvReleaseCondition(t *testing.T) {
 			env:        "env",
 			artifactID: "MASTER-1234567890-1234567890",
 			message: `[env/service-name] release master-1234567890-1234567890
+`,
+			output: true,
+		},
+		{
+			name:       "empty env and author email",
+			env:        "",
+			artifactID: "master-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     false,
+		},
+		{
+			name:       "empty artifactID and author email",
+			env:        "env",
+			artifactID: "",
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     false,
+		},
+		{
+			name:       "regexp like env and author email",
+			env:        `(\`,
+			artifactID: "master-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     false,
+		},
+		{
+			name:       "regexp like artifactId and author email",
+			env:        "",
+			artifactID: `(\`,
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     false,
+		},
+		{
+			name:       "partial env and author email",
+			env:        "nv",
+			artifactID: "master-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     false,
+		},
+		{
+			name:       "partial artifactId and author email",
+			env:        "env",
+			artifactID: "master-12345",
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     false,
+		},
+		{
+			name:       "exact env and service and author email",
+			env:        "env",
+			artifactID: "master-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     true,
+		},
+		{
+			name:       "wrong cased env and author email",
+			env:        "ENV",
+			artifactID: "master-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     true,
+		},
+		{
+			name:       "wrong cased service and author email",
+			env:        "env",
+			artifactID: "MASTER-1234567890-1234567890",
+			message:    "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			output:     true,
+		},
+		{
+			name:       "trailing newline and author email",
+			env:        "env",
+			artifactID: "MASTER-1234567890-1234567890",
+			message: `[env/service-name] release master-1234567890-1234567890 by test@lunar.app
 `,
 			output: true,
 		},
