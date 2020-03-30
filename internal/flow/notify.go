@@ -37,12 +37,17 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyRequest) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyFluxEvent")
 	defer span.Finish()
-	log.Infof("Flux event: %+v, length: %d", event, len(event.Commits))
+
+	// If there's no commits, let's just skips
+	if len(event.Commits) == 0 {
+		return errors.Errorf("no commits found")
+	}
+
+	// Range commit
 	for _, commit := range event.Commits {
+		log.Infof("Commit Message: %s", commit.Message)
 		commitMessage := parseCommitMessage(commit.Message)
-		log.Infof("COMMIT: %s, TRANSFORMED: %s", commit, commitMessage)
 		email := commitMessage.GitAuthor
-		log.Info("EMAIL: %s", email)
 		if !strings.Contains(email, "@lunar.app") {
 			//check UserMappings
 			lwEmail, ok := s.UserMappings[email]
@@ -52,6 +57,19 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 			}
 			email = lwEmail
 		}
+		// event contains errors, extract and post specific error message
+		if len(event.Errors) > 0 {
+			for _, err := range event.Errors {
+				span, _ = s.Tracer.FromCtx(ctx, "post flux event processed slack message")
+				err := s.Slack.NotifyFluxErrorEvent(ctx, commitMessage.ArtifactID, commitMessage.Environment, email, commitMessage.Service, err.Error, err.Path)
+				span.Finish()
+				if err != nil {
+					return errors.WithMessage(err, "post flux event processed private message")
+				}
+			}
+		}
+
+		// if no errors
 		span, _ = s.Tracer.FromCtx(ctx, "post flux event processed slack message")
 		err := s.Slack.NotifyFluxEventProcessed(ctx, commitMessage.ArtifactID, commitMessage.Environment, email, commitMessage.Service)
 		span.Finish()

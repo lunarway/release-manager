@@ -269,7 +269,6 @@ func (c *Client) NotifyAuthorEventProcessed(ctx context.Context, options Release
 }
 
 func (c *Client) NotifyFluxEventProcessed(ctx context.Context, artifactID, env, email, service string) error {
-	fmt.Printf("TEST!!!!!")
 	userID, err := c.getIdByEmail(ctx, email)
 	if err != nil {
 		return err
@@ -278,7 +277,26 @@ func (c *Client) NotifyFluxEventProcessed(ctx context.Context, artifactID, env, 
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      fmt.Sprintf(":flux: Flux (%s)", env),
 		Color:      MsgColorGreen,
-		Text:       fmt.Sprintf("Changes detected for *%s*\nArtifact: %s", service, artifactID),
+		Text:       fmt.Sprintf("Rollout initiated for *%s*\nArtifact: %s", service, artifactID),
+		MarkdownIn: []string{"text", "fields"},
+	})
+	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+func (c *Client) NotifyFluxErrorEvent(ctx context.Context, artifactID, env, email, service, errorMessage, errorPath string) error {
+	userID, err := c.getIdByEmail(ctx, email)
+	if err != nil {
+		return err
+	}
+	asUser := slack.MsgOptionAsUser(true)
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      fmt.Sprintf(":flux: Flux (%s)", env),
+		Color:      MsgColorRed,
+		Text:       fmt.Sprintf("Error detected for *%s*\nArtifact: %s\nPath: `%s`\n```%s```", service, artifactID, errorPath, errorMessage),
 		MarkdownIn: []string{"text", "fields"},
 	})
 	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)

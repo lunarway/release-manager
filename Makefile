@@ -322,6 +322,17 @@ data:\n\
 	git add .;\
 	git commit -m "Update at $$(date)"
 
+e2e-do-bad-release-correct-format:
+	echo "apiVersion: v1\n\
+kind: ConfigMap\n\
+metadata:\n\
+  name: test\n\
+  namespace: default\n\
+baddata:\n\
+  somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
+	cd ./e2e-test/source-git-repo;\
+	git add .;\
+	git commit -m "[dev/houston-web] release master-5975d93540-ddcd22312b by kni@lunar.app"
 
 e2e-do-bad-release:
 	echo "apiVersion: v1\n\
