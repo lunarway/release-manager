@@ -5,6 +5,9 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/weaveworks/flux"
+	fluxevent "github.com/weaveworks/flux/event"
+	"github.com/weaveworks/flux/update"
 )
 
 type StatusRequest struct {
@@ -76,6 +79,22 @@ type ReleaseResponse struct {
 	Status        string `json:"status,omitempty"`
 	ToEnvironment string `json:"toEnvironment,omitempty"`
 	Tag           string `json:"tag,omitempty"`
+}
+
+type FluxNotifyRequest struct {
+	Environment        string
+	EventID            fluxevent.EventID
+	EventServiceIDs    []flux.ResourceID
+	EventChangedImages []string
+	EventResult        update.Result
+	EventType          string
+	EventStartedAt     time.Time
+	EventEndedAt       time.Time
+	EventLogLevel      string
+	EventMessage       string
+	EventString        string
+	Commits            []fluxevent.Commit
+	Errors             []fluxevent.ResourceError
 }
 
 type PodNotifyRequest struct {

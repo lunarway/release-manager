@@ -49,6 +49,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	mux.HandleFunc("/describe/", trace(tracer, authenticate(opts.HamCtlAuthToken, describe(&payloader, flowSvc))))
 	mux.HandleFunc("/webhook/github", trace(tracer, githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret)))
 	mux.HandleFunc("/webhook/daemon", trace(tracer, authenticate(opts.DaemonAuthToken, daemonWebhook(&payloader, flowSvc))))
+	mux.HandleFunc("/webhook/daemon/flux", trace(tracer, authenticate(opts.DaemonAuthToken, daemonFluxWebhook(&payloader, flowSvc))))
 
 	// profiling endpoints
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -368,6 +369,33 @@ func daemonWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 		}
 
 		logger.Infof("http: daemon webhook: pod '%s' namespace '%s' environment '%s': Pod event handled: state=%s", podNotify.Name, podNotify.Namespace, podNotify.Environment, podNotify.State)
+	}
+}
+
+func daemonFluxWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// copy span from request context but ignore any deadlines on the request context
+		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
+		logger := log.WithContext(ctx)
+		var fluxNotifyEvent httpinternal.FluxNotifyRequest
+		err := payload.decodeResponse(ctx, r.Body, &fluxNotifyEvent)
+		if err != nil {
+			logger.Errorf("http: daemon flux webhook: decode request body failed: %v", err)
+			invalidBodyError(w)
+			return
+		}
+		logger = logger.WithFields("environment", fluxNotifyEvent.Environment,
+			"event", fluxNotifyEvent.Environment)
+
+		// TODO: Notify Author of commit
+		err = flowSvc.NotifyFluxEvent(ctx, &fluxNotifyEvent)
+		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
+			logger.Errorf("http: daemon flux webhook failed: flux-event '%v', err: %v", fluxNotifyEvent, err)
+			unknownError(w)
+			return
+		}
+
+		logger.Infof("http: daemon flux webhook: flux-event '%v'", fluxNotifyEvent)
 	}
 }
 

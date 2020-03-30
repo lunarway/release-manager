@@ -267,3 +267,23 @@ func (c *Client) NotifyAuthorEventProcessed(ctx context.Context, options Release
 	}
 	return err
 }
+
+func (c *Client) NotifyFluxEventProcessed(ctx context.Context, artifactID, env, email, service string) error {
+	fmt.Printf("TEST!!!!!")
+	userID, err := c.getIdByEmail(ctx, email)
+	if err != nil {
+		return err
+	}
+	asUser := slack.MsgOptionAsUser(true)
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      fmt.Sprintf(":flux: Flux (%s)", env),
+		Color:      MsgColorGreen,
+		Text:       fmt.Sprintf("Changes detected for *%s*\nArtifact: %s", service, artifactID),
+		MarkdownIn: []string{"text", "fields"},
+	})
+	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
+	if err != nil {
+		return err
+	}
+	return err
+}

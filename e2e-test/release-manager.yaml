@@ -70,6 +70,8 @@ spec:
             - lunar
             - --amqp-host
             - rabbitmq
+            - --broker-type
+            - amqp
           env:
             - name: CONFIG_REPO
               value: file:///source-git-repo

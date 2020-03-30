@@ -23,9 +23,7 @@ func HandleV6(api API) {
 
 		exporter := api.Exporter
 
-		err = exporter.Send(r.Context(), Message{
-			Event: event,
-		})
+		err = exporter.Send(r.Context(), event)
 		if err != nil {
 			api.Log.With("error", err.Error()).Errorf("Exporter %T got an error", exporter)
 			http.Error(w, "Unknown error exporting the flux event", http.StatusInternalServerError)
