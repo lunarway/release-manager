@@ -503,7 +503,7 @@ func promote(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 				return
 			}
 			switch errorCause(err) {
-			case git.ErrNothingToCommit:
+			case flow.ErrNothingToRelease:
 				statusString = "Environment is already up-to-date"
 				logger.Infof("http: promote: service '%s' environment '%s': promote skipped: environment up to date", req.Service, req.Environment)
 			case git.ErrBranchBehindOrigin:
@@ -613,7 +613,7 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 				return
 			}
 			switch errorCause(err) {
-			case git.ErrNothingToCommit:
+			case flow.ErrNothingToRelease:
 				statusString = "Environment is already up-to-date"
 				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release skipped: environment up to date", req.Service, req.Environment, req.Branch, req.ArtifactID)
 			case git.ErrArtifactNotFound:
