@@ -384,10 +384,10 @@ func daemonFluxWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc
 			invalidBodyError(w)
 			return
 		}
-		logger = logger.WithFields("environment", fluxNotifyEvent.Environment,
-			"event", fluxNotifyEvent.Environment)
+		logger = logger.WithFields(
+			"environment", fluxNotifyEvent.Environment,
+			"event", fluxNotifyEvent)
 
-		// TODO: Notify Author of commit
 		err = flowSvc.NotifyFluxEvent(ctx, &fluxNotifyEvent)
 		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
 			logger.Errorf("http: daemon flux webhook failed: flux-event '%v', err: %v", fluxNotifyEvent, err)
