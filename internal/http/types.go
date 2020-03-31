@@ -6,7 +6,7 @@ import (
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/weaveworks/flux"
-	fluxevent "github.com/weaveworks/flux/event"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -83,7 +83,7 @@ type ReleaseResponse struct {
 
 type FluxNotifyRequest struct {
 	Environment        string
-	EventID            fluxevent.EventID
+	EventID            event.EventID
 	EventServiceIDs    []flux.ResourceID
 	EventChangedImages []string
 	EventResult        update.Result
@@ -93,8 +93,8 @@ type FluxNotifyRequest struct {
 	EventLogLevel      string
 	EventMessage       string
 	EventString        string
-	Commits            []fluxevent.Commit
-	Errors             []fluxevent.ResourceError
+	Commits            []event.Commit
+	Errors             []event.ResourceError
 }
 
 type PodNotifyRequest struct {
