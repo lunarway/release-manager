@@ -68,7 +68,7 @@ func (f *ReleaseManagerExporter) Send(_ context.Context, event event.Event) erro
 		return errors.WithMessage(err, "error posting FluxNotifyRequest")
 	}
 	if resp.StatusCode != 200 {
-		body, err := ioutil.ReadAll(resp.Body)
+		_, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			log.Errorf("failed to read response body: %+v", err)
 		}
