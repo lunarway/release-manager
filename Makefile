@@ -296,19 +296,7 @@ data:\n\
   somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
 	cd ./e2e-test/source-git-repo;\
 	git add .;\
-	git commit -m "Update at $$(date)"
-
-e2e-do-release-correct-format:
-	echo "apiVersion: v1\n\
-kind: ConfigMap\n\
-metadata:\n\
-  name: test\n\
-  namespace: default\n\
-data:\n\
-  somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
-	cd ./e2e-test/source-git-repo;\
-	git add .;\
-	git commit -m "[dev/houston-web] release master-5975d93540-ddcd22312b by kni@lunar.app"
+	git commit -m "[env/service] release master-5975d93540-ddcd22312b by kni@lunar.app"
 
 e2e-do-another-release:
 	echo "apiVersion: v1\n\
@@ -320,19 +308,7 @@ data:\n\
   some-other-value: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/another-test.yaml
 	cd ./e2e-test/source-git-repo;\
 	git add .;\
-	git commit -m "Update at $$(date)"
-
-e2e-do-bad-release-correct-format:
-	echo "apiVersion: v1\n\
-kind: ConfigMap\n\
-metadata:\n\
-  name: test\n\
-  namespace: default\n\
-baddata:\n\
-  somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
-	cd ./e2e-test/source-git-repo;\
-	git add .;\
-	git commit -m "[dev/houston-web] release master-5975d93540-ddcd22312b by kni@lunar.app"
+	git commit -m "[env/service] release master-5975d93540-ddcd22312b by kni@lunar.app"
 
 e2e-do-bad-release:
 	echo "apiVersion: v1\n\
@@ -344,4 +320,27 @@ baddata:\n\
   somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
 	cd ./e2e-test/source-git-repo;\
 	git add .;\
-	git commit -m "Update at $$(date)"
+	git commit -m "[env/service] release master-5975d93540-ddcd22312b by kni@lunar.app"
+
+e2e-do-duplicate-release:
+	echo "apiVersion: v1\n\
+kind: ConfigMap\n\
+metadata:\n\
+  name: test\n\
+  namespace: default\n\
+baddata:\n\
+  somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
+	cd ./e2e-test/source-git-repo;\
+	git add .;\
+	git commit -m "[env/service] release master-5975d93540-ddcd22312b by kni@lunar.app"
+
+	echo "apiVersion: v1\n\
+kind: ConfigMap\n\
+metadata:\n\
+  name: test\n\
+  namespace: default\n\
+baddata:\n\
+  somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/dup.yaml
+	cd ./e2e-test/source-git-repo;\
+	git add .;\
+	git commit -m "[env/service] release master-5975d93540-123456789 by kni@lunar.app"
