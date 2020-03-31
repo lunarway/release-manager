@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
 
 	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/pkg/errors"
 
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/weaveworks/flux/event"
@@ -53,28 +55,24 @@ func (f *ReleaseManagerExporter) Send(_ context.Context, event event.Event) erro
 		Errors:             getErrors(event.Metadata),
 	})
 	if err != nil {
-		log.Errorf("error encoding FluxNotifyRequest: %+v", err)
-		return err
+		return errors.WithMessage(err, "encoding FluxNotifyRequest")
 	}
 	url := f.Url + "/webhook/daemon/flux"
 	req, err := http.NewRequest(http.MethodPost, url, b)
 	if err != nil {
-		log.Errorf("error generating FluxNotifyRequest to %s: %+v", url, err)
-		return err
+		return errors.WithMessage(err, "error generating FluxNotifyRequest")
 	}
 	req.Header.Set("Authorization", "Bearer "+f.AuthToken)
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Errorf("error posting FluxNotifyRequest to %s: %+v", url, err)
-		return err
+		return errors.WithMessage(err, "error posting FluxNotifyRequest")
 	}
 	if resp.StatusCode != 200 {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			log.Errorf("failed to read response body: %+v", err)
 		}
-		log.Errorf("release-manager returned %s status-code in flux ReleaseManagerExporter notify webhook: %s", resp.Status, body)
-		return err
+		return errors.WithMessage(err, fmt.Sprintf("release-manager returned %s status-code in flux ReleaseManagerExporter notify webhook", resp.Status))
 	}
 
 	return nil
