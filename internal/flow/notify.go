@@ -72,7 +72,7 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 		}
 
 		// if no errors
-		span, _ = s.Tracer.FromCtx(ctx, "post flux event processed slack message")
+		span, ctx = s.Tracer.FromCtx(ctx, "post flux event processed slack message")
 		err = s.Slack.NotifyFluxEventProcessed(ctx, commitMessage.ArtifactID, commitMessage.Environment, email, commitMessage.Service)
 		span.Finish()
 		if err != nil {
