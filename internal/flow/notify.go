@@ -97,7 +97,7 @@ func parseCommitMessage(commitMessage string) (FluxReleaseMessage, error) {
 	}
 	matches := r.FindStringSubmatch(commitMessage)
 	if len(matches) < 1 {
-		return FluxReleaseMessage{}, errors.New("lenght of matches not as expected")
+		return FluxReleaseMessage{}, errors.New("not enough matches")
 	}
 
 	return FluxReleaseMessage{
