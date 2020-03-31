@@ -45,8 +45,10 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 
 	// Range commit
 	for _, commit := range event.Commits {
-		log.Infof("Commit Message: %s", commit.Message)
-		commitMessage := parseCommitMessage(commit.Message)
+		commitMessage, err := parseCommitMessage(commit.Message)
+		if err != nil {
+			return err
+		}
 		email := commitMessage.GitAuthor
 		if !strings.Contains(email, "@lunar.app") {
 			//check UserMappings
@@ -71,7 +73,7 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 
 		// if no errors
 		span, _ = s.Tracer.FromCtx(ctx, "post flux event processed slack message")
-		err := s.Slack.NotifyFluxEventProcessed(ctx, commitMessage.ArtifactID, commitMessage.Environment, email, commitMessage.Service)
+		err = s.Slack.NotifyFluxEventProcessed(ctx, commitMessage.ArtifactID, commitMessage.Environment, email, commitMessage.Service)
 		span.Finish()
 		if err != nil {
 			return errors.WithMessage(err, "post flux event processed private message")
@@ -87,13 +89,21 @@ type FluxReleaseMessage struct {
 	GitAuthor   string
 }
 
-func parseCommitMessage(commitMessage string) FluxReleaseMessage {
-	r := regexp.MustCompile(`^\[(.*)/(.*)\]\s+release\s+(.*)\s+by\s+(.*)`)
-	match := r.FindStringSubmatch(commitMessage)
-	return FluxReleaseMessage{
-		Environment: match[1],
-		Service:     match[2],
-		ArtifactID:  match[3],
-		GitAuthor:   match[4],
+func parseCommitMessage(commitMessage string) (FluxReleaseMessage, error) {
+	pattern := `^\[(?P<env>.*)/(?P<service>.*)\]\s+release\s+(?P<artifact>.*)\s+by\s+(?P<author>.*)`
+	r, err := regexp.Compile(pattern)
+	if err != nil {
+		return FluxReleaseMessage{}, errors.WithMessage(err, "regex didn't match")
 	}
+	matches := r.FindStringSubmatch(commitMessage)
+	if len(matches) < 1 {
+		return FluxReleaseMessage{}, errors.New("lenght of matches not as expected")
+	}
+
+	return FluxReleaseMessage{
+		Environment: matches[1],
+		Service:     matches[2],
+		ArtifactID:  matches[3],
+		GitAuthor:   matches[4],
+	}, nil
 }
