@@ -29,13 +29,13 @@ func TestCommitMessageExtraction(t *testing.T) {
 			name:          "only three values match",
 			commitMessage: "[env/service-name] release master-1234567890-1234567890",
 			expected:      FluxReleaseMessage{},
-			err:           errors.New("lenght of matches not as expected"),
+			err:           errors.New("not enough matches"),
 		},
 		{
 			name:          "random commit message",
 			commitMessage: "test test test test",
 			expected:      FluxReleaseMessage{},
-			err:           errors.New("lenght of matches not as expected"),
+			err:           errors.New("not enough matches"),
 		},
 	}
 	for _, tc := range tt {
