@@ -12,7 +12,6 @@ import (
 
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/weaveworks/flux/event"
-	fluxevent "github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -23,7 +22,7 @@ type Message struct {
 // Exporter sends a formatted event to an upstream.
 type Exporter interface {
 	// Send a message through the exporter.
-	Send(c context.Context, event fluxevent.Event) error
+	Send(c context.Context, event event.Event) error
 }
 type ReleaseManagerExporter struct {
 	Log         *log.Logger
@@ -32,8 +31,8 @@ type ReleaseManagerExporter struct {
 	Environment string
 }
 
-func (f *ReleaseManagerExporter) Send(_ context.Context, event fluxevent.Event) error {
-	f.Log.With("FluxEvent", event).Infof("flux event logged")
+func (f *ReleaseManagerExporter) Send(_ context.Context, event event.Event) error {
+	f.Log.With("event", event).Infof("flux event logged")
 	client := &http.Client{
 		Timeout: 20 * time.Second,
 	}
@@ -81,48 +80,48 @@ func (f *ReleaseManagerExporter) Send(_ context.Context, event fluxevent.Event) 
 	return nil
 }
 
-func getCommits(meta fluxevent.EventMetadata) []fluxevent.Commit {
+func getCommits(meta event.EventMetadata) []event.Commit {
 	switch v := meta.(type) {
-	case *fluxevent.CommitEventMetadata:
-		return []fluxevent.Commit{
-			fluxevent.Commit{
+	case *event.CommitEventMetadata:
+		return []event.Commit{
+			event.Commit{
 				Revision: v.Revision,
 			},
 		}
-	case *fluxevent.SyncEventMetadata:
+	case *event.SyncEventMetadata:
 		return v.Commits
 	default:
-		return []fluxevent.Commit{}
+		return []event.Commit{}
 	}
 }
 
-func getResult(meta fluxevent.EventMetadata) update.Result {
+func getResult(meta event.EventMetadata) update.Result {
 	switch v := meta.(type) {
-	case *fluxevent.AutoReleaseEventMetadata:
+	case *event.AutoReleaseEventMetadata:
 		return v.Result
-	case *fluxevent.ReleaseEventMetadata:
+	case *event.ReleaseEventMetadata:
 		return v.Result
 	default:
 		return update.Result{}
 	}
 }
 
-func getChangedImages(meta fluxevent.EventMetadata) []string {
+func getChangedImages(meta event.EventMetadata) []string {
 	switch v := meta.(type) {
-	case *fluxevent.AutoReleaseEventMetadata:
+	case *event.AutoReleaseEventMetadata:
 		return v.Result.ChangedImages()
-	case *fluxevent.ReleaseEventMetadata:
+	case *event.ReleaseEventMetadata:
 		return v.Result.ChangedImages()
 	default:
 		return []string{}
 	}
 }
 
-func getErrors(meta fluxevent.EventMetadata) []fluxevent.ResourceError {
+func getErrors(meta event.EventMetadata) []event.ResourceError {
 	switch v := meta.(type) {
-	case *fluxevent.SyncEventMetadata:
+	case *event.SyncEventMetadata:
 		return v.Errors
 	default:
-		return []fluxevent.ResourceError{}
+		return []event.ResourceError{}
 	}
 }
