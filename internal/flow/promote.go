@@ -77,9 +77,15 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 			return true, errors.WithMessagef(err, "locate release '%s'", result.ReleaseID)
 		}
 
-		// TODO: we don't know if there is any changes to commit at this point, but
-		// it might be nice to be able to answer that directly. we could check the
-		// current artifact ID in the environment right away?
+		// check that the artifact to be released is not already released in the
+		// environment
+		currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+		if err != nil {
+			return true, errors.WithMessage(err, "get current released spec")
+		}
+		if currentSpec.ID == sourceSpec.ID {
+			return true, ErrNothingToRelease
+		}
 
 		err = s.PublishPromote(ctx, PromoteEvent{
 			Hash:        hash.String(),

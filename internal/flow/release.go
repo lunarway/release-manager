@@ -49,6 +49,16 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		namespace = environment
 	}
 
+	// check that the artifact to be released is not already released in the
+	// environment
+	currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+	if err != nil {
+		return "", errors.WithMessage(err, "get current released spec")
+	}
+	if currentSpec.ID == artifactSpec.ID {
+		return "", ErrNothingToRelease
+	}
+
 	err = s.PublishReleaseBranch(ctx, ReleaseBranchEvent{
 		Branch:      branch,
 		Actor:       actor,

@@ -22,6 +22,7 @@ var (
 	ErrUnknownEnvironment            = errors.New("unknown environment")
 	ErrNamespaceNotAllowedByArtifact = errors.New("namespace not allowed by artifact")
 	ErrUnknownConfiguration          = errors.New("unknown configuration")
+	ErrNothingToRelease              = errors.New("nothing to release")
 )
 
 type Service struct {
