@@ -395,7 +395,7 @@ func daemonFluxWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc
 			return
 		}
 
-		logger.Infof("http: daemon flux webhook: flux-event '%v'", fluxNotifyEvent)
+		logger.Infof("http: daemon flux webhook: handled successfully")
 	}
 }
 
