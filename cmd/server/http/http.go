@@ -390,7 +390,7 @@ func daemonFluxWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc
 
 		err = flowSvc.NotifyFluxEvent(ctx, &fluxNotifyEvent)
 		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
-			logger.Errorf("http: daemon flux webhook failed: flux-event '%v', err: %v", fluxNotifyEvent, err)
+			logger.Errorf("http: daemon flux webhook failed: %+v", err)
 			unknownError(w)
 			return
 		}
