@@ -38,12 +38,11 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyFluxEvent")
 	defer span.Finish()
 
-	// If there's no commits, let's just skips
+	// If there's no commits, let's just skip
 	if len(event.Commits) == 0 {
-		return errors.Errorf("no commits found")
+		return nil
 	}
 
-	// Range commit
 	for _, commit := range event.Commits {
 		commitMessage, err := parseCommitMessage(commit.Message)
 		if err != nil {
@@ -69,6 +68,7 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 					return errors.WithMessage(err, "post flux event processed private message")
 				}
 			}
+			return nil
 		}
 
 		// if no errors
