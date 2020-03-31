@@ -46,7 +46,7 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 	for _, commit := range event.Commits {
 		commitMessage, err := parseCommitMessage(commit.Message)
 		if err != nil {
-			return err
+			return errors.WithMessagef(err, "parse commit message '%s'", commit.Message)
 		}
 		email := commitMessage.GitAuthor
 		if !strings.Contains(email, "@lunar.app") {
