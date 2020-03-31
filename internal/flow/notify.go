@@ -61,7 +61,7 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 		// event contains errors, extract and post specific error message
 		if len(event.Errors) > 0 {
 			for _, err := range event.Errors {
-				span, _ = s.Tracer.FromCtx(ctx, "post flux event processed slack message")
+				span, ctx := s.Tracer.FromCtx(ctx, "post flux error event slack message")
 				err := s.Slack.NotifyFluxErrorEvent(ctx, commitMessage.ArtifactID, commitMessage.Environment, email, commitMessage.Service, err.Error, err.Path)
 				span.Finish()
 				if err != nil {
