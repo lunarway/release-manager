@@ -33,6 +33,7 @@ func NewApply(client *httpinternal.Client, service *string) *cobra.Command {
 		},
 	}
 	command.AddCommand(autoRelease(client, service))
+	command.AddCommand(branchRestrictor(client, service))
 	return command
 }
 
@@ -48,7 +49,7 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 			}
 
 			var resp httpinternal.ApplyPolicyResponse
-			path, err := client.URL(path)
+			path, err := client.URL(pathAutoRelease)
 			if err != nil {
 				return err
 			}
@@ -73,6 +74,51 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 	//nolint:errcheck
 	command.MarkFlagRequired("branch")
 	completion.FlagAnnotation(command, "branch", "__hamctl_get_branches")
+	command.Flags().StringVarP(&env, "env", "e", "", "Environment to release artifacts to")
+	//nolint:errcheck
+	command.MarkFlagRequired("env")
+	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
+	return command
+}
+
+func branchRestrictor(client *httpinternal.Client, service *string) *cobra.Command {
+	var branchMatcher, env string
+	var command = &cobra.Command{
+		Use:   "branch-restriction",
+		Short: "Branch restriction policy for limiting releases by their origin branch",
+		Long:  "Branch restriction policy for limiting releases of artifacts by their origin branch to specific environments",
+		RunE: func(c *cobra.Command, args []string) error {
+			committerName, committerEmail, err := git.CommitterDetails()
+			if err != nil {
+				return err
+			}
+
+			var resp httpinternal.ApplyBranchRestrictorPolicyResponse
+			path, err := client.URL(pathBranchRestrction)
+			if err != nil {
+				return err
+			}
+			err = client.Do(http.MethodPatch, path, httpinternal.ApplyBranchRestrictorPolicyRequest{
+				Service:        *service,
+				BranchMatcher:  branchMatcher,
+				Environment:    env,
+				CommitterEmail: committerEmail,
+				CommitterName:  committerName,
+			}, &resp)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("[✓] Applied branch restriction policy '%s' to service '%s'\n", resp.ID, resp.Service)
+			return nil
+		},
+	}
+	command.Flags().StringVar(&branchMatcher, "matcher", "", "Regular expression for matching branch names")
+	// errors are skipped here as the only case they can occour are if thee flag
+	// does not exist on the command.
+	//nolint:errcheck
+	command.MarkFlagRequired("matcher")
+	completion.FlagAnnotation(command, "matcher", "__hamctl_get_branches")
 	command.Flags().StringVarP(&env, "env", "e", "", "Environment to release artifacts to")
 	//nolint:errcheck
 	command.MarkFlagRequired("env")

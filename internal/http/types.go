@@ -114,14 +114,36 @@ type Container struct {
 }
 
 type ListPoliciesResponse struct {
-	Service      string              `json:"service,omitempty"`
-	AutoReleases []AutoReleasePolicy `json:"autoReleases,omitempty"`
+	Service           string                   `json:"service,omitempty"`
+	AutoReleases      []AutoReleasePolicy      `json:"autoReleases,omitempty"`
+	BranchRestrictors []BranchRestrictorPolicy `json:"branchRestrictors,omitempty"`
 }
 
 type AutoReleasePolicy struct {
 	ID          string `json:"id,omitempty"`
 	Branch      string `json:"branch,omitempty"`
 	Environment string `json:"environment,omitempty"`
+}
+
+type BranchRestrictorPolicy struct {
+	ID            string `json:"id,omitempty"`
+	Environment   string `json:"environment,omitempty"`
+	BranchMatcher string `json:"branchMatcher,omitempty"`
+}
+
+type ApplyBranchRestrictorPolicyRequest struct {
+	Service        string `json:"service,omitempty"`
+	Environment    string `json:"environment,omitempty"`
+	BranchMatcher  string `json:"branchMatcher,omitempty"`
+	CommitterName  string `json:"committerName,omitempty"`
+	CommitterEmail string `json:"committerEmail,omitempty"`
+}
+
+type ApplyBranchRestrictorPolicyResponse struct {
+	ID            string `json:"id,omitempty"`
+	Service       string `json:"service,omitempty"`
+	Environment   string `json:"environment,omitempty"`
+	BranchMatcher string `json:"branchMatcher,omitempty"`
 }
 
 type ApplyAutoReleasePolicyRequest struct {

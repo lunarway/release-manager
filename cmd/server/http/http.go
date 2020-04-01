@@ -45,7 +45,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	mux.HandleFunc("/release", trace(tracer, authenticate(opts.HamCtlAuthToken, release(&payloader, flowSvc))))
 	mux.HandleFunc("/status", trace(tracer, authenticate(opts.HamCtlAuthToken, status(&payloader, flowSvc))))
 	mux.HandleFunc("/rollback", trace(tracer, authenticate(opts.HamCtlAuthToken, rollback(&payloader, flowSvc))))
-	mux.HandleFunc("/policies", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(&payloader, policySvc))))
+	mux.HandleFunc("/policies/", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(&payloader, policySvc))))
 	mux.HandleFunc("/describe/", trace(tracer, authenticate(opts.HamCtlAuthToken, describe(&payloader, flowSvc))))
 	mux.HandleFunc("/webhook/github", trace(tracer, githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret)))
 	mux.HandleFunc("/webhook/daemon", trace(tracer, authenticate(opts.DaemonAuthToken, daemonWebhook(&payloader, flowSvc))))
@@ -535,6 +535,10 @@ func promote(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 				return
 			}
 			switch errorCause(err) {
+			case flow.ErrReleaseProhibited:
+				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: branch prohibited in environment", req.Service, req.Environment)
+				Error(w, fmt.Sprintf("artifact cannot be promoted to environment '%s' due to branch restriction policy", req.Environment), http.StatusBadRequest)
+				return
 			case flow.ErrNothingToRelease:
 				statusString = "Environment is already up-to-date"
 				logger.Infof("http: promote: service '%s' environment '%s': promote skipped: environment up to date", req.Service, req.Environment)
@@ -645,6 +649,14 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 				return
 			}
 			switch errorCause(err) {
+			case flow.ErrReleaseProhibited:
+				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: branch prohibited in environment", req.Service, req.Environment, req.Branch, req.ArtifactID)
+				if req.Branch != "" {
+					Error(w, fmt.Sprintf("branch '%s' cannot be released to environment '%s' due to branch restriction policy", req.Branch, req.Environment), http.StatusBadRequest)
+				} else {
+					Error(w, fmt.Sprintf("artifact '%s' cannot be released to environment '%s' due to branch restriction policy", req.ArtifactID, req.Environment), http.StatusBadRequest)
+				}
+				return
 			case flow.ErrNothingToRelease:
 				statusString = "Environment is already up-to-date"
 				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release skipped: environment up to date", req.Service, req.Environment, req.Branch, req.ArtifactID)

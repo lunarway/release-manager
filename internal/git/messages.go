@@ -18,8 +18,8 @@ func RollbackCommitMessage(env, service, oldArtifactID, newArtifactID, authorEma
 }
 
 // PolicyUpdateApplyCommitMessage returns an apply policy commit message.
-func PolicyUpdateApplyCommitMessage(env, service, branch, policy string) string {
-	return fmt.Sprintf("[%s] policy update: apply %s from '%s' to '%s'", service, policy, branch, env)
+func PolicyUpdateApplyCommitMessage(env, service, policy string) string {
+	return fmt.Sprintf("[%s] policy update: apply %s in '%s'", service, policy, env)
 }
 
 // PolicyUpdateDeleteCommitMessage returns a delete policy commit message.

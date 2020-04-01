@@ -23,14 +23,16 @@ var (
 	ErrNamespaceNotAllowedByArtifact = errors.New("namespace not allowed by artifact")
 	ErrUnknownConfiguration          = errors.New("unknown configuration")
 	ErrNothingToRelease              = errors.New("nothing to release")
+	ErrReleaseProhibited             = errors.New("release prohibited")
 )
 
 type Service struct {
-	ArtifactFileName string
-	UserMappings     map[string]string
-	Slack            *slack.Client
-	Git              *git.Service
-	Tracer           tracing.Tracer
+	ArtifactFileName  string
+	UserMappings      map[string]string
+	Slack             *slack.Client
+	Git               *git.Service
+	Tracer            tracing.Tracer
+	ReleaseRestrictor func(ctx context.Context, svc, branch, env string) (bool, error)
 
 	PublishPromote           func(context.Context, PromoteEvent) error
 	PublishRollback          func(context.Context, RollbackEvent) error

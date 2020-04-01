@@ -201,6 +201,25 @@ This is an example of applying an auto-release policy for the product service fo
 $ hamctl policy --service example apply auto-release --branch master --env dev
 ```
 
+#### Branch restriction on environments
+
+A `branch-restriction` policy instructs the release manager to only allow artifacts from specific branches to be released to an environment.
+
+This is an example of applying a branch-restriction policy for the `example` service for the `master` branch and `prod` environment.
+
+```
+$ hamctl policy --service example apply branch-restriction --env prod --matcher '^master$'
+```
+
+The `--matcher` flag defines a regular expression that is matched against the branch name on every release.
+To allow only `master` or `hostfix/*` branches in production one can setup a policy like this.
+
+```
+$ hamctl policy --service example apply branch-restriction --env prod --matcher '^(master|hotfix\/.+)$'
+```
+
+It is not possible to create an auto-release policy for a non-matching branch to an environment that is protected by a branch-restriction policy.
+
 ### Notifications
 
 When releasing applications the server will notify different upstream services along with outputting an identifiable log useful for log aggregation statistics.

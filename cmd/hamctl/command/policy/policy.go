@@ -1,5 +1,7 @@
 package policy
 
 const (
-	path = "policies"
+	path                 = "policies/"
+	pathAutoRelease      = "policies/auto-release"
+	pathBranchRestrction = "policies/branch-restriction"
 )

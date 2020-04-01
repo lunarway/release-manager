@@ -24,6 +24,8 @@ var (
 	ErrUnknownFields = errors.New("policies contains unknown fields")
 	// ErrNotFound indicates that policies are not found for a service.
 	ErrNotFound = errors.New("not found")
+	// ErrConflict indicates that polices are not compatible
+	ErrConflict = errors.New("conflict")
 )
 
 type Service struct {
@@ -98,9 +100,18 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch, env string) (string, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.ApplyAutoRelease")
 	defer span.Finish()
-	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, branch, "auto-release")
+
+	ok, err := s.CanRelease(ctx, svc, branch, env)
+	if err != nil {
+		return "", errors.WithMessage(err, "check branch restrictions")
+	}
+	if !ok {
+		return "", ErrConflict
+	}
+
+	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, "auto-release")
 	var policyID string
-	err := s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
+	err = s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
 		policyID = p.SetAutoRelease(branch, env)
 	})
 	if err != nil {
@@ -195,7 +206,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 		err = s.Git.Commit(ctx, configRepoPath, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg)
 		if err != nil {
 			// indicates that the applied policy was already set
-			if err == git.ErrNothingToCommit {
+			if errors.Cause(err) == git.ErrNothingToCommit {
 				return true, nil
 			}
 			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", policiesPath))
@@ -238,8 +249,9 @@ func persist(w io.Writer, p Policies) error {
 }
 
 type Policies struct {
-	Service      string              `json:"service,omitempty"`
-	AutoReleases []AutoReleasePolicy `json:"autoReleases,omitempty"`
+	Service           string              `json:"service,omitempty"`
+	AutoReleases      []AutoReleasePolicy `json:"autoReleases,omitempty"`
+	BranchRestrictors []BranchRestrictor  `json:"branchRestrictors,omitempty"`
 }
 
 type AutoReleasePolicy struct {
@@ -250,7 +262,7 @@ type AutoReleasePolicy struct {
 
 // HasPolicies returns whether any policies are applied.
 func (p *Policies) HasPolicies() bool {
-	return len(p.AutoReleases) != 0
+	return len(p.AutoReleases) != 0 || len(p.BranchRestrictors) != 0
 }
 
 // SetAutoRelease sets an auto-release policy for specified branch and
@@ -294,6 +306,16 @@ func (p *Policies) Delete(ids ...string) int {
 			deleted++
 		}
 		p.AutoReleases = filtered
+
+		var filteredBranchRestrictors []BranchRestrictor
+		for i := range p.BranchRestrictors {
+			if p.BranchRestrictors[i].ID != id {
+				filteredBranchRestrictors = append(filteredBranchRestrictors, p.BranchRestrictors[i])
+				continue
+			}
+			deleted++
+		}
+		p.BranchRestrictors = filteredBranchRestrictors
 	}
 	return deleted
 }

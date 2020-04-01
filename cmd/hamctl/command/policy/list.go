@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
@@ -32,35 +33,73 @@ func NewList(client *httpinternal.Client, service *string) *cobra.Command {
 			}
 			fmt.Printf("Policies for service %s\n", resp.Service)
 			fmt.Println()
-			if len(resp.AutoReleases) != 0 {
-				fmt.Printf("Auto-releases:\n")
-				fmt.Println()
-				maxBranchLen := maxLen(resp.AutoReleases, func(p httpinternal.AutoReleasePolicy) string {
-					return p.Branch
-				})
-				maxEnvLen := maxLen(resp.AutoReleases, func(p httpinternal.AutoReleasePolicy) string {
-					return p.Environment
-				})
-				maxIDLen := maxLen(resp.AutoReleases, func(p httpinternal.AutoReleasePolicy) string {
-					return p.ID
-				})
-				formatString := fmt.Sprintf("%%-%ds     %%-%ds     %%-%ds\n", maxBranchLen, maxEnvLen, maxIDLen)
-				fmt.Printf(formatString, "BRANCH", "ENV", "ID")
-
-				for _, p := range resp.AutoReleases {
-					fmt.Printf(formatString, p.Branch, p.Environment, p.ID)
-				}
-			}
+			printAutoReleasePolicies(resp.AutoReleases)
+			fmt.Println()
+			printBranchRestrictorPolicies(resp.BranchRestrictors)
 			return nil
 		},
 	}
 	return command
 }
 
-func maxLen(policies []httpinternal.AutoReleasePolicy, f func(httpinternal.AutoReleasePolicy) string) int {
-	longest := 0
+func printAutoReleasePolicies(autoReleases []httpinternal.AutoReleasePolicy) {
+	if len(autoReleases) == 0 {
+		return
+	}
+	fmt.Printf("Auto-releases:\n")
+	fmt.Println()
+	maxBranchLen := maxLen(autoReleases, func(i int) string {
+		return autoReleases[i].Branch
+	})
+	maxEnvLen := maxLen(autoReleases, func(i int) string {
+		return autoReleases[i].Environment
+	})
+	maxIDLen := maxLen(autoReleases, func(i int) string {
+		return autoReleases[i].ID
+	})
+	formatString := fmt.Sprintf("%%-%ds     %%-%ds     %%-%ds\n", maxEnvLen, maxBranchLen, maxIDLen)
+	fmt.Printf(formatString, "ENV", "BRANCH", "ID")
+
+	for _, p := range autoReleases {
+		fmt.Printf(formatString, p.Environment, p.Branch, p.ID)
+	}
+}
+
+func printBranchRestrictorPolicies(policies []httpinternal.BranchRestrictorPolicy) {
+	if len(policies) == 0 {
+		return
+	}
+	fmt.Printf("Branch restrictors:\n")
+	fmt.Println()
+	maxBranchLen := maxLen(policies, func(i int) string {
+		return policies[i].BranchMatcher
+	})
+	maxEnvLen := maxLen(policies, func(i int) string {
+		return policies[i].Environment
+	})
+	maxIDLen := maxLen(policies, func(i int) string {
+		return policies[i].ID
+	})
+	formatString := fmt.Sprintf("%%-%ds     %%-%ds     %%-%ds\n", maxEnvLen, maxBranchLen, maxIDLen)
+	fmt.Printf(formatString, "ENV", "REGEX", "ID")
+
 	for _, p := range policies {
-		str := f(p)
+		fmt.Printf(formatString, p.Environment, p.BranchMatcher, p.ID)
+	}
+}
+
+// maxLen returns the maximum length of the string returned by f in slice
+// values.
+func maxLen(values interface{}, f func(int) string) int {
+	valuesType := reflect.TypeOf(values).Kind()
+	if valuesType != reflect.Slice {
+		panic("maxLen only works on slices")
+	}
+
+	s := reflect.ValueOf(values)
+	longest := 0
+	for i := 0; i < s.Len(); i++ {
+		str := f(i)
 		if len(str) > longest {
 			longest = len(str)
 		}

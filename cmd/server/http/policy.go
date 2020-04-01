@@ -2,8 +2,10 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"regexp/syntax"
 	"strings"
 
 	"github.com/lunarway/release-manager/internal/git"
@@ -12,12 +14,44 @@ import (
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
 )
 
+type policyPatchPath struct {
+	segments []string
+}
+
+func newPolicyPatchPath(r *http.Request) (policyPatchPath, bool) {
+	p := policyPatchPath{
+		segments: strings.Split(r.URL.Path, "/"),
+	}
+	if len(p.segments) < 3 {
+		return policyPatchPath{}, false
+	}
+	return p, true
+}
+
+func (p *policyPatchPath) PolicyType() string {
+	return p.segments[2]
+}
+
 func policy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPatch:
-			// only auto-release policies are available so no other validtion is required here
-			applyAutoReleasePolicy(payload, policySvc)(w, r)
+			ctx := r.Context()
+			p, ok := newPolicyPatchPath(r)
+			if !ok {
+				log.WithContext(ctx).Errorf("Could not parse PATCH policy path: %s", r.URL.Path)
+				Error(w, "not found", http.StatusNotFound)
+				return
+			}
+			switch p.PolicyType() {
+			case "auto-release":
+				applyAutoReleasePolicy(payload, policySvc)(w, r)
+			case "branch-restriction":
+				applyBranchRestrictorPolicy(payload, policySvc)(w, r)
+			default:
+				log.WithContext(ctx).Errorf("apply policy not found: %+v", p)
+				notFound(w)
+			}
 		case http.MethodGet:
 			listPolicies(payload, policySvc)(w, r)
 		case http.MethodDelete:
@@ -35,7 +69,7 @@ func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service)
 		var req httpinternal.ApplyAutoReleasePolicyRequest
 		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
-			logger.Errorf("http: policy: apply: decode request body failed: %v", err)
+			logger.Errorf("http: policy: apply auto-release: decode request body failed: %v", err)
 			invalidBodyError(w)
 			return
 		}
@@ -72,6 +106,9 @@ func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service)
 				return
 			}
 			switch errorCause(err) {
+			case policyinternal.ErrConflict:
+				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release rejected: conflicts with another policy: %v", req.Service, req.Branch, req.Environment, err)
+				Error(w, fmt.Sprintf("policy conflicts with another policy"), http.StatusServiceUnavailable)
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': %v", req.Service, req.Branch, req.Environment, err)
 				Error(w, fmt.Sprintf("could not apply policy right now. Please try again in a moment."), http.StatusServiceUnavailable)
@@ -93,6 +130,81 @@ func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service)
 		})
 		if err != nil {
 			logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release: marshal response failed: %v", req.Service, req.Branch, req.Environment, err)
+		}
+	}
+}
+
+func applyBranchRestrictorPolicy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		logger := log.WithContext(ctx)
+		var req httpinternal.ApplyBranchRestrictorPolicyRequest
+		err := payload.decodeResponse(ctx, r.Body, &req)
+		if err != nil {
+			logger.Errorf("http: policy: apply: branch-restriction: decode request body failed: %v", err)
+			invalidBodyError(w)
+			return
+		}
+		if emptyString(req.Service) {
+			requiredFieldError(w, "service")
+			return
+		}
+		if emptyString(req.Environment) {
+			requiredFieldError(w, "environment")
+			return
+		}
+		if emptyString(req.BranchMatcher) {
+			requiredFieldError(w, "branch matcher")
+			return
+		}
+		if emptyString(req.CommitterName) {
+			requiredFieldError(w, "committerName")
+			return
+		}
+		if emptyString(req.CommitterEmail) {
+			requiredFieldError(w, "committerEmail")
+			return
+		}
+		logger = logger.WithFields("service", req.Service, "req", req)
+		logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restriction policy started", req.Service, req.BranchMatcher, req.Environment)
+		id, err := policySvc.ApplyBranchRestrictor(ctx, policyinternal.Actor{
+			Name:  req.CommitterName,
+			Email: req.CommitterEmail,
+		}, req.Service, req.BranchMatcher, req.Environment)
+		if err != nil {
+			if ctx.Err() == context.Canceled {
+				logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restriction cancelled", req.Service, req.BranchMatcher, req.Environment)
+				cancelled(w)
+				return
+			}
+			var regexErr *syntax.Error
+			if errors.As(err, &regexErr) {
+				logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restrction: invalid branch matcher: %v", req.Service, req.BranchMatcher, req.Environment, err)
+				Error(w, fmt.Sprintf("branch matcher not valid: %v", regexErr), http.StatusBadRequest)
+				return
+			}
+			switch errorCause(err) {
+			case git.ErrBranchBehindOrigin:
+				logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restrction: %v", req.Service, req.BranchMatcher, req.Environment, err)
+				Error(w, fmt.Sprintf("could not apply policy right now. Please try again in a moment."), http.StatusServiceUnavailable)
+				return
+			default:
+				logger.Errorf("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restriction failed: %v", req.Service, req.BranchMatcher, req.Environment, err)
+				unknownError(w)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		err = payload.encodeResponse(ctx, w, httpinternal.ApplyBranchRestrictorPolicyResponse{
+			ID:            id,
+			Service:       req.Service,
+			BranchMatcher: req.BranchMatcher,
+			Environment:   req.Environment,
+		})
+		if err != nil {
+			logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply branch-restriction: marshal response failed: %v", req.Service, req.BranchMatcher, req.Environment, err)
 		}
 	}
 }
@@ -127,8 +239,9 @@ func listPolicies(payload *payload, policySvc *policyinternal.Service) http.Hand
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		err = payload.encodeResponse(ctx, w, httpinternal.ListPoliciesResponse{
-			Service:      policies.Service,
-			AutoReleases: mapAutoReleasePolicies(policies.AutoReleases),
+			Service:           policies.Service,
+			AutoReleases:      mapAutoReleasePolicies(policies.AutoReleases),
+			BranchRestrictors: mapBranchRestrictorPolicies(policies.BranchRestrictors),
 		})
 		if err != nil {
 			logger.Errorf("http: policy: list: service '%s': marshal response failed: %v", service, err)
@@ -143,6 +256,18 @@ func mapAutoReleasePolicies(policies []policyinternal.AutoReleasePolicy) []httpi
 			ID:          p.ID,
 			Branch:      p.Branch,
 			Environment: p.Environment,
+		}
+	}
+	return h
+}
+
+func mapBranchRestrictorPolicies(policies []policyinternal.BranchRestrictor) []httpinternal.BranchRestrictorPolicy {
+	h := make([]httpinternal.BranchRestrictorPolicy, len(policies))
+	for i, p := range policies {
+		h[i] = httpinternal.BranchRestrictorPolicy{
+			ID:            p.ID,
+			Environment:   p.Environment,
+			BranchMatcher: p.BranchMatcher,
 		}
 	}
 	return h

@@ -25,6 +25,15 @@ import (
 func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, service, branch string) (string, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ReleaseBranch")
 	defer span.Finish()
+
+	ok, err := s.ReleaseRestrictor(ctx, service, branch, environment)
+	if err != nil {
+		return "", errors.WithMessage(err, "release restrictor")
+	}
+	if !ok {
+		return "", ErrReleaseProhibited
+	}
+
 	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-branch")
 	if err != nil {
 		return "", err
@@ -233,6 +242,15 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	if err != nil {
 		return "", errors.WithMessagef(err, "locate branch from commit hash '%s'", hash)
 	}
+
+	ok, err := s.ReleaseRestrictor(ctx, service, branch, environment)
+	if err != nil {
+		return "", errors.WithMessage(err, "release restrictor")
+	}
+	if !ok {
+		return "", ErrReleaseProhibited
+	}
+
 	sourceSpec, err := artifact.Get(srcPath(sourceConfigRepoPath, service, branch, s.ArtifactFileName))
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
