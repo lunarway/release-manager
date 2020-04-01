@@ -40,7 +40,7 @@ func policy(payload *payload, policySvc *policyinternal.Service) http.HandlerFun
 			p, ok := newPolicyPatchPath(r)
 			if !ok {
 				log.WithContext(ctx).Errorf("Could not parse PATCH policy path: %s", r.URL.Path)
-				Error(w, "not found", http.StatusNotFound)
+				notFound(w)
 				return
 			}
 			switch p.PolicyType() {
