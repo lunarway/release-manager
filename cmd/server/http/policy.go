@@ -108,7 +108,8 @@ func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service)
 			switch errorCause(err) {
 			case policyinternal.ErrConflict:
 				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release rejected: conflicts with another policy: %v", req.Service, req.Branch, req.Environment, err)
-				Error(w, fmt.Sprintf("policy conflicts with another policy"), http.StatusServiceUnavailable)
+				Error(w, fmt.Sprintf("policy conflicts with another policy"), http.StatusBadRequest)
+				return
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': %v", req.Service, req.Branch, req.Environment, err)
 				Error(w, fmt.Sprintf("could not apply policy right now. Please try again in a moment."), http.StatusServiceUnavailable)
@@ -179,13 +180,17 @@ func applyBranchRestrictorPolicy(payload *payload, policySvc *policyinternal.Ser
 			}
 			var regexErr *syntax.Error
 			if errors.As(err, &regexErr) {
-				logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restrction: invalid branch matcher: %v", req.Service, req.BranchMatcher, req.Environment, err)
+				logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restriction: invalid branch matcher: %v", req.Service, req.BranchMatcher, req.Environment, err)
 				Error(w, fmt.Sprintf("branch matcher not valid: %v", regexErr), http.StatusBadRequest)
 				return
 			}
 			switch errorCause(err) {
+			case policyinternal.ErrConflict:
+				logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restriction rejected: conflicts with another policy: %v", req.Service, req.BranchMatcher, req.Environment, err)
+				Error(w, fmt.Sprintf("policy conflicts with another policy"), http.StatusBadRequest)
+				return
 			case git.ErrBranchBehindOrigin:
-				logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restrction: %v", req.Service, req.BranchMatcher, req.Environment, err)
+				logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restriction: %v", req.Service, req.BranchMatcher, req.Environment, err)
 				Error(w, fmt.Sprintf("could not apply policy right now. Please try again in a moment."), http.StatusServiceUnavailable)
 				return
 			default:

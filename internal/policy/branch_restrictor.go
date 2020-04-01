@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"regexp/syntax"
 
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
@@ -24,9 +23,20 @@ func (s *Service) ApplyBranchRestrictor(ctx context.Context, actor Actor, svc, b
 	defer span.Finish()
 
 	// validate branch matcher regular expression before storring
-	_, err := syntax.Parse(branchMatcher, syntax.Perl)
+	re, err := regexp.Compile(branchMatcher)
 	if err != nil {
 		return "", errors.WithMessage(err, "branch matcher not valid")
+	}
+
+	// ensure no auto release policies will conflict with this one
+	policies, err := s.Get(ctx, svc)
+	if err != nil && errors.Cause(err) != ErrNotFound {
+		return "", err
+	}
+	for _, policy := range policies.AutoReleases {
+		if re.MatchString(policy.Branch) {
+			return "", ErrConflict
+		}
 	}
 
 	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, "branch-restrictor")
