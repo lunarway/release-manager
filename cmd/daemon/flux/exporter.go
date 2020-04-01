@@ -68,10 +68,11 @@ func (f *ReleaseManagerExporter) Send(_ context.Context, event event.Event) erro
 		return errors.WithMessage(err, "error posting FluxNotifyRequest")
 	}
 	if resp.StatusCode != 200 {
-		_, err := ioutil.ReadAll(resp.Body)
+		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			log.Errorf("failed to read response body: %+v", err)
 		}
+		log.Errorf("release-manager response body: %s", body)
 		return errors.WithMessage(err, fmt.Sprintf("release-manager returned %s status-code in flux ReleaseManagerExporter notify webhook", resp.Status))
 	}
 
