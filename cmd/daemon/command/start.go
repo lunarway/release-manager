@@ -39,8 +39,11 @@ func StartDaemon() *cobra.Command {
 			log.Info("Deamon started")
 
 			go func() {
-				api := flux.NewAPI(&flux.LogExporter{
-					Log: log.With("type", "exporter"),
+				api := flux.NewAPI(&flux.ReleaseManagerExporter{
+					Log:         log.With("type", "exporter"),
+					Url:         releaseManagerUrl,
+					AuthToken:   authToken,
+					Environment: environment,
 				}, log.With("type", "api"))
 
 				flux.HandleWebsocket(api)
