@@ -114,7 +114,7 @@ func branchRestrictor(client *httpinternal.Client, service *string) *cobra.Comma
 		},
 	}
 	command.Flags().StringVar(&branchMatcher, "matcher", "", "Regular expression defining allowed branch names")
-	// errors are skipped here as the only case they can occour are if thee flag
+	// errors are skipped here as the only case they can occur are if the flag
 	// does not exist on the command.
 	//nolint:errcheck
 	command.MarkFlagRequired("matcher")
