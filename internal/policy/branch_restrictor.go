@@ -40,7 +40,7 @@ func (s *Service) ApplyBranchRestrictor(ctx context.Context, actor Actor, svc, b
 	return policyID, nil
 }
 
-// CanRelease returns whether a service svc's branch can be released to env.
+// CanRelease returns whether service svc's branch can be released to env.
 func (s *Service) CanRelease(ctx context.Context, svc, branch, env string) (bool, error) {
 	log.WithContext(ctx).Infof("Verifying whether %s on branch %s can be released to %s", svc, branch, env)
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.CanRelease")
