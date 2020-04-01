@@ -113,13 +113,13 @@ func branchRestrictor(client *httpinternal.Client, service *string) *cobra.Comma
 			return nil
 		},
 	}
-	command.Flags().StringVar(&branchMatcher, "matcher", "", "Regular expression for matching branch names")
+	command.Flags().StringVar(&branchMatcher, "matcher", "", "Regular expression defining allowed branch names")
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
 	//nolint:errcheck
 	command.MarkFlagRequired("matcher")
 	completion.FlagAnnotation(command, "matcher", "__hamctl_get_branches")
-	command.Flags().StringVarP(&env, "env", "e", "", "Environment to release artifacts to")
+	command.Flags().StringVarP(&env, "env", "e", "", "Environment to apply restriction to")
 	//nolint:errcheck
 	command.MarkFlagRequired("env")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
