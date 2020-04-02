@@ -14,7 +14,7 @@ var (
 )
 
 func main() {
-	c, err := command.DaemonCommand()
+	c, err := command.DaemonCommand(&version)
 	if err != nil {
 		log.Errorf("Error: %v", err)
 		os.Exit(1)

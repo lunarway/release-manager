@@ -1,16 +1,10 @@
 package flux
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"net/http"
-	"time"
 
 	httpinternal "github.com/lunarway/release-manager/internal/http"
-	"github.com/pkg/errors"
 
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/weaveworks/flux/event"
@@ -31,15 +25,17 @@ type ReleaseManagerExporter struct {
 	Url         string
 	AuthToken   string
 	Environment string
+	Client      httpinternal.Client
 }
 
 func (f *ReleaseManagerExporter) Send(_ context.Context, event event.Event) error {
 	f.Log.With("event", event).Infof("flux event logged")
-	client := &http.Client{
-		Timeout: 20 * time.Second,
+	var resp httpinternal.FluxNotifyResponse
+	url, err := f.Client.URL("webhook/daemon/flux")
+	if err != nil {
+		return err
 	}
-	b := &bytes.Buffer{}
-	err := json.NewEncoder(b).Encode(httpinternal.FluxNotifyRequest{
+	err = f.Client.Do(http.MethodPost, url, httpinternal.FluxNotifyRequest{
 		Environment:        f.Environment,
 		EventID:            event.ID,
 		EventServiceIDs:    event.ServiceIDs,
@@ -53,29 +49,10 @@ func (f *ReleaseManagerExporter) Send(_ context.Context, event event.Event) erro
 		EventString:        event.String(),
 		Commits:            getCommits(event.Metadata),
 		Errors:             getErrors(event.Metadata),
-	})
+	}, &resp)
 	if err != nil {
-		return errors.WithMessage(err, "encoding FluxNotifyRequest")
+		return err
 	}
-	url := f.Url + "/webhook/daemon/flux"
-	req, err := http.NewRequest(http.MethodPost, url, b)
-	if err != nil {
-		return errors.WithMessage(err, "error generating FluxNotifyRequest")
-	}
-	req.Header.Set("Authorization", "Bearer "+f.AuthToken)
-	resp, err := client.Do(req)
-	if err != nil {
-		return errors.WithMessage(err, "error posting FluxNotifyRequest")
-	}
-	if resp.StatusCode != 200 {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Errorf("failed to read response body: %+v", err)
-		}
-		log.Errorf("release-manager response body: %s", body)
-		return errors.WithMessage(err, fmt.Sprintf("release-manager returned %s status-code in flux ReleaseManagerExporter notify webhook", resp.Status))
-	}
-
 	return nil
 }
 

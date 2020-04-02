@@ -5,7 +5,7 @@ import (
 )
 
 // DaemonCommand returns a new instance of a daemon command.
-func DaemonCommand() (*cobra.Command, error) {
+func DaemonCommand(version *string) (*cobra.Command, error) {
 	var command = &cobra.Command{
 		Use:   "daemon",
 		Short: "daemon",
@@ -13,6 +13,6 @@ func DaemonCommand() (*cobra.Command, error) {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(StartDaemon())
+	command.AddCommand(StartDaemon(*version))
 	return command, nil
 }
