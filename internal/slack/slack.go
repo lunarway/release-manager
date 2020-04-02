@@ -116,8 +116,8 @@ func (c *Client) PostPrivateMessage(ctx context.Context, email string, podNotify
 
 func successMessage(podNotify *http.PodNotifyRequest) slack.MsgOption {
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":kubernetes: k8s (%s) :white_check_mark:", podNotify.Environment),
-		Text:       fmt.Sprintf("%s (%s)\nArtifact: %s", podNotify.Name, podNotify.State, podNotify.ArtifactID),
+		Title:      fmt.Sprintf(":kubernetes: k8s (*%s*) :white_check_mark:", podNotify.Environment),
+		Text:       fmt.Sprintf("%s (%s)\nArtifact: *%s*", podNotify.Name, podNotify.State, podNotify.ArtifactID),
 		Color:      "#73bf69",
 		MarkdownIn: []string{"text", "fields"},
 	})
@@ -131,7 +131,7 @@ func createConfigErrorMessage(podNotify *http.PodNotifyRequest) slack.MsgOption 
 	}
 	return slack.MsgOptionAttachments(slack.Attachment{
 		Title:      fmt.Sprintf(":kubernetes: k8s (%s) :no_entry:", podNotify.Environment),
-		Text:       fmt.Sprintf("%s (%s)\nArtifact%s", podNotify.Name, podNotify.State, podNotify.ArtifactID),
+		Text:       fmt.Sprintf("%s (*%s*)\nArtifact: *%s*", podNotify.Name, podNotify.State, podNotify.ArtifactID),
 		Color:      "#e24d42",
 		MarkdownIn: []string{"text", "fields"},
 		Fields:     []slack.AttachmentField{messageField},
@@ -145,8 +145,8 @@ func crashLoopBackOffErrorMessage(podNotify *http.PodNotifyRequest) slack.MsgOpt
 		Short: false,
 	}
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":kubernetes: k8s (%s) :no_entry:", podNotify.Environment),
-		Text:       fmt.Sprintf("%s (%s)\nArtifact: %s", podNotify.Name, podNotify.State, podNotify.ArtifactID),
+		Title:      fmt.Sprintf(":kubernetes: k8s (*%s*) :no_entry:", podNotify.Environment),
+		Text:       fmt.Sprintf("%s (%s)\nArtifact: *%s*", podNotify.Name, podNotify.State, podNotify.ArtifactID),
 		Color:      "#e24d42",
 		MarkdownIn: []string{"text", "fields"},
 		Fields:     []slack.AttachmentField{logField},
@@ -256,9 +256,9 @@ func (c *Client) NotifyAuthorEventProcessed(ctx context.Context, options Release
 	}
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":rocket: Release Manager"),
+		Title:      fmt.Sprintf(":rocket: Release Manager :white_check_mark:"),
 		Color:      MsgColorGreen,
-		Text:       fmt.Sprintf("Release for %s processed\nArtifact: <%s|*%s*>", options.Service, options.CommitLink, options.ArtifactID),
+		Text:       fmt.Sprintf("Release for *%s* in %s processed\nArtifact: <%s|*%s*>", options.Service, options.Environment, options.CommitLink, options.ArtifactID),
 		MarkdownIn: []string{"text", "fields"},
 	})
 	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
@@ -275,7 +275,7 @@ func (c *Client) NotifyFluxEventProcessed(ctx context.Context, artifactID, env, 
 	}
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":flux: Flux (%s)", env),
+		Title:      fmt.Sprintf(":flux: Flux (%s) :white_check_mark:", env),
 		Color:      MsgColorGreen,
 		Text:       fmt.Sprintf("Rollout initiated for *%s*\nArtifact: %s", service, artifactID),
 		MarkdownIn: []string{"text", "fields"},
@@ -294,7 +294,7 @@ func (c *Client) NotifyFluxErrorEvent(ctx context.Context, artifactID, env, emai
 	}
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":flux: Flux (%s)", env),
+		Title:      fmt.Sprintf(":flux: Flux (%s) :no_entry:", env),
 		Color:      MsgColorRed,
 		Text:       fmt.Sprintf("Error detected for *%s*\nArtifact: %s\nPath: `%s`\n```%s```", service, artifactID, errorPath, errorMessage),
 		MarkdownIn: []string{"text", "fields"},
