@@ -11,21 +11,21 @@ import (
 )
 
 type BranchRestrictor struct {
-	ID            string `json:"id,omitempty"`
-	BranchMatcher string `json:"branchMatcher,omitempty"`
-	Environment   string `json:"environment,omitempty"`
+	ID          string `json:"id,omitempty"`
+	BranchRegex string `json:"branchRegex,omitempty"`
+	Environment string `json:"environment,omitempty"`
 }
 
 // ApplyBranchRestrictor applies a branch-restrictor policy for service svc to
-// environment env with regular expression branchMatcher.
-func (s *Service) ApplyBranchRestrictor(ctx context.Context, actor Actor, svc, branchMatcher, env string) (string, error) {
+// environment env with regular expression branchRegex.
+func (s *Service) ApplyBranchRestrictor(ctx context.Context, actor Actor, svc, branchRegex, env string) (string, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.ApplyBranchRestrictor")
 	defer span.Finish()
 
-	// validate branch matcher regular expression before storring
-	re, err := regexp.Compile(branchMatcher)
+	// validate branch regular expression before storring
+	re, err := regexp.Compile(branchRegex)
 	if err != nil {
-		return "", errors.WithMessage(err, "branch matcher not valid")
+		return "", errors.WithMessage(err, "branch regex not valid")
 	}
 
 	// ensure no auto release policies will conflict with this one
@@ -42,7 +42,7 @@ func (s *Service) ApplyBranchRestrictor(ctx context.Context, actor Actor, svc, b
 	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, "branch-restrictor")
 	var policyID string
 	err = s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
-		policyID = p.SetBranchRestrictor(branchMatcher, env)
+		policyID = p.SetBranchRestrictor(branchRegex, env)
 	})
 	if err != nil {
 		return "", err
@@ -73,9 +73,9 @@ func canRelease(ctx context.Context, policies Policies, branch, env string) (boo
 		if policy.Environment != env {
 			continue
 		}
-		r, err := regexp.Compile(policy.BranchMatcher)
+		r, err := regexp.Compile(policy.BranchRegex)
 		if err != nil {
-			return false, errors.WithMessage(err, "branch matcher not valid regular expression")
+			return false, errors.WithMessage(err, "branch regex not valid regular expression")
 		}
 		if r.MatchString(branch) {
 			return true, nil
@@ -86,15 +86,15 @@ func canRelease(ctx context.Context, policies Policies, branch, env string) (boo
 }
 
 // SetBranchRestrictor sets a branch-restrictor policy for specified environment
-// and branch matcher.
+// and branch regex.
 //
 // If a policy exists for the same environment it is overwritten.
-func (p *Policies) SetBranchRestrictor(branchMatcher string, env string) string {
+func (p *Policies) SetBranchRestrictor(branchRegex string, env string) string {
 	id := fmt.Sprintf("branch-restrictor-%s", env)
 	newPolicy := BranchRestrictor{
-		ID:            id,
-		BranchMatcher: branchMatcher,
-		Environment:   env,
+		ID:          id,
+		BranchRegex: branchRegex,
+		Environment: env,
 	}
 	newPolicies := make([]BranchRestrictor, len(p.BranchRestrictors))
 	var replaced bool

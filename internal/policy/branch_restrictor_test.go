@@ -28,8 +28,8 @@ func TestCanRelease(t *testing.T) {
 			env:    "dev",
 			restrictors: []BranchRestrictor{
 				BranchRestrictor{
-					Environment:   "prod",
-					BranchMatcher: "master",
+					Environment: "prod",
+					BranchRegex: "master",
 				},
 			},
 			canRelease: true,
@@ -40,12 +40,12 @@ func TestCanRelease(t *testing.T) {
 			env:    "dev",
 			restrictors: []BranchRestrictor{
 				BranchRestrictor{
-					Environment:   "prod",
-					BranchMatcher: "master",
+					Environment: "prod",
+					BranchRegex: "master",
 				},
 				BranchRestrictor{
-					Environment:   "staging",
-					BranchMatcher: "master",
+					Environment: "staging",
+					BranchRegex: "master",
 				},
 			},
 			canRelease: true,
@@ -56,8 +56,8 @@ func TestCanRelease(t *testing.T) {
 			env:    "dev",
 			restrictors: []BranchRestrictor{
 				BranchRestrictor{
-					Environment:   "dev",
-					BranchMatcher: "master",
+					Environment: "dev",
+					BranchRegex: "master",
 				},
 			},
 			canRelease: false,
@@ -68,8 +68,8 @@ func TestCanRelease(t *testing.T) {
 			env:    "dev",
 			restrictors: []BranchRestrictor{
 				BranchRestrictor{
-					Environment:   "dev",
-					BranchMatcher: "master",
+					Environment: "dev",
+					BranchRegex: "master",
 				},
 			},
 			canRelease: true,
@@ -78,25 +78,25 @@ func TestCanRelease(t *testing.T) {
 			// specifically tests non-limited regular expressions. This is to document
 			// that this is intended behaviour and that branch restrictors must be as
 			// limited as possible
-			name:   "environment restricted to branch with same prefix and loose branch matcher",
+			name:   "environment restricted to branch with same prefix and loose branch regex",
 			branch: "master-update",
 			env:    "dev",
 			restrictors: []BranchRestrictor{
 				BranchRestrictor{
-					Environment:   "dev",
-					BranchMatcher: "master",
+					Environment: "dev",
+					BranchRegex: "master",
 				},
 			},
 			canRelease: true,
 		},
 		{
-			name:   "environment restricted to branch with same prefix and strong branch matcher",
+			name:   "environment restricted to branch with same prefix and strong branch regex",
 			branch: "master-update",
 			env:    "dev",
 			restrictors: []BranchRestrictor{
 				BranchRestrictor{
-					Environment:   "dev",
-					BranchMatcher: "^master$",
+					Environment: "dev",
+					BranchRegex: "^master$",
 				},
 			},
 			canRelease: false,

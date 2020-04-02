@@ -126,24 +126,24 @@ type AutoReleasePolicy struct {
 }
 
 type BranchRestrictorPolicy struct {
-	ID            string `json:"id,omitempty"`
-	Environment   string `json:"environment,omitempty"`
-	BranchMatcher string `json:"branchMatcher,omitempty"`
+	ID          string `json:"id,omitempty"`
+	Environment string `json:"environment,omitempty"`
+	BranchRegex string `json:"branchRegex,omitempty"`
 }
 
 type ApplyBranchRestrictorPolicyRequest struct {
 	Service        string `json:"service,omitempty"`
 	Environment    string `json:"environment,omitempty"`
-	BranchMatcher  string `json:"branchMatcher,omitempty"`
+	BranchRegex    string `json:"branchRegex,omitempty"`
 	CommitterName  string `json:"committerName,omitempty"`
 	CommitterEmail string `json:"committerEmail,omitempty"`
 }
 
 type ApplyBranchRestrictorPolicyResponse struct {
-	ID            string `json:"id,omitempty"`
-	Service       string `json:"service,omitempty"`
-	Environment   string `json:"environment,omitempty"`
-	BranchMatcher string `json:"branchMatcher,omitempty"`
+	ID          string `json:"id,omitempty"`
+	Service     string `json:"service,omitempty"`
+	Environment string `json:"environment,omitempty"`
+	BranchRegex string `json:"branchRegex,omitempty"`
 }
 
 type ApplyAutoReleasePolicyRequest struct {

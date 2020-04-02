@@ -154,8 +154,8 @@ func applyBranchRestrictorPolicy(payload *payload, policySvc *policyinternal.Ser
 			requiredFieldError(w, "environment")
 			return
 		}
-		if emptyString(req.BranchMatcher) {
-			requiredFieldError(w, "branch matcher")
+		if emptyString(req.BranchRegex) {
+			requiredFieldError(w, "branch regex")
 			return
 		}
 		if emptyString(req.CommitterName) {
@@ -167,34 +167,34 @@ func applyBranchRestrictorPolicy(payload *payload, policySvc *policyinternal.Ser
 			return
 		}
 		logger = logger.WithFields("service", req.Service, "req", req)
-		logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restriction policy started", req.Service, req.BranchMatcher, req.Environment)
+		logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction policy started", req.Service, req.BranchRegex, req.Environment)
 		id, err := policySvc.ApplyBranchRestrictor(ctx, policyinternal.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
-		}, req.Service, req.BranchMatcher, req.Environment)
+		}, req.Service, req.BranchRegex, req.Environment)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
-				logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restriction cancelled", req.Service, req.BranchMatcher, req.Environment)
+				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction cancelled", req.Service, req.BranchRegex, req.Environment)
 				cancelled(w)
 				return
 			}
 			var regexErr *syntax.Error
 			if errors.As(err, &regexErr) {
-				logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restriction: invalid branch matcher: %v", req.Service, req.BranchMatcher, req.Environment, err)
-				Error(w, fmt.Sprintf("branch matcher not valid: %v", regexErr), http.StatusBadRequest)
+				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction: invalid branch regex: %v", req.Service, req.BranchRegex, req.Environment, err)
+				Error(w, fmt.Sprintf("branch regex not valid: %v", regexErr), http.StatusBadRequest)
 				return
 			}
 			switch errorCause(err) {
 			case policyinternal.ErrConflict:
-				logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restriction rejected: conflicts with another policy: %v", req.Service, req.BranchMatcher, req.Environment, err)
+				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction rejected: conflicts with another policy: %v", req.Service, req.BranchRegex, req.Environment, err)
 				Error(w, fmt.Sprintf("policy conflicts with another policy"), http.StatusBadRequest)
 				return
 			case git.ErrBranchBehindOrigin:
-				logger.Infof("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restriction: %v", req.Service, req.BranchMatcher, req.Environment, err)
+				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction: %v", req.Service, req.BranchRegex, req.Environment, err)
 				Error(w, fmt.Sprintf("could not apply policy right now. Please try again in a moment."), http.StatusServiceUnavailable)
 				return
 			default:
-				logger.Errorf("http: policy: apply: service '%s' branch matcher '%s' environment '%s': apply branch-restriction failed: %v", req.Service, req.BranchMatcher, req.Environment, err)
+				logger.Errorf("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction failed: %v", req.Service, req.BranchRegex, req.Environment, err)
 				unknownError(w)
 				return
 			}
@@ -203,13 +203,13 @@ func applyBranchRestrictorPolicy(payload *payload, policySvc *policyinternal.Ser
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		err = payload.encodeResponse(ctx, w, httpinternal.ApplyBranchRestrictorPolicyResponse{
-			ID:            id,
-			Service:       req.Service,
-			BranchMatcher: req.BranchMatcher,
-			Environment:   req.Environment,
+			ID:          id,
+			Service:     req.Service,
+			BranchRegex: req.BranchRegex,
+			Environment: req.Environment,
 		})
 		if err != nil {
-			logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply branch-restriction: marshal response failed: %v", req.Service, req.BranchMatcher, req.Environment, err)
+			logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply branch-restriction: marshal response failed: %v", req.Service, req.BranchRegex, req.Environment, err)
 		}
 	}
 }
@@ -270,9 +270,9 @@ func mapBranchRestrictorPolicies(policies []policyinternal.BranchRestrictor) []h
 	h := make([]httpinternal.BranchRestrictorPolicy, len(policies))
 	for i, p := range policies {
 		h[i] = httpinternal.BranchRestrictorPolicy{
-			ID:            p.ID,
-			Environment:   p.Environment,
-			BranchMatcher: p.BranchMatcher,
+			ID:          p.ID,
+			Environment: p.Environment,
+			BranchRegex: p.BranchRegex,
 		}
 	}
 	return h

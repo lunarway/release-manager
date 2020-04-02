@@ -82,7 +82,7 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 }
 
 func branchRestrictor(client *httpinternal.Client, service *string) *cobra.Command {
-	var branchMatcher, env string
+	var branchRegex, env string
 	var command = &cobra.Command{
 		Use:   "branch-restriction",
 		Short: "Branch restriction policy for limiting releases by their origin branch",
@@ -100,7 +100,7 @@ func branchRestrictor(client *httpinternal.Client, service *string) *cobra.Comma
 			}
 			err = client.Do(http.MethodPatch, path, httpinternal.ApplyBranchRestrictorPolicyRequest{
 				Service:        *service,
-				BranchMatcher:  branchMatcher,
+				BranchRegex:    branchRegex,
 				Environment:    env,
 				CommitterEmail: committerEmail,
 				CommitterName:  committerName,
@@ -113,12 +113,12 @@ func branchRestrictor(client *httpinternal.Client, service *string) *cobra.Comma
 			return nil
 		},
 	}
-	command.Flags().StringVar(&branchMatcher, "matcher", "", "Regular expression defining allowed branch names")
+	command.Flags().StringVar(&branchRegex, "branch-regex", "", "Regular expression defining allowed branch names")
 	// errors are skipped here as the only case they can occur are if the flag
 	// does not exist on the command.
 	//nolint:errcheck
-	command.MarkFlagRequired("matcher")
-	completion.FlagAnnotation(command, "matcher", "__hamctl_get_branches")
+	command.MarkFlagRequired("branch-regex")
+	completion.FlagAnnotation(command, "branch-regex", "__hamctl_get_branches")
 	command.Flags().StringVarP(&env, "env", "e", "", "Environment to apply restriction to")
 	//nolint:errcheck
 	command.MarkFlagRequired("env")

@@ -72,7 +72,7 @@ func printBranchRestrictorPolicies(policies []httpinternal.BranchRestrictorPolic
 	fmt.Printf("Branch restrictors:\n")
 	fmt.Println()
 	maxBranchLen := maxLen(policies, func(i int) string {
-		return policies[i].BranchMatcher
+		return policies[i].BranchRegex
 	})
 	maxEnvLen := maxLen(policies, func(i int) string {
 		return policies[i].Environment
@@ -84,7 +84,7 @@ func printBranchRestrictorPolicies(policies []httpinternal.BranchRestrictorPolic
 	fmt.Printf(formatString, "ENV", "REGEX", "ID")
 
 	for _, p := range policies {
-		fmt.Printf(formatString, p.Environment, p.BranchMatcher, p.ID)
+		fmt.Printf(formatString, p.Environment, p.BranchRegex, p.ID)
 	}
 }
 
