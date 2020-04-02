@@ -87,7 +87,7 @@ func appendBuildSubCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return nil
 			}
-			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Build* (%s:%s)", buildData.Image, buildData.Tag), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Build* (<%s:%s:image>)", buildData.Image, buildData.Tag), slack.MsgColorYellow)
 			if err != nil {
 				fmt.Printf("Error notifying slack")
 			}
@@ -196,7 +196,7 @@ func appendPushSubCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Push* (%s:%s)", pushData.Image, pushData.Tag), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Push* (<%s:%s:image>)", pushData.Image, pushData.Tag), slack.MsgColorYellow)
 			if err != nil {
 				fmt.Printf("Error notifying slack")
 			}
