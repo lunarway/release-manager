@@ -305,14 +305,14 @@ func rollback(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 				return
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: rollback: service '%s' environment '%s': %v", req.Service, req.Environment, err)
-				Error(w, fmt.Sprintf("could not roll back right now. Please try again in a moment."), http.StatusServiceUnavailable)
+				Error(w, "could not roll back right now. Please try again in a moment.", http.StatusServiceUnavailable)
 				return
 			case artifact.ErrFileNotFound:
 				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
 				Error(w, fmt.Sprintf("no release of service '%s' available for rollback in environment '%s'. Are you missing a namespace?", req.Service, req.Environment), http.StatusBadRequest)
 				return
 			case git.ErrNothingToCommit:
-				logger.Infof("http: rollback rejected: env '%s' service '%s': already rolled back", req.Environment, req.Service)
+				logger.Infof("http: rollback rejected: env '%s' service '%s': already rolled back: %v", req.Environment, req.Service, err)
 				Error(w, fmt.Sprintf("service '%s' already rolled back in environment '%s'", req.Service, req.Environment), http.StatusBadRequest)
 				return
 			default:
@@ -475,7 +475,7 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 						}
 						continue
 					}
-					logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' to '%s': nothing to commit", serviceName, autoRelease.ID, autoRelease.Environment)
+					logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' to '%s': %v", serviceName, autoRelease.ID, autoRelease.Environment, err)
 					continue
 				}
 				err = slackClient.NotifySlackPolicySucceeded(ctx, payload.HeadCommit.Author.Email, ":rocket: Release Manager :white_check_mark:", fmt.Sprintf("Service *%s* will be auto released to *%s*\nArtifact: <%s|*%s*>", serviceName, autoRelease.Environment, payload.HeadCommit.URL, releaseID))
@@ -538,15 +538,15 @@ func promote(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			}
 			switch errorCause(err) {
 			case flow.ErrReleaseProhibited:
-				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: branch prohibited in environment", req.Service, req.Environment)
+				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: branch prohibited in environment: %v", req.Service, req.Environment, err)
 				Error(w, fmt.Sprintf("artifact cannot be promoted to environment '%s' due to branch restriction policy", req.Environment), http.StatusBadRequest)
 				return
 			case flow.ErrNothingToRelease:
 				statusString = "Environment is already up-to-date"
-				logger.Infof("http: promote: service '%s' environment '%s': promote skipped: environment up to date", req.Service, req.Environment)
+				logger.Infof("http: promote: service '%s' environment '%s': promote skipped: environment up to date: %v", req.Service, req.Environment, err)
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: promote: service '%s' environment '%s': %v", req.Service, req.Environment, err)
-				Error(w, fmt.Sprintf("could not promote right now. Please try again in a moment."), http.StatusServiceUnavailable)
+				Error(w, "could not promote right now. Please try again in a moment.", http.StatusServiceUnavailable)
 				return
 			case flow.ErrUnknownEnvironment:
 				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: %v", req.Service, req.Environment, err)
@@ -557,11 +557,11 @@ func promote(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 				Error(w, "namespace not allowed by artifact", http.StatusBadRequest)
 				return
 			case artifact.ErrFileNotFound:
-				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: artifact not found", req.Service, req.Environment)
+				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: %v", req.Service, req.Environment, err)
 				Error(w, fmt.Sprintf("artifact not found for service '%s'. Are you missing a namespace?", req.Service), http.StatusBadRequest)
 				return
 			case flow.ErrUnknownConfiguration:
-				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: source configuration not found", req.Service, req.Environment)
+				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: %v", req.Service, req.Environment, err)
 				Error(w, fmt.Sprintf("configuration for environment '%s' not found for service '%s'. Is the environment specified in 'shuttle.yaml'?", req.Environment, req.Service), http.StatusBadRequest)
 				return
 			default:
@@ -652,7 +652,7 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			}
 			switch errorCause(err) {
 			case flow.ErrReleaseProhibited:
-				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: branch prohibited in environment", req.Service, req.Environment, req.Branch, req.ArtifactID)
+				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: branch prohibited in environment: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
 				if req.Branch != "" {
 					Error(w, fmt.Sprintf("branch '%s' cannot be released to environment '%s' due to branch restriction policy", req.Branch, req.Environment), http.StatusBadRequest)
 				} else {
@@ -661,17 +661,17 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 				return
 			case flow.ErrNothingToRelease:
 				statusString = "Environment is already up-to-date"
-				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release skipped: environment up to date", req.Service, req.Environment, req.Branch, req.ArtifactID)
+				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release skipped: environment up to date: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
 			case git.ErrArtifactNotFound:
-				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: artifact not found", req.Service, req.Environment, req.Branch, req.ArtifactID)
+				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
 				Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
 				return
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
-				Error(w, fmt.Sprintf("could not release right now. Please try again in a moment."), http.StatusServiceUnavailable)
+				Error(w, "could not release right now. Please try again in a moment.", http.StatusServiceUnavailable)
 				return
 			case artifact.ErrFileNotFound:
-				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: artifact not found", req.Service, req.Environment, req.Branch, req.ArtifactID)
+				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
 				if req.Branch != "" {
 					Error(w, fmt.Sprintf("artifact for branch '%s' not found for service '%s'", req.Branch, req.Service), http.StatusBadRequest)
 				} else {
@@ -679,7 +679,7 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 				}
 				return
 			case flow.ErrUnknownConfiguration:
-				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: source configuration not found", req.Service, req.Environment, req.Branch, req.ArtifactID)
+				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: source configuration not found: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
 				Error(w, fmt.Sprintf("configuration for environment '%s' not found for service '%s'. Is the environment specified in 'shuttle.yaml'?", req.Environment, req.Service), http.StatusBadRequest)
 				return
 			default:
