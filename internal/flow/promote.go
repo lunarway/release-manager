@@ -48,7 +48,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 
 		ok, err := s.CanRelease(ctx, service, sourceSpec.Application.Branch, environment)
 		if err != nil {
-			return true, errors.WithMessage(err, "release restrictor")
+			return true, errors.WithMessage(err, "validate release policies")
 		}
 		if !ok {
 			return true, ErrReleaseProhibited

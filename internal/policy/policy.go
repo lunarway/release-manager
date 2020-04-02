@@ -103,7 +103,7 @@ func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch
 
 	ok, err := s.CanRelease(ctx, svc, branch, env)
 	if err != nil {
-		return "", errors.WithMessage(err, "check branch restrictions")
+		return "", errors.WithMessage(err, "validate release policies")
 	}
 	if !ok {
 		return "", ErrConflict

@@ -28,7 +28,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 
 	ok, err := s.CanRelease(ctx, service, branch, environment)
 	if err != nil {
-		return "", errors.WithMessage(err, "release restrictor")
+		return "", errors.WithMessage(err, "validate release policies")
 	}
 	if !ok {
 		return "", ErrReleaseProhibited
@@ -245,7 +245,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 
 	ok, err := s.CanRelease(ctx, service, branch, environment)
 	if err != nil {
-		return "", errors.WithMessage(err, "release restrictor")
+		return "", errors.WithMessage(err, "validate release policies")
 	}
 	if !ok {
 		return "", ErrReleaseProhibited
