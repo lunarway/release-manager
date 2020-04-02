@@ -132,11 +132,19 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				return err
 			}
 			defer close(ctx)
+			policySvc := policy.Service{
+				Tracer: tracer,
+				Git:    &gitSvc,
+				// retries for comitting changes into config repo
+				// can be required for racing writes
+				MaxRetries: 3,
+			}
 			flowSvc := flow.Service{
 				ArtifactFileName: configRepoOpts.ArtifactFileName,
 				UserMappings:     *userMappings,
 				Slack:            slackClient,
 				Git:              &gitSvc,
+				CanRelease:       policySvc.CanRelease,
 				Tracer:           tracer,
 				// TODO: figure out a better way of splitting the consumer and publisher
 				// to avoid this chicken and egg issue. It is not a real problem as the
@@ -275,13 +283,6 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 					log.Errorf("Failed to close broker: %v", err)
 				}
 			}()
-			policySvc := policy.Service{
-				Tracer: tracer,
-				Git:    &gitSvc,
-				// retries for comitting changes into config repo
-				// can be required for racing writes
-				MaxRetries: 3,
-			}
 			go func() {
 				err := http.NewServer(httpOpts, slackClient, &flowSvc, &policySvc, &gitSvc, tracer)
 				if err != nil {

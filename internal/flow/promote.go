@@ -46,6 +46,14 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
 
+		ok, err := s.CanRelease(ctx, service, sourceSpec.Application.Branch, environment)
+		if err != nil {
+			return true, errors.WithMessage(err, "validate release policies")
+		}
+		if !ok {
+			return true, ErrReleaseProhibited
+		}
+
 		// if artifact has no namespace we only allow using the environment as
 		// namespace.
 		if sourceSpec.Namespace == "" && namespace != environment {

@@ -33,6 +33,7 @@ func NewApply(client *httpinternal.Client, service *string) *cobra.Command {
 		},
 	}
 	command.AddCommand(autoRelease(client, service))
+	command.AddCommand(branchRestriction(client, service))
 	return command
 }
 
@@ -48,7 +49,7 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 			}
 
 			var resp httpinternal.ApplyPolicyResponse
-			path, err := client.URL(path)
+			path, err := client.URL(pathAutoRelease)
 			if err != nil {
 				return err
 			}
@@ -74,6 +75,51 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 	command.MarkFlagRequired("branch")
 	completion.FlagAnnotation(command, "branch", "__hamctl_get_branches")
 	command.Flags().StringVarP(&env, "env", "e", "", "Environment to release artifacts to")
+	//nolint:errcheck
+	command.MarkFlagRequired("env")
+	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
+	return command
+}
+
+func branchRestriction(client *httpinternal.Client, service *string) *cobra.Command {
+	var branchRegex, env string
+	var command = &cobra.Command{
+		Use:   "branch-restriction",
+		Short: "Branch restriction policy for limiting releases by their origin branch",
+		Long:  "Branch restriction policy for limiting releases of artifacts by their origin branch to specific environments",
+		RunE: func(c *cobra.Command, args []string) error {
+			committerName, committerEmail, err := git.CommitterDetails()
+			if err != nil {
+				return err
+			}
+
+			var resp httpinternal.ApplyBranchRestrictionPolicyResponse
+			path, err := client.URL(pathBranchRestrction)
+			if err != nil {
+				return err
+			}
+			err = client.Do(http.MethodPatch, path, httpinternal.ApplyBranchRestrictionPolicyRequest{
+				Service:        *service,
+				BranchRegex:    branchRegex,
+				Environment:    env,
+				CommitterEmail: committerEmail,
+				CommitterName:  committerName,
+			}, &resp)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("[✓] Applied branch restriction policy '%s' to service '%s'\n", resp.ID, resp.Service)
+			return nil
+		},
+	}
+	command.Flags().StringVar(&branchRegex, "branch-regex", "", "Regular expression defining allowed branch names")
+	// errors are skipped here as the only case they can occur are if the flag
+	// does not exist on the command.
+	//nolint:errcheck
+	command.MarkFlagRequired("branch-regex")
+	completion.FlagAnnotation(command, "branch-regex", "__hamctl_get_branches")
+	command.Flags().StringVarP(&env, "env", "e", "", "Environment to apply restriction to")
 	//nolint:errcheck
 	command.MarkFlagRequired("env")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
