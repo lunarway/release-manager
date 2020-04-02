@@ -35,7 +35,7 @@ func NewList(client *httpinternal.Client, service *string) *cobra.Command {
 			fmt.Println()
 			printAutoReleasePolicies(resp.AutoReleases)
 			fmt.Println()
-			printBranchRestrictorPolicies(resp.BranchRestrictors)
+			printBranchRestrictionPolicies(resp.BranchRestrictions)
 			return nil
 		},
 	}
@@ -65,11 +65,11 @@ func printAutoReleasePolicies(autoReleases []httpinternal.AutoReleasePolicy) {
 	}
 }
 
-func printBranchRestrictorPolicies(policies []httpinternal.BranchRestrictorPolicy) {
+func printBranchRestrictionPolicies(policies []httpinternal.BranchRestrictionPolicy) {
 	if len(policies) == 0 {
 		return
 	}
-	fmt.Printf("Branch restrictors:\n")
+	fmt.Printf("Branch restrictions:\n")
 	fmt.Println()
 	maxBranchLen := maxLen(policies, func(i int) string {
 		return policies[i].BranchRegex

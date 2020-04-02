@@ -114,9 +114,9 @@ type Container struct {
 }
 
 type ListPoliciesResponse struct {
-	Service           string                   `json:"service,omitempty"`
-	AutoReleases      []AutoReleasePolicy      `json:"autoReleases,omitempty"`
-	BranchRestrictors []BranchRestrictorPolicy `json:"branchRestrictors,omitempty"`
+	Service            string                    `json:"service,omitempty"`
+	AutoReleases       []AutoReleasePolicy       `json:"autoReleases,omitempty"`
+	BranchRestrictions []BranchRestrictionPolicy `json:"branchRestrictions,omitempty"`
 }
 
 type AutoReleasePolicy struct {
@@ -125,13 +125,13 @@ type AutoReleasePolicy struct {
 	Environment string `json:"environment,omitempty"`
 }
 
-type BranchRestrictorPolicy struct {
+type BranchRestrictionPolicy struct {
 	ID          string `json:"id,omitempty"`
 	Environment string `json:"environment,omitempty"`
 	BranchRegex string `json:"branchRegex,omitempty"`
 }
 
-type ApplyBranchRestrictorPolicyRequest struct {
+type ApplyBranchRestrictionPolicyRequest struct {
 	Service        string `json:"service,omitempty"`
 	Environment    string `json:"environment,omitempty"`
 	BranchRegex    string `json:"branchRegex,omitempty"`
@@ -139,7 +139,7 @@ type ApplyBranchRestrictorPolicyRequest struct {
 	CommitterEmail string `json:"committerEmail,omitempty"`
 }
 
-type ApplyBranchRestrictorPolicyResponse struct {
+type ApplyBranchRestrictionPolicyResponse struct {
 	ID          string `json:"id,omitempty"`
 	Service     string `json:"service,omitempty"`
 	Environment string `json:"environment,omitempty"`

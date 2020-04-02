@@ -33,7 +33,7 @@ func NewApply(client *httpinternal.Client, service *string) *cobra.Command {
 		},
 	}
 	command.AddCommand(autoRelease(client, service))
-	command.AddCommand(branchRestrictor(client, service))
+	command.AddCommand(branchRestriction(client, service))
 	return command
 }
 
@@ -81,7 +81,7 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 	return command
 }
 
-func branchRestrictor(client *httpinternal.Client, service *string) *cobra.Command {
+func branchRestriction(client *httpinternal.Client, service *string) *cobra.Command {
 	var branchRegex, env string
 	var command = &cobra.Command{
 		Use:   "branch-restriction",
@@ -93,12 +93,12 @@ func branchRestrictor(client *httpinternal.Client, service *string) *cobra.Comma
 				return err
 			}
 
-			var resp httpinternal.ApplyBranchRestrictorPolicyResponse
+			var resp httpinternal.ApplyBranchRestrictionPolicyResponse
 			path, err := client.URL(pathBranchRestrction)
 			if err != nil {
 				return err
 			}
-			err = client.Do(http.MethodPatch, path, httpinternal.ApplyBranchRestrictorPolicyRequest{
+			err = client.Do(http.MethodPatch, path, httpinternal.ApplyBranchRestrictionPolicyRequest{
 				Service:        *service,
 				BranchRegex:    branchRegex,
 				Environment:    env,

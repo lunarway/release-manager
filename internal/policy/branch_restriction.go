@@ -10,16 +10,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-type BranchRestrictor struct {
+type BranchRestriction struct {
 	ID          string `json:"id,omitempty"`
 	BranchRegex string `json:"branchRegex,omitempty"`
 	Environment string `json:"environment,omitempty"`
 }
 
-// ApplyBranchRestrictor applies a branch-restrictor policy for service svc to
+// ApplyBranchRestriction applies a branch-restriction policy for service svc to
 // environment env with regular expression branchRegex.
-func (s *Service) ApplyBranchRestrictor(ctx context.Context, actor Actor, svc, branchRegex, env string) (string, error) {
-	span, ctx := s.Tracer.FromCtx(ctx, "policy.ApplyBranchRestrictor")
+func (s *Service) ApplyBranchRestriction(ctx context.Context, actor Actor, svc, branchRegex, env string) (string, error) {
+	span, ctx := s.Tracer.FromCtx(ctx, "policy.ApplyBranchRestriction")
 	defer span.Finish()
 
 	// validate branch regular expression before storring
@@ -39,10 +39,10 @@ func (s *Service) ApplyBranchRestrictor(ctx context.Context, actor Actor, svc, b
 		}
 	}
 
-	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, "branch-restrictor")
+	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, "branch-restriction")
 	var policyID string
 	err = s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
-		policyID = p.SetBranchRestrictor(branchRegex, env)
+		policyID = p.SetBranchRestriction(branchRegex, env)
 	})
 	if err != nil {
 		return "", err
@@ -62,14 +62,14 @@ func (s *Service) CanRelease(ctx context.Context, svc, branch, env string) (bool
 		}
 		return false, err
 	}
-	log.WithContext(ctx).WithFields("policies", policies).Infof("Found %d restrictors", len(policies.BranchRestrictors))
+	log.WithContext(ctx).WithFields("policies", policies).Infof("Found %d restrictions", len(policies.BranchRestrictions))
 	span, _ = s.Tracer.FromCtx(ctx, "policy.canRelease")
 	defer span.Finish()
 	return canRelease(ctx, policies, branch, env)
 }
 
 func canRelease(ctx context.Context, policies Policies, branch, env string) (bool, error) {
-	for _, policy := range policies.BranchRestrictors {
+	for _, policy := range policies.BranchRestrictions {
 		if policy.Environment != env {
 			continue
 		}
@@ -85,30 +85,30 @@ func canRelease(ctx context.Context, policies Policies, branch, env string) (boo
 	return true, nil
 }
 
-// SetBranchRestrictor sets a branch-restrictor policy for specified environment
+// SetBranchRestriction sets a branch-restriction policy for specified environment
 // and branch regex.
 //
 // If a policy exists for the same environment it is overwritten.
-func (p *Policies) SetBranchRestrictor(branchRegex string, env string) string {
-	id := fmt.Sprintf("branch-restrictor-%s", env)
-	newPolicy := BranchRestrictor{
+func (p *Policies) SetBranchRestriction(branchRegex string, env string) string {
+	id := fmt.Sprintf("branch-restriction-%s", env)
+	newPolicy := BranchRestriction{
 		ID:          id,
 		BranchRegex: branchRegex,
 		Environment: env,
 	}
-	newPolicies := make([]BranchRestrictor, len(p.BranchRestrictors))
+	newPolicies := make([]BranchRestriction, len(p.BranchRestrictions))
 	var replaced bool
-	for i, policy := range p.BranchRestrictors {
+	for i, policy := range p.BranchRestrictions {
 		if policy.Environment == env {
 			newPolicies[i] = newPolicy
 			replaced = true
 			continue
 		}
-		newPolicies[i] = p.BranchRestrictors[i]
+		newPolicies[i] = p.BranchRestrictions[i]
 	}
 	if !replaced {
 		newPolicies = append(newPolicies, newPolicy)
 	}
-	p.BranchRestrictors = newPolicies
+	p.BranchRestrictions = newPolicies
 	return id
 }

@@ -47,7 +47,7 @@ func policy(payload *payload, policySvc *policyinternal.Service) http.HandlerFun
 			case "auto-release":
 				applyAutoReleasePolicy(payload, policySvc)(w, r)
 			case "branch-restriction":
-				applyBranchRestrictorPolicy(payload, policySvc)(w, r)
+				applyBranchRestrictionPolicy(payload, policySvc)(w, r)
 			default:
 				log.WithContext(ctx).Errorf("apply policy not found: %+v", p)
 				notFound(w)
@@ -135,11 +135,11 @@ func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service)
 	}
 }
 
-func applyBranchRestrictorPolicy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
+func applyBranchRestrictionPolicy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		logger := log.WithContext(ctx)
-		var req httpinternal.ApplyBranchRestrictorPolicyRequest
+		var req httpinternal.ApplyBranchRestrictionPolicyRequest
 		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
 			logger.Errorf("http: policy: apply: branch-restriction: decode request body failed: %v", err)
@@ -168,7 +168,7 @@ func applyBranchRestrictorPolicy(payload *payload, policySvc *policyinternal.Ser
 		}
 		logger = logger.WithFields("service", req.Service, "req", req)
 		logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction policy started", req.Service, req.BranchRegex, req.Environment)
-		id, err := policySvc.ApplyBranchRestrictor(ctx, policyinternal.Actor{
+		id, err := policySvc.ApplyBranchRestriction(ctx, policyinternal.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
 		}, req.Service, req.BranchRegex, req.Environment)
@@ -202,7 +202,7 @@ func applyBranchRestrictorPolicy(payload *payload, policySvc *policyinternal.Ser
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		err = payload.encodeResponse(ctx, w, httpinternal.ApplyBranchRestrictorPolicyResponse{
+		err = payload.encodeResponse(ctx, w, httpinternal.ApplyBranchRestrictionPolicyResponse{
 			ID:          id,
 			Service:     req.Service,
 			BranchRegex: req.BranchRegex,
@@ -244,9 +244,9 @@ func listPolicies(payload *payload, policySvc *policyinternal.Service) http.Hand
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		err = payload.encodeResponse(ctx, w, httpinternal.ListPoliciesResponse{
-			Service:           policies.Service,
-			AutoReleases:      mapAutoReleasePolicies(policies.AutoReleases),
-			BranchRestrictors: mapBranchRestrictorPolicies(policies.BranchRestrictors),
+			Service:            policies.Service,
+			AutoReleases:       mapAutoReleasePolicies(policies.AutoReleases),
+			BranchRestrictions: mapBranchRestrictionPolicies(policies.BranchRestrictions),
 		})
 		if err != nil {
 			logger.Errorf("http: policy: list: service '%s': marshal response failed: %v", service, err)
@@ -266,10 +266,10 @@ func mapAutoReleasePolicies(policies []policyinternal.AutoReleasePolicy) []httpi
 	return h
 }
 
-func mapBranchRestrictorPolicies(policies []policyinternal.BranchRestrictor) []httpinternal.BranchRestrictorPolicy {
-	h := make([]httpinternal.BranchRestrictorPolicy, len(policies))
+func mapBranchRestrictionPolicies(policies []policyinternal.BranchRestriction) []httpinternal.BranchRestrictionPolicy {
+	h := make([]httpinternal.BranchRestrictionPolicy, len(policies))
 	for i, p := range policies {
-		h[i] = httpinternal.BranchRestrictorPolicy{
+		h[i] = httpinternal.BranchRestrictionPolicy{
 			ID:          p.ID,
 			Environment: p.Environment,
 			BranchRegex: p.BranchRegex,

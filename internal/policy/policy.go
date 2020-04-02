@@ -249,9 +249,9 @@ func persist(w io.Writer, p Policies) error {
 }
 
 type Policies struct {
-	Service           string              `json:"service,omitempty"`
-	AutoReleases      []AutoReleasePolicy `json:"autoReleases,omitempty"`
-	BranchRestrictors []BranchRestrictor  `json:"branchRestrictors,omitempty"`
+	Service            string              `json:"service,omitempty"`
+	AutoReleases       []AutoReleasePolicy `json:"autoReleases,omitempty"`
+	BranchRestrictions []BranchRestriction `json:"branchRestrictions,omitempty"`
 }
 
 type AutoReleasePolicy struct {
@@ -262,7 +262,7 @@ type AutoReleasePolicy struct {
 
 // HasPolicies returns whether any policies are applied.
 func (p *Policies) HasPolicies() bool {
-	return len(p.AutoReleases) != 0 || len(p.BranchRestrictors) != 0
+	return len(p.AutoReleases) != 0 || len(p.BranchRestrictions) != 0
 }
 
 // SetAutoRelease sets an auto-release policy for specified branch and
@@ -307,15 +307,15 @@ func (p *Policies) Delete(ids ...string) int {
 		}
 		p.AutoReleases = filtered
 
-		var filteredBranchRestrictors []BranchRestrictor
-		for i := range p.BranchRestrictors {
-			if p.BranchRestrictors[i].ID != id {
-				filteredBranchRestrictors = append(filteredBranchRestrictors, p.BranchRestrictors[i])
+		var filteredBranchRestrictions []BranchRestriction
+		for i := range p.BranchRestrictions {
+			if p.BranchRestrictions[i].ID != id {
+				filteredBranchRestrictions = append(filteredBranchRestrictions, p.BranchRestrictions[i])
 				continue
 			}
 			deleted++
 		}
-		p.BranchRestrictors = filteredBranchRestrictors
+		p.BranchRestrictions = filteredBranchRestrictions
 	}
 	return deleted
 }
