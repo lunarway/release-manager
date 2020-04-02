@@ -388,7 +388,7 @@ func daemonFluxWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc
 		}
 		logger = logger.WithFields(
 			"environment", fluxNotifyEvent.Environment,
-			"event", fluxNotifyEvent)
+			"event", fluxNotifyEvent.FluxEvent)
 
 		err = flowSvc.NotifyFluxEvent(ctx, &fluxNotifyEvent)
 		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {

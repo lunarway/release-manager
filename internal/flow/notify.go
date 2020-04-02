@@ -4,7 +4,9 @@ import (
 	"context"
 	"regexp"
 
+	"github.com/lunarway/release-manager/internal/flux"
 	"github.com/lunarway/release-manager/internal/http"
+
 	"github.com/pkg/errors"
 )
 
@@ -25,12 +27,15 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyFluxEvent")
 	defer span.Finish()
 
+	fluxCommits := flux.GetCommits(event.FluxEvent.Metadata)
+	fluxErrors := flux.GetErrors(event.FluxEvent.Metadata)
+
 	// If there's no commits, let's just skip
-	if len(event.Commits) == 0 {
+	if len(fluxCommits) == 0 {
 		return nil
 	}
 
-	for _, commit := range event.Commits {
+	for _, commit := range fluxCommits {
 		commitMessage, err := parseCommitMessage(commit.Message)
 		if err != nil {
 			return errors.WithMessagef(err, "parse commit message '%s'", commit.Message)
@@ -38,8 +43,8 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 		email := commitMessage.GitAuthor
 
 		// event contains errors, extract and post specific error message
-		if len(event.Errors) > 0 {
-			for _, err := range event.Errors {
+		if len(fluxErrors) > 0 {
+			for _, err := range fluxErrors {
 				span, ctx := s.Tracer.FromCtx(ctx, "post flux error event slack message")
 				err := s.Slack.NotifyFluxErrorEvent(ctx, commitMessage.ArtifactID, commitMessage.Environment, email, commitMessage.Service, err.Error, err.Path)
 				span.Finish()
