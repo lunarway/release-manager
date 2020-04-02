@@ -55,35 +55,45 @@ func StartDaemon() *cobra.Command {
 			}()
 
 			succeededFunc := func(event *kubernetes.PodEvent) error {
-				err = notifyReleaseManager(&client, event, "", environment)
-				if err != nil {
-					return err
-				}
+				// err = notifyReleaseManager(&client, event, "", environment)
+				// if err != nil {
+				// 	return err
+				// }
 				return nil
 			}
 
 			failedFunc := func(event *kubernetes.PodEvent) error {
-				if event.Reason == "CrashLoopBackOff" {
-					logs, err := kubectl.GetLogs(event.Name, event.Namespace)
-					if err != nil {
-						return err
-					}
-					err = notifyReleaseManager(&client, event, logs, environment)
-					if err != nil {
-						return err
-					}
-					return nil
-				}
-				err = notifyReleaseManager(&client, event, "", environment)
-				if err != nil {
-					return err
-				}
+				// if event.Reason == "CrashLoopBackOff" {
+				// 	logs, err := kubectl.GetLogs(event.Name, event.Namespace)
+				// 	if err != nil {
+				// 		return err
+				// 	}
+				// 	err = notifyReleaseManager(&client, event, logs, environment)
+				// 	if err != nil {
+				// 		return err
+				// 	}
+				// 	return nil
+				// }
+				// err = notifyReleaseManager(&client, event, "", environment)
+				// if err != nil {
+				// 	return err
+				// }
 				return nil
 			}
 
+			// go func() {
+			// 	for {
+			// 		err = kubectl.WatchPods(context.Background(), succeededFunc, failedFunc)
+			// 		if err != nil && err != kubernetes.ErrWatcherClosed {
+			// 			done <- errors.WithMessage(err, "kubectl watcher: watcher closed")
+			// 			return
+			// 		}
+			// 	}
+			// }()
+
 			go func() {
 				for {
-					err = kubectl.WatchPods(context.Background(), succeededFunc, failedFunc)
+					err = kubectl.WatchDeployments(context.Background(), succeededFunc, failedFunc)
 					if err != nil && err != kubernetes.ErrWatcherClosed {
 						done <- errors.WithMessage(err, "kubectl watcher: watcher closed")
 						return
