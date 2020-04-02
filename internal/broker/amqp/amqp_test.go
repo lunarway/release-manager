@@ -242,5 +242,5 @@ func TestWorker_reconnection(t *testing.T) {
 	// we might see more than two consumed messages. In case of acknowledgement
 	// fails due to the channel being killed, we receive the same message multiple
 	// times
-	assert.GreaterOrEqual(t, int32(2), consumedCount, "did not receive at least two messages as expected")
+	assert.GreaterOrEqual(t, consumedCount, int32(2), "did not receive at least two messages as expected")
 }
