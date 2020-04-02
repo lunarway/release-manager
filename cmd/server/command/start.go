@@ -140,12 +140,12 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				MaxRetries: 3,
 			}
 			flowSvc := flow.Service{
-				ArtifactFileName:  configRepoOpts.ArtifactFileName,
-				UserMappings:      *userMappings,
-				Slack:             slackClient,
-				Git:               &gitSvc,
-				ReleaseRestrictor: policySvc.CanRelease,
-				Tracer:            tracer,
+				ArtifactFileName: configRepoOpts.ArtifactFileName,
+				UserMappings:     *userMappings,
+				Slack:            slackClient,
+				Git:              &gitSvc,
+				CanRelease:       policySvc.CanRelease,
+				Tracer:           tracer,
 				// TODO: figure out a better way of splitting the consumer and publisher
 				// to avoid this chicken and egg issue. It is not a real problem as the
 				// consumer is started later on and this we are sure this gets set, it

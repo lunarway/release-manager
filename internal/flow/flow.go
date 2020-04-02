@@ -27,12 +27,12 @@ var (
 )
 
 type Service struct {
-	ArtifactFileName  string
-	UserMappings      map[string]string
-	Slack             *slack.Client
-	Git               *git.Service
-	Tracer            tracing.Tracer
-	ReleaseRestrictor func(ctx context.Context, svc, branch, env string) (bool, error)
+	ArtifactFileName string
+	UserMappings     map[string]string
+	Slack            *slack.Client
+	Git              *git.Service
+	Tracer           tracing.Tracer
+	CanRelease       func(ctx context.Context, svc, branch, env string) (bool, error)
 
 	PublishPromote           func(context.Context, PromoteEvent) error
 	PublishRollback          func(context.Context, RollbackEvent) error

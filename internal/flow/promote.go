@@ -46,7 +46,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
 
-		ok, err := s.ReleaseRestrictor(ctx, service, sourceSpec.Application.Branch, environment)
+		ok, err := s.CanRelease(ctx, service, sourceSpec.Application.Branch, environment)
 		if err != nil {
 			return true, errors.WithMessage(err, "release restrictor")
 		}

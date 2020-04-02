@@ -26,7 +26,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ReleaseBranch")
 	defer span.Finish()
 
-	ok, err := s.ReleaseRestrictor(ctx, service, branch, environment)
+	ok, err := s.CanRelease(ctx, service, branch, environment)
 	if err != nil {
 		return "", errors.WithMessage(err, "release restrictor")
 	}
@@ -243,7 +243,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		return "", errors.WithMessagef(err, "locate branch from commit hash '%s'", hash)
 	}
 
-	ok, err := s.ReleaseRestrictor(ctx, service, branch, environment)
+	ok, err := s.CanRelease(ctx, service, branch, environment)
 	if err != nil {
 		return "", errors.WithMessage(err, "release restrictor")
 	}
