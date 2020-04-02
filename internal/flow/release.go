@@ -59,9 +59,11 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 	}
 
 	// check that the artifact to be released is not already released in the
-	// environment
+	// environment. If there is no artifact released to the target environment an
+	// artifact.ErrFileNotFound error is returned. This is OK as the currentSpec
+	// will then be the default value and this its ID will be the empty string.
 	currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
-	if err != nil {
+	if err != nil && errors.Cause(err) != artifact.ErrFileNotFound {
 		return "", errors.WithMessage(err, "get current released spec")
 	}
 	if currentSpec.ID == artifactSpec.ID {
@@ -262,6 +264,18 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	namespace := sourceSpec.Namespace
 	if namespace == "" {
 		namespace = environment
+	}
+
+	// check that the artifact to be released is not already released in the
+	// environment. If there is no artifact released to the target environment an
+	// artifact.ErrFileNotFound error is returned. This is OK as the currentSpec
+	// will then be the default value and this its ID will be the empty string.
+	currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+	if err != nil && errors.Cause(err) != artifact.ErrFileNotFound {
+		return "", errors.WithMessage(err, "get current released spec")
+	}
+	if currentSpec.ID == sourceSpec.ID {
+		return "", ErrNothingToRelease
 	}
 
 	err = s.PublishReleaseArtifactID(ctx, ReleaseArtifactIDEvent{
