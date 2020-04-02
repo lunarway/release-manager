@@ -1,10 +1,7 @@
 package command
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,8 +17,10 @@ import (
 )
 
 func StartDaemon() *cobra.Command {
-	var authToken, releaseManagerUrl, environment, kubeConfigPath, fluxApiBinding string
+	var environment, kubeConfigPath, fluxApiBinding string
 	var logConfiguration *log.Configuration
+
+	client := httpinternal.Client{}
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-daemon",
@@ -41,8 +40,7 @@ func StartDaemon() *cobra.Command {
 			go func() {
 				api := flux.NewAPI(&flux.ReleaseManagerExporter{
 					Log:         log.With("type", "exporter"),
-					Url:         releaseManagerUrl,
-					AuthToken:   authToken,
+					Client:      client,
 					Environment: environment,
 				}, log.With("type", "api"))
 
@@ -57,7 +55,10 @@ func StartDaemon() *cobra.Command {
 			}()
 
 			succeededFunc := func(event *kubernetes.PodEvent) error {
-				notifyReleaseManager(event, "", releaseManagerUrl, authToken, environment)
+				err = notifyReleaseManager(&client, event, "", environment)
+				if err != nil {
+					return err
+				}
 				return nil
 			}
 
@@ -67,10 +68,16 @@ func StartDaemon() *cobra.Command {
 					if err != nil {
 						return err
 					}
-					notifyReleaseManager(event, logs, releaseManagerUrl, authToken, environment)
+					err = notifyReleaseManager(&client, event, logs, environment)
+					if err != nil {
+						return err
+					}
 					return nil
 				}
-				notifyReleaseManager(event, "", releaseManagerUrl, authToken, environment)
+				err = notifyReleaseManager(&client, event, "", environment)
+				if err != nil {
+					return err
+				}
 				return nil
 			}
 
@@ -101,8 +108,9 @@ func StartDaemon() *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&releaseManagerUrl, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")
-	command.Flags().StringVar(&authToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
+	command.Flags().StringVar(&client.BaseURL, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")
+	command.Flags().StringVar(&client.Metadata.AuthToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
+	command.Flags().DurationVar(&client.Timeout, "http-timeout", 20*time.Second, "HTTP request timeout")
 	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
 	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "path to kubeconfig file. If not specified, then daemon is expected to run inside kubernetes")
 	command.Flags().StringVar(&fluxApiBinding, "flux-api-binding", ":8080", "binding of the daemon flux api server")
@@ -114,13 +122,13 @@ func StartDaemon() *cobra.Command {
 	return command
 }
 
-func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, authToken, environment string) {
-	client := &http.Client{
-		Timeout: 20 * time.Second,
+func notifyReleaseManager(client *httpinternal.Client, event *kubernetes.PodEvent, logs, environment string) error {
+	var resp httpinternal.PodNotifyResponse
+	url, err := client.URL("webhook/daemon")
+	if err != nil {
+		return err
 	}
-
-	b := &bytes.Buffer{}
-	err := json.NewEncoder(b).Encode(httpinternal.PodNotifyRequest{
+	err = client.Do(http.MethodPost, url, httpinternal.PodNotifyRequest{
 		Name:           event.Name,
 		Namespace:      event.Namespace,
 		Message:        event.Message,
@@ -132,34 +140,11 @@ func notifyReleaseManager(event *kubernetes.PodEvent, logs, releaseManagerUrl, a
 		Environment:    environment,
 		AuthorEmail:    event.AuthorEmail,
 		CommitterEmail: event.CommitterEmail,
-	})
-
+	}, &resp)
 	if err != nil {
-		log.Errorf("error encoding StatusNotifyRequest: %+v", err)
-		return
+		return err
 	}
-
-	url := releaseManagerUrl + "/webhook/daemon"
-	req, err := http.NewRequest(http.MethodPost, url, b)
-	if err != nil {
-		log.Errorf("error generating PodNotifyRequest to %s: %+v", url, err)
-		return
-	}
-
-	req.Header.Set("Authorization", "Bearer "+authToken)
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Errorf("error posting PodNotifyRequest to %s: %+v", url, err)
-		return
-	}
-	if resp.StatusCode != 200 {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Errorf("failed to read response body: %+v", err)
-		}
-		log.Errorf("release-manager returned %s status-code in notify webhook: %s", resp.Status, body)
-		return
-	}
+	return nil
 }
 
 func mapContainers(containers []kubernetes.Container) []httpinternal.Container {

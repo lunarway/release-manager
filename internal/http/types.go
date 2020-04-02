@@ -81,8 +81,11 @@ type ReleaseResponse struct {
 	Tag           string `json:"tag,omitempty"`
 }
 
+type FluxNotifyResponse struct {
+}
+
 type FluxNotifyRequest struct {
-	Environment        string
+	Environment        string `json:"environment,omitempty"`
 	EventID            event.EventID
 	EventServiceIDs    []flux.ResourceID
 	EventChangedImages []string
@@ -95,6 +98,9 @@ type FluxNotifyRequest struct {
 	EventString        string
 	Commits            []event.Commit
 	Errors             []event.ResourceError
+}
+
+type PodNotifyResponse struct {
 }
 
 type PodNotifyRequest struct {
