@@ -22,8 +22,6 @@ type Exporter interface {
 }
 type ReleaseManagerExporter struct {
 	Log         *log.Logger
-	Url         string
-	AuthToken   string
 	Environment string
 	Client      httpinternal.Client
 }
@@ -35,6 +33,7 @@ func (f *ReleaseManagerExporter) Send(_ context.Context, event event.Event) erro
 	if err != nil {
 		return err
 	}
+	f.Log.Infof("URL: %s", url)
 	err = f.Client.Do(http.MethodPost, url, httpinternal.FluxNotifyRequest{
 		Environment:        f.Environment,
 		EventID:            event.ID,

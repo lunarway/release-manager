@@ -22,7 +22,8 @@ func StartDaemon(version string) *cobra.Command {
 
 	client := httpinternal.Client{
 		Metadata: httpinternal.Metadata{
-			CLIVersion: version,
+			CLIVersion:  version,
+			CallerEmail: "daemon",
 		},
 	}
 	var command = &cobra.Command{

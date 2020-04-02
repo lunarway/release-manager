@@ -364,10 +364,12 @@ func daemonWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 		err = flowSvc.NotifyCommitter(ctx, &podNotify)
 		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
 			logger.Errorf("http: daemon webhook failed: pod '%s' namespace '%s' environment: '%s' notify committer: %v", podNotify.Name, podNotify.Namespace, podNotify.Environment, err)
-			unknownError(w)
-			return
 		}
-
+		w.WriteHeader(http.StatusOK)
+		err = payload.encodeResponse(ctx, w, httpinternal.PodNotifyResponse{})
+		if err != nil {
+			logger.Errorf("http: daemon webhook: pod '%s' namespace '%s' environment: '%s' marshal response: %v", podNotify.Name, podNotify.Namespace, podNotify.Environment, err)
+		}
 		logger.Infof("http: daemon webhook: pod '%s' namespace '%s' environment '%s': Pod event handled: state=%s", podNotify.Name, podNotify.Namespace, podNotify.Environment, podNotify.State)
 	}
 }
@@ -391,11 +393,13 @@ func daemonFluxWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc
 		err = flowSvc.NotifyFluxEvent(ctx, &fluxNotifyEvent)
 		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
 			logger.Errorf("http: daemon flux webhook failed: %+v", err)
-			unknownError(w)
-			return
 		}
-
-		logger.Infof("http: daemon flux webhook: handled successfully")
+		w.WriteHeader(http.StatusOK)
+		err = payload.encodeResponse(ctx, w, httpinternal.PodNotifyResponse{})
+		if err != nil {
+			logger.Errorf("http: daemon flux webhook: environment: '%s' marshal response: %v", fluxNotifyEvent.Environment, err)
+		}
+		logger.Infof("http: daemon flux webhook: handled")
 	}
 }
 

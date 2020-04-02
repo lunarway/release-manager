@@ -82,7 +82,6 @@ type ReleaseResponse struct {
 }
 
 type FluxNotifyResponse struct {
-	Status string `json:"status,omitempty"`
 }
 
 type FluxNotifyRequest struct {
@@ -102,7 +101,6 @@ type FluxNotifyRequest struct {
 }
 
 type PodNotifyResponse struct {
-	Status string `json:"status,omitempty"`
 }
 
 type PodNotifyRequest struct {
