@@ -116,7 +116,7 @@ func (c *Client) PostPrivateMessage(ctx context.Context, email string, podNotify
 
 func successMessage(podNotify *http.PodNotifyRequest) slack.MsgOption {
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":kubernetes: k8s (%s) :white_check_mark:", podNotify.Environment),
+		Title:      fmt.Sprintf(":kubernetes: k8s (%s)", podNotify.Environment),
 		Text:       fmt.Sprintf("%s (%s)\nArtifact: %s", podNotify.Name, podNotify.State, podNotify.ArtifactID),
 		Color:      "#73bf69",
 		MarkdownIn: []string{"text", "fields"},
