@@ -16,16 +16,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func StartDaemon(version string) *cobra.Command {
+func StartDaemon() *cobra.Command {
 	var environment, kubeConfigPath, fluxApiBinding string
 	var logConfiguration *log.Configuration
 
-	client := httpinternal.Client{
-		Metadata: httpinternal.Metadata{
-			CLIVersion:  version,
-			CallerEmail: "daemon",
-		},
-	}
+	client := httpinternal.Client{}
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-daemon",
