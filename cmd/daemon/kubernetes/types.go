@@ -37,3 +37,8 @@ type NotifyFunc = func(event *PodEvent) error
 //	Deployed ReleaseState = "deployed"
 //	Failed   ReleaseState = "failed"
 //)
+
+type PodErrorEvent struct {
+	Pod       string
+	Container string
+}
