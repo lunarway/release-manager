@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
@@ -86,9 +87,11 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		}
 
 		// check that the artifact to be released is not already released in the
-		// environment
+		// environment. If there is no artifact released to the target environment an
+		// artifact.ErrFileNotFound error is returned. This is OK as the currentSpec
+		// will then be the default value and this its ID will be the empty string.
 		currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
-		if err != nil {
+		if err != nil && errors.Cause(err) != artifact.ErrFileNotFound {
 			return true, errors.WithMessage(err, "get current released spec")
 		}
 		if currentSpec.ID == sourceSpec.ID {
