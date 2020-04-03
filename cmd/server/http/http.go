@@ -439,8 +439,10 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 			}
 			serviceName := matches[1]
 
-			// locate branch of commit
-			branch, ok := git.BranchName(payload.HeadCommit.Modified, flowSvc.ArtifactFileName, serviceName)
+			// locate branch of commit. Look at both modified and added commits to
+			// cover both updated artifacts and added ones (new versions vs first
+			// version)
+			branch, ok := git.BranchName(append(payload.HeadCommit.Added, payload.HeadCommit.Modified...), flowSvc.ArtifactFileName, serviceName)
 			if !ok {
 				logger.Infof("http: github webhook: service '%s': branch name not found", serviceName)
 				w.WriteHeader(http.StatusOK)
