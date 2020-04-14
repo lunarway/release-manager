@@ -87,13 +87,13 @@ type configRepoOptions struct {
 	SSHPrivateKeyPath string
 }
 
-func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToken *string, configRepoOpts *configRepoOptions, httpOpts *http.Options, brokerOptions *brokerOptions, userMappings *map[string]string) *cobra.Command {
+func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToken *string, configRepoOpts *configRepoOptions, httpOpts *http.Options, brokerOptions *brokerOptions, slackMuteOpts *slack.MuteOptions, userMappings *map[string]string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-manager",
 		RunE: func(c *cobra.Command, args []string) error {
 			done := make(chan error, 1)
-			slackClient, err := slack.NewClient(*slackAuthToken, *userMappings)
+			slackClient, err := slack.NewMuteableClient(*slackAuthToken, *userMappings, *slackMuteOpts)
 			if err != nil {
 				return err
 			}
