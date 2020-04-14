@@ -22,6 +22,7 @@ func NewCommand() (*cobra.Command, error) {
 	var users []string
 	var userMappings map[string]string
 	var logConfiguration *log.Configuration
+	var slackMuteOpts slack.MuteOptions
 
 	var command = &cobra.Command{
 		Use:   "server",
@@ -44,7 +45,7 @@ func NewCommand() (*cobra.Command, error) {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(NewStart(&grafanaOpts, &slackAuthToken, &githubAPIToken, &configRepoOpts, &httpOpts, &brokerOpts, &userMappings))
+	command.AddCommand(NewStart(&grafanaOpts, &slackAuthToken, &githubAPIToken, &configRepoOpts, &httpOpts, &brokerOpts, &slackMuteOpts, &userMappings))
 	command.PersistentFlags().IntVar(&httpOpts.Port, "http-port", 8080, "port of the http server")
 	command.PersistentFlags().DurationVar(&httpOpts.Timeout, "timeout", 20*time.Second, "HTTP server timeout for incomming requests")
 	command.PersistentFlags().StringVar(&httpOpts.HamCtlAuthToken, "hamctl-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "hamctl authentication token")
@@ -64,9 +65,17 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between emails used by Git and Slack, key-value pair: <email>=<slack-email>")
 
 	registerBrokerFlags(command, &brokerOpts)
+	registerSlackNotificationFlags(command, &slackMuteOpts)
 	logConfiguration = log.RegisterFlags(command)
 
 	return command, nil
+}
+
+func registerSlackNotificationFlags(cmd *cobra.Command, opts *slack.MuteOptions) {
+	cmd.PersistentFlags().BoolVar(&opts.Kubernetes, "mute-slack-notification-k8s", false, "Enable/disable k8s slack notifications")
+	cmd.PersistentFlags().BoolVar(&opts.Flux, "mute-slack-notification-flux", false, "Enable/disable flux slack notifications")
+	cmd.PersistentFlags().BoolVar(&opts.Policy, "mute-slack-notification-policy", false, "Enable/disable policies slack notifications")
+	cmd.PersistentFlags().BoolVar(&opts.ReleaseProcessed, "mute-slack-notification-release-processed", false, "Enable/disable release processed slack notifications")
 }
 
 func registerBrokerFlags(cmd *cobra.Command, c *brokerOptions) {

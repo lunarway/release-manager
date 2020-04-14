@@ -14,6 +14,14 @@ import (
 type Client struct {
 	client        *slack.Client
 	emailMappings map[string]string
+	muteOptions   MuteOptions
+}
+
+type MuteOptions struct {
+	Flux             bool
+	Kubernetes       bool
+	Policy           bool
+	ReleaseProcessed bool
 }
 
 var (
@@ -28,6 +36,18 @@ func NewClient(token string, emailMappings map[string]string) (*Client, error) {
 	client := Client{
 		client:        slackClient,
 		emailMappings: emailMappings,
+		muteOptions:   MuteOptions{},
+	}
+	return &client, nil
+}
+
+func NewMuteableClient(token string, emailMappings map[string]string, muteOptions MuteOptions) (*Client, error) {
+	log.Infof("slack: new client: initialized with emailMappings: %+v", emailMappings)
+	slackClient := slack.New(token)
+	client := Client{
+		client:        slackClient,
+		emailMappings: emailMappings,
+		muteOptions:   muteOptions,
 	}
 	return &client, nil
 }
@@ -87,6 +107,9 @@ func (c *Client) PostSlackBuildStarted(email, title, titleLink, text, color stri
 }
 
 func (c *Client) PostPrivateMessage(ctx context.Context, email string, podNotify *http.PodNotifyRequest) error {
+	if c.muteOptions.Kubernetes {
+		return nil
+	}
 	userID, err := c.getIdByEmail(ctx, email)
 	if err != nil {
 		return err
@@ -116,7 +139,7 @@ func (c *Client) PostPrivateMessage(ctx context.Context, email string, podNotify
 
 func successMessage(podNotify *http.PodNotifyRequest) slack.MsgOption {
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":kubernetes: k8s (*%s*) :white_check_mark:", podNotify.Environment),
+		Title:      fmt.Sprintf(":kubernetes: k8s (%s) :white_check_mark:", podNotify.Environment),
 		Text:       fmt.Sprintf("%s (%s)\nArtifact: *%s*", podNotify.Name, podNotify.State, podNotify.ArtifactID),
 		Color:      "#73bf69",
 		MarkdownIn: []string{"text", "fields"},
@@ -145,7 +168,7 @@ func crashLoopBackOffErrorMessage(podNotify *http.PodNotifyRequest) slack.MsgOpt
 		Short: false,
 	}
 	return slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":kubernetes: k8s (*%s*) :no_entry:", podNotify.Environment),
+		Title:      fmt.Sprintf(":kubernetes: k8s (%s) :no_entry:", podNotify.Environment),
 		Text:       fmt.Sprintf("%s (%s)\nArtifact: *%s*", podNotify.Name, podNotify.State, podNotify.ArtifactID),
 		Color:      "#e24d42",
 		MarkdownIn: []string{"text", "fields"},
@@ -210,6 +233,9 @@ func (c *Client) NotifySlackBuildsChannel(options BuildsOptions) error {
 }
 
 func (c *Client) NotifySlackPolicyFailed(ctx context.Context, email, title, errorMessage string) error {
+	if c.muteOptions.Policy {
+		return nil
+	}
 	userID, err := c.getIdByEmail(ctx, email)
 	if err != nil {
 		return err
@@ -230,6 +256,9 @@ func (c *Client) NotifySlackPolicyFailed(ctx context.Context, email, title, erro
 }
 
 func (c *Client) NotifySlackPolicySucceeded(ctx context.Context, email, title, message string) error {
+	if c.muteOptions.Policy {
+		return nil
+	}
 	userID, err := c.getIdByEmail(ctx, email)
 	if err != nil {
 		return err
@@ -250,6 +279,9 @@ func (c *Client) NotifySlackPolicySucceeded(ctx context.Context, email, title, m
 }
 
 func (c *Client) NotifyAuthorEventProcessed(ctx context.Context, options ReleaseOptions) error {
+	if c.muteOptions.ReleaseProcessed {
+		return nil
+	}
 	userID, err := c.getIdByEmail(ctx, options.CommitAuthorEmail)
 	if err != nil {
 		return err
@@ -269,6 +301,9 @@ func (c *Client) NotifyAuthorEventProcessed(ctx context.Context, options Release
 }
 
 func (c *Client) NotifyFluxEventProcessed(ctx context.Context, artifactID, env, email, service string) error {
+	if c.muteOptions.Flux {
+		return nil
+	}
 	userID, err := c.getIdByEmail(ctx, email)
 	if err != nil {
 		return err
@@ -288,6 +323,9 @@ func (c *Client) NotifyFluxEventProcessed(ctx context.Context, artifactID, env, 
 }
 
 func (c *Client) NotifyFluxErrorEvent(ctx context.Context, artifactID, env, email, service, errorMessage, errorPath string) error {
+	if c.muteOptions.Flux {
+		return nil
+	}
 	userID, err := c.getIdByEmail(ctx, email)
 	if err != nil {
 		return err
