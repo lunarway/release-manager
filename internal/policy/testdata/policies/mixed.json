@@ -1,0 +1,17 @@
+{
+  "service": "autorelease",
+  "autoReleases": [
+    {
+      "id": "auto-release-master-dev",
+      "branch": "master",
+      "environment": "dev"
+    }
+  ],
+  "branchRestrictions": [
+    {
+      "id": "branch-restriction-prod",
+      "branchRegex": "^master$",
+      "environment": "prod"
+    }
+  ]
+}

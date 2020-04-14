@@ -32,7 +32,8 @@ type Service struct {
 	Tracer tracing.Tracer
 	Git    *git.Service
 
-	MaxRetries int
+	MaxRetries                      int
+	GlobalBranchRestrictionPolicies []BranchRestriction
 }
 
 type Actor struct {
@@ -61,7 +62,9 @@ func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]Au
 	return autoReleases, nil
 }
 
-// Get gets stored policies for service svc. If no policies are stored ErrNotFound is returned.
+// Get gets stored policies for service svc. If no policies are stored
+// ErrNotFound is returned. This method also returns globally configured
+// policies along with the service specific ones.
 func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.Get")
 	defer span.Finish()
@@ -87,12 +90,46 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 	if err != nil {
 		return Policies{}, errors.WithMessagef(err, "parse policies in '%s'", policiesPath)
 	}
+
+	// merge global policies with local ones where globals take precedence
+	policies.BranchRestrictions = mergeBranchRestrictions(ctx, svc, s.GlobalBranchRestrictionPolicies, policies.BranchRestrictions)
+
 	// a policy file might exist, but if all policies have been removed from it
 	// we can just act as if it didn't exist
 	if !policies.HasPolicies() {
 		return Policies{}, ErrNotFound
 	}
 	return policies, nil
+}
+
+func mergeBranchRestrictions(ctx context.Context, svc string, global, local []BranchRestriction) []BranchRestriction {
+	if len(global) == 0 {
+		return local
+	}
+	var branchRestrictions []BranchRestriction
+	for _, globalRestriction := range global {
+		branchRestrictions = append(branchRestrictions, globalRestriction)
+	}
+
+	// copy all local restrictions over that does not conflict with the global
+	// one
+	for _, localRestriction := range local {
+		if conflictingBranchRestriction(ctx, svc, global, localRestriction) {
+			continue
+		}
+		branchRestrictions = append(branchRestrictions, localRestriction)
+	}
+	return branchRestrictions
+}
+
+func conflictingBranchRestriction(ctx context.Context, svc string, global []BranchRestriction, localRestriction BranchRestriction) bool {
+	for _, globalRestriction := range global {
+		if globalRestriction.Environment == localRestriction.Environment && globalRestriction.BranchRegex != localRestriction.BranchRegex {
+			log.WithContext(ctx).WithFields("global", globalRestriction, "local", localRestriction).Errorf("Global and local branch restriction policies conflict for service '%s': local policy dropped", svc)
+			return true
+		}
+	}
+	return false
 }
 
 // ApplyAutoRelease applies an auto-release policy for service svc from branch
