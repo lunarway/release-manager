@@ -27,7 +27,7 @@ func NewApply(client *httpinternal.Client, service *string) *cobra.Command {
 			}
 			return nil
 		},
-		ValidArgs: []string{"auto-release"},
+		ValidArgs: []string{"auto-release", "branch-restriction"},
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
