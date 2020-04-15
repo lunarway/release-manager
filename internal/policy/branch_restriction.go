@@ -34,8 +34,8 @@ func (s *Service) ApplyBranchRestriction(ctx context.Context, actor Actor, svc, 
 		return "", err
 	}
 	for _, policy := range policies.AutoReleases {
-		if re.MatchString(policy.Branch) {
-			return "", ErrConflict
+		if policy.Environment == env && re.MatchString(policy.Branch) {
+			return "", errors.WithMessagef(ErrConflict, "conflict with %s", policy.ID)
 		}
 	}
 
