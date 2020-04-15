@@ -5,11 +5,16 @@ metadata:
   labels:
     app: nginx
   annotations:
-    kubernetes.io/change-cause: 'nginx:1.14.2'
+    kubernetes.io/change-cause: 'nginx:1.14.1'
     lunarway.com/author: 'kni@lunar.app'
-    lunarway.com/artifact-id: 'master-1fdc8087ee-5d4da5aa89'
+    lunarway.com/artifact-id: 'nginx:1.14.1'
     lunarway.com/controlled-by-release-manager: 'true'
 spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   replicas: 3
   selector:
     matchLabels:
@@ -18,9 +23,14 @@ spec:
     metadata:
       labels:
         app: nginx
+      annotations:
+        kubernetes.io/change-cause: 'nginx:1.14.1'
+        lunarway.com/author: 'kni@lunar.app'
+        lunarway.com/artifact-id: 'nginx:1.14.1'
+        lunarway.com/controlled-by-release-manager: 'true'
     spec:
       containers:
       - name: nginx
-        image: nginx:1.14.2
+        image: nginx:1.14.1
         ports:
         - containerPort: 80

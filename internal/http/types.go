@@ -87,9 +87,37 @@ type FluxNotifyRequest struct {
 	FluxEvent   event.Event
 }
 
+type DeploymentEvent struct {
+	Name          string `json:"name,omitempty"`
+	Namespace     string `json:"namespace,omitempty"`
+	AvailablePods int32  `json:"podCount,omitempty"`
+	Replicas      int32  `json:"replicas,omitempty"`
+	ArtifactID    string `json:"artifactId,omitempty"`
+	AuthorEmail   string `json:"authorEmail,omitempty"`
+	Environment   string `json:"environment,omitempty"`
+}
+type ContainerError struct {
+	Name         string `json:"name"`
+	ErrorMessage string `json:"message"`
+	Type         string `json:"type"`
+}
+
+type PodErrorEvent struct {
+	PodName     string `json:"podName,omitempty"`
+	Namespace   string `json:"namespace,omitempty"`
+	Errors      []ContainerError
+	AuthorEmail string `json:"authorEmail,omitempty"`
+	Environment string `json:"environment,omitempty"`
+	ArtifactID  string `json:"artifactId,omitempty"`
+}
+type KubernetesNotifyResponse struct {
+}
+
+//DEPRECATED
 type PodNotifyResponse struct {
 }
 
+//DEPRECATED
 type PodNotifyRequest struct {
 	Namespace      string      `json:"namespace"`
 	Name           string      `json:"name"`
@@ -104,6 +132,7 @@ type PodNotifyRequest struct {
 	AuthorEmail    string      `json:"authorEmail"`
 }
 
+//DEPRECATED
 type Container struct {
 	Name         string `json:"name"`
 	State        string `json:"state"`

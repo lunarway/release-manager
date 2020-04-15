@@ -1,34 +1,40 @@
 package kubernetes
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"math"
 	"strings"
 
+	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	deploymentutil "k8s.io/kubectl/pkg/util/deployment"
-	podutil "k8s.io/kubectl/pkg/util/podutils"
+
+	//deploymentutil "k8s.io/kubectl/pkg/util/deployment"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Client struct {
-	clientset *kubernetes.Clientset
+	clientset              *kubernetes.Clientset
+	exporter               Exporter
+	moduloCrashReportNotif float64
 }
 
 var (
-	ErrWatcherClosed = errors.New("channel closed")
+	ErrWatcherClosed            = errors.New("channel closed")
+	ErrProgressDeadlineExceeded = errors.New("progress deadline exceeded")
 )
 
-func NewClient(kubeConfigPath string) (*Client, error) {
+func NewClient(kubeConfigPath string, moduloCrashReportNotif float64, e Exporter) (*Client, error) {
 	if kubeConfigPath != "" {
 		// we run outside a cluster
 		config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
@@ -56,52 +62,13 @@ func NewClient(kubeConfigPath string) (*Client, error) {
 	}
 
 	return &Client{
-		clientset: clientset,
+		clientset:              clientset,
+		exporter:               e,
+		moduloCrashReportNotif: moduloCrashReportNotif,
 	}, nil
 }
 
-// func (c *Client) GetLogs(podName, namespace string) (string, error) {
-// 	numberOfLogLines := int64(8)
-// 	podLogOpts := v1.PodLogOptions{
-// 		TailLines: &numberOfLogLines,
-// 	}
-// 	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, &podLogOpts)
-
-// 	podLogs, err := req.Stream()
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	defer podLogs.Close()
-
-// 	buf := new(bytes.Buffer)
-// 	_, err = io.Copy(buf, podLogs)
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	logs, err := parseToJSONAray(buf.String())
-// 	if err != nil {
-// 		return buf.String(), nil
-// 	}
-// 	message := ""
-// 	for _, l := range logs {
-// 		message += l.Message + "\n"
-// 	}
-// 	return message, nil
-// }
-
-func parseToJSONAray(str string) ([]Log, error) {
-	str = strings.ReplaceAll(str, "}\n{", "},{")
-	str = fmt.Sprintf("[%s]", str)
-
-	var logs []Log
-	err := json.Unmarshal([]byte(str), &logs)
-	if err != nil {
-		return nil, errors.WithMessage(err, "unmarshal")
-	}
-	return logs, nil
-}
-
-func (c *Client) WatchDeployments(ctx context.Context, succeeded, failed NotifyFunc) error {
+func (c *Client) HandleNewDeployments(ctx context.Context) error {
 	watcher, err := c.clientset.AppsV1().Deployments("").Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -115,16 +82,43 @@ func (c *Client) WatchDeployments(ctx context.Context, succeeded, failed NotifyF
 			if e.Object == nil {
 				continue
 			}
-			detectSuccessfulDeployment(c.clientset, e, succeeded, failed)
+			deploy, ok := e.Object.(*appsv1.Deployment)
+			if !ok {
+				continue
+			}
+			if !isDeploymentCorrectlyAnnotated(deploy) {
+				continue
+			}
 
+			// Avoid reporting on pods that has been marked for termination
+			if isDeploymentMarkedForTermination(deploy) {
+				continue
+			}
+
+			// Check the received event, and determine whether or not this was a successful deployment.
+			event, ok, err := isDeploymentSuccessful(deploy)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				continue
+			}
+
+			// Notify the release-manager with the successful deployment event.
+			err = c.exporter.SendSuccessfulDeploymentEvent(ctx, event)
+			if err != nil {
+				log.Errorf("error SendSuccessfulDeploymentEvent")
+				continue
+			}
 		case <-ctx.Done():
 			watcher.Stop()
 			return ctx.Err()
 		}
 	}
+	return nil
 }
 
-func (c *Client) WatchPods(ctx context.Context, succeeded, failed NotifyFunc) error {
+func (c *Client) HandlePodErrors(ctx context.Context) error {
 	// TODO; See if it's possible to use FieldSelector to limit events received.
 	watcher, err := c.clientset.CoreV1().Pods("").Watch(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -140,7 +134,81 @@ func (c *Client) WatchPods(ctx context.Context, succeeded, failed NotifyFunc) er
 			if e.Object == nil {
 				continue
 			}
-			detectPodErrors(c.clientset, e, succeeded, failed)
+			pod, ok := e.Object.(*corev1.Pod)
+			if !ok {
+				continue
+			}
+			// Is this a pod managed by the release manager - and does it contain the information needed?
+			if !isPodCorrectlyAnnotated(pod) {
+				continue
+			}
+			// Avoid reporting on pods that has been marked for termination
+			if isPodMarkedForTermination(pod) {
+				continue
+			}
+
+			if isPodInCrashLoopBackOff(pod) {
+				log.Infof("Pod: %s is in CrashLoopBackOff", pod.Name)
+				restartCount := pod.Status.ContainerStatuses[0].RestartCount
+				if math.Mod(float64(restartCount), c.moduloCrashReportNotif) != 1 {
+					continue
+				}
+				var errorContainers []httpinternal.ContainerError
+				for _, cst := range pod.Status.ContainerStatuses {
+					if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CrashLoopBackOff" {
+
+						logs, err := getLogs(ctx, c.clientset, pod.Name, cst.Name, pod.Namespace)
+						if err != nil {
+							log.Errorf("Error retrieving logs from pod: %s, container: %s, namespace: %s", pod.Name, cst.Name, pod.Namespace)
+						}
+
+						errorContainers = append(errorContainers, httpinternal.ContainerError{
+							Name:         cst.Name,
+							ErrorMessage: logs,
+							Type:         "CrashLoopBackOff",
+						})
+					}
+				}
+
+				err = c.exporter.SendPodErrorEvent(ctx, httpinternal.PodErrorEvent{
+					PodName:     pod.Name,
+					Namespace:   pod.Namespace,
+					Errors:      errorContainers,
+					ArtifactID:  pod.Annotations["lunarway.com/artifact-id"],
+					AuthorEmail: pod.Annotations["lunarway.com/author"],
+				})
+				if err != nil {
+					log.Errorf("error SendCrashLoopBackOffEvent")
+				}
+				continue
+			}
+
+			if isPodInCreateContainerConfigError(pod) {
+				log.Infof("Pod: %s is in CreateContainerConfigError", pod.Name)
+				// Determine which container of the deployment has CreateContainerConfigError
+				var errorContainers []httpinternal.ContainerError
+				for _, cst := range pod.Status.ContainerStatuses {
+					if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CreateContainerConfigError" {
+						errorContainers = append(errorContainers, httpinternal.ContainerError{
+							Name:         cst.Name,
+							ErrorMessage: cst.State.Waiting.Message,
+							Type:         "CreateContainerConfigError",
+						})
+					}
+				}
+
+				err = c.exporter.SendPodErrorEvent(ctx, httpinternal.PodErrorEvent{
+					PodName:     pod.Name,
+					Namespace:   pod.Namespace,
+					Errors:      errorContainers,
+					ArtifactID:  pod.Annotations["lunarway.com/artifact-id"],
+					AuthorEmail: pod.Annotations["lunarway.com/author"],
+				})
+				if err != nil {
+					log.Errorf("error SendCreateContainerConfigError")
+				}
+				continue
+			}
 
 		case <-ctx.Done():
 			watcher.Stop()
@@ -149,96 +217,50 @@ func (c *Client) WatchPods(ctx context.Context, succeeded, failed NotifyFunc) er
 	}
 }
 
-func detectPodErrors(kubectl *kubernetes.Clientset, e watch.Event, succeeded, failed NotifyFunc) {
-	pod, ok := e.Object.(*corev1.Pod)
-	if !ok {
-		return
-	}
-
-	// Just continue if this pod is not controlled by the release manager
-	if !(pod.Annotations["lunarway.com/controlled-by-release-manager"] == "true") {
-		return
-	}
-
-	// Just discard the event if there's no artifact id
-	if pod.Annotations["lunarway.com/artifact-id"] == "" {
-		log.Errorf("artifact-id missing in deployment: namespace '%s' pod '%s'", pod.Namespace, pod.Name)
-		return
-	}
-
-	if podutil.IsPodReady(pod) {
-		return
-	}
-
-	if isPodInCrashLoopBackOff(pod) {
-		log.Infof("Pod: %s is in CrashLoopBackOff", pod.Name)
-		// TODO:
-		// 1. Identify the pod or pods that is CrashLooping
-		// 2. Extract the logs of the pod(s) that are in CrashLoop
-		// 3. Generate event
-		return
-	}
-
-	if isPodInCreateContainerConfigError(pod) {
-		log.Infof("Pod: %s is in CreateContainerConfigError", pod.Name)
-		// TODO:
-		// 1. Identify the pod or pods that is CrashLooping
-		// 2. Extract the message from kubernetes
-		// 3. Generate event
-		return
-	}
-
-	// TODO
-	// Identify other possible errors
-	//
-	return
-}
-
-func detectSuccessfulDeployment(kubectl *kubernetes.Clientset, e watch.Event, succeeded, failed NotifyFunc) {
-	deployment, ok := e.Object.(*appsv1.Deployment)
-	if !ok {
-		return
-	}
-	// Just continue if this pod is not controlled by the release manager
-	if !(deployment.Annotations["lunarway.com/controlled-by-release-manager"] == "true") {
-		return
-	}
-
-	// Just discard the event if there's no artifact id
-	if deployment.Annotations["lunarway.com/artifact-id"] == "" {
-		log.Errorf("artifact-id missing in deployment: namespace '%s' pod '%s'", deployment.Namespace, deployment.Name)
-		return
-	}
+func isDeploymentSuccessful(deployment *appsv1.Deployment) (httpinternal.DeploymentEvent, bool, error) {
 
 	if deployment.Generation <= deployment.Status.ObservedGeneration {
 		cond := getDeploymentCondition(deployment.Status, appsv1.DeploymentProgressing)
 		if cond != nil && cond.Reason == "ProgressDeadlineExceeded" {
 			log.Errorf("deployment %q exceeded its progress deadline", deployment.Name)
-			return
+			// TODO: Maybe return a specific error here
+			return httpinternal.DeploymentEvent{}, false, nil
+		}
+		//
+		if cond.LastUpdateTime == cond.LastTransitionTime {
+			return httpinternal.DeploymentEvent{}, false, nil
 		}
 		// Waiting for deployment %q rollout to finish: %d out of %d new replicas have been updated...
 		if deployment.Spec.Replicas != nil && deployment.Status.UpdatedReplicas < *deployment.Spec.Replicas {
-			return
+			return httpinternal.DeploymentEvent{}, false, nil
 		}
 		// Waiting for deployment %q rollout to finish: %d old replicas are pending termination...
 		if deployment.Status.Replicas > deployment.Status.UpdatedReplicas {
-			return
+			return httpinternal.DeploymentEvent{}, false, nil
 		}
 		// Waiting for deployment %q rollout to finish: %d of %d updated replicas are available...
 		if deployment.Status.AvailableReplicas < deployment.Status.UpdatedReplicas {
-			return
-		}
-		log.Infof("Deployment: %q successfully rolled out", deployment.Name)
-
-		_, _, newRS, err := deploymentutil.GetAllReplicaSets(deployment, kubectl.AppsV1())
-		if err != nil {
-			log.Infof("Error: %v", err)
+			return httpinternal.DeploymentEvent{}, false, nil
 		}
 
-		log.Infof("New ReplicaSet detected: %s", newRS.Name)
-
-		return
+		log.Infof("Generation: %d, ObservedGeneration: %d", deployment.Generation, deployment.Status.ObservedGeneration)
+		// We discard events if the difference between creation and now is greater than 10s
+		// diff := time.Now().Sub(deployment.CreationTimestamp.Time)
+		// if diff > (time.Duration(10) * time.Second) {
+		// 	log.Infof("Timediff is greater than 10s and we should discard the event")
+		// 	return httpinternal.DeploymentEvent{}, false, nil
+		// }
+		log.Infof("DEPLOYMENT: %+v", deployment)
+		return httpinternal.DeploymentEvent{
+			Name:          deployment.Name,
+			Namespace:     deployment.Namespace,
+			ArtifactID:    deployment.Annotations["lunarway.com/artifact-id"],
+			AuthorEmail:   deployment.Annotations["lunarway.com/author"],
+			AvailablePods: deployment.Status.AvailableReplicas,
+			Replicas:      *deployment.Spec.Replicas,
+		}, true, nil
 	}
+	return httpinternal.DeploymentEvent{}, false, nil
 }
 
 func getDeploymentCondition(status appsv1.DeploymentStatus, condType appsv1.DeploymentConditionType) *appsv1.DeploymentCondition {
@@ -249,6 +271,55 @@ func getDeploymentCondition(status appsv1.DeploymentStatus, condType appsv1.Depl
 		}
 	}
 	return nil
+}
+
+func isDeploymentCorrectlyAnnotated(deploy *appsv1.Deployment) bool {
+	// Just continue if this pod is not controlled by the release manager
+	if !(deploy.Annotations["lunarway.com/controlled-by-release-manager"] == "true") {
+		return false
+	}
+
+	// Just discard the event if there's no artifact id
+	if deploy.Annotations["lunarway.com/artifact-id"] == "" {
+		log.Errorf("artifact-id missing in deployment: namespace '%s' pod '%s'", deploy.Namespace, deploy.Name)
+		return false
+	}
+
+	if deploy.Annotations["lunarway.com/author"] == "" {
+		log.Errorf("author missing in deployment: namespace '%s' pod '%s'", deploy.Namespace, deploy.Name)
+		return false
+	}
+	return true
+}
+
+// Avoid reporting on pods that has been marked for termination
+func isDeploymentMarkedForTermination(deploy *appsv1.Deployment) bool {
+	if deploy.DeletionTimestamp != nil {
+		return true
+	}
+	return false
+}
+
+func isPodCorrectlyAnnotated(pod *corev1.Pod) bool {
+	// Just continue if this pod is not controlled by the release manager
+	if !(pod.Annotations["lunarway.com/controlled-by-release-manager"] == "true") {
+		return false
+	}
+
+	// Just discard the event if there's no artifact id
+	if pod.Annotations["lunarway.com/artifact-id"] == "" {
+		log.Errorf("artifact-id missing in pod template: namespace '%s' pod '%s'", pod.Namespace, pod.Name)
+		return false
+	}
+	return true
+}
+
+// Avoid reporting on pods that has been marked for termination
+func isPodMarkedForTermination(pod *corev1.Pod) bool {
+	if pod.DeletionTimestamp != nil {
+		return true
+	}
+	return false
 }
 
 // isPodInCrashLoopBackOff - checks the PodStatus and indicates whether the Pod is in CrashLoopBackOff
@@ -275,4 +346,51 @@ func isPodInCreateContainerConfigError(pod *corev1.Pod) bool {
 		}
 	}
 	return false
+}
+
+func getLogs(ctx context.Context, client *kubernetes.Clientset, podName, containerName, namespace string) (string, error) {
+	numberOfLogLines := int64(8)
+	podLogOpts := corev1.PodLogOptions{
+		TailLines: &numberOfLogLines,
+		Container: containerName,
+	}
+	req := client.CoreV1().Pods(namespace).GetLogs(podName, &podLogOpts)
+
+	podLogs, err := req.Stream(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return "", err
+	}
+	logs, err := parseToJSONAray(buf.String())
+	if err != nil {
+		return buf.String(), nil
+	}
+	message := ""
+	for _, l := range logs {
+		message += l.Message + "\n"
+	}
+	return message, nil
+}
+
+type containerLog struct {
+	Level   string
+	Message string
+}
+
+func parseToJSONAray(str string) ([]containerLog, error) {
+	str = strings.ReplaceAll(str, "}\n{", "},{")
+	str = fmt.Sprintf("[%s]", str)
+
+	var logs []containerLog
+	err := json.Unmarshal([]byte(str), &logs)
+	if err != nil {
+		return nil, errors.WithMessage(err, "unmarshal")
+	}
+	return logs, nil
 }

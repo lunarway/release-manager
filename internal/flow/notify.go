@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// DEPRECATED
 func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequest) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyCommitter")
 	defer span.Finish()
@@ -19,6 +20,30 @@ func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequ
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "post private message")
+	}
+	return nil
+}
+
+func (s *Service) NotifyK8SDeployEvent(ctx context.Context, event *http.DeploymentEvent) error {
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyK8SDeployment")
+	defer span.Finish()
+	span, _ = s.Tracer.FromCtx(ctx, "post k8s deploy slack message")
+	err := s.Slack.NotifyK8SDeployEvent(ctx, event)
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "post k8s deploy slack message")
+	}
+	return nil
+}
+
+func (s *Service) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErrorEvent) error {
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyK8SPodErrorEvent")
+	defer span.Finish()
+	span, _ = s.Tracer.FromCtx(ctx, "post k8s NotifyK8SPodErrorEvent slack message")
+	err := s.Slack.NotifyK8SPodErrorEvent(ctx, event)
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "post k8s NotifyK8SPodErrorEvent slack message")
 	}
 	return nil
 }

@@ -25,16 +25,36 @@ spec:
         lunarway.com/controlled-by-release-manager: 'true'
     spec:
       containers:
-      - name: createconfigerror
+      - name: container1
         image: alpine
         command: [ 'sh' ]
         args: [ '-c', 'sleep 666' ]
         env:
-        - name: TEST
+        - name: test
           valueFrom:
             configMapKeyRef:
               name: createconfigerror
               key: not.exist
+      - name: container2
+        image: alpine
+        command: [ 'sh' ]
+        args: [ '-c', 'sleep 666' ]
+        env:
+        - name: test
+          valueFrom:
+            configMapKeyRef:
+              name: createconfigerror
+              key: test
+      - name: container3
+        image: alpine
+        command: [ 'sh' ]
+        args: [ '-c', 'sleep 666' ]
+        env:
+        - name: test
+          valueFrom:
+            configMapKeyRef:
+              name: createconfigerror
+              key: not.exist1
 
 ---
 apiVersion: v1

@@ -2,7 +2,6 @@ package command
 
 import (
 	"context"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,8 +15,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Release Daemon wathces for the following changes
+// 1. Events from Flux on changes applied to the cluster
+// 2. Successful release of a new deployment
+// 3. Detects CrashLoopBackOff, fetches the specific pods log
+// 4. Detects CreateContainerConfigError, and fetches the message about the wrong config.
 func StartDaemon() *cobra.Command {
 	var environment, kubeConfigPath, fluxApiBinding string
+	var moduloCrashReportNotif float64
 	var logConfiguration *log.Configuration
 
 	client := httpinternal.Client{}
@@ -30,16 +35,21 @@ func StartDaemon() *cobra.Command {
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 
-			kubectl, err := kubernetes.NewClient(kubeConfigPath)
+			kubectl, err := kubernetes.NewClient(kubeConfigPath, moduloCrashReportNotif, &kubernetes.ReleaseManagerExporter{
+				Log:         log.With("type", "k8s-exporter"),
+				Client:      client,
+				Environment: environment,
+			})
 			if err != nil {
 				return err
 			}
 
 			log.Info("Deamon started")
 
+			//  Handle flux events. Use http to communicate events back to release-manager.
 			go func() {
 				api := flux.NewAPI(&flux.ReleaseManagerExporter{
-					Log:         log.With("type", "exporter"),
+					Log:         log.With("type", "flux-exporter"),
 					Client:      client,
 					Environment: environment,
 				}, log.With("type", "api"))
@@ -54,48 +64,11 @@ func StartDaemon() *cobra.Command {
 				}
 			}()
 
-			succeededFunc := func(event *kubernetes.PodEvent) error {
-				// err = notifyReleaseManager(&client, event, "", environment)
-				// if err != nil {
-				// 	return err
-				// }
-				return nil
-			}
-
-			failedFunc := func(event *kubernetes.PodEvent) error {
-				// if event.Reason == "CrashLoopBackOff" {
-				// 	logs, err := kubectl.GetLogs(event.Name, event.Namespace)
-				// 	if err != nil {
-				// 		return err
-				// 	}
-				// 	err = notifyReleaseManager(&client, event, logs, environment)
-				// 	if err != nil {
-				// 		return err
-				// 	}
-				// 	return nil
-				// }
-				// err = notifyReleaseManager(&client, event, "", environment)
-				// if err != nil {
-				// 	return err
-				// }
-				return nil
-			}
-
-			// go func() {
-			// 	for {
-			// 		err = kubectl.WatchPods(context.Background(), succeededFunc, failedFunc)
-			// 		if err != nil && err != kubernetes.ErrWatcherClosed {
-			// 			done <- errors.WithMessage(err, "kubectl watcher: watcher closed")
-			// 			return
-			// 		}
-			// 	}
-			// }()
-
 			go func() {
 				for {
-					err = kubectl.WatchDeployments(context.Background(), succeededFunc, failedFunc)
+					err = kubectl.HandleNewDeployments(context.Background())
 					if err != nil && err != kubernetes.ErrWatcherClosed {
-						done <- errors.WithMessage(err, "kubectl watcher: watcher closed")
+						done <- errors.WithMessage(err, "kubectl handle new deployments: watcher closed")
 						return
 					}
 				}
@@ -103,9 +76,9 @@ func StartDaemon() *cobra.Command {
 
 			go func() {
 				for {
-					err = kubectl.WatchPods(context.Background(), succeededFunc, failedFunc)
+					err = kubectl.HandlePodErrors(context.Background())
 					if err != nil && err != kubernetes.ErrWatcherClosed {
-						done <- errors.WithMessage(err, "kubectl watcher: watcher closed")
+						done <- errors.WithMessage(err, "kubectl handle pod errors: watcher closed")
 						return
 					}
 				}
@@ -134,50 +107,11 @@ func StartDaemon() *cobra.Command {
 	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
 	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "path to kubeconfig file. If not specified, then daemon is expected to run inside kubernetes")
 	command.Flags().StringVar(&fluxApiBinding, "flux-api-binding", ":8080", "binding of the daemon flux api server")
+	command.Flags().Float64Var(&moduloCrashReportNotif, "modulo-crash-report-notif", 5, "modulo for how often to report CrashLoopBackOff events")
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
 	//nolint:errcheck
 	command.MarkFlagRequired("environment")
 	logConfiguration = log.RegisterFlags(command)
 	return command
-}
-
-func notifyReleaseManager(client *httpinternal.Client, event *kubernetes.PodEvent, logs, environment string) error {
-	var resp httpinternal.PodNotifyResponse
-	url, err := client.URL("webhook/daemon")
-	if err != nil {
-		return err
-	}
-	err = client.Do(http.MethodPost, url, httpinternal.PodNotifyRequest{
-		Name:           event.Name,
-		Namespace:      event.Namespace,
-		Message:        event.Message,
-		Reason:         event.Reason,
-		State:          event.State,
-		Containers:     mapContainers(event.Containers),
-		ArtifactID:     event.ArtifactID,
-		Logs:           logs,
-		Environment:    environment,
-		AuthorEmail:    event.AuthorEmail,
-		CommitterEmail: event.CommitterEmail,
-	}, &resp)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func mapContainers(containers []kubernetes.Container) []httpinternal.Container {
-	h := make([]httpinternal.Container, len(containers))
-	for i, c := range containers {
-		h[i] = httpinternal.Container{
-			Name:         c.Name,
-			State:        c.State,
-			Reason:       c.Reason,
-			Message:      c.Message,
-			Ready:        c.Ready,
-			RestartCount: c.RestartCount,
-		}
-	}
-	return h
 }

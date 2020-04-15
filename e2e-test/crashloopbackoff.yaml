@@ -25,7 +25,11 @@ spec:
         lunarway.com/controlled-by-release-manager: 'true'
     spec:
       containers:
-      - name: crashloopbackoff
+      - name: container1
         image: alpine
         command: [ 'sh' ]
-        args: [ '-c', 'exit 666' ]
+        args: [ "-c", "echo 'Im a crashing container'", "exit 666" ]
+      - name: container2
+        image: alpine
+        command: [ 'sh' ]
+        args: [ "-c", "echo 'Im another crashing container'", "exit 666" ]

@@ -106,6 +106,7 @@ func (c *Client) PostSlackBuildStarted(email, title, titleLink, text, color stri
 	return respChannel, timestamp, err
 }
 
+//DEPRECATED
 func (c *Client) PostPrivateMessage(ctx context.Context, email string, podNotify *http.PodNotifyRequest) error {
 	if c.muteOptions.Kubernetes {
 		return nil
@@ -137,6 +138,7 @@ func (c *Client) PostPrivateMessage(ctx context.Context, email string, podNotify
 	return nil
 }
 
+// DEPRECATED
 func successMessage(podNotify *http.PodNotifyRequest) slack.MsgOption {
 	return slack.MsgOptionAttachments(slack.Attachment{
 		Title:      fmt.Sprintf(":kubernetes: k8s (%s) :white_check_mark:", podNotify.Environment),
@@ -146,6 +148,7 @@ func successMessage(podNotify *http.PodNotifyRequest) slack.MsgOption {
 	})
 }
 
+// DEPRECATED
 func createConfigErrorMessage(podNotify *http.PodNotifyRequest) slack.MsgOption {
 	messageField := slack.AttachmentField{
 		Title: "Error",
@@ -161,6 +164,7 @@ func createConfigErrorMessage(podNotify *http.PodNotifyRequest) slack.MsgOption 
 	})
 }
 
+// DEPRECATED
 func crashLoopBackOffErrorMessage(podNotify *http.PodNotifyRequest) slack.MsgOption {
 	logField := slack.AttachmentField{
 		Title: "Logs",
@@ -336,6 +340,59 @@ func (c *Client) NotifyFluxErrorEvent(ctx context.Context, artifactID, env, emai
 		Color:      MsgColorRed,
 		Text:       fmt.Sprintf("Error detected for *%s*\nArtifact: %s\nPath: `%s`\n```%s```", service, artifactID, errorPath, errorMessage),
 		MarkdownIn: []string{"text", "fields"},
+	})
+	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+func (c *Client) NotifyK8SDeployEvent(ctx context.Context, event *http.DeploymentEvent) error {
+	if c.muteOptions.Kubernetes {
+		return nil
+	}
+	userID, err := c.getIdByEmail(ctx, event.AuthorEmail)
+	if err != nil {
+		return err
+	}
+	asUser := slack.MsgOptionAsUser(true)
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      fmt.Sprintf(":kubernetes: k8s (%s) :white_check_mark:", event.Environment),
+		Color:      MsgColorGreen,
+		Text:       fmt.Sprintf("%s deployed\n%d/%d pods are running\nArtifact: *%s*", event.Name, event.AvailablePods, event.Replicas, event.ArtifactID),
+		MarkdownIn: []string{"text", "fields"},
+	})
+	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErrorEvent) error {
+	if c.muteOptions.Kubernetes {
+		return nil
+	}
+	userID, err := c.getIdByEmail(ctx, event.AuthorEmail)
+	if err != nil {
+		return err
+	}
+	asUser := slack.MsgOptionAsUser(true)
+	var fields []slack.AttachmentField
+	for _, container := range event.Errors {
+		fields = append(fields, slack.AttachmentField{
+			Title: fmt.Sprintf("Container: %s (%s)", container.Name, container.Type),
+			Value: fmt.Sprintf("```%s```", container.ErrorMessage),
+			Short: false,
+		})
+	}
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      fmt.Sprintf(":kubernetes: k8s (%s) :no_entry:", event.Environment),
+		Text:       fmt.Sprintf("Pod Error: %s\nArtifact: *%s*", event.PodName, event.ArtifactID),
+		Color:      "#e24d42",
+		MarkdownIn: []string{"text", "fields"},
+		Fields:     fields,
 	})
 	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
 	if err != nil {
