@@ -15,6 +15,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 
 	//deploymentutil "k8s.io/kubectl/pkg/util/deployment"
@@ -82,6 +83,9 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 			if e.Object == nil {
 				continue
 			}
+			if e.Type == watch.Deleted {
+				continue
+			}
 			deploy, ok := e.Object.(*appsv1.Deployment)
 			if !ok {
 				continue
@@ -103,6 +107,7 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 			if !ok {
 				continue
 			}
+			log.Infof("Event type: %v", e.Type)
 
 			// Notify the release-manager with the successful deployment event.
 			err = c.exporter.SendSuccessfulDeploymentEvent(ctx, event)
@@ -242,15 +247,6 @@ func isDeploymentSuccessful(deployment *appsv1.Deployment) (httpinternal.Deploym
 		if deployment.Status.AvailableReplicas < deployment.Status.UpdatedReplicas {
 			return httpinternal.DeploymentEvent{}, false, nil
 		}
-
-		log.Infof("Generation: %d, ObservedGeneration: %d", deployment.Generation, deployment.Status.ObservedGeneration)
-		// We discard events if the difference between creation and now is greater than 10s
-		// diff := time.Now().Sub(deployment.CreationTimestamp.Time)
-		// if diff > (time.Duration(10) * time.Second) {
-		// 	log.Infof("Timediff is greater than 10s and we should discard the event")
-		// 	return httpinternal.DeploymentEvent{}, false, nil
-		// }
-		log.Infof("DEPLOYMENT: %+v", deployment)
 		return httpinternal.DeploymentEvent{
 			Name:          deployment.Name,
 			Namespace:     deployment.Namespace,
