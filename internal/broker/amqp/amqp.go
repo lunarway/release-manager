@@ -47,6 +47,7 @@ type Config struct {
 	RoutingKey          string
 	Prefetch            int
 	ReconnectionTimeout time.Duration
+	RepublishTimeout    time.Duration
 	AMQPConfig          *amqp.Config
 	Logger              *log.Logger
 }
@@ -182,7 +183,9 @@ func (s *Worker) connect() error {
 		return errors.WithMessage(err, "create consumer")
 	}
 
-	rawPublisher, err := newPublisher(amqpConn, c.Exchange)
+	rawPublisher, err := newPublisher(amqpConn, c.Exchange, c.RepublishTimeout, func(ctx context.Context, reason error) {
+		c.Logger.WithContext(ctx).WithFields("reason", reason).Infof("Republishing message due to: '%v'", reason)
+	})
 	if err != nil {
 		return errors.WithMessage(err, "create publisher")
 	}

@@ -72,6 +72,7 @@ type amqpOptions struct {
 	Port                int
 	VirtualHost         string
 	ReconnectionTimeout time.Duration
+	RepublishTimeout    time.Duration
 	Prefetch            int
 	Exchange            string
 	Queue               string
@@ -329,6 +330,7 @@ func getBroker(c *brokerOptions) (broker.Broker, error) {
 				Port:        amqpOptions.Port,
 			},
 			ReconnectionTimeout: amqpOptions.ReconnectionTimeout,
+			RepublishTimeout:    amqpOptions.RepublishTimeout,
 			Exchange:            amqpOptions.Exchange,
 			Queue:               amqpOptions.Queue,
 			RoutingKey:          "#",
