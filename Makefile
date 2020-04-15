@@ -60,6 +60,8 @@ CONFIG_REPO=git@github.com:lunarway/release-manager-test-config-repo.git
 GRAFANA_URL=localhost
 GRAFANA_API_KEY=grafana-api-key
 SLACK_TOKEN=slack-token
+USER_MAPPINGS=
+BRANCH_RESTRICTIONS=
 SERVER_START=./dist/server start \
 		--ssh-private-key ${SSH_PRIVATE_KEY} \
 		--slack-token ${SLACK_TOKEN} \
@@ -69,7 +71,9 @@ SERVER_START=./dist/server start \
 		--daemon-auth-token ${AUTH_TOKEN} \
 		--log.level debug \
 		--log.development t \
-		--config-repo ${CONFIG_REPO}
+		--config-repo ${CONFIG_REPO} \
+		--user-mappings '${USER_MAPPINGS}' \
+		--policy-branch-restrictions '${BRANCH_RESTRICTIONS}'
 
 server-memory: build_server
 		$(SERVER_START) \
