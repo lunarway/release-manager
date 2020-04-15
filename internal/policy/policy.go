@@ -93,6 +93,7 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 
 	// merge global policies with local ones where globals take precedence
 	policies.BranchRestrictions = mergeBranchRestrictions(ctx, svc, s.GlobalBranchRestrictionPolicies, policies.BranchRestrictions)
+	log.WithContext(ctx).WithFields("globalPolicies", s.GlobalBranchRestrictionPolicies, "localPolicies", policies).Infof("Found %d policies", len(policies.BranchRestrictions)+len(policies.AutoReleases))
 
 	// a policy file might exist, but if all policies have been removed from it
 	// we can just act as if it didn't exist
