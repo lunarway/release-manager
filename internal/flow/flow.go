@@ -110,7 +110,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "dev")
-	devSpec, err := envSpec(s.Git.MasterPath, s.ArtifactFileName, service, "dev", defaultNamespace("dev"))
+	devSpec, err := envSpec(s.Git.MasterPath(), s.ArtifactFileName, service, "dev", defaultNamespace("dev"))
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -121,7 +121,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "staging")
-	stagingSpec, err := envSpec(s.Git.MasterPath, s.ArtifactFileName, service, "staging", defaultNamespace("staging"))
+	stagingSpec, err := envSpec(s.Git.MasterPath(), s.ArtifactFileName, service, "staging", defaultNamespace("staging"))
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -132,7 +132,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "prod")
-	prodSpec, err := envSpec(s.Git.MasterPath, s.ArtifactFileName, service, "prod", defaultNamespace("prod"))
+	prodSpec, err := envSpec(s.Git.MasterPath(), s.ArtifactFileName, service, "prod", defaultNamespace("prod"))
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {

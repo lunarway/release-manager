@@ -9,11 +9,12 @@ import (
 	"path"
 	"strings"
 
-	"github.com/lunarway/release-manager/internal/git"
+	internalgit "github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/lunarway/release-manager/internal/try"
 	"github.com/pkg/errors"
+	git "gopkg.in/src-d/go-git.v4"
 )
 
 var (
@@ -30,10 +31,16 @@ var (
 
 type Service struct {
 	Tracer tracing.Tracer
-	Git    *git.Service
+	Git    GitService
 
 	MaxRetries                      int
 	GlobalBranchRestrictionPolicies []BranchRestriction
+}
+
+type GitService interface {
+	MasterPath() string
+	Clone(context.Context, string) (*git.Repository, error)
+	Commit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error
 }
 
 type Actor struct {
@@ -70,7 +77,7 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 	defer span.Finish()
 
 	// make sure policy directory exists
-	policiesDir := path.Join(s.Git.MasterPath, "policies")
+	policiesDir := path.Join(s.Git.MasterPath(), "policies")
 	err := os.MkdirAll(policiesDir, os.ModePerm)
 	if err != nil {
 		return Policies{}, errors.WithMessagef(err, "make policies directory '%s'", policiesDir)
@@ -147,7 +154,7 @@ func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch
 		return "", ErrConflict
 	}
 
-	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, "auto-release")
+	commitMsg := internalgit.PolicyUpdateApplyCommitMessage(env, svc, "auto-release")
 	var policyID string
 	err = s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
 		policyID = p.SetAutoRelease(branch, env)
@@ -162,7 +169,7 @@ func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch
 func (s *Service) Delete(ctx context.Context, actor Actor, svc string, ids []string) (int, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.Delete")
 	defer span.Finish()
-	commitMsg := git.PolicyUpdateDeleteCommitMessage(svc)
+	commitMsg := internalgit.PolicyUpdateDeleteCommitMessage(svc)
 	var deleted int
 	err := s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
 		deleted = p.Delete(ids...)
@@ -177,7 +184,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.updatePolicies")
 	defer span.Finish()
 	return try.Do(ctx, s.Tracer, s.MaxRetries, func(ctx context.Context, attempt int) (bool, error) {
-		configRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-notify")
+		configRepoPath, close, err := internalgit.TempDirAsync(ctx, s.Tracer, "k8s-config-notify")
 		if err != nil {
 			return true, err
 		}
@@ -244,7 +251,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 		err = s.Git.Commit(ctx, configRepoPath, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg)
 		if err != nil {
 			// indicates that the applied policy was already set
-			if errors.Cause(err) == git.ErrNothingToCommit {
+			if errors.Cause(err) == internalgit.ErrNothingToCommit {
 				return true, nil
 			}
 			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", policiesPath))

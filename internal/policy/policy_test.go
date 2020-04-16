@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
@@ -340,11 +339,11 @@ func TestService_Get(t *testing.T) {
 				},
 				Development: true,
 			})
+			gitService := MockGitService{}
+			gitService.On("MasterPath").Return("testdata")
 			s := Service{
-				Tracer: tracing.NewNoop(),
-				Git: &git.Service{
-					MasterPath: "testdata",
-				},
+				Tracer:                          tracing.NewNoop(),
+				Git:                             &gitService,
 				GlobalBranchRestrictionPolicies: tc.globalPolicies,
 				MaxRetries:                      1,
 			}
