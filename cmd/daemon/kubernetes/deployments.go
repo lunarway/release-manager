@@ -53,7 +53,6 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 			if !ok {
 				continue
 			}
-			log.Infof("Event type: %v", e.Type)
 
 			// Notify the release-manager with the successful deployment event.
 			err = c.exporter.SendSuccessfulDeploymentEvent(ctx, event)
@@ -66,50 +65,41 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 }
 
 func isDeploymentSuccessful(c *kubernetes.Clientset, replicaSetTimeDiff time.Duration, deployment *appsv1.Deployment) (http.DeploymentEvent, bool, error) {
-	if deployment.Generation <= deployment.Status.ObservedGeneration {
-		cond := deploymentutil.GetDeploymentCondition(deployment.Status, appsv1.DeploymentProgressing)
-		if cond != nil {
-			if cond.Reason == "ProgressDeadlineExceeded" {
-				log.Errorf("deployment %s exceeded its progress deadline", deployment.Name)
-				// TODO: Maybe return a specific error here
-				return http.DeploymentEvent{}, false, nil
-			}
-			// It seems that this reduce unwanted messages when the release-daemon starts.
-			if cond.LastUpdateTime == cond.LastTransitionTime {
-				return http.DeploymentEvent{}, false, nil
-			}
-		}
-		// Waiting for deployment %q rollout to finish: %d out of %d new replicas have been updated...
-		if deployment.Spec.Replicas != nil && deployment.Status.UpdatedReplicas < *deployment.Spec.Replicas {
-			return http.DeploymentEvent{}, false, nil
-		}
-		// Waiting for deployment %q rollout to finish: %d old replicas are pending termination...
-		if deployment.Status.Replicas > deployment.Status.UpdatedReplicas {
-			return http.DeploymentEvent{}, false, nil
-		}
-		// Waiting for deployment %q rollout to finish: %d of %d updated replicas are available...
-		if deployment.Status.AvailableReplicas < deployment.Status.UpdatedReplicas {
-			return http.DeploymentEvent{}, false, nil
-		}
-
-		newRs, err := deploymentutil.GetNewReplicaSet(deployment, c.AppsV1())
-		if err != nil {
-			return http.DeploymentEvent{}, false, nil
-		}
-		//We discard events if the difference between creation time of the ReplicaSet and now is greater than replicaSetTimeDiff
-		diff := time.Since(newRs.CreationTimestamp.Time)
-		if diff > replicaSetTimeDiff {
-			return http.DeploymentEvent{}, false, nil
-		}
-		return http.DeploymentEvent{
-			Name:          deployment.Name,
-			Namespace:     deployment.Namespace,
-			ArtifactID:    deployment.Annotations["lunarway.com/artifact-id"],
-			AuthorEmail:   deployment.Annotations["lunarway.com/author"],
-			AvailablePods: deployment.Status.AvailableReplicas,
-			Replicas:      *deployment.Spec.Replicas,
-		}, true, nil
+	if !deploymentutil.DeploymentComplete(deployment, &deployment.Status) {
+		return http.DeploymentEvent{}, false, nil
 	}
+	cond := deploymentutil.GetDeploymentCondition(deployment.Status, appsv1.DeploymentProgressing)
+	if cond != nil {
+		if cond.Reason == "ProgressDeadlineExceeded" {
+			log.Errorf("deployment %s exceeded its progress deadline", deployment.Name)
+			// TODO: Maybe return a specific error here
+			return http.DeploymentEvent{}, false, nil
+		}
+		// It seems that this reduce unwanted messages when the release-daemon starts.
+		if cond.LastUpdateTime == cond.LastTransitionTime {
+			return http.DeploymentEvent{}, false, nil
+		}
+	}
+
+	// Retrieve the new ReplicaSet to determince whether or not this is a new deployment event or not.
+	newRs, err := deploymentutil.GetNewReplicaSet(deployment, c.AppsV1())
+	if err != nil {
+		return http.DeploymentEvent{}, false, nil
+	}
+	//We discard events if the difference between creation time of the ReplicaSet and now is greater than replicaSetTimeDiff
+	diff := time.Since(newRs.CreationTimestamp.Time)
+	if diff > replicaSetTimeDiff {
+		return http.DeploymentEvent{}, false, nil
+	}
+	return http.DeploymentEvent{
+		Name:          deployment.Name,
+		Namespace:     deployment.Namespace,
+		ArtifactID:    deployment.Annotations["lunarway.com/artifact-id"],
+		AuthorEmail:   deployment.Annotations["lunarway.com/author"],
+		AvailablePods: deployment.Status.AvailableReplicas,
+		Replicas:      *deployment.Spec.Replicas,
+	}, true, nil
+
 	return http.DeploymentEvent{}, false, nil
 }
 
