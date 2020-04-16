@@ -26,6 +26,8 @@ func (c *Client) HandlePodErrors(ctx context.Context) error {
 
 	for {
 		select {
+		case <-ctx.Done():
+			watcher.Stop()
 		case e, ok := <-watcher.ResultChan():
 			if !ok {
 				return ErrWatcherClosed
@@ -108,10 +110,6 @@ func (c *Client) HandlePodErrors(ctx context.Context) error {
 				}
 				continue
 			}
-
-		case <-ctx.Done():
-			watcher.Stop()
-			return ctx.Err()
 		}
 	}
 }
