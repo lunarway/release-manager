@@ -90,7 +90,7 @@ type FluxNotifyRequest struct {
 type DeploymentEvent struct {
 	Name          string `json:"name,omitempty"`
 	Namespace     string `json:"namespace,omitempty"`
-	AvailablePods int32  `json:"podCount,omitempty"`
+	AvailablePods int32  `json:"availablePods"`
 	Replicas      int32  `json:"replicas,omitempty"`
 	ArtifactID    string `json:"artifactId,omitempty"`
 	AuthorEmail   string `json:"authorEmail,omitempty"`
