@@ -58,7 +58,7 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 			// Notify the release-manager with the successful deployment event.
 			err = c.exporter.SendSuccessfulDeploymentEvent(ctx, event)
 			if err != nil {
-				log.Errorf("error SendSuccessfulDeploymentEvent")
+				log.Errorf("Failed to send successful deployment event: %v", err)
 				continue
 			}
 		}
