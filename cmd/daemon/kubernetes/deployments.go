@@ -137,8 +137,5 @@ func isDeploymentCorrectlyAnnotated(deploy *appsv1.Deployment) bool {
 
 // Avoid reporting on pods that has been marked for termination
 func isDeploymentMarkedForTermination(deploy *appsv1.Deployment) bool {
-	if deploy.DeletionTimestamp != nil {
-		return true
-	}
-	return false
+	return deploy.DeletionTimestamp != nil
 }

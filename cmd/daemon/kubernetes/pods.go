@@ -132,10 +132,7 @@ func isPodCorrectlyAnnotated(pod *corev1.Pod) bool {
 
 // Avoid reporting on pods that has been marked for termination
 func isPodMarkedForTermination(pod *corev1.Pod) bool {
-	if pod.DeletionTimestamp != nil {
-		return true
-	}
-	return false
+	return pod.DeletionTimestamp != nil
 }
 
 // isPodInCrashLoopBackOff - checks the PodStatus and indicates whether the Pod is in CrashLoopBackOff
