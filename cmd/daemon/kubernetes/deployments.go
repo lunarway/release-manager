@@ -44,7 +44,7 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 			}
 
 			// Check the received event, and determine whether or not this was a successful deployment.
-			event, ok, err := isDeploymentSuccessful(c.clientset, deploy)
+			event, ok, err := isDeploymentSuccessful(c.clientset, c.replicaSetTimeDiff, deploy)
 			if err != nil {
 				return err
 			}
@@ -66,7 +66,7 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 	return nil
 }
 
-func isDeploymentSuccessful(c *kubernetes.Clientset, deployment *appsv1.Deployment) (httpinternal.DeploymentEvent, bool, error) {
+func isDeploymentSuccessful(c *kubernetes.Clientset, replicaSetTimeDiff time.Duration, deployment *appsv1.Deployment) (httpinternal.DeploymentEvent, bool, error) {
 	if deployment.Generation <= deployment.Status.ObservedGeneration {
 		cond := deploymentutil.GetDeploymentCondition(deployment.Status, appsv1.DeploymentProgressing)
 		if cond != nil && cond.Reason == "ProgressDeadlineExceeded" {
@@ -95,15 +95,11 @@ func isDeploymentSuccessful(c *kubernetes.Clientset, deployment *appsv1.Deployme
 		if err != nil {
 			return httpinternal.DeploymentEvent{}, false, nil
 		}
-		log.Infof("New Replicaset: %s, CreationTime: %s", newRs.Name, newRs.CreationTimestamp)
-		//We discard events if the difference between creation and now is greater than 10s
-		diff := time.Now().Sub(newRs.CreationTimestamp.Time)
-		if diff > (time.Duration(10) * time.Second) {
-			log.Infof("Timediff is greater than 10s and we should discard the event")
+		//We discard events if the difference between creation time of the ReplicaSet and now is greater than replicaSetTimeDiff
+		diff := time.Since(newRs.CreationTimestamp.Time)
+		if diff > (replicaSetTimeDiff) {
 			return httpinternal.DeploymentEvent{}, false, nil
 		}
-		log.Infof("Revision: %s, RevisionHistory: %s", deployment.Annotations["deployment.kubernetes.io/revision"], deployment.Annotations["deployment.kubernetes.io/revision-history"])
-
 		return httpinternal.DeploymentEvent{
 			Name:          deployment.Name,
 			Namespace:     deployment.Namespace,

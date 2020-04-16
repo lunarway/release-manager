@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
+	"time"
 
 	//deploymentutil "k8s.io/kubectl/pkg/util/deployment"
 
@@ -14,13 +15,14 @@ type Client struct {
 	clientset              *kubernetes.Clientset
 	exporter               Exporter
 	moduloCrashReportNotif float64
+	replicaSetTimeDiff     time.Duration
 }
 
 var (
 	ErrWatcherClosed = errors.New("channel closed")
 )
 
-func NewClient(kubeConfigPath string, moduloCrashReportNotif float64, e Exporter) (*Client, error) {
+func NewClient(kubeConfigPath string, moduloCrashReportNotif float64, replicaSetTimeDiff time.Duration, e Exporter) (*Client, error) {
 	if kubeConfigPath != "" {
 		// we run outside a cluster
 		config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
@@ -51,5 +53,6 @@ func NewClient(kubeConfigPath string, moduloCrashReportNotif float64, e Exporter
 		clientset:              clientset,
 		exporter:               e,
 		moduloCrashReportNotif: moduloCrashReportNotif,
+		replicaSetTimeDiff:     replicaSetTimeDiff,
 	}, nil
 }

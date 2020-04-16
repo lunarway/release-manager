@@ -24,6 +24,7 @@ func StartDaemon() *cobra.Command {
 	var environment, kubeConfigPath, fluxApiBinding string
 	var moduloCrashReportNotif float64
 	var logConfiguration *log.Configuration
+	var replicaSetTimeDiff time.Duration
 
 	client := httpinternal.Client{}
 	var command = &cobra.Command{
@@ -35,7 +36,7 @@ func StartDaemon() *cobra.Command {
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 
-			kubectl, err := kubernetes.NewClient(kubeConfigPath, moduloCrashReportNotif, &kubernetes.ReleaseManagerExporter{
+			kubectl, err := kubernetes.NewClient(kubeConfigPath, moduloCrashReportNotif, replicaSetTimeDiff, &kubernetes.ReleaseManagerExporter{
 				Log:         log.With("type", "k8s-exporter"),
 				Client:      client,
 				Environment: environment,
@@ -108,6 +109,7 @@ func StartDaemon() *cobra.Command {
 	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "path to kubeconfig file. If not specified, then daemon is expected to run inside kubernetes")
 	command.Flags().StringVar(&fluxApiBinding, "flux-api-binding", ":8080", "binding of the daemon flux api server")
 	command.Flags().Float64Var(&moduloCrashReportNotif, "modulo-crash-report-notif", 5, "modulo for how often to report CrashLoopBackOff events")
+	command.Flags().DurationVar(&replicaSetTimeDiff, "replicaset-creation-time-diff", 10*time.Second, "the duration from creation of replicaset to when its not considered new")
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
 	//nolint:errcheck
