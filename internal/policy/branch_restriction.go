@@ -34,9 +34,17 @@ func (s *Service) ApplyBranchRestriction(ctx context.Context, actor Actor, svc, 
 		return "", err
 	}
 	for _, policy := range policies.AutoReleases {
-		if re.MatchString(policy.Branch) {
-			return "", ErrConflict
+		if policy.Environment == env && !re.MatchString(policy.Branch) {
+			return "", errors.WithMessagef(ErrConflict, "conflict with %s", policy.ID)
 		}
+	}
+
+	// check that it does not conflict with a global policy
+	if conflictingBranchRestriction(ctx, svc, s.GlobalBranchRestrictionPolicies, BranchRestriction{
+		BranchRegex: branchRegex,
+		Environment: env,
+	}) {
+		return "", errors.WithMessagef(ErrConflict, "conflicts with global policy")
 	}
 
 	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, "branch-restriction")
