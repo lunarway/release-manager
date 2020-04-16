@@ -121,7 +121,7 @@ func isDeploymentCorrectlyAnnotated(deploy *appsv1.Deployment) bool {
 
 	// Just discard the event if there's no artifact id
 	if deploy.Annotations["lunarway.com/artifact-id"] == "" {
-		log.Errorf("artifact-id missing in deployment: namespace '%s' pod '%s'", deploy.Namespace, deploy.Name)
+		log.Errorf("artifact-id missing in deployment: namespace '%s' name '%s'", deploy.Namespace, deploy.Name)
 		return false
 	}
 
