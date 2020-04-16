@@ -273,7 +273,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					return flowSvc.ExecRollback(context.Background(), event)
 				},
 			}
-			brokerImpl, err := getBroker(*startOptions.broker)
+			brokerImpl, err := getBroker(startOptions.broker)
 			if err != nil {
 				return errors.WithMessage(err, "setup broker")
 			}
