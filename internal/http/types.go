@@ -97,9 +97,9 @@ type DeploymentEvent struct {
 	Environment   string `json:"environment,omitempty"`
 }
 type ContainerError struct {
-	Name         string `json:"name"`
-	ErrorMessage string `json:"message"`
-	Type         string `json:"type"`
+	Name         string `json:"name,omitempty"`
+	ErrorMessage string `json:"message,omitempty"`
+	Type         string `json:"type,omitempty"`
 }
 
 type PodErrorEvent struct {
