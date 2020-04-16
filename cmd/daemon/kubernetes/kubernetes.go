@@ -5,7 +5,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"time"
 
-	//deploymentutil "k8s.io/kubectl/pkg/util/deployment"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
