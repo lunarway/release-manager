@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,41 +65,41 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 	}
 }
 
-func isDeploymentSuccessful(c *kubernetes.Clientset, replicaSetTimeDiff time.Duration, deployment *appsv1.Deployment) (httpinternal.DeploymentEvent, bool, error) {
+func isDeploymentSuccessful(c *kubernetes.Clientset, replicaSetTimeDiff time.Duration, deployment *appsv1.Deployment) (http.DeploymentEvent, bool, error) {
 	if deployment.Generation <= deployment.Status.ObservedGeneration {
 		cond := deploymentutil.GetDeploymentCondition(deployment.Status, appsv1.DeploymentProgressing)
 		if cond != nil && cond.Reason == "ProgressDeadlineExceeded" {
 			log.Errorf("deployment %q exceeded its progress deadline", deployment.Name)
 			// TODO: Maybe return a specific error here
-			return httpinternal.DeploymentEvent{}, false, nil
+			return http.DeploymentEvent{}, false, nil
 		}
 		//
 		if cond.LastUpdateTime == cond.LastTransitionTime {
-			return httpinternal.DeploymentEvent{}, false, nil
+			return http.DeploymentEvent{}, false, nil
 		}
 		// Waiting for deployment %q rollout to finish: %d out of %d new replicas have been updated...
 		if deployment.Spec.Replicas != nil && deployment.Status.UpdatedReplicas < *deployment.Spec.Replicas {
-			return httpinternal.DeploymentEvent{}, false, nil
+			return http.DeploymentEvent{}, false, nil
 		}
 		// Waiting for deployment %q rollout to finish: %d old replicas are pending termination...
 		if deployment.Status.Replicas > deployment.Status.UpdatedReplicas {
-			return httpinternal.DeploymentEvent{}, false, nil
+			return http.DeploymentEvent{}, false, nil
 		}
 		// Waiting for deployment %q rollout to finish: %d of %d updated replicas are available...
 		if deployment.Status.AvailableReplicas < deployment.Status.UpdatedReplicas {
-			return httpinternal.DeploymentEvent{}, false, nil
+			return http.DeploymentEvent{}, false, nil
 		}
 
 		newRs, err := deploymentutil.GetNewReplicaSet(deployment, c.AppsV1())
 		if err != nil {
-			return httpinternal.DeploymentEvent{}, false, nil
+			return http.DeploymentEvent{}, false, nil
 		}
 		//We discard events if the difference between creation time of the ReplicaSet and now is greater than replicaSetTimeDiff
 		diff := time.Since(newRs.CreationTimestamp.Time)
 		if diff > (replicaSetTimeDiff) {
-			return httpinternal.DeploymentEvent{}, false, nil
+			return http.DeploymentEvent{}, false, nil
 		}
-		return httpinternal.DeploymentEvent{
+		return http.DeploymentEvent{
 			Name:          deployment.Name,
 			Namespace:     deployment.Namespace,
 			ArtifactID:    deployment.Annotations["lunarway.com/artifact-id"],
@@ -108,7 +108,7 @@ func isDeploymentSuccessful(c *kubernetes.Clientset, replicaSetTimeDiff time.Dur
 			Replicas:      *deployment.Spec.Replicas,
 		}, true, nil
 	}
-	return httpinternal.DeploymentEvent{}, false, nil
+	return http.DeploymentEvent{}, false, nil
 }
 
 func isDeploymentCorrectlyAnnotated(deploy *appsv1.Deployment) bool {
