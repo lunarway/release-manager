@@ -406,7 +406,7 @@ func daemonk8sPodErrorWebhook(payload *payload, flowSvc *flow.Service) http.Hand
 		var event httpinternal.PodErrorEvent
 		err := payload.decodeResponse(ctx, r.Body, &event)
 		if err != nil {
-			logger.Errorf("http: daemon k8s create config error webhook: decode request body failed: %v", err)
+			logger.Errorf("http: daemon k8s pod error webhook: decode request body failed: %v", err)
 			invalidBodyError(w)
 			return
 		}
