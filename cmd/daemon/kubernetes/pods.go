@@ -60,7 +60,7 @@ func (c *Client) HandlePodErrors(ctx context.Context) error {
 
 						logs, err := getLogs(ctx, c.clientset, pod.Name, cst.Name, pod.Namespace)
 						if err != nil {
-							log.Errorf("Error retrieving logs from pod: %s, container: %s, namespace: %s", pod.Name, cst.Name, pod.Namespace)
+							log.Errorf("Error retrieving logs from pod: %s, container: %s, namespace: %s: %v", pod.Name, cst.Name, pod.Namespace, err)
 						}
 
 						errorContainers = append(errorContainers, http.ContainerError{
