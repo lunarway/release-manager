@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crashloopbackoff
+  labels:
+    app: crashloopbackoff
+  annotations:
+    kubernetes.io/change-cause: 'nginx:1.14.2'
+    lunarway.com/author: 'kni@lunar.app'
+    lunarway.com/artifact-id: 'master-1fdc8087ee-5d4da5aa89'
+    lunarway.com/controlled-by-release-manager: 'true'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crashloopbackoff
+  template:
+    metadata:
+      labels:
+        app: crashloopbackoff
+      annotations:
+        kubernetes.io/change-cause: 'nginx:1.14.2'
+        lunarway.com/author: 'kni@lunar.app'
+        lunarway.com/artifact-id: 'master-1fdc8087ee-5d4da5aa89'
+        lunarway.com/controlled-by-release-manager: 'true'
+    spec:
+      containers:
+      - name: container1
+        image: alpine
+        command: [ 'sh' ]
+        args: [ "-c", "echo 'Im a crashing container'", "exit 666" ]
+      - name: container2
+        image: alpine
+        command: [ 'sh' ]
+        args: [ "-c", "echo 'Im another crashing container'", "exit 666" ]

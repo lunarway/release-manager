@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: createconfigerror
+  labels:
+    app: createconfigerror
+  annotations:
+    kubernetes.io/change-cause: 'nginx:1.14.2'
+    lunarway.com/author: 'kni@lunar.app'
+    lunarway.com/artifact-id: 'master-1fdc8087ee-5d4da5aa89'
+    lunarway.com/controlled-by-release-manager: 'true'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: createconfigerror
+  template:
+    metadata:
+      labels:
+        app: createconfigerror
+      annotations:
+        kubernetes.io/change-cause: 'nginx:1.14.2'
+        lunarway.com/author: 'kni@lunar.app'
+        lunarway.com/artifact-id: 'master-1fdc8087ee-5d4da5aa89'
+        lunarway.com/controlled-by-release-manager: 'true'
+    spec:
+      containers:
+      - name: container1
+        image: alpine
+        command: [ 'sh' ]
+        args: [ '-c', 'sleep 666' ]
+        env:
+        - name: test
+          valueFrom:
+            configMapKeyRef:
+              name: createconfigerror
+              key: not.exist
+      - name: container2
+        image: alpine
+        command: [ 'sh' ]
+        args: [ '-c', 'sleep 666' ]
+        env:
+        - name: test
+          valueFrom:
+            configMapKeyRef:
+              name: createconfigerror
+              key: test
+      - name: container3
+        image: alpine
+        command: [ 'sh' ]
+        args: [ '-c', 'sleep 666' ]
+        env:
+        - name: test
+          valueFrom:
+            configMapKeyRef:
+              name: createconfigerror
+              key: not.exist1
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: createconfigerror
+  namespace: default
+data:
+  test: test

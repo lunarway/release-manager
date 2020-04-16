@@ -87,30 +87,30 @@ type FluxNotifyRequest struct {
 	FluxEvent   event.Event
 }
 
-type PodNotifyResponse struct {
+type DeploymentEvent struct {
+	Name          string `json:"name,omitempty"`
+	Namespace     string `json:"namespace,omitempty"`
+	AvailablePods int32  `json:"availablePods"`
+	Replicas      int32  `json:"replicas,omitempty"`
+	ArtifactID    string `json:"artifactId,omitempty"`
+	AuthorEmail   string `json:"authorEmail,omitempty"`
+	Environment   string `json:"environment,omitempty"`
+}
+type ContainerError struct {
+	Name         string `json:"name,omitempty"`
+	ErrorMessage string `json:"message,omitempty"`
+	Type         string `json:"type,omitempty"`
 }
 
-type PodNotifyRequest struct {
-	Namespace      string      `json:"namespace"`
-	Name           string      `json:"name"`
-	State          string      `json:"state"`
-	Reason         string      `json:"reason"`
-	Message        string      `json:"message"`
-	Containers     []Container `json:"containers"`
-	ArtifactID     string      `json:"artifactId"`
-	Logs           string      `json:"logs"`
-	Environment    string      `json:"environment"`
-	CommitterEmail string      `json:"committerEmail"`
-	AuthorEmail    string      `json:"authorEmail"`
+type PodErrorEvent struct {
+	PodName     string `json:"podName,omitempty"`
+	Namespace   string `json:"namespace,omitempty"`
+	Errors      []ContainerError `json:"errors,omitempty"`
+	AuthorEmail string `json:"authorEmail,omitempty"`
+	Environment string `json:"environment,omitempty"`
+	ArtifactID  string `json:"artifactId,omitempty"`
 }
-
-type Container struct {
-	Name         string `json:"name"`
-	State        string `json:"state"`
-	Reason       string `json:"reason"`
-	Message      string `json:"message"`
-	Ready        bool   `json:"ready"`
-	RestartCount int32  `json:"restartCount"`
+type KubernetesNotifyResponse struct {
 }
 
 type ListPoliciesResponse struct {

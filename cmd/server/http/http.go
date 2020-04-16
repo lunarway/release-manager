@@ -50,8 +50,9 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	mux.HandleFunc("/policies/", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(&payloader, policySvc))))
 	mux.HandleFunc("/describe/", trace(tracer, authenticate(opts.HamCtlAuthToken, describe(&payloader, flowSvc))))
 	mux.HandleFunc("/webhook/github", trace(tracer, githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret)))
-	mux.HandleFunc("/webhook/daemon", trace(tracer, authenticate(opts.DaemonAuthToken, daemonWebhook(&payloader, flowSvc))))
 	mux.HandleFunc("/webhook/daemon/flux", trace(tracer, authenticate(opts.DaemonAuthToken, daemonFluxWebhook(&payloader, flowSvc))))
+	mux.HandleFunc("/webhook/daemon/k8s/deploy", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sDeployWebhook(&payloader, flowSvc))))
+	mux.HandleFunc("/webhook/daemon/k8s/error", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sPodErrorWebhook(&payloader, flowSvc))))
 
 	// profiling endpoints
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -342,40 +343,6 @@ func rollback(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	}
 }
 
-func daemonWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// copy span from request context but ignore any deadlines on the request context
-		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
-		logger := log.WithContext(ctx)
-		var podNotify httpinternal.PodNotifyRequest
-		err := payload.decodeResponse(ctx, r.Body, &podNotify)
-		if err != nil {
-			logger.Errorf("http: daemon webhook: decode request body failed: %v", err)
-			invalidBodyError(w)
-			return
-		}
-		logger = logger.WithFields("pod", podNotify.Name,
-			"namespace", podNotify.Namespace,
-			"environment", podNotify.Environment,
-			"state", podNotify.State,
-			"message", podNotify.Message,
-			"reason", podNotify.Reason,
-			"artifactId", podNotify.ArtifactID,
-			"raw", podNotify)
-
-		err = flowSvc.NotifyCommitter(ctx, &podNotify)
-		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
-			logger.Errorf("http: daemon webhook failed: pod '%s' namespace '%s' environment: '%s' notify committer: %v", podNotify.Name, podNotify.Namespace, podNotify.Environment, err)
-		}
-		w.WriteHeader(http.StatusOK)
-		err = payload.encodeResponse(ctx, w, httpinternal.PodNotifyResponse{})
-		if err != nil {
-			logger.Errorf("http: daemon webhook: pod '%s' namespace '%s' environment: '%s' marshal response: %v", podNotify.Name, podNotify.Namespace, podNotify.Environment, err)
-		}
-		logger.Infof("http: daemon webhook: pod '%s' namespace '%s' environment '%s': Pod event handled: state=%s", podNotify.Name, podNotify.Namespace, podNotify.Environment, podNotify.State)
-	}
-}
-
 func daemonFluxWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
@@ -397,11 +364,63 @@ func daemonFluxWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc
 			logger.Errorf("http: daemon flux webhook failed: %+v", err)
 		}
 		w.WriteHeader(http.StatusOK)
-		err = payload.encodeResponse(ctx, w, httpinternal.PodNotifyResponse{})
+		err = payload.encodeResponse(ctx, w, httpinternal.FluxNotifyResponse{})
 		if err != nil {
 			logger.Errorf("http: daemon flux webhook: environment: '%s' marshal response: %v", fluxNotifyEvent.Environment, err)
 		}
 		logger.Infof("http: daemon flux webhook: handled")
+	}
+}
+
+func daemonk8sDeployWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// copy span from request context but ignore any deadlines on the request context
+		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
+		logger := log.WithContext(ctx)
+		var k8sDeployEvent httpinternal.DeploymentEvent
+		err := payload.decodeResponse(ctx, r.Body, &k8sDeployEvent)
+		if err != nil {
+			logger.Errorf("http: daemon k8s deploy webhook: decode request body failed: %v", err)
+			invalidBodyError(w)
+			return
+		}
+		logger = logger.WithFields("event", k8sDeployEvent)
+		err = flowSvc.NotifyK8SDeployEvent(ctx, &k8sDeployEvent)
+		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
+			logger.Errorf("http: daemon k8s deploy webhook failed: %+v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+		err = payload.encodeResponse(ctx, w, httpinternal.KubernetesNotifyResponse{})
+		if err != nil {
+			logger.Errorf("http: daemon k8s deploy webhook: environment: '%s' marshal response: %v", k8sDeployEvent.Environment, err)
+		}
+		logger.Infof("http: daemon k8s deploy webhook: handled")
+	}
+}
+
+func daemonk8sPodErrorWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// copy span from request context but ignore any deadlines on the request context
+		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
+		logger := log.WithContext(ctx)
+		var event httpinternal.PodErrorEvent
+		err := payload.decodeResponse(ctx, r.Body, &event)
+		if err != nil {
+			logger.Errorf("http: daemon k8s pod error webhook: decode request body failed: %v", err)
+			invalidBodyError(w)
+			return
+		}
+		logger = logger.WithFields("event", event)
+		err = flowSvc.NotifyK8SPodErrorEvent(ctx, &event)
+		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
+			logger.Errorf("http: daemon k8s pod error webhook failed: %+v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+		err = payload.encodeResponse(ctx, w, httpinternal.KubernetesNotifyResponse{})
+		if err != nil {
+			logger.Errorf("http: daemon k8s pod error webhook: environment: '%s' marshal response: %v", event.Environment, err)
+		}
+		logger.Infof("http: daemon k8s pod error webhook: handled")
 	}
 }
 
