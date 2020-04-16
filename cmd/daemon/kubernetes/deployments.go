@@ -98,7 +98,7 @@ func isDeploymentSuccessful(c *kubernetes.Clientset, replicaSetTimeDiff time.Dur
 		}
 		//We discard events if the difference between creation time of the ReplicaSet and now is greater than replicaSetTimeDiff
 		diff := time.Since(newRs.CreationTimestamp.Time)
-		if diff > (replicaSetTimeDiff) {
+		if diff > replicaSetTimeDiff {
 			return http.DeploymentEvent{}, false, nil
 		}
 		return http.DeploymentEvent{
