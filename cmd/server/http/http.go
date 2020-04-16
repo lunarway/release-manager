@@ -418,7 +418,7 @@ func daemonk8sPodErrorWebhook(payload *payload, flowSvc *flow.Service) http.Hand
 		w.WriteHeader(http.StatusOK)
 		err = payload.encodeResponse(ctx, w, httpinternal.KubernetesNotifyResponse{})
 		if err != nil {
-			logger.Errorf("http: daemon k8s deploy webhook: environment: '%s' marshal response: %v", event.Environment, err)
+			logger.Errorf("http: daemon k8s pod error webhook: environment: '%s' marshal response: %v", event.Environment, err)
 		}
 		logger.Infof("http: daemon k8s deploy webhook: handled")
 	}
