@@ -36,7 +36,7 @@ func (e *ReleaseManagerExporter) SendSuccessfulDeploymentEvent(ctx context.Conte
 	return nil
 }
 
-func (e *ReleaseManagerExporter) SendPodErrorEvent(c context.Context, event httpinternal.PodErrorEvent) error {
+func (e *ReleaseManagerExporter) SendPodErrorEvent(ctx context.Context, event httpinternal.PodErrorEvent) error {
 	e.Log.With("event", event).Infof("PodError Event")
 	var resp httpinternal.KubernetesNotifyResponse
 	url, err := e.Client.URL("webhook/daemon/k8s/error")
