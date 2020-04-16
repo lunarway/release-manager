@@ -420,7 +420,7 @@ func daemonk8sPodErrorWebhook(payload *payload, flowSvc *flow.Service) http.Hand
 		if err != nil {
 			logger.Errorf("http: daemon k8s pod error webhook: environment: '%s' marshal response: %v", event.Environment, err)
 		}
-		logger.Infof("http: daemon k8s deploy webhook: handled")
+		logger.Infof("http: daemon k8s pod error webhook: handled")
 	}
 }
 
