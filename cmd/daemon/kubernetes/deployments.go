@@ -74,6 +74,7 @@ func isDeploymentSuccessful(c *kubernetes.Clientset, replicaSetTimeDiff time.Dur
 				// TODO: Maybe return a specific error here
 				return http.DeploymentEvent{}, false, nil
 			}
+			// It seems that this reduce unwanted messages when the release-daemon starts.
 			if cond.LastUpdateTime == cond.LastTransitionTime {
 				return http.DeploymentEvent{}, false, nil
 			}
