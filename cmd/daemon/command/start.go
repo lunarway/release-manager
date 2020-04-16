@@ -77,6 +77,16 @@ func StartDaemon() *cobra.Command {
 
 			go func() {
 				for {
+					err = kubectl.HandleNewDaemonSets(context.Background())
+					if err != nil && err != kubernetes.ErrWatcherClosed {
+						done <- errors.WithMessage(err, "kubectl handle new daemonsets: watcher closed")
+						return
+					}
+				}
+			}()
+
+			go func() {
+				for {
 					err = kubectl.HandlePodErrors(context.Background())
 					if err != nil && err != kubernetes.ErrWatcherClosed {
 						done <- errors.WithMessage(err, "kubectl handle pod errors: watcher closed")
