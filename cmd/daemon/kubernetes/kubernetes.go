@@ -1,12 +1,12 @@
 package kubernetes
 
 import (
-	"github.com/pkg/errors"
-	"k8s.io/client-go/kubernetes"
 	"time"
 
+	"github.com/pkg/errors"
+	"k8s.io/client-go/kubernetes"
 
-	"k8s.io/client-go/rest"
+
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -22,27 +22,10 @@ var (
 )
 
 func NewClient(kubeConfigPath string, moduloCrashReportNotif float64, replicaSetTimeDiff time.Duration, e Exporter) (*Client, error) {
-	if kubeConfigPath != "" {
-		// we run outside a cluster
-		config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
-		if err != nil {
-			return nil, err
-		}
-		clientset, err := kubernetes.NewForConfig(config)
-		if err != nil {
-			return nil, err
-		}
-		return &Client{
-			clientset: clientset,
-		}, nil
-	}
-
-	// we run within a cluster
-	config, err := rest.InClusterConfig()
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
 		return nil, err
 	}
-
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
