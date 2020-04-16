@@ -113,35 +113,6 @@ type PodErrorEvent struct {
 type KubernetesNotifyResponse struct {
 }
 
-//DEPRECATED
-type PodNotifyResponse struct {
-}
-
-//DEPRECATED
-type PodNotifyRequest struct {
-	Namespace      string      `json:"namespace"`
-	Name           string      `json:"name"`
-	State          string      `json:"state"`
-	Reason         string      `json:"reason"`
-	Message        string      `json:"message"`
-	Containers     []Container `json:"containers"`
-	ArtifactID     string      `json:"artifactId"`
-	Logs           string      `json:"logs"`
-	Environment    string      `json:"environment"`
-	CommitterEmail string      `json:"committerEmail"`
-	AuthorEmail    string      `json:"authorEmail"`
-}
-
-//DEPRECATED
-type Container struct {
-	Name         string `json:"name"`
-	State        string `json:"state"`
-	Reason       string `json:"reason"`
-	Message      string `json:"message"`
-	Ready        bool   `json:"ready"`
-	RestartCount int32  `json:"restartCount"`
-}
-
 type ListPoliciesResponse struct {
 	Service            string                    `json:"service,omitempty"`
 	AutoReleases       []AutoReleasePolicy       `json:"autoReleases,omitempty"`

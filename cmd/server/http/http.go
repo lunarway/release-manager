@@ -364,7 +364,7 @@ func daemonFluxWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc
 			logger.Errorf("http: daemon flux webhook failed: %+v", err)
 		}
 		w.WriteHeader(http.StatusOK)
-		err = payload.encodeResponse(ctx, w, httpinternal.PodNotifyResponse{})
+		err = payload.encodeResponse(ctx, w, httpinternal.FluxNotifyResponse{})
 		if err != nil {
 			logger.Errorf("http: daemon flux webhook: environment: '%s' marshal response: %v", fluxNotifyEvent.Environment, err)
 		}
