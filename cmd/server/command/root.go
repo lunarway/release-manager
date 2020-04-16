@@ -7,7 +7,9 @@ import (
 
 	"github.com/lunarway/release-manager/cmd/server/http"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/slack"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -21,6 +23,8 @@ func NewCommand() (*cobra.Command, error) {
 	var configRepoOpts configRepoOptions
 	var users []string
 	var userMappings map[string]string
+	var branchRestrictionsList []string
+	var branchRestrictions []policy.BranchRestriction
 	var logConfiguration *log.Configuration
 	var slackMuteOpts slack.MuteOptions
 
@@ -35,8 +39,13 @@ func NewCommand() (*cobra.Command, error) {
 			var err error
 			userMappings, err = slack.ParseUserMappings(users)
 			if err != nil {
-				return err
+				return errors.WithMessage(err, "user mappings")
 			}
+			branchRestrictions, err = parseBranchRestrictions(branchRestrictionsList)
+			if err != nil {
+				return errors.WithMessage(err, "branch restrictions")
+			}
+
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 			return nil
@@ -45,7 +54,17 @@ func NewCommand() (*cobra.Command, error) {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(NewStart(&grafanaOpts, &slackAuthToken, &githubAPIToken, &configRepoOpts, &httpOpts, &brokerOpts, &slackMuteOpts, &userMappings))
+	command.AddCommand(NewStart(&startOptions{
+		grafana:                   &grafanaOpts,
+		slackAuthToken:            &slackAuthToken,
+		githubAPIToken:            &githubAPIToken,
+		configRepo:                &configRepoOpts,
+		http:                      &httpOpts,
+		broker:                    &brokerOpts,
+		slackMutes:                &slackMuteOpts,
+		userMappings:              &userMappings,
+		branchRestrictionPolicies: &branchRestrictions,
+	}))
 	command.PersistentFlags().IntVar(&httpOpts.Port, "http-port", 8080, "port of the http server")
 	command.PersistentFlags().DurationVar(&httpOpts.Timeout, "timeout", 20*time.Second, "HTTP server timeout for incomming requests")
 	command.PersistentFlags().StringVar(&httpOpts.HamCtlAuthToken, "hamctl-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "hamctl authentication token")
@@ -63,6 +82,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&grafanaOpts.StagingURL, "grafana-staging-url", os.Getenv("GRAFANA_STAGING_URL"), "grafana staging url")
 	command.PersistentFlags().StringVar(&grafanaOpts.ProdURL, "grafana-prod-url", os.Getenv("GRAFANA_PROD_URL"), "grafana prod url")
 	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between emails used by Git and Slack, key-value pair: <email>=<slack-email>")
+	command.PersistentFlags().StringSliceVar(&branchRestrictionsList, "policy-branch-restrictions", []string{}, "branch restriction policies applied to all releases, key-value pair: <environment>=<branch-regex>")
 
 	registerBrokerFlags(command, &brokerOpts)
 	registerSlackNotificationFlags(command, &slackMuteOpts)
@@ -95,4 +115,45 @@ func registerBrokerFlags(cmd *cobra.Command, c *brokerOptions) {
 	cmd.PersistentFlags().IntVar(&c.AMQP.Prefetch, "amqp-prefetch", 1, "AMQP queue prefetch")
 	cmd.PersistentFlags().StringVar(&c.AMQP.Exchange, "amqp-exchange", "release-manager", "AMQP exchange")
 	cmd.PersistentFlags().StringVar(&c.AMQP.Queue, "amqp-queue", "release-manager", "AMQP queue")
+}
+
+// parseBranchRestrictions pases a slice of key-value pairs formatted as
+// <environment>=<branchRegex>. It will return an error if the format is invalid
+// and if multiple retrictions conflict, ie. multiple restrictions on one
+// environment.
+func parseBranchRestrictions(list []string) ([]policy.BranchRestriction, error) {
+	// use a map to detect conflicting restrictions on environment
+	m := make(map[string]policy.BranchRestriction)
+	for _, item := range list {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		s := strings.Split(item, "=")
+		if len(s) != 2 {
+			return nil, errors.Errorf("invalid format '%s'", item)
+		}
+		environment := strings.TrimSpace(s[0])
+		branchRegex := strings.TrimSpace(s[1])
+		_, exist := m[environment]
+		if exist {
+			return nil, errors.Errorf("conflicting mappings for %s", environment)
+		}
+		if environment == "" || branchRegex == "" {
+			return nil, errors.Errorf("invalid mapping '%s'", item)
+		}
+		m[environment] = policy.BranchRestriction{
+			ID:          "", // effectively protects against attempts to delete the policy.
+			Environment: environment,
+			BranchRegex: branchRegex,
+		}
+	}
+
+	// flatten map to a slice
+	var restrictions []policy.BranchRestriction
+	for _, r := range m {
+		restrictions = append(restrictions, r)
+	}
+	log.Infof("Parsed %d global branch restriction policies", len(restrictions))
+	return restrictions, nil
 }

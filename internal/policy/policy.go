@@ -9,11 +9,12 @@ import (
 	"path"
 	"strings"
 
-	"github.com/lunarway/release-manager/internal/git"
+	internalgit "github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/lunarway/release-manager/internal/try"
 	"github.com/pkg/errors"
+	git "gopkg.in/src-d/go-git.v4"
 )
 
 var (
@@ -30,9 +31,16 @@ var (
 
 type Service struct {
 	Tracer tracing.Tracer
-	Git    *git.Service
+	Git    GitService
 
-	MaxRetries int
+	MaxRetries                      int
+	GlobalBranchRestrictionPolicies []BranchRestriction
+}
+
+type GitService interface {
+	MasterPath() string
+	Clone(context.Context, string) (*git.Repository, error)
+	Commit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error
 }
 
 type Actor struct {
@@ -61,13 +69,15 @@ func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]Au
 	return autoReleases, nil
 }
 
-// Get gets stored policies for service svc. If no policies are stored ErrNotFound is returned.
+// Get gets stored policies for service svc. If no policies are stored
+// ErrNotFound is returned. This method also returns globally configured
+// policies along with the service specific ones.
 func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.Get")
 	defer span.Finish()
 
 	// make sure policy directory exists
-	policiesDir := path.Join(s.Git.MasterPath, "policies")
+	policiesDir := path.Join(s.Git.MasterPath(), "policies")
 	err := os.MkdirAll(policiesDir, os.ModePerm)
 	if err != nil {
 		return Policies{}, errors.WithMessagef(err, "make policies directory '%s'", policiesDir)
@@ -87,12 +97,44 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 	if err != nil {
 		return Policies{}, errors.WithMessagef(err, "parse policies in '%s'", policiesPath)
 	}
+
+	// merge global policies with local ones where globals take precedence
+	policies.BranchRestrictions = mergeBranchRestrictions(ctx, svc, s.GlobalBranchRestrictionPolicies, policies.BranchRestrictions)
+	log.WithContext(ctx).WithFields("globalPolicies", s.GlobalBranchRestrictionPolicies, "localPolicies", policies).Infof("Found %d policies", len(policies.BranchRestrictions)+len(policies.AutoReleases))
+
 	// a policy file might exist, but if all policies have been removed from it
 	// we can just act as if it didn't exist
 	if !policies.HasPolicies() {
 		return Policies{}, ErrNotFound
 	}
 	return policies, nil
+}
+
+func mergeBranchRestrictions(ctx context.Context, svc string, global, local []BranchRestriction) []BranchRestriction {
+	if len(global) == 0 {
+		return local
+	}
+	branchRestrictions := append([]BranchRestriction(nil), global...)
+
+	// copy all local restrictions over that does not conflict with the global
+	// one
+	for _, localRestriction := range local {
+		if conflictingBranchRestriction(ctx, svc, global, localRestriction) {
+			continue
+		}
+		branchRestrictions = append(branchRestrictions, localRestriction)
+	}
+	return branchRestrictions
+}
+
+func conflictingBranchRestriction(ctx context.Context, svc string, global []BranchRestriction, localRestriction BranchRestriction) bool {
+	for _, globalRestriction := range global {
+		if globalRestriction.Environment == localRestriction.Environment && globalRestriction.BranchRegex != localRestriction.BranchRegex {
+			log.WithContext(ctx).WithFields("global", globalRestriction, "local", localRestriction).Errorf("Global and local branch restriction policies conflict for service '%s': local policy dropped", svc)
+			return true
+		}
+	}
+	return false
 }
 
 // ApplyAutoRelease applies an auto-release policy for service svc from branch
@@ -109,7 +151,7 @@ func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch
 		return "", ErrConflict
 	}
 
-	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, "auto-release")
+	commitMsg := internalgit.PolicyUpdateApplyCommitMessage(env, svc, "auto-release")
 	var policyID string
 	err = s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
 		policyID = p.SetAutoRelease(branch, env)
@@ -124,7 +166,7 @@ func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch
 func (s *Service) Delete(ctx context.Context, actor Actor, svc string, ids []string) (int, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.Delete")
 	defer span.Finish()
-	commitMsg := git.PolicyUpdateDeleteCommitMessage(svc)
+	commitMsg := internalgit.PolicyUpdateDeleteCommitMessage(svc)
 	var deleted int
 	err := s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
 		deleted = p.Delete(ids...)
@@ -139,7 +181,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.updatePolicies")
 	defer span.Finish()
 	return try.Do(ctx, s.Tracer, s.MaxRetries, func(ctx context.Context, attempt int) (bool, error) {
-		configRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-notify")
+		configRepoPath, close, err := internalgit.TempDirAsync(ctx, s.Tracer, "k8s-config-notify")
 		if err != nil {
 			return true, err
 		}
@@ -206,7 +248,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 		err = s.Git.Commit(ctx, configRepoPath, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg)
 		if err != nil {
 			// indicates that the applied policy was already set
-			if errors.Cause(err) == git.ErrNothingToCommit {
+			if errors.Cause(err) == internalgit.ErrNothingToCommit {
 				return true, nil
 			}
 			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", policiesPath))

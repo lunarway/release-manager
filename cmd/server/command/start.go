@@ -88,13 +88,25 @@ type configRepoOptions struct {
 	SSHPrivateKeyPath string
 }
 
-func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToken *string, configRepoOpts *configRepoOptions, httpOpts *http.Options, brokerOptions *brokerOptions, slackMuteOpts *slack.MuteOptions, userMappings *map[string]string) *cobra.Command {
+type startOptions struct {
+	slackAuthToken            *string
+	githubAPIToken            *string
+	grafana                   *grafanaOptions
+	configRepo                *configRepoOptions
+	http                      *http.Options
+	broker                    *brokerOptions
+	slackMutes                *slack.MuteOptions
+	userMappings              *map[string]string
+	branchRestrictionPolicies *[]policy.BranchRestriction
+}
+
+func NewStart(startOptions *startOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-manager",
 		RunE: func(c *cobra.Command, args []string) error {
 			done := make(chan error, 1)
-			slackClient, err := slack.NewMuteableClient(*slackAuthToken, *userMappings, *slackMuteOpts)
+			slackClient, err := slack.NewMuteableClient(*startOptions.slackAuthToken, *startOptions.userMappings, *startOptions.slackMutes)
 			if err != nil {
 				return err
 			}
@@ -106,26 +118,26 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 			grafanaSvc := grafana.Service{
 				Environments: map[string]grafana.Environment{
 					"dev": {
-						APIKey:  grafanaOpts.DevAPIKey,
-						BaseURL: grafanaOpts.DevURL,
+						APIKey:  startOptions.grafana.DevAPIKey,
+						BaseURL: startOptions.grafana.DevURL,
 					},
 					"staging": {
-						APIKey:  grafanaOpts.StagingAPIKey,
-						BaseURL: grafanaOpts.StagingURL,
+						APIKey:  startOptions.grafana.StagingAPIKey,
+						BaseURL: startOptions.grafana.StagingURL,
 					},
 					"prod": {
-						APIKey:  grafanaOpts.ProdAPIKey,
-						BaseURL: grafanaOpts.ProdURL,
+						APIKey:  startOptions.grafana.ProdAPIKey,
+						BaseURL: startOptions.grafana.ProdURL,
 					},
 				},
 			}
 			gitSvc := git.Service{
 				Tracer:            tracer,
-				SSHPrivateKeyPath: configRepoOpts.SSHPrivateKeyPath,
-				ConfigRepoURL:     configRepoOpts.ConfigRepo,
+				SSHPrivateKeyPath: startOptions.configRepo.SSHPrivateKeyPath,
+				ConfigRepoURL:     startOptions.configRepo.ConfigRepo,
 			}
 			github := github.Service{
-				Token: *githubAPIToken,
+				Token: *startOptions.githubAPIToken,
 			}
 			ctx := context.Background()
 			close, err := gitSvc.InitMasterRepo(ctx)
@@ -138,11 +150,12 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				Git:    &gitSvc,
 				// retries for comitting changes into config repo
 				// can be required for racing writes
-				MaxRetries: 3,
+				MaxRetries:                      3,
+				GlobalBranchRestrictionPolicies: *startOptions.branchRestrictionPolicies,
 			}
 			flowSvc := flow.Service{
-				ArtifactFileName: configRepoOpts.ArtifactFileName,
-				UserMappings:     *userMappings,
+				ArtifactFileName: startOptions.configRepo.ArtifactFileName,
+				UserMappings:     *startOptions.userMappings,
 				Slack:            slackClient,
 				Git:              &gitSvc,
 				CanRelease:       policySvc.CanRelease,
@@ -211,7 +224,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 						logger.Errorf("flow.NotifyReleaseHook: failed to annotate Grafana: %v", err)
 					}
 
-					if strings.ToLower(opts.Spec.Application.Provider) == "github" && *githubAPIToken != "" {
+					if strings.ToLower(opts.Spec.Application.Provider) == "github" && *startOptions.githubAPIToken != "" {
 						logger.Infof("Tagging GitHub repository '%s' with '%s' at '%s'", opts.Spec.Application.Name, opts.Environment, opts.Spec.Application.SHA)
 						span, _ = tracer.FromCtx(ctx, "tag source repository")
 						err = github.TagRepo(ctx, opts.Spec.Application.Name, opts.Environment, opts.Spec.Application.SHA)
@@ -261,7 +274,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 					return flowSvc.ExecRollback(context.Background(), event)
 				},
 			}
-			brokerImpl, err := getBroker(brokerOptions)
+			brokerImpl, err := getBroker(startOptions.broker)
 			if err != nil {
 				return errors.WithMessage(err, "setup broker")
 			}
@@ -285,7 +298,7 @@ func NewStart(grafanaOpts *grafanaOptions, slackAuthToken *string, githubAPIToke
 				}
 			}()
 			go func() {
-				err := http.NewServer(httpOpts, slackClient, &flowSvc, &policySvc, &gitSvc, tracer)
+				err := http.NewServer(startOptions.http, slackClient, &flowSvc, &policySvc, &gitSvc, tracer)
 				if err != nil {
 					done <- errors.WithMessage(err, "new http server")
 					return

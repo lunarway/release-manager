@@ -1,0 +1,10 @@
+{
+  "service": "autorelease",
+  "autoReleases": [
+    {
+      "id": "auto-release-master-dev",
+      "branch": "master",
+      "environment": "dev"
+    }
+  ]
+}

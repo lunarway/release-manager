@@ -1,13 +1,18 @@
 package policy
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"testing"
 
+	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestParse(t *testing.T) {
@@ -247,6 +252,247 @@ func TestPolicies_Delete(t *testing.T) {
 			t.Logf("output: %v", tc.input.policies.AutoReleases)
 			assert.Equal(t, tc.output.count, count, "deleted count not as expected")
 			assert.Equal(t, tc.output.policies, tc.input.policies, "policies not as expected")
+		})
+	}
+}
+
+func TestService_Get(t *testing.T) {
+	tt := []struct {
+		name           string
+		service        string
+		globalPolicies []BranchRestriction
+		policies       Policies
+		err            error
+	}{
+		{
+			name:           "no policies for service",
+			service:        "unknown",
+			globalPolicies: nil,
+			policies:       Policies{},
+			err:            ErrNotFound,
+		},
+		{
+			name:           "auto release policy for service exist",
+			service:        "autorelease",
+			globalPolicies: nil,
+			policies: Policies{
+				Service: "autorelease",
+				AutoReleases: []AutoReleasePolicy{
+					{
+						ID:          "auto-release-master-dev",
+						Branch:      "master",
+						Environment: "dev",
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			name:           "no policies for service but file exists",
+			service:        "empty",
+			globalPolicies: nil,
+			policies:       Policies{},
+			err:            ErrNotFound,
+		},
+		{
+			name:           "bad file format",
+			service:        "notjson",
+			globalPolicies: nil,
+			policies:       Policies{},
+			err:            ErrNotParsable,
+		},
+		{
+			name:    "global policies",
+			service: "autorelease",
+			globalPolicies: []BranchRestriction{
+				{
+					ID:          "branch-restriction-prod",
+					BranchRegex: "^master$",
+					Environment: "prod",
+				},
+			},
+			policies: Policies{
+				Service: "autorelease",
+				AutoReleases: []AutoReleasePolicy{
+					{
+						ID:          "auto-release-master-dev",
+						Branch:      "master",
+						Environment: "dev",
+					},
+				},
+				BranchRestrictions: []BranchRestriction{
+					{
+						ID:          "branch-restriction-prod",
+						BranchRegex: "^master$",
+						Environment: "prod",
+					},
+				},
+			},
+			err: nil,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			log.Init(&log.Configuration{
+				Level: log.Level{
+					Level: zapcore.DebugLevel,
+				},
+				Development: true,
+			})
+			gitService := MockGitService{}
+			gitService.On("MasterPath").Return("testdata")
+			s := Service{
+				Tracer:                          tracing.NewNoop(),
+				Git:                             &gitService,
+				GlobalBranchRestrictionPolicies: tc.globalPolicies,
+				MaxRetries:                      1,
+			}
+
+			policies, err := s.Get(context.Background(), tc.service)
+
+			if tc.err != nil {
+				assert.EqualError(t, errors.Cause(err), tc.err.Error(), "error not as expected")
+			} else {
+				assert.NoError(t, err, "unexpected error")
+			}
+
+			assert.Equal(t, tc.policies, policies, "policies not as expected")
+		})
+	}
+}
+
+func TestMergeBranchRestrictions(t *testing.T) {
+	tt := []struct {
+		name   string
+		global []BranchRestriction
+		local  []BranchRestriction
+		output []BranchRestriction
+	}{
+		{
+			name: "only global",
+			global: []BranchRestriction{
+				{
+					ID:          "branch-restriction-prod",
+					BranchRegex: "^master$",
+					Environment: "prod",
+				},
+			},
+			local: nil,
+			output: []BranchRestriction{
+				{
+					ID:          "branch-restriction-prod",
+					BranchRegex: "^master$",
+					Environment: "prod",
+				},
+			},
+		},
+		{
+			name:   "only local",
+			global: nil,
+			local: []BranchRestriction{
+				{
+					ID:          "branch-restriction-prod",
+					BranchRegex: "^master$",
+					Environment: "prod",
+				},
+			},
+			output: []BranchRestriction{
+				{
+					ID:          "branch-restriction-prod",
+					BranchRegex: "^master$",
+					Environment: "prod",
+				},
+			},
+		},
+		{
+			name: "conflicting",
+			global: []BranchRestriction{
+				{
+					ID:          "global-1",
+					BranchRegex: "^master$",
+					Environment: "prod",
+				},
+				{
+					ID:          "global-2",
+					BranchRegex: "^master$",
+					Environment: "staging",
+				},
+			},
+			local: []BranchRestriction{
+				{
+					ID:          "local-1",
+					BranchRegex: "^dev$",
+					Environment: "dev",
+				},
+				{
+					ID:          "local-2",
+					BranchRegex: "^dev$",
+					Environment: "prod",
+				},
+			},
+			output: []BranchRestriction{
+				{
+					ID:          "global-1",
+					BranchRegex: "^master$",
+					Environment: "prod",
+				},
+				{
+					ID:          "global-2",
+					BranchRegex: "^master$",
+					Environment: "staging",
+				},
+				{
+					ID:          "local-1",
+					BranchRegex: "^dev$",
+					Environment: "dev",
+				},
+			},
+		},
+		{
+			name: "local and global",
+			global: []BranchRestriction{
+				{
+					ID:          "global-1",
+					BranchRegex: "^master$",
+					Environment: "prod",
+				},
+			},
+			local: []BranchRestriction{
+				{
+					ID:          "local-1",
+					BranchRegex: "^master$",
+					Environment: "dev",
+				},
+			},
+			output: []BranchRestriction{
+				{
+					ID:          "global-1",
+					BranchRegex: "^master$",
+					Environment: "prod",
+				},
+				{
+					ID:          "local-1",
+					BranchRegex: "^master$",
+					Environment: "dev",
+				},
+			},
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			log.Init(&log.Configuration{
+				Level: log.Level{
+					Level: zapcore.DebugLevel,
+				},
+				Development: true,
+			})
+
+			output := mergeBranchRestrictions(context.Background(), tc.name, tc.global, tc.local)
+			sort.Slice(output, func(i, j int) bool {
+				return output[i].ID < output[j].ID
+			})
+
+			assert.Equal(t, tc.output, output, "output not as expected")
 		})
 	}
 }
