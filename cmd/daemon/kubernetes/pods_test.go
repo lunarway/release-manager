@@ -1,11 +1,9 @@
 package kubernetes
 
 import (
-	"testing"
-
 	"github.com/pkg/errors"
-
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestParseToJSONLogs(t *testing.T) {
