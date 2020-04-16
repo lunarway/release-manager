@@ -114,10 +114,7 @@ func mergeBranchRestrictions(ctx context.Context, svc string, global, local []Br
 	if len(global) == 0 {
 		return local
 	}
-	var branchRestrictions []BranchRestriction
-	for _, globalRestriction := range global {
-		branchRestrictions = append(branchRestrictions, globalRestriction)
-	}
+	branchRestrictions := append([]BranchRestriction(nil), global...)
 
 	// copy all local restrictions over that does not conflict with the global
 	// one
