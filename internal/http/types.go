@@ -105,7 +105,7 @@ type ContainerError struct {
 type PodErrorEvent struct {
 	PodName     string `json:"podName,omitempty"`
 	Namespace   string `json:"namespace,omitempty"`
-	Errors      []ContainerError
+	Errors      []ContainerError `json:"errors,omitempty"`
 	AuthorEmail string `json:"authorEmail,omitempty"`
 	Environment string `json:"environment,omitempty"`
 	ArtifactID  string `json:"artifactId,omitempty"`
