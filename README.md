@@ -177,7 +177,7 @@ prod:
 
 ### Policies
 
-It is possible to configure policies for releases with `hamctl`'s `policy` command.
+It is possible to configure policies for releases with `hamctl`'s `policy` command and globally with flags on the `server`.
 
 You can `list`, `apply` and `delete` policies for a specific service like below.
 
@@ -188,6 +188,10 @@ $ hamctl policy --service <service> delete <policy-id> [<policy-id>]
 ```
 
 See below for details on how to apply specific policies.
+
+Some policies cannot be applied simultaniously as they semantically does not support each other.
+An example is an `auto-release` policy releasing a branch not compatible with a `branch-restriction` policy.
+These cases are validated when applying either of them.
 
 #### Auto-release artifacts from branches to environments
 
@@ -222,6 +226,16 @@ It is not possible to create an auto-release policy for a non-matching branch t
 
 Be aware that the regular expression should be as strict as possible otherwise you might get unexpected results.
 A branch regex like `master` will also allow branch names like `refactor-master-worker`, so make sure to mark the start `^` and end `$` of the string.
+
+The `server` can also enforce branch restrictions on all managed services by setting the `policy-branch-restrictions` flag.
+It takes a comma seprated list of `<environment>=<branchRegex>` values.
+
+```
+$ server start --policy-branch-restrictions 'production=^master$,staging=^staging$'
+```
+
+They will be visible with `hamctl policy list` but cannot by removed with `hamctl`.
+It is also not possible to overwrite them with custom policies, e.g. changing branch of a globally restricted environment.
 
 ### Notifications
 
