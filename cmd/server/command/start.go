@@ -328,7 +328,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 	return command
 }
 
-func getBroker(c brokerOptions) (broker.Broker, error) {
+func getBroker(c *brokerOptions) (broker.Broker, error) {
 	switch c.Type {
 	case BrokerTypeAMQP:
 		amqpOptions := c.AMQP
