@@ -106,7 +106,7 @@ func (c *Client) HandlePodErrors(ctx context.Context) error {
 					AuthorEmail: pod.Annotations["lunarway.com/author"],
 				})
 				if err != nil {
-					log.Errorf("error SendCreateContainerConfigError")
+					log.Errorf("Failed to send create container config error: %v", err)
 				}
 				continue
 			}
