@@ -10,20 +10,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// DEPRECATED
-func (s *Service) NotifyCommitter(ctx context.Context, event *http.PodNotifyRequest) error {
-	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyCommitter")
-	defer span.Finish()
-	email := event.AuthorEmail
-	span, _ = s.Tracer.FromCtx(ctx, "post private slack message")
-	err := s.Slack.PostPrivateMessage(ctx, email, event)
-	span.Finish()
-	if err != nil {
-		return errors.WithMessage(err, "post private message")
-	}
-	return nil
-}
-
 func (s *Service) NotifyK8SDeployEvent(ctx context.Context, event *http.DeploymentEvent) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyK8SDeployment")
 	defer span.Finish()
