@@ -21,7 +21,7 @@ type ReleaseManagerExporter struct {
 	Client      httpinternal.Client
 }
 
-func (e *ReleaseManagerExporter) SendSuccessfulDeploymentEvent(c context.Context, event httpinternal.DeploymentEvent) error {
+func (e *ReleaseManagerExporter) SendSuccessfulDeploymentEvent(ctx context.Context, event httpinternal.DeploymentEvent) error {
 	e.Log.With("event", event).Infof("SuccesfulDeployment Event")
 	var resp httpinternal.KubernetesNotifyResponse
 	url, err := e.Client.URL("webhook/daemon/k8s/deploy")
