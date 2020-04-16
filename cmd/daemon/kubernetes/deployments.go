@@ -70,7 +70,7 @@ func isDeploymentSuccessful(c *kubernetes.Clientset, replicaSetTimeDiff time.Dur
 		cond := deploymentutil.GetDeploymentCondition(deployment.Status, appsv1.DeploymentProgressing)
 		if cond != nil {
 			if cond.Reason == "ProgressDeadlineExceeded" {
-				log.Errorf("deployment %q exceeded its progress deadline", deployment.Name)
+				log.Errorf("deployment %s exceeded its progress deadline", deployment.Name)
 				// TODO: Maybe return a specific error here
 				return http.DeploymentEvent{}, false, nil
 			}
