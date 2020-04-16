@@ -68,14 +68,15 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 func isDeploymentSuccessful(c *kubernetes.Clientset, replicaSetTimeDiff time.Duration, deployment *appsv1.Deployment) (http.DeploymentEvent, bool, error) {
 	if deployment.Generation <= deployment.Status.ObservedGeneration {
 		cond := deploymentutil.GetDeploymentCondition(deployment.Status, appsv1.DeploymentProgressing)
-		if cond != nil && cond.Reason == "ProgressDeadlineExceeded" {
-			log.Errorf("deployment %q exceeded its progress deadline", deployment.Name)
-			// TODO: Maybe return a specific error here
-			return http.DeploymentEvent{}, false, nil
-		}
-		//
-		if cond.LastUpdateTime == cond.LastTransitionTime {
-			return http.DeploymentEvent{}, false, nil
+		if cond != nil {
+			if cond.Reason == "ProgressDeadlineExceeded" {
+				log.Errorf("deployment %q exceeded its progress deadline", deployment.Name)
+				// TODO: Maybe return a specific error here
+				return http.DeploymentEvent{}, false, nil
+			}
+			if cond.LastUpdateTime == cond.LastTransitionTime {
+				return http.DeploymentEvent{}, false, nil
+			}
 		}
 		// Waiting for deployment %q rollout to finish: %d out of %d new replicas have been updated...
 		if deployment.Spec.Replicas != nil && deployment.Status.UpdatedReplicas < *deployment.Spec.Replicas {
