@@ -20,6 +20,8 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 	}
 	for {
 		select {
+		case <-ctx.Done():
+			watcher.Stop()
 		case e, ok := <-watcher.ResultChan():
 			if !ok {
 				return ErrWatcherClosed
@@ -59,8 +61,6 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 				log.Errorf("error SendSuccessfulDeploymentEvent")
 				continue
 			}
-		case <-ctx.Done():
-			watcher.Stop()
 		}
 	}
 }
