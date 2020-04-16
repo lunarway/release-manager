@@ -79,7 +79,7 @@ func (c *Client) HandlePodErrors(ctx context.Context) error {
 					AuthorEmail: pod.Annotations["lunarway.com/author"],
 				})
 				if err != nil {
-					log.Errorf("error SendCrashLoopBackOffEvent")
+					log.Errorf("Failed to send crash loop backoff event: %v", err)
 				}
 				continue
 			}
