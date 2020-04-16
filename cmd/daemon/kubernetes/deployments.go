@@ -63,7 +63,6 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 			watcher.Stop()
 		}
 	}
-	return nil
 }
 
 func isDeploymentSuccessful(c *kubernetes.Clientset, replicaSetTimeDiff time.Duration, deployment *appsv1.Deployment) (httpinternal.DeploymentEvent, bool, error) {
