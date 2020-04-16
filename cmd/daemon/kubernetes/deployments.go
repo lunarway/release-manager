@@ -99,8 +99,6 @@ func isDeploymentSuccessful(c *kubernetes.Clientset, replicaSetTimeDiff time.Dur
 		AvailablePods: deployment.Status.AvailableReplicas,
 		Replicas:      *deployment.Spec.Replicas,
 	}, true, nil
-
-	return http.DeploymentEvent{}, false, nil
 }
 
 func isDeploymentCorrectlyAnnotated(deploy *appsv1.Deployment) bool {
