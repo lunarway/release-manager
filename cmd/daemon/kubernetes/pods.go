@@ -9,7 +9,7 @@ import (
 	"math"
 	"strings"
 
-	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -52,7 +52,7 @@ func (c *Client) HandlePodErrors(ctx context.Context) error {
 				if math.Mod(float64(restartCount), c.moduloCrashReportNotif) != 1 {
 					continue
 				}
-				var errorContainers []httpinternal.ContainerError
+				var errorContainers []http.ContainerError
 				for _, cst := range pod.Status.ContainerStatuses {
 					if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CrashLoopBackOff" {
 
@@ -61,7 +61,7 @@ func (c *Client) HandlePodErrors(ctx context.Context) error {
 							log.Errorf("Error retrieving logs from pod: %s, container: %s, namespace: %s", pod.Name, cst.Name, pod.Namespace)
 						}
 
-						errorContainers = append(errorContainers, httpinternal.ContainerError{
+						errorContainers = append(errorContainers, http.ContainerError{
 							Name:         cst.Name,
 							ErrorMessage: logs,
 							Type:         "CrashLoopBackOff",
@@ -69,7 +69,7 @@ func (c *Client) HandlePodErrors(ctx context.Context) error {
 					}
 				}
 
-				err = c.exporter.SendPodErrorEvent(ctx, httpinternal.PodErrorEvent{
+				err = c.exporter.SendPodErrorEvent(ctx, http.PodErrorEvent{
 					PodName:     pod.Name,
 					Namespace:   pod.Namespace,
 					Errors:      errorContainers,
@@ -85,10 +85,10 @@ func (c *Client) HandlePodErrors(ctx context.Context) error {
 			if isPodInCreateContainerConfigError(pod) {
 				log.Infof("Pod: %s is in CreateContainerConfigError", pod.Name)
 				// Determine which container of the deployment has CreateContainerConfigError
-				var errorContainers []httpinternal.ContainerError
+				var errorContainers []http.ContainerError
 				for _, cst := range pod.Status.ContainerStatuses {
 					if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CreateContainerConfigError" {
-						errorContainers = append(errorContainers, httpinternal.ContainerError{
+						errorContainers = append(errorContainers, http.ContainerError{
 							Name:         cst.Name,
 							ErrorMessage: cst.State.Waiting.Message,
 							Type:         "CreateContainerConfigError",
@@ -96,7 +96,7 @@ func (c *Client) HandlePodErrors(ctx context.Context) error {
 					}
 				}
 
-				err = c.exporter.SendPodErrorEvent(ctx, httpinternal.PodErrorEvent{
+				err = c.exporter.SendPodErrorEvent(ctx, http.PodErrorEvent{
 					PodName:     pod.Name,
 					Namespace:   pod.Namespace,
 					Errors:      errorContainers,
