@@ -49,13 +49,14 @@ func (c *Client) HandleNewDaemonSets(ctx context.Context) error {
 			}
 
 			// Notify the release-manager with the successful deployment event.
-			err = c.exporter.SendSuccessfulDeploymentEvent(ctx, http.DeploymentEvent{
+			err = c.exporter.SendSuccessfulReleaseEvent(ctx, http.ReleaseEvent{
 				Name:          ds.Name,
 				Namespace:     ds.Namespace,
+				ResourceType:  "DaemonSet",
 				ArtifactID:    ds.Annotations["lunarway.com/artifact-id"],
 				AuthorEmail:   ds.Annotations["lunarway.com/author"],
 				AvailablePods: ds.Status.NumberAvailable,
-				Replicas:      ds.Status.DesiredNumberScheduled,
+				DesiredPods:   ds.Status.DesiredNumberScheduled,
 			})
 			if err != nil {
 				log.Errorf("Failed to send successful deployment event: %v", err)

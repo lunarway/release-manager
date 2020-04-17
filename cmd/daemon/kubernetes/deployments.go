@@ -55,7 +55,7 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 			}
 
 			// Notify the release-manager with the successful deployment event.
-			err = c.exporter.SendSuccessfulDeploymentEvent(ctx, event)
+			err = c.exporter.SendSuccessfulReleaseEvent(ctx, event)
 			if err != nil {
 				log.Errorf("Failed to send successful deployment event: %v", err)
 				continue
@@ -64,40 +64,41 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 	}
 }
 
-func isDeploymentSuccessful(c *kubernetes.Clientset, replicaSetTimeDiff time.Duration, deployment *appsv1.Deployment) (http.DeploymentEvent, bool, error) {
+func isDeploymentSuccessful(c *kubernetes.Clientset, replicaSetTimeDiff time.Duration, deployment *appsv1.Deployment) (http.ReleaseEvent, bool, error) {
 	if !deploymentutil.DeploymentComplete(deployment, &deployment.Status) {
-		return http.DeploymentEvent{}, false, nil
+		return http.ReleaseEvent{}, false, nil
 	}
 	cond := deploymentutil.GetDeploymentCondition(deployment.Status, appsv1.DeploymentProgressing)
 	if cond != nil {
 		if cond.Reason == "ProgressDeadlineExceeded" {
 			log.Errorf("deployment %s exceeded its progress deadline", deployment.Name)
 			// TODO: Maybe return a specific error here
-			return http.DeploymentEvent{}, false, nil
+			return http.ReleaseEvent{}, false, nil
 		}
 		// It seems that this reduce unwanted messages when the release-daemon starts.
 		if cond.LastUpdateTime == cond.LastTransitionTime {
-			return http.DeploymentEvent{}, false, nil
+			return http.ReleaseEvent{}, false, nil
 		}
 	}
 
 	// Retrieve the new ReplicaSet to determince whether or not this is a new deployment event or not.
 	newRs, err := deploymentutil.GetNewReplicaSet(deployment, c.AppsV1())
 	if err != nil {
-		return http.DeploymentEvent{}, false, nil
+		return http.ReleaseEvent{}, false, nil
 	}
 	//We discard events if the difference between creation time of the ReplicaSet and now is greater than replicaSetTimeDiff
 	diff := time.Since(newRs.CreationTimestamp.Time)
 	if diff > replicaSetTimeDiff {
-		return http.DeploymentEvent{}, false, nil
+		return http.ReleaseEvent{}, false, nil
 	}
-	return http.DeploymentEvent{
+	return http.ReleaseEvent{
 		Name:          deployment.Name,
 		Namespace:     deployment.Namespace,
+		ResourceType:  "Deployment",
 		ArtifactID:    deployment.Annotations["lunarway.com/artifact-id"],
 		AuthorEmail:   deployment.Annotations["lunarway.com/author"],
 		AvailablePods: deployment.Status.AvailableReplicas,
-		Replicas:      *deployment.Spec.Replicas,
+		DesiredPods:   *deployment.Spec.Replicas,
 	}, true, nil
 }
 

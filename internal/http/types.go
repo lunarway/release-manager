@@ -87,11 +87,12 @@ type FluxNotifyRequest struct {
 	FluxEvent   event.Event
 }
 
-type DeploymentEvent struct {
+type ReleaseEvent struct {
 	Name          string `json:"name,omitempty"`
 	Namespace     string `json:"namespace,omitempty"`
+	ResourceType  string `json:"resourceType,omitempty"`
 	AvailablePods int32  `json:"availablePods"`
-	Replicas      int32  `json:"replicas,omitempty"`
+	DesiredPods   int32  `json:"replicas,omitempty"`
 	ArtifactID    string `json:"artifactId,omitempty"`
 	AuthorEmail   string `json:"authorEmail,omitempty"`
 	Environment   string `json:"environment,omitempty"`
@@ -103,12 +104,12 @@ type ContainerError struct {
 }
 
 type PodErrorEvent struct {
-	PodName     string `json:"podName,omitempty"`
-	Namespace   string `json:"namespace,omitempty"`
+	PodName     string           `json:"podName,omitempty"`
+	Namespace   string           `json:"namespace,omitempty"`
 	Errors      []ContainerError `json:"errors,omitempty"`
-	AuthorEmail string `json:"authorEmail,omitempty"`
-	Environment string `json:"environment,omitempty"`
-	ArtifactID  string `json:"artifactId,omitempty"`
+	AuthorEmail string           `json:"authorEmail,omitempty"`
+	Environment string           `json:"environment,omitempty"`
+	ArtifactID  string           `json:"artifactId,omitempty"`
 }
 type KubernetesNotifyResponse struct {
 }
