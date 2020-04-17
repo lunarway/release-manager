@@ -22,7 +22,7 @@ type ReleaseManagerExporter struct {
 }
 
 func (e *ReleaseManagerExporter) SendSuccessfulReleaseEvent(ctx context.Context, event httpinternal.ReleaseEvent) error {
-	e.Log.With("event", event).Infof("SuccesfulDeployment Event")
+	e.Log.With("event", event).Infof("SuccesfulRelease Event")
 	var resp httpinternal.KubernetesNotifyResponse
 	url, err := e.Client.URL("webhook/daemon/k8s/deploy")
 	if err != nil {
