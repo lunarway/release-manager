@@ -45,16 +45,23 @@ func (c *Client) HandleNewDaemonSets(ctx context.Context) error {
 				continue
 			}
 
+			log.Infof("Observed: %d, Gen: %d", ds.Status.ObservedGeneration, ds.Generation)
+
+			// Verify if the DaemonSet fulfills the criterias for a succesful release
 			ok = isDaemonSetSuccessful(ds)
 			if !ok {
 				continue
 			}
 
-			new, err := verifyNewRelease(ctx, c.clientset, ds)
-			if err != nil {
-				log.Errorf("not able to determine if this event is a new release")
+			// Check if the DaemonSet is marked with the lunarway.com/released annotation
+			if isDaemonSetMarkedAsReleased(ds) {
+				continue
 			}
-			if !new {
+
+			// Annotate the DaemonSet to be able to skip it next time
+			err = annotateDaemonSet(ctx, c.clientset, ds)
+			if err != nil {
+				log.Errorf("Unable to annotate DaemonSet: %v", err)
 				continue
 			}
 
@@ -87,17 +94,13 @@ func isDaemonSetSuccessful(ds *appsv1.DaemonSet) bool {
 }
 
 func isDaemonSetCorrectlyAnnotated(ds *appsv1.DaemonSet) bool {
-	// Just continue if this pod is not controlled by the release manager
 	if !(ds.Annotations["lunarway.com/controlled-by-release-manager"] == "true") {
 		return false
 	}
-
-	// Just discard the event if there's no artifact id
 	if ds.Annotations["lunarway.com/artifact-id"] == "" {
 		log.Errorf("artifact-id missing in deployment: namespace '%s' name '%s'", ds.Namespace, ds.Name)
 		return false
 	}
-
 	if ds.Annotations["lunarway.com/author"] == "" {
 		log.Errorf("author missing in deployment: namespace '%s' name '%s'", ds.Namespace, ds.Name)
 		return false
@@ -110,26 +113,20 @@ func isDaemonSetMarkedForTermination(ds *appsv1.DaemonSet) bool {
 	return ds.DeletionTimestamp != nil
 }
 
-func verifyNewRelease(ctx context.Context, c *kubernetes.Clientset, ds *appsv1.DaemonSet) (bool, error) {
-	selector, err := metav1.LabelSelectorAsSelector(ds.Spec.Selector)
-	if err != nil {
-		return false, err
+func isDaemonSetMarkedAsReleased(ds *appsv1.DaemonSet) bool {
+	if ds.Annotations["lunarway.com/released"] == "" {
+		return false
 	}
-	pods, err := c.CoreV1().Pods("").List(ctx, metav1.ListOptions{
-		LabelSelector: selector.String(),
-	})
-	if err != nil {
-		return false, err
-	}
+	return true
+}
 
-	new := true
-	log.Infof("DS: %+v", ds)
-	for _, pod := range pods.Items {
-		diff := pod.CreationTimestamp.Time.Sub(ds.CreationTimestamp.Time)
-		log.Infof("Pod: %+v, Timediff: %s", pod, pod.CreationTimestamp.Time, diff)
-		if diff != time.Duration(0)*time.Second {
-			new = false
-		}
+func annotateDaemonSet(ctx context.Context, c *kubernetes.Clientset, ds *appsv1.DaemonSet) error {
+	timestamp := time.Now().String()
+	ds.Annotations["lunarway.com/released"] = timestamp
+	_, err := c.AppsV1().DaemonSets(ds.Namespace).Update(ctx, ds, metav1.UpdateOptions{})
+	if err != nil {
+		return err
 	}
-	return new, nil
+	log.Infof("DaemonSet: %s annotated with released timestamp: %s", ds.Name, timestamp)
+	return nil
 }
