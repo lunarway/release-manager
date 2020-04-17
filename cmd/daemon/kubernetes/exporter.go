@@ -11,7 +11,7 @@ import (
 // Exporter sends a formatted event to an upstream.
 type Exporter interface {
 	// Send a message through the exporter.
-	SendSuccessfulDeploymentEvent(c context.Context, event httpinternal.DeploymentEvent) error
+	SendSuccessfulReleaseEvent(c context.Context, event httpinternal.ReleaseEvent) error
 	SendPodErrorEvent(c context.Context, event httpinternal.PodErrorEvent) error
 }
 
@@ -21,7 +21,7 @@ type ReleaseManagerExporter struct {
 	Client      httpinternal.Client
 }
 
-func (e *ReleaseManagerExporter) SendSuccessfulDeploymentEvent(ctx context.Context, event httpinternal.DeploymentEvent) error {
+func (e *ReleaseManagerExporter) SendSuccessfulReleaseEvent(ctx context.Context, event httpinternal.ReleaseEvent) error {
 	e.Log.With("event", event).Infof("SuccesfulDeployment Event")
 	var resp httpinternal.KubernetesNotifyResponse
 	url, err := e.Client.URL("webhook/daemon/k8s/deploy")

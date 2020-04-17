@@ -274,7 +274,7 @@ func (c *Client) NotifyFluxErrorEvent(ctx context.Context, artifactID, env, emai
 	return err
 }
 
-func (c *Client) NotifyK8SDeployEvent(ctx context.Context, event *http.DeploymentEvent) error {
+func (c *Client) NotifyK8SDeployEvent(ctx context.Context, event *http.ReleaseEvent) error {
 	if c.muteOptions.Kubernetes {
 		return nil
 	}
@@ -286,7 +286,7 @@ func (c *Client) NotifyK8SDeployEvent(ctx context.Context, event *http.Deploymen
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      fmt.Sprintf(":kubernetes: k8s (%s) :white_check_mark:", event.Environment),
 		Color:      MsgColorGreen,
-		Text:       fmt.Sprintf("%s deployed\n%d/%d pods are running\nArtifact: *%s*", event.Name, event.AvailablePods, event.Replicas, event.ArtifactID),
+		Text:       fmt.Sprintf("%s deployed\n%d/%d pods are running (%s)\nArtifact: *%s*", event.Name, event.AvailablePods, event.DesiredPods, event.ResourceType, event.ArtifactID),
 		MarkdownIn: []string{"text", "fields"},
 	})
 	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
