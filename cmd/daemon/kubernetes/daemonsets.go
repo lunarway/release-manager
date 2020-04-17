@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"time"
 
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
@@ -36,6 +35,7 @@ func (c *Client) HandleNewDaemonSets(ctx context.Context) error {
 				continue
 			}
 
+			// Check if we have all the annotations we need for the release-daemon
 			if !isDaemonSetCorrectlyAnnotated(ds) {
 				continue
 			}
@@ -45,16 +45,22 @@ func (c *Client) HandleNewDaemonSets(ctx context.Context) error {
 				continue
 			}
 
-			log.Infof("Observed: %d, Gen: %d", ds.Status.ObservedGeneration, ds.Generation)
-
 			// Verify if the DaemonSet fulfills the criterias for a succesful release
 			ok = isDaemonSetSuccessful(ds)
 			if !ok {
 				continue
 			}
 
-			// Check if the DaemonSet is marked with the lunarway.com/released annotation
-			if isDaemonSetMarkedAsReleased(ds) {
+			// In-order to minimize messages and only return events when new releases is detected, we add
+			// a new annotation to the DaemonSet. This annotations tells provides the daemon with some valuable
+			// information about the artifacts running.
+			// When we initially apply a DaemonSet the lunarway.com/artifact-id annotations SHOULD be set.
+			// Further the observed-artifact-id is an annotation managed by the daemon and will initially be "".
+			// In this state we annotate the DaemonSet with the current artifact-id as the observed.
+			// When we update a DaemonSet we also update the artifact-id, e.g. now observed and actual artifact id
+			// is different. In this case we want to notify, and update the observed with the current artifact id.
+			// This also eliminates messages when a pod is deleted. As the two annotations will be equal.
+			if ds.Annotations["lunarway.com/observed-artifact-id"] == ds.Annotations["lunarway.com/artifact-id"] {
 				continue
 			}
 
@@ -113,20 +119,11 @@ func isDaemonSetMarkedForTermination(ds *appsv1.DaemonSet) bool {
 	return ds.DeletionTimestamp != nil
 }
 
-func isDaemonSetMarkedAsReleased(ds *appsv1.DaemonSet) bool {
-	if ds.Annotations["lunarway.com/released"] == "" {
-		return false
-	}
-	return true
-}
-
 func annotateDaemonSet(ctx context.Context, c *kubernetes.Clientset, ds *appsv1.DaemonSet) error {
-	timestamp := time.Now().String()
-	ds.Annotations["lunarway.com/released"] = timestamp
+	ds.Annotations["lunarway.com/observed-artifact-id"] = ds.Annotations["lunarway.com/artifact-id"]
 	_, err := c.AppsV1().DaemonSets(ds.Namespace).Update(ctx, ds, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
-	log.Infof("DaemonSet: %s annotated with released timestamp: %s", ds.Name, timestamp)
 	return nil
 }
