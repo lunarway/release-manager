@@ -51,19 +51,19 @@ func (c *Client) HandleNewStatefulSets(ctx context.Context) error {
 			}
 
 			// In-order to minimize messages and only return events when new releases is detected, we add
-			// a new annotation to the DaemonSet. This annotations tells provides the daemon with some valuable
+			// a new annotation to the StatefulSet. This annotations tells provides the daemon with some valuable
 			// information about the artifacts running.
-			// When we initially apply a DaemonSet the lunarway.com/artifact-id annotations SHOULD be set.
+			// When we initially apply a StatefulSet the lunarway.com/artifact-id annotations SHOULD be set.
 			// Further the observed-artifact-id is an annotation managed by the daemon and will initially be "".
-			// In this state we annotate the DaemonSet with the current artifact-id as the observed.
-			// When we update a DaemonSet we also update the artifact-id, e.g. now observed and actual artifact id
+			// In this state we annotate the StatefulSet with the current artifact-id as the observed.
+			// When we update a StatefulSet we also update the artifact-id, e.g. now observed and actual artifact id
 			// is different. In this case we want to notify, and update the observed with the current artifact id.
 			// This also eliminates messages when a pod is deleted. As the two annotations will be equal.
 			if ss.Annotations["lunarway.com/observed-artifact-id"] == ss.Annotations["lunarway.com/artifact-id"] {
 				continue
 			}
 
-			// Annotate the DaemonSet to be able to skip it next time
+			// Annotate the StatefulSet to be able to skip it next time
 			err = annotateStatefulSet(ctx, c.clientset, ss)
 			if err != nil {
 				log.Errorf("Unable to annotate StatefulSet: %v", err)
