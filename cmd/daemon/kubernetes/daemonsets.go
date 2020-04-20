@@ -106,7 +106,7 @@ func isDaemonSetCorrectlyAnnotated(ds *appsv1.DaemonSet) bool {
 	return true
 }
 
-// Avoid reporting on pods that has been marked for termination
+// Avoid reporting on daemon sets that has been marked for termination
 func isDaemonSetMarkedForTermination(ds *appsv1.DaemonSet) bool {
 	return ds.DeletionTimestamp != nil
 }
