@@ -1,12 +1,8 @@
 package kubernetes
 
 import (
-	"time"
-
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
-
-
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -14,14 +10,13 @@ type Client struct {
 	clientset              *kubernetes.Clientset
 	exporter               Exporter
 	moduloCrashReportNotif float64
-	replicaSetTimeDiff     time.Duration
 }
 
 var (
 	ErrWatcherClosed = errors.New("channel closed")
 )
 
-func NewClient(kubeConfigPath string, moduloCrashReportNotif float64, replicaSetTimeDiff time.Duration, e Exporter) (*Client, error) {
+func NewClient(kubeConfigPath string, moduloCrashReportNotif float64, e Exporter) (*Client, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
 		return nil, err
@@ -35,6 +30,14 @@ func NewClient(kubeConfigPath string, moduloCrashReportNotif float64, replicaSet
 		clientset:              clientset,
 		exporter:               e,
 		moduloCrashReportNotif: moduloCrashReportNotif,
-		replicaSetTimeDiff:     replicaSetTimeDiff,
 	}, nil
+}
+
+func isCorrectlyAnnotated(annotations map[string]string) bool {
+	if !(annotations["lunarway.com/controlled-by-release-manager"] == "true") &&
+		annotations["lunarway.com/artifact-id"] == "" &&
+		annotations["lunarway.com/author"] == "" {
+		return false
+	}
+	return true
 }

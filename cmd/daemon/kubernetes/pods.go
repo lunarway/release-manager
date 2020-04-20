@@ -40,7 +40,7 @@ func (c *Client) HandlePodErrors(ctx context.Context) error {
 				continue
 			}
 			// Is this a pod managed by the release manager - and does it contain the information needed?
-			if !isPodCorrectlyAnnotated(pod) {
+			if !isCorrectlyAnnotated(pod.Annotations) {
 				continue
 			}
 			// Avoid reporting on pods that has been marked for termination
@@ -112,20 +112,6 @@ func (c *Client) HandlePodErrors(ctx context.Context) error {
 			}
 		}
 	}
-}
-
-func isPodCorrectlyAnnotated(pod *corev1.Pod) bool {
-	// Just continue if this pod is not controlled by the release manager
-	if !(pod.Annotations["lunarway.com/controlled-by-release-manager"] == "true") {
-		return false
-	}
-
-	// Just discard the event if there's no artifact id
-	if pod.Annotations["lunarway.com/artifact-id"] == "" {
-		log.Errorf("artifact-id missing in pod template: namespace '%s' pod '%s'", pod.Namespace, pod.Name)
-		return false
-	}
-	return true
 }
 
 // Avoid reporting on pods that has been marked for termination

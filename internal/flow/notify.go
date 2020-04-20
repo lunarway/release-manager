@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (s *Service) NotifyK8SDeployEvent(ctx context.Context, event *http.DeploymentEvent) error {
+func (s *Service) NotifyK8SDeployEvent(ctx context.Context, event *http.ReleaseEvent) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyK8SDeployment")
 	defer span.Finish()
 	span, _ = s.Tracer.FromCtx(ctx, "post k8s deploy slack message")

@@ -2,6 +2,11 @@ kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
   - role: control-plane
+    extraMounts:
+    - hostPath: ./e2e-test/source-git-repo
+      containerPath: /source-git-repo
+    - hostPath: ./e2e-test/binaries
+      containerPath: /binaries
     # extraPortMappings:
     #   - containerPort: 3030 # fluxd
     #     hostPort: 3030
@@ -18,6 +23,19 @@ nodes:
     #   - containerPort: 15672 # rabbitmq admin
     #     hostPort: 15672
     #     protocol: tcp
+  - role: worker
+    extraMounts:
+    - hostPath: ./e2e-test/source-git-repo
+      containerPath: /source-git-repo
+    - hostPath: ./e2e-test/binaries
+      containerPath: /binaries
+  - role: worker
+    extraMounts:
+    - hostPath: ./e2e-test/source-git-repo
+      containerPath: /source-git-repo
+    - hostPath: ./e2e-test/binaries
+      containerPath: /binaries
+  - role: worker
     extraMounts:
       - hostPath: ./e2e-test/source-git-repo
         containerPath: /source-git-repo
