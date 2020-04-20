@@ -36,7 +36,7 @@ func (c *Client) HandleNewDaemonSets(ctx context.Context) error {
 			}
 
 			// Check if we have all the annotations we need for the release-daemon
-			if !isDaemonSetCorrectlyAnnotated(ds) {
+			if !isCorrectlyAnnotated(ds.Annotations) {
 				continue
 			}
 
@@ -62,13 +62,6 @@ func (c *Client) HandleNewDaemonSets(ctx context.Context) error {
 				continue
 			}
 
-			// Annotate the DaemonSet to be able to skip it next time
-			err = annotateDaemonSet(ctx, c.clientset, ds)
-			if err != nil {
-				log.Errorf("Unable to annotate DaemonSet: %v", err)
-				continue
-			}
-
 			// Notify the release-manager with the successful deployment event.
 			err = c.exporter.SendSuccessfulReleaseEvent(ctx, http.ReleaseEvent{
 				Name:          ds.Name,
@@ -83,6 +76,13 @@ func (c *Client) HandleNewDaemonSets(ctx context.Context) error {
 				log.Errorf("Failed to send successful daemonset event: %v", err)
 				continue
 			}
+
+			// Annotate the DaemonSet to be able to skip it next time
+			err = annotateDaemonSet(ctx, c.clientset, ds)
+			if err != nil {
+				log.Errorf("Unable to annotate DaemonSet: %v", err)
+				continue
+			}
 		}
 	}
 }
@@ -95,15 +95,6 @@ func isDaemonSetSuccessful(ds *appsv1.DaemonSet) bool {
 		ds.Status.NumberUnavailable == 0 &&
 		ds.Status.NumberMisscheduled == 0 &&
 		ds.Status.ObservedGeneration >= ds.Generation
-}
-
-func isDaemonSetCorrectlyAnnotated(ds *appsv1.DaemonSet) bool {
-	if !(ds.Annotations["lunarway.com/controlled-by-release-manager"] == "true") &&
-		ds.Annotations["lunarway.com/artifact-id"] == "" &&
-		ds.Annotations["lunarway.com/author"] == "" {
-		return false
-	}
-	return true
 }
 
 // Avoid reporting on daemon sets that has been marked for termination

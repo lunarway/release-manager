@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/prometheus/common/log"
 	appsv1 "k8s.io/api/apps/v1"
@@ -35,7 +36,7 @@ func (c *Client) HandleNewStatefulSets(ctx context.Context) error {
 			}
 
 			// Check if we have all the annotations we need for the release-daemon
-			if !isStatefulSetCorrectlyAnnotated(ss) {
+			if !isCorrectlyAnnotated(ss.Annotations) {
 				continue
 			}
 
@@ -61,13 +62,6 @@ func (c *Client) HandleNewStatefulSets(ctx context.Context) error {
 				continue
 			}
 
-			// Annotate the StatefulSet to be able to skip it next time
-			err = annotateStatefulSet(ctx, c.clientset, ss)
-			if err != nil {
-				log.Errorf("Unable to annotate StatefulSet: %v", err)
-				continue
-			}
-
 			// Notify the release-manager with the successful deployment event.
 			err = c.exporter.SendSuccessfulReleaseEvent(ctx, http.ReleaseEvent{
 				Name:          ss.Name,
@@ -80,6 +74,13 @@ func (c *Client) HandleNewStatefulSets(ctx context.Context) error {
 			})
 			if err != nil {
 				log.Errorf("Failed to send successful statefulset event: %v", err)
+				continue
+			}
+
+			// Annotate the StatefulSet to be able to skip it next time
+			err = annotateStatefulSet(ctx, c.clientset, ss)
+			if err != nil {
+				log.Errorf("Unable to annotate StatefulSet: %v", err)
 				continue
 			}
 		}
@@ -96,15 +97,6 @@ func isStatefulSetSuccessful(ss *appsv1.StatefulSet) bool {
 		ss.Status.Replicas == ss.Status.CurrentReplicas &&
 		ss.Status.Replicas == ss.Status.UpdatedReplicas &&
 		ss.Status.ObservedGeneration >= ss.Generation
-}
-
-func isStatefulSetCorrectlyAnnotated(ss *appsv1.StatefulSet) bool {
-	if !(ss.Annotations["lunarway.com/controlled-by-release-manager"] == "true") &&
-		ss.Annotations["lunarway.com/artifact-id"] == "" &&
-		ss.Annotations["lunarway.com/author"] == "" {
-		return false
-	}
-	return true
 }
 
 func annotateStatefulSet(ctx context.Context, c *kubernetes.Clientset, ss *appsv1.StatefulSet) error {

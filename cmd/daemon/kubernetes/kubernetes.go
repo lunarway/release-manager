@@ -32,3 +32,12 @@ func NewClient(kubeConfigPath string, moduloCrashReportNotif float64, e Exporter
 		moduloCrashReportNotif: moduloCrashReportNotif,
 	}, nil
 }
+
+func isCorrectlyAnnotated(annotations map[string]string) bool {
+	if !(annotations["lunarway.com/controlled-by-release-manager"] == "true") &&
+		annotations["lunarway.com/artifact-id"] == "" &&
+		annotations["lunarway.com/author"] == "" {
+		return false
+	}
+	return true
+}

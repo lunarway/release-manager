@@ -35,7 +35,9 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 			if !ok {
 				continue
 			}
-			if !isDeploymentCorrectlyAnnotated(deploy) {
+
+			// Check if we have all the annotations we need for the release-daemon
+			if !isCorrectlyAnnotated(deploy.Annotations) {
 				continue
 			}
 
@@ -61,13 +63,6 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 				continue
 			}
 
-			// Annotate the Deployment to be able to skip it next time
-			err = annotateDeployment(ctx, c.clientset, deploy)
-			if err != nil {
-				log.Errorf("Unable to annotate Deployment: %v", err)
-				continue
-			}
-
 			// Notify the release-manager with the successful deployment event.
 			err = c.exporter.SendSuccessfulReleaseEvent(ctx, http.ReleaseEvent{
 				Name:          deploy.Name,
@@ -78,31 +73,23 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 				AvailablePods: deploy.Status.AvailableReplicas,
 				DesiredPods:   *deploy.Spec.Replicas,
 			})
+			if err != nil {
+				log.Errorf("Failed to send successful deployment event: %v", err)
+				continue
+			}
+
+			// Annotate the Deployment to be able to skip it next time
+			err = annotateDeployment(ctx, c.clientset, deploy)
+			if err != nil {
+				log.Errorf("Unable to annotate Deployment: %v", err)
+				continue
+			}
 		}
 	}
 }
 
 func isDeploymentSuccessful(d *appsv1.Deployment) bool {
 	return deploymentutil.DeploymentComplete(d, &d.Status)
-}
-
-func isDeploymentCorrectlyAnnotated(deploy *appsv1.Deployment) bool {
-	// Just continue if this pod is not controlled by the release manager
-	if !(deploy.Annotations["lunarway.com/controlled-by-release-manager"] == "true") {
-		return false
-	}
-
-	// Just discard the event if there's no artifact id
-	if deploy.Annotations["lunarway.com/artifact-id"] == "" {
-		log.Errorf("artifact-id missing in deployment: namespace '%s' name '%s'", deploy.Namespace, deploy.Name)
-		return false
-	}
-
-	if deploy.Annotations["lunarway.com/author"] == "" {
-		log.Errorf("author missing in deployment: namespace '%s' name '%s'", deploy.Namespace, deploy.Name)
-		return false
-	}
-	return true
 }
 
 // Avoid reporting on pods that has been marked for termination
