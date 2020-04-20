@@ -79,7 +79,7 @@ func (c *Client) HandleNewStatefulSets(ctx context.Context) error {
 				DesiredPods:   ss.Status.Replicas,
 			})
 			if err != nil {
-				log.Errorf("Failed to send successful daemonset event: %v", err)
+				log.Errorf("Failed to send successful statefulset event: %v", err)
 				continue
 			}
 		}
