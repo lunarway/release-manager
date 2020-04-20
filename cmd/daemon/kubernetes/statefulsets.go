@@ -45,8 +45,7 @@ func (c *Client) HandleNewStatefulSets(ctx context.Context) error {
 			}
 
 			// Verify if the StatefulSet fulfills the criterias for a succesful release
-			ok = isStatefulSetSuccessful(ss)
-			if !ok {
+			if !isStatefulSetSuccessful(ss) {
 				continue
 			}
 
