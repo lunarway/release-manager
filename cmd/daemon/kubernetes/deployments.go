@@ -45,11 +45,7 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 			}
 
 			// Check the received event, and determine whether or not this was a successful deployment.
-			ok = isDeploymentSuccessful(deploy)
-			if err != nil {
-				return err
-			}
-			if !ok {
+			if !isDeploymentSuccessful(deploy) {
 				continue
 			}
 
