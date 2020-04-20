@@ -46,14 +46,12 @@ func (c *Client) HandleNewDaemonSets(ctx context.Context) error {
 			}
 
 			// Verify if the DaemonSet fulfills the criterias for a succesful release
-			ok = isDaemonSetSuccessful(ds)
-			if !ok {
+			if !isDaemonSetSuccessful(ds) {
 				continue
 			}
 
 			// In-order to minimize messages and only return events when new releases is detected, we add
-			// a new annotation to the DaemonSet. This annotations tells provides the daemon with some valuable
-			// information about the artifacts running.
+			// a new annotation to the DaemonSet.
 			// When we initially apply a DaemonSet the lunarway.com/artifact-id annotations SHOULD be set.
 			// Further the observed-artifact-id is an annotation managed by the daemon and will initially be "".
 			// In this state we annotate the DaemonSet with the current artifact-id as the observed.
@@ -108,7 +106,7 @@ func isDaemonSetCorrectlyAnnotated(ds *appsv1.DaemonSet) bool {
 	return true
 }
 
-// Avoid reporting on pods that has been marked for termination
+// Avoid reporting on daemon sets that has been marked for termination
 func isDaemonSetMarkedForTermination(ds *appsv1.DaemonSet) bool {
 	return ds.DeletionTimestamp != nil
 }
