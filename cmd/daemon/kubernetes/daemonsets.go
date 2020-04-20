@@ -46,8 +46,7 @@ func (c *Client) HandleNewDaemonSets(ctx context.Context) error {
 			}
 
 			// Verify if the DaemonSet fulfills the criterias for a succesful release
-			ok = isDaemonSetSuccessful(ds)
-			if !ok {
+			if !isDaemonSetSuccessful(ds) {
 				continue
 			}
 
