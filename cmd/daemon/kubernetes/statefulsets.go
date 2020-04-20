@@ -51,8 +51,7 @@ func (c *Client) HandleNewStatefulSets(ctx context.Context) error {
 			}
 
 			// In-order to minimize messages and only return events when new releases is detected, we add
-			// a new annotation to the StatefulSet. This annotations tells provides the daemon with some valuable
-			// information about the artifacts running.
+			// a new annotation to the StatefulSet.
 			// When we initially apply a StatefulSet the lunarway.com/artifact-id annotations SHOULD be set.
 			// Further the observed-artifact-id is an annotation managed by the daemon and will initially be "".
 			// In this state we annotate the StatefulSet with the current artifact-id as the observed.
