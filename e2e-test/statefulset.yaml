@@ -3,9 +3,9 @@ kind: StatefulSet
 metadata:
   name: web
   annotations:
-    kubernetes.io/change-cause: 'nginx-slim:0.8'
+    kubernetes.io/change-cause: 'nginx-slim:0.7'
     lunarway.com/author: 'kni@lunar.app'
-    lunarway.com/artifact-id: 'nginx-slim:0.8'
+    lunarway.com/artifact-id: 'nginx-slim:0.7'
     lunarway.com/controlled-by-release-manager: 'true'
 spec:
   selector:
@@ -21,7 +21,7 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
       - name: nginx
-        image: k8s.gcr.io/nginx-slim:0.8
+        image: k8s.gcr.io/nginx-slim:0.7
         ports:
         - containerPort: 80
           name: web
