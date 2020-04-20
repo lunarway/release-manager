@@ -101,15 +101,9 @@ func isStatefulSetSuccessful(ss *appsv1.StatefulSet) bool {
 }
 
 func isStatefulSetCorrectlyAnnotated(ss *appsv1.StatefulSet) bool {
-	if !(ss.Annotations["lunarway.com/controlled-by-release-manager"] == "true") {
-		return false
-	}
-	if ss.Annotations["lunarway.com/artifact-id"] == "" {
-		log.Errorf("artifact-id missing in statefulset: namespace '%s' name '%s'", ss.Namespace, ss.Name)
-		return false
-	}
-	if ss.Annotations["lunarway.com/author"] == "" {
-		log.Errorf("author missing in statefulset: namespace '%s' name '%s'", ss.Namespace, ss.Name)
+	if !(ss.Annotations["lunarway.com/controlled-by-release-manager"] == "true") &&
+		ss.Annotations["lunarway.com/artifact-id"] == "" &&
+		ss.Annotations["lunarway.com/author"] == "" {
 		return false
 	}
 	return true

@@ -100,15 +100,9 @@ func isDaemonSetSuccessful(ds *appsv1.DaemonSet) bool {
 }
 
 func isDaemonSetCorrectlyAnnotated(ds *appsv1.DaemonSet) bool {
-	if !(ds.Annotations["lunarway.com/controlled-by-release-manager"] == "true") {
-		return false
-	}
-	if ds.Annotations["lunarway.com/artifact-id"] == "" {
-		log.Errorf("artifact-id missing in deployment: namespace '%s' name '%s'", ds.Namespace, ds.Name)
-		return false
-	}
-	if ds.Annotations["lunarway.com/author"] == "" {
-		log.Errorf("author missing in deployment: namespace '%s' name '%s'", ds.Namespace, ds.Name)
+	if !(ds.Annotations["lunarway.com/controlled-by-release-manager"] == "true") &&
+		ds.Annotations["lunarway.com/artifact-id"] == "" &&
+		ds.Annotations["lunarway.com/author"] == "" {
 		return false
 	}
 	return true
@@ -119,6 +113,7 @@ func isDaemonSetMarkedForTermination(ds *appsv1.DaemonSet) bool {
 	return ds.DeletionTimestamp != nil
 }
 
+// Annotates the DaemonSet with the observed-artifact-id. This is used to differentiate new releases from pod deletion events.
 func annotateDaemonSet(ctx context.Context, c *kubernetes.Clientset, ds *appsv1.DaemonSet) error {
 	ds.Annotations["lunarway.com/observed-artifact-id"] = ds.Annotations["lunarway.com/artifact-id"]
 	_, err := c.AppsV1().DaemonSets(ds.Namespace).Update(ctx, ds, metav1.UpdateOptions{})

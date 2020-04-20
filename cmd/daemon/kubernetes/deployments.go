@@ -89,38 +89,6 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 
 func isDeploymentSuccessful(d *appsv1.Deployment) bool {
 	return deploymentutil.DeploymentComplete(d, &d.Status)
-	// cond := deploymentutil.GetDeploymentCondition(deployment.Status, appsv1.DeploymentProgressing)
-	// if cond != nil {
-	// 	if cond.Reason == "ProgressDeadlineExceeded" {
-	// 		log.Errorf("deployment %s exceeded its progress deadline", deployment.Name)
-	// 		// TODO: Maybe return a specific error here
-	// 		return http.ReleaseEvent{}, false, nil
-	// 	}
-	// 	// It seems that this reduce unwanted messages when the release-daemon starts.
-	// 	if cond.LastUpdateTime == cond.LastTransitionTime {
-	// 		return http.ReleaseEvent{}, false, nil
-	// 	}
-	// }
-
-	// // Retrieve the new ReplicaSet to determince whether or not this is a new deployment event or not.
-	// newRs, err := deploymentutil.GetNewReplicaSet(deployment, c.AppsV1())
-	// if err != nil {
-	// 	return http.ReleaseEvent{}, false, nil
-	// }
-	// //We discard events if the difference between creation time of the ReplicaSet and now is greater than replicaSetTimeDiff
-	// diff := time.Since(newRs.CreationTimestamp.Time)
-	// if diff > replicaSetTimeDiff {
-	// 	return http.ReleaseEvent{}, false, nil
-	// }
-	// return http.ReleaseEvent{
-	// 	Name:          deployment.Name,
-	// 	Namespace:     deployment.Namespace,
-	// 	ResourceType:  "Deployment",
-	// 	ArtifactID:    deployment.Annotations["lunarway.com/artifact-id"],
-	// 	AuthorEmail:   deployment.Annotations["lunarway.com/author"],
-	// 	AvailablePods: deployment.Status.AvailableReplicas,
-	// 	DesiredPods:   *deployment.Spec.Replicas,
-	// }, true, nil
 }
 
 func isDeploymentCorrectlyAnnotated(deploy *appsv1.Deployment) bool {
@@ -147,6 +115,7 @@ func isDeploymentMarkedForTermination(deploy *appsv1.Deployment) bool {
 	return deploy.DeletionTimestamp != nil
 }
 
+// Annotates the DaemonSet with the observed-artifact-id. This is used to differentiate new releases from pod deletion events.
 func annotateDeployment(ctx context.Context, c *kubernetes.Clientset, d *appsv1.Deployment) error {
 	d.Annotations["lunarway.com/observed-artifact-id"] = d.Annotations["lunarway.com/artifact-id"]
 	_, err := c.AppsV1().Deployments(d.Namespace).Update(ctx, d, metav1.UpdateOptions{})
