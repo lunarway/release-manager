@@ -83,6 +83,40 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 		return Policies{}, errors.WithMessagef(err, "make policies directory '%s'", policiesDir)
 	}
 
+	policies, err := s.servicePolicies(svc)
+	if err != nil {
+		// we will only return if an unknown error occoured and no global policies
+		// are defined.
+		if err != ErrNotFound || len(s.GlobalBranchRestrictionPolicies) == 0 {
+			return Policies{}, err
+		}
+		policies = Policies{
+			Service: svc,
+		}
+	}
+
+	// merge global policies with local ones where globals take precedence
+	policies.BranchRestrictions = mergeBranchRestrictions(ctx, svc, s.GlobalBranchRestrictionPolicies, policies.BranchRestrictions)
+	log.WithContext(ctx).WithFields("globalPolicies", s.GlobalBranchRestrictionPolicies, "localPolicies", policies).Infof("Found %d policies", len(policies.BranchRestrictions)+len(policies.AutoReleases))
+
+	// a policy file might exist, but if all policies have been removed from it
+	// we can just act as if it didn't exist
+	if !policies.HasPolicies() {
+		return Policies{}, ErrNotFound
+	}
+	return policies, nil
+}
+
+// servicePolicies returns policies for a specific service. If no policy file is
+// found ErrNotFound is returned.
+func (s *Service) servicePolicies(svc string) (Policies, error) {
+	// make sure policy directory exists
+	policiesDir := path.Join(s.Git.MasterPath(), "policies")
+	err := os.MkdirAll(policiesDir, os.ModePerm)
+	if err != nil {
+		return Policies{}, errors.WithMessagef(err, "make policies directory '%s'", policiesDir)
+	}
+
 	policiesPath := path.Join(policiesDir, fmt.Sprintf("%s.json", svc))
 	policiesFile, err := os.OpenFile(policiesPath, os.O_RDONLY, os.ModePerm)
 	if err != nil {
@@ -96,16 +130,6 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 	policies, err := parse(policiesFile)
 	if err != nil {
 		return Policies{}, errors.WithMessagef(err, "parse policies in '%s'", policiesPath)
-	}
-
-	// merge global policies with local ones where globals take precedence
-	policies.BranchRestrictions = mergeBranchRestrictions(ctx, svc, s.GlobalBranchRestrictionPolicies, policies.BranchRestrictions)
-	log.WithContext(ctx).WithFields("globalPolicies", s.GlobalBranchRestrictionPolicies, "localPolicies", policies).Infof("Found %d policies", len(policies.BranchRestrictions)+len(policies.AutoReleases))
-
-	// a policy file might exist, but if all policies have been removed from it
-	// we can just act as if it didn't exist
-	if !policies.HasPolicies() {
-		return Policies{}, ErrNotFound
 	}
 	return policies, nil
 }

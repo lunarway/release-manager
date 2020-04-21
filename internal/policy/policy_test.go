@@ -330,6 +330,28 @@ func TestService_Get(t *testing.T) {
 			},
 			err: nil,
 		},
+		{
+			name:    "only global policies",
+			service: "notfound",
+			globalPolicies: []BranchRestriction{
+				{
+					ID:          "branch-restriction-prod",
+					BranchRegex: "^master$",
+					Environment: "prod",
+				},
+			},
+			policies: Policies{
+				Service: "notfound",
+				BranchRestrictions: []BranchRestriction{
+					{
+						ID:          "branch-restriction-prod",
+						BranchRegex: "^master$",
+						Environment: "prod",
+					},
+				},
+			},
+			err: nil,
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
