@@ -453,6 +453,7 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 			if err != nil {
 				logger.Infof("http: github webhook: extract author details from commit failed: message '%s'", payload.HeadCommit.Message)
 				w.WriteHeader(http.StatusOK)
+				return
 			}
 
 			// locate branch of commit. Look at both modified and added commits to
