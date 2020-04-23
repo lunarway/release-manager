@@ -74,7 +74,7 @@ func TestAuthenticate(t *testing.T) {
 	}
 }
 
-func TestCommitMessageExtraction(t *testing.T) {
+func TestExtractInfoFromCommit(t *testing.T) {
 	tt := []struct {
 		name          string
 		commitMessage string
@@ -100,7 +100,7 @@ func TestCommitMessageExtraction(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			info, err := extractAuthorFromCommit(tc.commitMessage)
+			info, err := extractInfoFromCommit(tc.commitMessage)
 			if tc.err != nil {
 				assert.EqualError(t, errors.Cause(err), tc.err.Error(), "output error not as expected")
 			} else {

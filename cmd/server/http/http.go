@@ -449,7 +449,7 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			commitInfo, err := extractAuthorFromCommit(payload.HeadCommit.Message)
+			commitInfo, err := extractInfoFromCommit(payload.HeadCommit.Message)
 			if err != nil {
 				logger.Infof("http: github webhook: extract author details from commit failed: message '%s'", payload.HeadCommit.Message)
 				w.WriteHeader(http.StatusOK)
@@ -734,7 +734,7 @@ type commitInfo struct {
 	Service     string
 }
 
-func extractAuthorFromCommit(message string) (commitInfo, error) {
+func extractInfoFromCommit(message string) (commitInfo, error) {
 	pattern := `^\[(?P<service>.*)\].*\nSigned-off-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>`
 	r, err := regexp.Compile(pattern)
 	if err != nil {
