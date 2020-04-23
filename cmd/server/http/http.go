@@ -451,7 +451,7 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 			}
 			commitInfo, err := extractAuthorFromCommit(payload.HeadCommit.Message)
 			if err != nil {
-				logger.Infof("http: github webhook: no regex match from commit '%s'", payload.HeadCommit.Message)
+				logger.Infof("http: github webhook: extract author details from commit failed: message '%s'", payload.HeadCommit.Message)
 				w.WriteHeader(http.StatusOK)
 			}
 
