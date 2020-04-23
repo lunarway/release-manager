@@ -43,7 +43,7 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 		Use:   "auto-release",
 		Short: "Auto-release policy for releasing branch artifacts to an environment",
 		RunE: func(c *cobra.Command, args []string) error {
-			committer, err := git.CommitterDetails()
+			committerName, committerEmail, err := git.CommitterDetails()
 			if err != nil {
 				return err
 			}
@@ -57,8 +57,8 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 				Service:        *service,
 				Branch:         branch,
 				Environment:    env,
-				CommitterEmail: committer.Email,
-				CommitterName:  committer.Name,
+				CommitterEmail: committerEmail,
+				CommitterName:  committerName,
 			}, &resp)
 			if err != nil {
 				return err
