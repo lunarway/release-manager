@@ -598,12 +598,6 @@ func userHomeDir() string {
 	}
 }
 
-type Committer struct {
-	Name       string
-	Email      string
-	SigningKey string
-}
-
 // CommitterDetails returns name and email read for a Git configuration file.
 //
 // Configuration files are read first in the local git repository (if available)
