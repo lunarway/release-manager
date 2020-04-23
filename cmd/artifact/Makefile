@@ -85,4 +85,4 @@ test_push: example example_resources
 	./artifact push \
 		--root examples \
 		--config-repo git@github.com:lunarway/release-manager-test-config-repo.git \
-		--ssh-private-key ~/.ssh/github_key
+		--ssh-private-key ~/.ssh/github
