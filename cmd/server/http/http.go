@@ -425,6 +425,7 @@ func daemonk8sPodErrorWebhook(payload *payload, flowSvc *flow.Service) http.Hand
 }
 
 func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
+	commitMessageExtractorFunc := extractInfoFromCommit()
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
 		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
@@ -449,7 +450,7 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			commitInfo, err := extractInfoFromCommit(payload.HeadCommit.Message)
+			commitInfo, err := commitMessageExtractorFunc(payload.HeadCommit.Message)
 			if err != nil {
 				logger.Infof("http: github webhook: extract author details from commit failed: message '%s'", payload.HeadCommit.Message)
 				w.WriteHeader(http.StatusOK)
@@ -734,19 +735,18 @@ type commitInfo struct {
 	Service     string
 }
 
-func extractInfoFromCommit(message string) (commitInfo, error) {
-	pattern := `^\[(?P<service>.*)\].*\nSigned-off-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>`
-	r, err := regexp.Compile(pattern)
-	if err != nil {
-		return commitInfo{}, errors.WithMessage(err, "regex didn't match")
+func extractInfoFromCommit() func(string) (commitInfo, error) {
+	pattern := `^\[(?P<service>.*)\].*\nArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>`
+	regex := regexp.MustCompile(pattern)
+	return func(message string) (commitInfo, error) {
+		matches := regex.FindStringSubmatch(message)
+		if matches == nil {
+			return commitInfo{}, errors.New("no match")
+		}
+		return commitInfo{
+			Service:     matches[1],
+			AuthorName:  matches[2],
+			AuthorEmail: matches[3],
+		}, nil
 	}
-	matches := r.FindStringSubmatch(message)
-	if len(matches) < 1 {
-		return commitInfo{}, errors.New("not enough matches")
-	}
-	return commitInfo{
-		Service:     matches[1],
-		AuthorName:  matches[2],
-		AuthorEmail: matches[3],
-	}, nil
 }

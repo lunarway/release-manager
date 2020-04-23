@@ -83,7 +83,7 @@ func TestExtractInfoFromCommit(t *testing.T) {
 	}{
 		{
 			name:          "exact values",
-			commitMessage: "[test-service] artifact master-1234ds13g3-12s46g356g by Foo Bar\nSigned-off-by: Foo Bar <test@lunar.app>",
+			commitMessage: "[test-service] artifact master-1234ds13g3-12s46g356g by Foo Bar\nArtifact-created-by: Foo Bar <test@lunar.app>",
 			commitInfo: commitInfo{
 				AuthorEmail: "test@lunar.app",
 				AuthorName:  "Foo Bar",
@@ -92,23 +92,21 @@ func TestExtractInfoFromCommit(t *testing.T) {
 			err: nil,
 		},
 		{
-			name:          "missing signoff",
+			name:          "not valid message",
 			commitMessage: "[product] build something",
 			commitInfo:    commitInfo{},
-			err:           errors.New("not enough matches"),
+			err:           errors.New("no match"),
 		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			info, err := extractInfoFromCommit(tc.commitMessage)
+			info, err := extractInfoFromCommit()(tc.commitMessage)
 			if tc.err != nil {
 				assert.EqualError(t, errors.Cause(err), tc.err.Error(), "output error not as expected")
 			} else {
 				assert.NoError(t, err, "no output error expected")
 			}
-			assert.Equal(t, tc.commitInfo.AuthorName, info.AuthorName, "AuthorName not as expected")
-			assert.Equal(t, tc.commitInfo.Service, info.Service, "Service not as expected")
-			assert.Equal(t, tc.commitInfo.AuthorEmail, info.AuthorEmail, "AuthorEmail not as expected")
+			assert.Equal(t, tc.commitInfo, info, "commitInfo not as expected")
 		})
 	}
 }

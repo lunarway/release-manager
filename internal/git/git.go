@@ -410,7 +410,7 @@ func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, autho
 	if err != nil {
 		return errors.WithMessage(err, "check for changes")
 	}
-	fullCommitMsg := fmt.Sprintf("%s\nSigned-off-by: %s <%s>", msg, authorName, authorEmail)
+	fullCommitMsg := fmt.Sprintf("%s\nArtifact-created-by: %s <%s>", msg, authorName, authorEmail)
 	span, _ = s.Tracer.FromCtx(ctx, "commit")
 	err = execCommand(ctx, rootPath,
 		"git",
