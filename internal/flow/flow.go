@@ -277,16 +277,12 @@ func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, re
 		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", resourceRoot, destinationPath))
 	}
 	listFiles(destinationPath)
-	committerName, committerEmail, err := git.CommitterDetails()
-	if err != nil {
-		return "", errors.WithMessage(err, "get committer details")
-	}
 	artifactID := artifactSpec.ID
 	authorName := artifactSpec.Application.AuthorName
 	authorEmail := artifactSpec.Application.AuthorEmail
 	commitMsg := git.ArtifactCommitMessage(artifactSpec.Service, artifactID, authorName)
 	fmt.Printf("Committing changes\n")
-	err = gitSvc.Commit(ctx, destinationPath, ".", authorName, authorEmail, committerName, committerEmail, commitMsg)
+	err = gitSvc.SignedCommit(ctx, destinationPath, ".", authorName, authorEmail, commitMsg)
 	if err != nil {
 		if err == git.ErrNothingToCommit {
 			return artifactSpec.ID, nil

@@ -465,6 +465,13 @@ func TestLocateArtifactCondition(t *testing.T) {
 			message:    "[service-name] artifact master-1234567890-1234567890 by Author",
 			output:     true,
 		},
+		{
+			name:       "artifact-created-by trailer",
+			artifactID: "master-1234567890-1234567890",
+			message: `[service-name] artifact master-1234567890-1234567890 by Author
+Artifact-created-by: Foo Bar <test@lunar.app>`,
+			output: true,
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -69,6 +70,43 @@ func TestAuthenticate(t *testing.T) {
 			authenticate(tc.serverToken, handler)(w, req)
 
 			assert.Equal(t, tc.status, w.Result().StatusCode, "status code not as expected")
+		})
+	}
+}
+
+func TestExtractInfoFromCommit(t *testing.T) {
+	tt := []struct {
+		name          string
+		commitMessage string
+		commitInfo    commitInfo
+		err           error
+	}{
+		{
+			name:          "exact values",
+			commitMessage: "[test-service] artifact master-1234ds13g3-12s46g356g by Foo Bar\nArtifact-created-by: Foo Bar <test@lunar.app>",
+			commitInfo: commitInfo{
+				AuthorEmail: "test@lunar.app",
+				AuthorName:  "Foo Bar",
+				Service:     "test-service",
+			},
+			err: nil,
+		},
+		{
+			name:          "not valid message",
+			commitMessage: "[product] build something",
+			commitInfo:    commitInfo{},
+			err:           errors.New("no match"),
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			info, err := extractInfoFromCommit()(tc.commitMessage)
+			if tc.err != nil {
+				assert.EqualError(t, errors.Cause(err), tc.err.Error(), "output error not as expected")
+			} else {
+				assert.NoError(t, err, "no output error expected")
+			}
+			assert.Equal(t, tc.commitInfo, info, "commitInfo not as expected")
 		})
 	}
 }

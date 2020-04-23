@@ -132,7 +132,7 @@ github-webhook:
 		"ref": "refs/heads/master", \
 		"head_commit": { \
 			"id": "sha", \
-			"message": "[product] build something", \
+			"message": "[product] artifact master-1234ds13g3-12s46g356g by Foo Bar\nArtifact-created-by: Foo Bar <test@lunar.app>", \
 			"modified": [ \
 				"artifacts/product/master/artifact.json", \
 				"artifacts/product/master/dev/40-deployment.yaml", \

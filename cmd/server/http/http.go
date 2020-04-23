@@ -425,6 +425,7 @@ func daemonk8sPodErrorWebhook(payload *payload, flowSvc *flow.Service) http.Hand
 }
 
 func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
+	commitMessageExtractorFunc := extractInfoFromCommit()
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
 		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
@@ -449,70 +450,69 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			rgx := regexp.MustCompile(`\[(.*?)\]`)
-			matches := rgx.FindStringSubmatch(payload.HeadCommit.Message)
-			if len(matches) < 2 {
-				logger.Infof("http: github webhook: no service match from commit '%s'", payload.HeadCommit.Message)
+			commitInfo, err := commitMessageExtractorFunc(payload.HeadCommit.Message)
+			if err != nil {
+				logger.Infof("http: github webhook: extract author details from commit failed: message '%s'", payload.HeadCommit.Message)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			serviceName := matches[1]
 
 			// locate branch of commit. Look at both modified and added commits to
 			// cover both updated artifacts and added ones (new versions vs first
 			// version)
-			branch, ok := git.BranchName(append(payload.HeadCommit.Added, payload.HeadCommit.Modified...), flowSvc.ArtifactFileName, serviceName)
+			branch, ok := git.BranchName(append(payload.HeadCommit.Added, payload.HeadCommit.Modified...), flowSvc.ArtifactFileName, commitInfo.Service)
 			if !ok {
-				logger.Infof("http: github webhook: service '%s': branch name not found", serviceName)
+				logger.Infof("http: github webhook: service '%s': branch name not found", commitInfo.Service)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
 
-			logger = logger.WithFields("branch", branch, "service", serviceName, "commit", payload.HeadCommit)
+			logger = logger.WithFields("branch", branch, "service", commitInfo.Service, "commit", payload.HeadCommit)
 			// lookup policies for branch
-			autoReleases, err := policySvc.GetAutoReleases(ctx, serviceName, branch)
+			autoReleases, err := policySvc.GetAutoReleases(ctx, commitInfo.Service, branch)
 			if err != nil {
-				logger.Errorf("http: github webhook: service '%s' branch '%s': get auto release policies failed: %v", serviceName, branch, err)
-				err := slackClient.NotifySlackPolicyFailed(ctx, payload.HeadCommit.Author.Email, ":rocket: Release Manager :no_entry:", fmt.Sprintf("Auto release policy failed for service %s and %s", serviceName, branch))
+				logger.Errorf("http: github webhook: service '%s' branch '%s': get auto release policies failed: %v", commitInfo.Service, branch, err)
+				err := slackClient.NotifySlackPolicyFailed(ctx, commitInfo.AuthorEmail, ":rocket: Release Manager :no_entry:", fmt.Sprintf("Auto release policy failed for service %s and %s", commitInfo.Service, branch))
 				if err != nil {
 					logger.Errorf("http: github webhook: get auto-release policies: error notifying slack: %v", err)
 				}
 				unknownError(w)
 				return
 			}
-			logger.Infof("http: github webhook: service '%s' branch '%s': found %d release policies", serviceName, branch, len(autoReleases))
+			logger.Infof("http: github webhook: service '%s' branch '%s': found %d release policies", commitInfo.Service, branch, len(autoReleases))
 			var errs error
 			for _, autoRelease := range autoReleases {
 				releaseID, err := flowSvc.ReleaseBranch(ctx, flow.Actor{
-					Name:  payload.HeadCommit.Author.Name,
-					Email: payload.HeadCommit.Author.Email,
-				}, autoRelease.Environment, serviceName, autoRelease.Branch)
+					Name:  commitInfo.AuthorName,
+					Email: commitInfo.AuthorEmail,
+				}, autoRelease.Environment, commitInfo.Service, autoRelease.Branch)
 				if err != nil {
 					if errorCause(err) != git.ErrNothingToCommit {
 						errs = multierr.Append(errs, err)
-						err := slackClient.NotifySlackPolicyFailed(ctx, payload.HeadCommit.Author.Email, ":rocket: Release Manager :no_entry:", fmt.Sprintf("Service %s was not released into %s from branch %s.\nYou can deploy manually using `hamctl`:\nhamctl release --service %[1]s --branch %[3]s --env %[2]s", serviceName, autoRelease.Environment, autoRelease.Branch))
+						err := slackClient.NotifySlackPolicyFailed(ctx, commitInfo.AuthorEmail, ":rocket: Release Manager :no_entry:", fmt.Sprintf("Service %s was not released into %s from branch %s.\nYou can deploy manually using `hamctl`:\nhamctl release --service %[1]s --branch %[3]s --env %[2]s", commitInfo.Service, autoRelease.Environment, autoRelease.Branch))
 						if err != nil {
 							logger.Errorf("http: github webhook: auto-release failed: error notifying slack: %v", err)
 						}
 						continue
 					}
-					logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' to '%s': %v", serviceName, autoRelease.ID, autoRelease.Environment, err)
+					logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' to '%s': %v", commitInfo.Service, autoRelease.ID, autoRelease.Environment, err)
 					continue
 				}
-				err = slackClient.NotifySlackPolicySucceeded(ctx, payload.HeadCommit.Author.Email, ":rocket: Release Manager :white_check_mark:", fmt.Sprintf("Service *%s* will be auto released to *%s*\nArtifact: <%s|*%s*>", serviceName, autoRelease.Environment, payload.HeadCommit.URL, releaseID))
+				//TODO: Parse and switch to signoff user
+				err = slackClient.NotifySlackPolicySucceeded(ctx, commitInfo.AuthorEmail, ":rocket: Release Manager :white_check_mark:", fmt.Sprintf("Service *%s* will be auto released to *%s*\nArtifact: <%s|*%s*>", commitInfo.Service, autoRelease.Environment, payload.HeadCommit.URL, releaseID))
 				if err != nil {
 					if errors.Cause(err) != slack.ErrUnknownEmail {
 						logger.Errorf("http: github webhook: auto-release succeeded: error notifying slack: %v", err)
 					}
 				}
-				logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' of %s to %s", serviceName, autoRelease.ID, releaseID, autoRelease.Environment)
+				logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' of %s to %s", commitInfo.Service, autoRelease.ID, releaseID, autoRelease.Environment)
 			}
 			if errs != nil {
-				logger.Errorf("http: github webhook: service '%s' branch '%s': auto-release failed with one or more errors: %v", serviceName, branch, errs)
+				logger.Errorf("http: github webhook: service '%s' branch '%s': auto-release failed with one or more errors: %v", commitInfo.Service, branch, errs)
 				unknownError(w)
 				return
 			}
-			logger.Infof("http: github webhook: handled successfully: service '%s' branch '%s' commit '%s'", serviceName, branch, payload.HeadCommit.ID)
+			logger.Infof("http: github webhook: handled successfully: service '%s' branch '%s' commit '%s'", commitInfo.Service, branch, payload.HeadCommit.ID)
 			w.WriteHeader(http.StatusOK)
 			return
 		default:
@@ -727,4 +727,26 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 
 func convertTimeToEpoch(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
+}
+
+type commitInfo struct {
+	AuthorName  string
+	AuthorEmail string
+	Service     string
+}
+
+func extractInfoFromCommit() func(string) (commitInfo, error) {
+	pattern := `^\[(?P<service>.*)\].*\nArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>`
+	regex := regexp.MustCompile(pattern)
+	return func(message string) (commitInfo, error) {
+		matches := regex.FindStringSubmatch(message)
+		if matches == nil {
+			return commitInfo{}, errors.New("no match")
+		}
+		return commitInfo{
+			Service:     matches[1],
+			AuthorName:  matches[2],
+			AuthorEmail: matches[3],
+		}, nil
+	}
 }

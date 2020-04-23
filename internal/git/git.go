@@ -393,6 +393,40 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName,
 	return gitPush(ctx, rootPath)
 }
 
+func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, msg string) error {
+	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
+	defer span.Finish()
+
+	span, _ = s.Tracer.FromCtx(ctx, "add changes")
+	err := execCommand(ctx, rootPath, "git", "add", ".")
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "add changes")
+	}
+
+	span, _ = s.Tracer.FromCtx(ctx, "check for changes")
+	err = checkStatus(ctx, rootPath)
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "check for changes")
+	}
+	fullCommitMsg := fmt.Sprintf("%s\nArtifact-created-by: %s <%s>", msg, authorName, authorEmail)
+	span, _ = s.Tracer.FromCtx(ctx, "commit")
+	err = execCommand(ctx, rootPath,
+		"git",
+		"commit",
+		fmt.Sprintf(`-m%s`, fullCommitMsg),
+	)
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "commit")
+	}
+
+	span, _ = s.Tracer.FromCtx(ctx, "push")
+	defer span.Finish()
+	return gitPush(ctx, rootPath)
+}
+
 func execCommand(ctx context.Context, rootPath string, cmdName string, args ...string) error {
 	logger := log.WithContext(ctx).WithFields("root", rootPath)
 	logger.Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
