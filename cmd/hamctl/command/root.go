@@ -15,14 +15,14 @@ import (
 
 // NewCommand returns a new instance of a hamctl command.
 func NewCommand(version *string) (*cobra.Command, error) {
-	committer, err := git.CommitterDetails()
+	_, email, err := git.CommitterDetails()
 	if err != nil {
 		return nil, errors.WithMessage(err, "failed to lookup git credentials")
 	}
 	client := http.Client{
 		Metadata: http.Metadata{
 			CLIVersion:  *version,
-			CallerEmail: committer.Email,
+			CallerEmail: email,
 		},
 	}
 	var service string

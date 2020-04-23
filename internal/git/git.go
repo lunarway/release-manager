@@ -393,7 +393,7 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName,
 	return gitPush(ctx, rootPath)
 }
 
-func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, msg string, committer Committer) error {
+func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, msg string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
 	defer span.Finish()
 
@@ -608,7 +608,7 @@ type Committer struct {
 //
 // Configuration files are read first in the local git repository (if available)
 // and then read the global Git configuration.
-func CommitterDetails() (Committer, error) {
+func CommitterDetails() (string, string, error) {
 	var paths []string
 	pwd, err := os.Getwd()
 	if err == nil {
@@ -619,7 +619,7 @@ func CommitterDetails() (Committer, error) {
 }
 
 // credentials will try to read user name and email from provided paths.
-func credentials(paths ...string) (Committer, error) {
+func credentials(paths ...string) (string, string, error) {
 	for _, path := range paths {
 		c, err := parseConfig(path)
 		if err != nil {
@@ -627,23 +627,15 @@ func credentials(paths ...string) (Committer, error) {
 		}
 		committerName := c.Section("user").Option("name")
 		committerEmail := c.Section("user").Option("email")
-		committerSigningKey := c.Section("user").Option("signingkey")
 		if committerEmail == "" {
 			continue
 		}
 		if committerName == "" {
 			continue
 		}
-		if committerSigningKey == "" {
-			continue
-		}
-		return Committer{
-			Name:       committerName,
-			Email:      committerEmail,
-			SigningKey: committerSigningKey,
-		}, nil
+		return committerName, committerEmail, nil
 	}
-	return Committer{}, errors.Errorf("failed to read Git credentials from paths: %v", paths)
+	return "", "", errors.Errorf("failed to read Git credentials from paths: %v", paths)
 }
 
 // parseConfig returns the Git configuration parsed from provided path.

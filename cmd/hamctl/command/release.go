@@ -30,7 +30,7 @@ Release latest artifact from branch 'master' of service 'product' into environme
 			if branch == "" && artifact == "" {
 				return errors.New("--branch or --artifact is required")
 			}
-			committer, err := git.CommitterDetails()
+			committerName, committerEmail, err := git.CommitterDetails()
 			if err != nil {
 				return err
 			}
@@ -44,8 +44,8 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				Environment:    environment,
 				Branch:         branch,
 				ArtifactID:     artifact,
-				CommitterName:  committer.Name,
-				CommitterEmail: committer.Email,
+				CommitterName:  committerName,
+				CommitterEmail: committerEmail,
 			}, &resp)
 			if err != nil {
 				return err

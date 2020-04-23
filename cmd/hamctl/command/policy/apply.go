@@ -88,7 +88,7 @@ func branchRestriction(client *httpinternal.Client, service *string) *cobra.Comm
 		Short: "Branch restriction policy for limiting releases by their origin branch",
 		Long:  "Branch restriction policy for limiting releases of artifacts by their origin branch to specific environments",
 		RunE: func(c *cobra.Command, args []string) error {
-			committer, err := git.CommitterDetails()
+			committerName, committerEmail, err := git.CommitterDetails()
 			if err != nil {
 				return err
 			}
@@ -102,8 +102,8 @@ func branchRestriction(client *httpinternal.Client, service *string) *cobra.Comm
 				Service:        *service,
 				BranchRegex:    branchRegex,
 				Environment:    env,
-				CommitterEmail: committer.Email,
-				CommitterName:  committer.Name,
+				CommitterEmail: committerEmail,
+				CommitterName:  committerName,
 			}, &resp)
 			if err != nil {
 				return err

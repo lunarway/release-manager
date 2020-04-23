@@ -21,7 +21,7 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 			})
 		},
 		RunE: func(c *cobra.Command, args []string) error {
-			committer, err := git.CommitterDetails()
+			committerName, committerEmail, err := git.CommitterDetails()
 			if err != nil {
 				return err
 			}
@@ -35,8 +35,8 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 				Service:        *service,
 				Environment:    environment,
 				Namespace:      namespace,
-				CommitterName:  committer.Name,
-				CommitterEmail: committer.Email,
+				CommitterName:  committerName,
+				CommitterEmail: committerEmail,
 			}, &resp)
 			if err != nil {
 				return err
