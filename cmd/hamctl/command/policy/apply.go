@@ -43,7 +43,7 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 		Use:   "auto-release",
 		Short: "Auto-release policy for releasing branch artifacts to an environment",
 		RunE: func(c *cobra.Command, args []string) error {
-			committerName, committerEmail, err := git.CommitterDetails()
+			committer, err := git.CommitterDetails()
 			if err != nil {
 				return err
 			}
@@ -57,8 +57,8 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 				Service:        *service,
 				Branch:         branch,
 				Environment:    env,
-				CommitterEmail: committerEmail,
-				CommitterName:  committerName,
+				CommitterEmail: committer.Email,
+				CommitterName:  committer.Name,
 			}, &resp)
 			if err != nil {
 				return err
@@ -88,7 +88,7 @@ func branchRestriction(client *httpinternal.Client, service *string) *cobra.Comm
 		Short: "Branch restriction policy for limiting releases by their origin branch",
 		Long:  "Branch restriction policy for limiting releases of artifacts by their origin branch to specific environments",
 		RunE: func(c *cobra.Command, args []string) error {
-			committerName, committerEmail, err := git.CommitterDetails()
+			committer, err := git.CommitterDetails()
 			if err != nil {
 				return err
 			}
@@ -102,8 +102,8 @@ func branchRestriction(client *httpinternal.Client, service *string) *cobra.Comm
 				Service:        *service,
 				BranchRegex:    branchRegex,
 				Environment:    env,
-				CommitterEmail: committerEmail,
-				CommitterName:  committerName,
+				CommitterEmail: committer.Email,
+				CommitterName:  committer.Name,
 			}, &resp)
 			if err != nil {
 				return err

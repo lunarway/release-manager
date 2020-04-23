@@ -9,20 +9,22 @@ import (
 
 func TestCredentials(t *testing.T) {
 	tt := []struct {
-		name     string
-		paths    []string
-		userName string
-		email    string
-		err      error
+		name       string
+		paths      []string
+		userName   string
+		email      string
+		signingKey string
+		err        error
 	}{
 		{
 			name: "complete set",
 			paths: []string{
 				"testdata/user_set_1",
 			},
-			userName: "Foo",
-			email:    "foo@foo.com",
-			err:      nil,
+			userName:   "Foo",
+			email:      "foo@foo.com",
+			signingKey: "0F8FA434523B5TF6",
+			err:        nil,
 		},
 		{
 			name: "first path missing email",
@@ -30,9 +32,10 @@ func TestCredentials(t *testing.T) {
 				"testdata/email_missing",
 				"testdata/user_set_1",
 			},
-			userName: "Foo",
-			email:    "foo@foo.com",
-			err:      nil,
+			userName:   "Foo",
+			email:      "foo@foo.com",
+			signingKey: "0F8FA434523B5TF6",
+			err:        nil,
 		},
 		{
 			name: "first path missing name",
@@ -40,9 +43,10 @@ func TestCredentials(t *testing.T) {
 				"testdata/name_missing",
 				"testdata/user_set_1",
 			},
-			userName: "Foo",
-			email:    "foo@foo.com",
-			err:      nil,
+			userName:   "Foo",
+			email:      "foo@foo.com",
+			signingKey: "0F8FA434523B5TF6",
+			err:        nil,
 		},
 		{
 			name: "configuration file not found in first path",
@@ -50,9 +54,10 @@ func TestCredentials(t *testing.T) {
 				"testdata/unknown_path",
 				"testdata/user_set_1",
 			},
-			userName: "Foo",
-			email:    "foo@foo.com",
-			err:      nil,
+			userName:   "Foo",
+			email:      "foo@foo.com",
+			signingKey: "0F8FA434523B5TF6",
+			err:        nil,
 		},
 		{
 			name: "configuration file not found in all paths",
@@ -60,22 +65,24 @@ func TestCredentials(t *testing.T) {
 				"testdata/unknown_path_1",
 				"testdata/unknown_path_2",
 			},
-			userName: "",
-			email:    "",
-			err:      errors.New("failed to read Git credentials from paths: [testdata/unknown_path_1 testdata/unknown_path_2]"),
+			userName:   "",
+			email:      "",
+			signingKey: "",
+			err:        errors.New("failed to read Git credentials from paths: [testdata/unknown_path_1 testdata/unknown_path_2]"),
 		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			userName, email, err := credentials(tc.paths...)
+			committer, err := credentials(tc.paths...)
 			t.Logf("error: %v", err)
 			if tc.err != nil {
 				assert.EqualError(t, err, tc.err.Error(), "output error not as expected")
 			} else {
 				assert.NoError(t, err, "unexpected output error")
 			}
-			assert.Equal(t, tc.userName, userName, "user name not as expected")
-			assert.Equal(t, tc.email, email, "email not as expected")
+			assert.Equal(t, tc.userName, committer.Name, "user name not as expected")
+			assert.Equal(t, tc.email, committer.Email, "email not as expected")
+			assert.Equal(t, tc.signingKey, committer.SigningKey, "signingkey not as expected")
 		})
 	}
 }

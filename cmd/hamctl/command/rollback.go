@@ -32,7 +32,7 @@ has no effect.`,
 			})
 		},
 		RunE: func(c *cobra.Command, args []string) error {
-			committerName, committerEmail, err := git.CommitterDetails()
+			committer, err := git.CommitterDetails()
 			if err != nil {
 				return err
 			}
@@ -45,8 +45,8 @@ has no effect.`,
 				Service:        *service,
 				Namespace:      namespace,
 				Environment:    environment,
-				CommitterName:  committerName,
-				CommitterEmail: committerEmail,
+				CommitterName:  committer.Name,
+				CommitterEmail: committer.Email,
 			}, &resp)
 			if err != nil {
 				return err

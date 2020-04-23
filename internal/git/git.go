@@ -393,6 +393,40 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName,
 	return gitPush(ctx, rootPath)
 }
 
+func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, msg string, committer Committer) error {
+	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
+	defer span.Finish()
+
+	span, _ = s.Tracer.FromCtx(ctx, "add changes")
+	err := execCommand(ctx, rootPath, "git", "add", ".")
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "add changes")
+	}
+
+	span, _ = s.Tracer.FromCtx(ctx, "check for changes")
+	err = checkStatus(ctx, rootPath)
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "check for changes")
+	}
+	fullCommitMsg := fmt.Sprintf("%s\nSigned-off-by: %s <%s>", msg, authorName, authorEmail)
+	span, _ = s.Tracer.FromCtx(ctx, "commit")
+	err = execCommand(ctx, rootPath,
+		"git",
+		"commit",
+		fmt.Sprintf(`-m%s`, fullCommitMsg),
+	)
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "commit")
+	}
+
+	span, _ = s.Tracer.FromCtx(ctx, "push")
+	defer span.Finish()
+	return gitPush(ctx, rootPath)
+}
+
 func execCommand(ctx context.Context, rootPath string, cmdName string, args ...string) error {
 	logger := log.WithContext(ctx).WithFields("root", rootPath)
 	logger.Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
@@ -564,11 +598,17 @@ func userHomeDir() string {
 	}
 }
 
+type Committer struct {
+	Name       string
+	Email      string
+	SigningKey string
+}
+
 // CommitterDetails returns name and email read for a Git configuration file.
 //
 // Configuration files are read first in the local git repository (if available)
 // and then read the global Git configuration.
-func CommitterDetails() (string, string, error) {
+func CommitterDetails() (Committer, error) {
 	var paths []string
 	pwd, err := os.Getwd()
 	if err == nil {
@@ -579,7 +619,7 @@ func CommitterDetails() (string, string, error) {
 }
 
 // credentials will try to read user name and email from provided paths.
-func credentials(paths ...string) (string, string, error) {
+func credentials(paths ...string) (Committer, error) {
 	for _, path := range paths {
 		c, err := parseConfig(path)
 		if err != nil {
@@ -587,15 +627,23 @@ func credentials(paths ...string) (string, string, error) {
 		}
 		committerName := c.Section("user").Option("name")
 		committerEmail := c.Section("user").Option("email")
+		committerSigningKey := c.Section("user").Option("signingkey")
 		if committerEmail == "" {
 			continue
 		}
 		if committerName == "" {
 			continue
 		}
-		return committerName, committerEmail, nil
+		if committerSigningKey == "" {
+			continue
+		}
+		return Committer{
+			Name:       committerName,
+			Email:      committerEmail,
+			SigningKey: committerSigningKey,
+		}, nil
 	}
-	return "", "", errors.Errorf("failed to read Git credentials from paths: %v", paths)
+	return Committer{}, errors.Errorf("failed to read Git credentials from paths: %v", paths)
 }
 
 // parseConfig returns the Git configuration parsed from provided path.
