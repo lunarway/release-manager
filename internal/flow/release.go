@@ -270,7 +270,16 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	// environment. If there is no artifact released to the target environment an
 	// artifact.ErrFileNotFound error is returned. This is OK as the currentSpec
 	// will then be the default value and this its ID will be the empty string.
-	currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+	destinationConfigRepoPath, closeDestinationSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-artifact-destination")
+	if err != nil {
+		return "", err
+	}
+	defer closeDestinationSource(ctx)
+	_, err = s.Git.Clone(ctx, destinationConfigRepoPath)
+	if err != nil {
+		return "", errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+	}
+	currentSpec, err := envSpec(destinationConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
 	if err != nil && errors.Cause(err) != artifact.ErrFileNotFound {
 		return "", errors.WithMessage(err, "get current released spec")
 	}
@@ -304,7 +313,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		}
 		defer closeSource(ctx)
 
-		_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
+		sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 		if err != nil {
 			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 		}
@@ -326,6 +335,15 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		namespace := event.Namespace
 		actor := event.Actor
 		artifactID := event.ArtifactID
+
+		hash, err := s.Git.LocateArtifact(ctx, sourceRepo, artifactID)
+		if err != nil {
+			return true, errors.WithMessagef(err, "locate release '%s'", artifactID)
+		}
+		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
+		if err != nil {
+			return true, errors.WithMessagef(err, "checkout release hash '%s'", hash)
+		}
 
 		// release service to env from original release
 		sourcePath := srcPath(sourceConfigRepoPath, service, branch, environment)
