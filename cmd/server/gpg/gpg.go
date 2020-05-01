@@ -1,4 +1,5 @@
 // THIS IS BORROWED FROM FLUX!
+// https://raw.githubusercontent.com/fluxcd/flux/6e6f3a8bfc0a6137d935ff4968e15a3ba59ebdb0/pkg/gpg/gpg.go
 // Package gpg has procedures for dealing with GNU Privacy Guard
 // (gpg), in service of signing commits.
 package gpg
