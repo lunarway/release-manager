@@ -142,7 +142,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					// lets just use flux' implementation on how to load keys
 					keyfiles, err := gpg.ImportKeys(p, false)
 					if err != nil {
-						return errors.New(fmt.Sprintf("failed to import GPG key(s) from %s", p))
+						return fmt.Errorf("failed to import GPG key(s) from %s", p)
 					}
 					if keyfiles != nil {
 						log.Infof("imported GPG key(s) from %s files %v", p, keyfiles)
