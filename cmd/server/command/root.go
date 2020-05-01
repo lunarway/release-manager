@@ -23,6 +23,7 @@ func NewCommand() (*cobra.Command, error) {
 	var githubAPIToken string
 	var configRepoOpts configRepoOptions
 	var gitConfigOpts git.GitConfig
+	var gpgKeyPaths []string
 	var users []string
 	var userMappings map[string]string
 	var branchRestrictionsList []string
@@ -63,6 +64,7 @@ func NewCommand() (*cobra.Command, error) {
 		configRepo:                &configRepoOpts,
 		gitConfigOpts:             &gitConfigOpts,
 		http:                      &httpOpts,
+		gpgKeyPaths:               &gpgKeyPaths,
 		broker:                    &brokerOpts,
 		slackMutes:                &slackMuteOpts,
 		userMappings:              &userMappings,
@@ -86,6 +88,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&grafanaOpts.ProdURL, "grafana-prod-url", os.Getenv("GRAFANA_PROD_URL"), "grafana prod url")
 	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between emails used by Git and Slack, key-value pair: <email>=<slack-email>")
 	command.PersistentFlags().StringSliceVar(&branchRestrictionsList, "policy-branch-restrictions", []string{}, "branch restriction policies applied to all releases, key-value pair: <environment>=<branch-regex>")
+	command.PersistentFlags().StringSliceVar(&gpgKeyPaths, "git-gpg-key-import-paths", []string{}, "a list of paths for signing keys to import to gpg")
 
 	registerBrokerFlags(command, &brokerOpts)
 	registerSlackNotificationFlags(command, &slackMuteOpts)
@@ -125,7 +128,6 @@ func registerGitFlags(cmd *cobra.Command, opts *git.GitConfig) {
 	cmd.PersistentFlags().StringVar(&opts.User, "git-user", "HamAstrochimp", "the user that all commits will be committed with.")
 	cmd.PersistentFlags().StringVar(&opts.Email, "git-email", "operations@lunar.app", "the email that all commits will be committed with.")
 	cmd.PersistentFlags().StringVar(&opts.SigningKey, "git-signing-key", "", "the signingkey which all commits will be signed with. The path to the key has to be provided.")
-	cmd.PersistentFlags().StringSliceVar(&opts.GPGImportPaths, "git-gpg-key-import-paths", []string{}, "a list of paths for signing keys to import to gpg")
 }
 
 // parseBranchRestrictions pases a slice of key-value pairs formatted as

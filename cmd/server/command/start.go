@@ -98,6 +98,7 @@ type startOptions struct {
 	http                      *http.Options
 	broker                    *brokerOptions
 	slackMutes                *slack.MuteOptions
+	gpgKeyPaths               *[]string
 	userMappings              *map[string]string
 	branchRestrictionPolicies *[]policy.BranchRestriction
 }
@@ -135,10 +136,10 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			}
 			// Import GPG Keys
 			if startOptions.gitConfigOpts.SigningKey != "" {
-				if len(startOptions.gitConfigOpts.GPGImportPaths) < 1 {
+				if len(*startOptions.gpgKeyPaths) < 1 {
 					return errors.New("gpg signing key provided, but no import paths specified")
 				}
-				for _, p := range startOptions.gitConfigOpts.GPGImportPaths {
+				for _, p := range *startOptions.gpgKeyPaths {
 					// lets just use flux' implementation on how to load keys
 					keyfiles, err := gpg.ImportKeys(p, false)
 					if err != nil {

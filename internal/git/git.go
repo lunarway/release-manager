@@ -33,10 +33,9 @@ var (
 )
 
 type GitConfig struct {
-	User           string
-	Email          string
-	SigningKey     string
-	GPGImportPaths []string
+	User       string
+	Email      string
+	SigningKey string
 }
 
 type Service struct {
