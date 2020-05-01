@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lunarway/release-manager/cmd/server/gpg"
 	"github.com/lunarway/release-manager/cmd/server/http"
 	"github.com/lunarway/release-manager/internal/broker"
 	"github.com/lunarway/release-manager/internal/broker/amqp"
@@ -93,6 +94,7 @@ type startOptions struct {
 	githubAPIToken            *string
 	grafana                   *grafanaOptions
 	configRepo                *configRepoOptions
+	gitConfigOpts             *git.GitConfig
 	http                      *http.Options
 	broker                    *brokerOptions
 	slackMutes                *slack.MuteOptions
@@ -131,11 +133,29 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					},
 				},
 			}
+			// Import GPG Keys
+			if startOptions.gitConfigOpts.SigningKey != "" {
+				if len(startOptions.gitConfigOpts.GPGImportPaths) < 1 {
+					return errors.New("gpg signing key provided, but no import paths specified")
+				}
+				for _, p := range startOptions.gitConfigOpts.GPGImportPaths {
+					// lets just use flux' implementation on how to load keys
+					keyfiles, err := gpg.ImportKeys(p, false)
+					if err != nil {
+						return errors.New(fmt.Sprintf("failed to import GPG key(s) from %s", p))
+					}
+					if keyfiles != nil {
+						log.Infof("imported GPG key(s) from %s files %v", p, keyfiles)
+					}
+				}
+			}
 			gitSvc := git.Service{
 				Tracer:            tracer,
 				SSHPrivateKeyPath: startOptions.configRepo.SSHPrivateKeyPath,
 				ConfigRepoURL:     startOptions.configRepo.ConfigRepo,
+				Config:            startOptions.gitConfigOpts,
 			}
+
 			github := github.Service{
 				Token: *startOptions.githubAPIToken,
 			}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/cmd/server/http"
+	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/slack"
@@ -21,6 +22,7 @@ func NewCommand() (*cobra.Command, error) {
 	var slackAuthToken string
 	var githubAPIToken string
 	var configRepoOpts configRepoOptions
+	var gitConfigOpts git.GitConfig
 	var users []string
 	var userMappings map[string]string
 	var branchRestrictionsList []string
@@ -59,6 +61,7 @@ func NewCommand() (*cobra.Command, error) {
 		slackAuthToken:            &slackAuthToken,
 		githubAPIToken:            &githubAPIToken,
 		configRepo:                &configRepoOpts,
+		gitConfigOpts:             &gitConfigOpts,
 		http:                      &httpOpts,
 		broker:                    &brokerOpts,
 		slackMutes:                &slackMuteOpts,
@@ -86,6 +89,7 @@ func NewCommand() (*cobra.Command, error) {
 
 	registerBrokerFlags(command, &brokerOpts)
 	registerSlackNotificationFlags(command, &slackMuteOpts)
+	registerGitFlags(command, &gitConfigOpts)
 	logConfiguration = log.RegisterFlags(command)
 
 	return command, nil
@@ -115,6 +119,13 @@ func registerBrokerFlags(cmd *cobra.Command, c *brokerOptions) {
 	cmd.PersistentFlags().IntVar(&c.AMQP.Prefetch, "amqp-prefetch", 1, "AMQP queue prefetch")
 	cmd.PersistentFlags().StringVar(&c.AMQP.Exchange, "amqp-exchange", "release-manager", "AMQP exchange")
 	cmd.PersistentFlags().StringVar(&c.AMQP.Queue, "amqp-queue", "release-manager", "AMQP queue")
+}
+
+func registerGitFlags(cmd *cobra.Command, opts *git.GitConfig) {
+	cmd.PersistentFlags().StringVar(&opts.User, "git-user", "HamAstrochimp", "the user that all commits will be committed with.")
+	cmd.PersistentFlags().StringVar(&opts.Email, "git-email", "operations@lunar.app", "the email that all commits will be committed with.")
+	cmd.PersistentFlags().StringVar(&opts.SigningKey, "git-signing-key", "", "the signingkey which all commits will be signed with. The path to the key has to be provided.")
+	cmd.PersistentFlags().StringSliceVar(&opts.GPGImportPaths, "git-gpg-key-import-paths", []string{}, "a list of paths for signing keys to import to gpg")
 }
 
 // parseBranchRestrictions pases a slice of key-value pairs formatted as
