@@ -32,10 +32,17 @@ var (
 	ErrUnknownGit         = errors.New("unknown git error")
 )
 
+type GitConfig struct {
+	User       string
+	Email      string
+	SigningKey string
+}
+
 type Service struct {
 	Tracer            tracing.Tracer
 	SSHPrivateKeyPath string
 	ConfigRepoURL     string
+	Config            *GitConfig
 
 	masterPath  string
 	masterMutex sync.RWMutex
@@ -373,16 +380,20 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName,
 	if err != nil {
 		return errors.WithMessage(err, "check for changes")
 	}
+	commitMessage := fmt.Sprintf("%s\nArtifact-created-by: %s <%s>\nArtifact-released-by: %s <%s>", msg, authorName, authorEmail, committerName, committerEmail)
+	args := []string{
+		"-c", fmt.Sprintf(`user.name="%s"`, s.Config.User),
+		"-c", fmt.Sprintf(`user.email="%s"`, s.Config.Email),
+		"commit",
+	}
+
+	if s.Config.SigningKey != "" {
+		args = append(args, fmt.Sprintf("--gpg-sign=%s", s.Config.SigningKey))
+	}
+	args = append(args, fmt.Sprintf(`-m%s`, commitMessage))
 
 	span, _ = s.Tracer.FromCtx(ctx, "commit")
-	err = execCommand(ctx, rootPath,
-		"git",
-		"-c", fmt.Sprintf(`user.name="%s"`, committerName),
-		"-c", fmt.Sprintf(`user.email="%s"`, committerEmail),
-		"commit",
-		fmt.Sprintf(`--author="%s <%s>"`, authorName, authorEmail),
-		fmt.Sprintf(`-m%s`, msg),
-	)
+	err = execCommand(ctx, rootPath, "git", args...)
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "commit")
