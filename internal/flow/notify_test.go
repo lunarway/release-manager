@@ -15,13 +15,22 @@ func TestCommitMessageExtraction(t *testing.T) {
 		err           error
 	}{
 		{
-			name:          "exact values",
+			name:          "only four values match",
 			commitMessage: "[env/service-name] release master-1234567890-1234567890 by test@lunar.app",
+			expected:      FluxReleaseMessage{},
+			err:           errors.New("not enough matches"),
+		},
+		{
+			name: "exact values",
+			commitMessage: `[env/service-name] release master-a037e03657-efc17d9df7 by author@lunar.app
+Artifact-created-by: Author <author@lunar.app>
+Artifact-released-by: Committer <committer@lunar.app>`,
 			expected: FluxReleaseMessage{
-				Environment: "env",
-				Service:     "service-name",
-				ArtifactID:  "master-1234567890-1234567890",
-				GitAuthor:   "test@lunar.app",
+				Environment:  "env",
+				Service:      "service-name",
+				ArtifactID:   "master-a037e03657-efc17d9df7",
+				GitAuthor:    "author@lunar.app",
+				GitCommitter: "committer@lunar.app",
 			},
 			err: nil,
 		},

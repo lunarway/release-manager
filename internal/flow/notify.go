@@ -2,6 +2,7 @@ package flow
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 
 	"github.com/lunarway/release-manager/internal/flux"
@@ -78,14 +79,15 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 }
 
 type FluxReleaseMessage struct {
-	Environment string
-	Service     string
-	ArtifactID  string
-	GitAuthor   string
+	Environment  string
+	Service      string
+	ArtifactID   string
+	GitAuthor    string
+	GitCommitter string
 }
 
 func parseCommitMessage(commitMessage string) (FluxReleaseMessage, error) {
-	pattern := `^\[(?P<env>.*)/(?P<service>.*)\]\s+release\s+(?P<artifact>.*)\s+by\s+(?P<author>.*)`
+	pattern := `^\[(?P<env>.*)/(?P<service>.*)\]\s+release\s+(?P<artifact>.*)\s+by\s+(?P<author>.*)\nArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>\nArtifact-released-by:\s(?P<committerName>.*)\s<(?P<committerEmail>.*)>`
 	r, err := regexp.Compile(pattern)
 	if err != nil {
 		return FluxReleaseMessage{}, errors.WithMessage(err, "regex didn't match")
@@ -94,11 +96,12 @@ func parseCommitMessage(commitMessage string) (FluxReleaseMessage, error) {
 	if len(matches) < 1 {
 		return FluxReleaseMessage{}, errors.New("not enough matches")
 	}
-
+	fmt.Printf("matches: %v", matches)
 	return FluxReleaseMessage{
-		Environment: matches[1],
-		Service:     matches[2],
-		ArtifactID:  matches[3],
-		GitAuthor:   matches[4],
+		Environment:  matches[1],
+		Service:      matches[2],
+		ArtifactID:   matches[3],
+		GitAuthor:    matches[6],
+		GitCommitter: matches[8],
 	}, nil
 }
