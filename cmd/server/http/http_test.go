@@ -92,6 +92,16 @@ func TestExtractInfoFromCommit(t *testing.T) {
 			err: nil,
 		},
 		{
+			name:          "email as author",
+			commitMessage: "[test-service] artifact master-1234ds13g3-12s46g356g by test@lunar.app\nArtifact-created-by: Foo Bar <test@lunar.app>",
+			commitInfo: commitInfo{
+				AuthorEmail: "test@lunar.app",
+				AuthorName:  "Foo Bar",
+				Service:     "test-service",
+			},
+			err: nil,
+		},
+		{
 			name:          "not valid message",
 			commitMessage: "[product] build something",
 			commitInfo:    commitInfo{},

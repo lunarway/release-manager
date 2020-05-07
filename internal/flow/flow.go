@@ -280,7 +280,7 @@ func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, re
 	artifactID := artifactSpec.ID
 	authorName := artifactSpec.Application.AuthorName
 	authorEmail := artifactSpec.Application.AuthorEmail
-	commitMsg := git.ArtifactCommitMessage(artifactSpec.Service, artifactID, authorName)
+	commitMsg := git.ArtifactCommitMessage(artifactSpec.Service, artifactID, authorEmail)
 	fmt.Printf("Committing changes\n")
 	err = gitSvc.SignedCommit(ctx, destinationPath, ".", authorName, authorEmail, commitMsg)
 	if err != nil {
