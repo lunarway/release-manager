@@ -86,7 +86,7 @@ type FluxReleaseMessage struct {
 }
 
 func parseCommitMessage(commitMessage string) (FluxReleaseMessage, error) {
-	pattern := `^\[(?P<env>.*)/(?P<service>.*)\]\s+release\s+(?P<artifact>.*)\s+by\s+(?P<author>.*)\nArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>\nArtifact-released-by:\s(?P<committerName>.*)\s<(?P<committerEmail>.*)>`
+	pattern := `^\[(?P<env>.*)/(?P<service>.*)\]\s+release\s+(?P<artifact>.*)\s+by\s+(?P<author>.*)\sArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>\sArtifact-released-by:\s(?P<committerName>.*)\s<(?P<committerEmail>.*)>`
 	r, err := regexp.Compile(pattern)
 	if err != nil {
 		return FluxReleaseMessage{}, errors.WithMessage(err, "regex didn't match")
