@@ -2,7 +2,6 @@ package flow
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 
 	"github.com/lunarway/release-manager/internal/flux"
@@ -96,7 +95,6 @@ func parseCommitMessage(commitMessage string) (FluxReleaseMessage, error) {
 	if len(matches) < 1 {
 		return FluxReleaseMessage{}, errors.New("not enough matches")
 	}
-	fmt.Printf("matches: %v", matches)
 	return FluxReleaseMessage{
 		Environment:  matches[1],
 		Service:      matches[2],
