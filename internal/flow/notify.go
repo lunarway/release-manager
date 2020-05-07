@@ -71,7 +71,7 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 		err = s.Slack.NotifyFluxEventProcessed(ctx, commitMessage.ArtifactID, commitMessage.Environment, email, commitMessage.Service)
 		span.Finish()
 		if err != nil {
-			return errors.WithMessage(err, "post flux event processed private message")
+			return errors.WithMessagef(err, "post flux event processed private message; artifact: %s, env: %s, email: %s, service: %s", commitMessage.ArtifactID, commitMessage.Environment, email, commitMessage.Service)
 		}
 	}
 	return nil
