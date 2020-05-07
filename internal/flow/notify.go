@@ -2,7 +2,6 @@ package flow
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 
 	"github.com/lunarway/release-manager/internal/flux"
