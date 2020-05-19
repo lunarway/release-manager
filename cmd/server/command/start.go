@@ -20,6 +20,7 @@ import (
 	"github.com/lunarway/release-manager/internal/grafana"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
+	"github.com/lunarway/release-manager/internal/s3storage"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
@@ -263,6 +264,11 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				},
 			}
 
+			s3storageSvc, err := s3storage.Initialize(log.With("type", "s3storage"))
+			if err != nil {
+				return err
+			}
+
 			eventHandlers := map[string]func([]byte) error{
 				flow.PromoteEvent{}.Type(): func(d []byte) error {
 					var event flow.PromoteEvent
@@ -321,7 +327,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				}
 			}()
 			go func() {
-				err := http.NewServer(startOptions.http, slackClient, &flowSvc, &policySvc, &gitSvc, tracer)
+				err := http.NewServer(startOptions.http, slackClient, &flowSvc, &policySvc, &gitSvc, s3storageSvc, tracer)
 				if err != nil {
 					done <- errors.WithMessage(err, "new http server")
 					return
