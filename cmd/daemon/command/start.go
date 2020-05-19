@@ -9,6 +9,7 @@ import (
 
 	"github.com/lunarway/release-manager/cmd/daemon/flux"
 	"github.com/lunarway/release-manager/cmd/daemon/kubernetes"
+	"github.com/lunarway/release-manager/cmd/daemon/s3storage"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
@@ -34,6 +35,11 @@ func StartDaemon() *cobra.Command {
 
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
+
+			err := s3storage.Initialize()
+			if err != nil {
+				return err
+			}
 
 			kubectl, err := kubernetes.NewClient(kubeConfigPath, moduloCrashReportNotif, &kubernetes.ReleaseManagerExporter{
 				Log:         log.With("type", "k8s-exporter"),

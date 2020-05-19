@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/Masterminds/semver v1.4.2 // indirect
 	github.com/VividCortex/gohistogram v1.0.0 // indirect
-	github.com/aws/aws-sdk-go v1.30.7 // indirect
+	github.com/aws/aws-sdk-go v1.31.0
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/docker/go-metrics v0.0.0-20180209012529-399ea8c73916 // indirect
