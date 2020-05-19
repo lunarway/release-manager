@@ -10,6 +10,7 @@ import (
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
+	"github.com/lunarway/release-manager/internal/flow/storage"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/slack"
@@ -33,6 +34,7 @@ type Service struct {
 	Git              *git.Service
 	Tracer           tracing.Tracer
 	CanRelease       func(ctx context.Context, svc, branch, env string) (bool, error)
+	Storage          storage.Storage
 
 	PublishPromote           func(context.Context, PromoteEvent) error
 	PublishRollback          func(context.Context, RollbackEvent) error
@@ -110,7 +112,11 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "dev")
-	devSpec, err := envSpec(s.Git.MasterPath(), s.ArtifactFileName, service, "dev", defaultNamespace("dev"))
+	devSpec, err := s.Storage.GetReleaseSpecification(ctx, storage.ReleaseLocation{
+		Environment: "dev",
+		Service:     service,
+		Namespace:   defaultNamespace("dev"),
+	})
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -121,7 +127,11 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "staging")
-	stagingSpec, err := envSpec(s.Git.MasterPath(), s.ArtifactFileName, service, "staging", defaultNamespace("staging"))
+	stagingSpec, err := s.Storage.GetReleaseSpecification(ctx, storage.ReleaseLocation{
+		Environment: "staging",
+		Service:     service,
+		Namespace:   defaultNamespace("staging"),
+	})
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -132,7 +142,11 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "prod")
-	prodSpec, err := envSpec(s.Git.MasterPath(), s.ArtifactFileName, service, "prod", defaultNamespace("prod"))
+	prodSpec, err := s.Storage.GetReleaseSpecification(ctx, storage.ReleaseLocation{
+		Environment: "prod",
+		Service:     service,
+		Namespace:   defaultNamespace("prod"),
+	})
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -200,33 +214,38 @@ func envSpec(root, artifactFileName, service, env, namespace string) (artifact.S
 	return artifact.Get(path.Join(releasePath(root, service, env, namespace), artifactFileName))
 }
 
-// sourceSpec returns the Spec of the current release.
-func sourceSpec(ctx context.Context, root, artifactFileName, service, env, namespace string) (artifact.Spec, error) {
-	var specPath string
+// sourceSpec returns the Spec of the "previous" environment following promote
+// order.
+func (s *Service) sourceSpec(ctx context.Context, service, env, namespace string) (artifact.Spec, error) {
 	switch env {
 	case "dev":
-		specPath = path.Join(artifactPath(root, service, "master"), artifactFileName)
+		return s.Storage.GetArtifactSpecification(ctx, storage.ArtifactLocation{
+			Branch:  "master",
+			Service: service,
+		})
 	case "staging":
 		// if namespace is set to the environment we have to look one environment back when locating the artifact.json
 		if namespace == "staging" {
 			namespace = "dev"
 		}
-		specPath = path.Join(releasePath(root, service, "dev", namespace), artifactFileName)
+		return s.Storage.GetReleaseSpecification(ctx, storage.ReleaseLocation{
+			Environment: "dev",
+			Namespace:   namespace,
+			Service:     service,
+		})
 	case "prod":
 		// if namespace is set to the environment we have to look one environment back when locating the artifact.json
 		if namespace == "prod" {
 			namespace = "staging"
 		}
-		specPath = path.Join(releasePath(root, service, "staging", namespace), artifactFileName)
+		return s.Storage.GetReleaseSpecification(ctx, storage.ReleaseLocation{
+			Environment: "staging",
+			Namespace:   namespace,
+			Service:     service,
+		})
 	default:
 		return artifact.Spec{}, ErrUnknownEnvironment
 	}
-	log.WithContext(ctx).Infof("Get artifact spec from %s", specPath)
-	return artifact.Get(specPath)
-}
-
-func srcPath(root, service, branch, env string) string {
-	return path.Join(artifactPath(root, service, branch), env)
 }
 
 func artifactPath(root, service, branch string) string {

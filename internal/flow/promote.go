@@ -8,6 +8,7 @@ import (
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
+	"github.com/lunarway/release-manager/internal/flow/storage"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
@@ -22,19 +23,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 	defer span.Finish()
 	var result PromoteResult
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
-		sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
-		if err != nil {
-			return true, err
-		}
-		defer closeSource(ctx)
-
 		logger := log.WithContext(ctx)
-		// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
-		logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
-		sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
-		if err != nil {
-			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
-		}
 
 		// default to environment name for the namespace if none is specified
 		if namespace == "" {
@@ -42,7 +31,8 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		}
 		logger.Infof("flow: Promote: using namespace '%s'", namespace)
 
-		sourceSpec, err := sourceSpec(ctx, sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+		// locate the previous environment
+		sourceSpec, err := s.sourceSpec(ctx, service, environment, namespace)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
@@ -78,9 +68,9 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		// when promoting to dev we use should look for the artifact instead of
 		// release as the artifact have never been released.
 		if environment == "dev" {
-			hash, err = s.Git.LocateArtifact(ctx, sourceRepo, result.ReleaseID)
+			hash, err = s.Storage.GetHashForArtifact(ctx, result.ReleaseID)
 		} else {
-			hash, err = s.Git.LocateRelease(ctx, sourceRepo, result.ReleaseID)
+			hash, err = s.Storage.GetHashForRelease(ctx, result.ReleaseID)
 		}
 		if err != nil {
 			return true, errors.WithMessagef(err, "locate release '%s'", result.ReleaseID)
@@ -90,7 +80,12 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		// environment. If there is no artifact released to the target environment an
 		// artifact.ErrFileNotFound error is returned. This is OK as the currentSpec
 		// will then be the default value and this its ID will be the empty string.
-		currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+		currentSpec, err := s.Storage.GetReleaseSpecification(ctx, storage.ReleaseLocation{
+			Environment: environment,
+			Namespace:   namespace,
+			Service:     service,
+		})
+		// currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
 		if err != nil && errors.Cause(err) != artifact.ErrFileNotFound {
 			return true, errors.WithMessage(err, "get current released spec")
 		}
@@ -165,22 +160,14 @@ func (p *PromoteEvent) Unmarshal(data []byte) error {
 func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ExecPromote")
 	defer span.Finish()
-	var result PromoteResult
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
 		logger := log.WithContext(ctx)
 
-		sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
+		artifactSourcePath, sourcePath, closeSource, err := s.Storage.GetArtifactPathFromHash(ctx, p.Hash, p.Service, p.Environment)
 		if err != nil {
 			return true, err
 		}
 		defer closeSource(ctx)
-
-		// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
-		logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
-		_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
-		if err != nil {
-			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
-		}
 
 		hash := plumbing.NewHash(p.Hash)
 		service := p.Service
@@ -188,10 +175,6 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 		namespace := p.Namespace
 		actor := p.Actor
 		logger.Debugf("internal/flow: Promote: release hash '%v'", hash)
-		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
-		if err != nil {
-			return true, errors.WithMessagef(err, "checkout release hash '%s'", hash)
-		}
 
 		destinationConfigRepoPath, closeDest, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-dest")
 		if err != nil {
@@ -205,7 +188,6 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 		}
 
 		// release service to env from original release
-		sourcePath := srcPath(sourceConfigRepoPath, service, "master", environment)
 		destinationPath := releasePath(destinationConfigRepoPath, service, environment, namespace)
 		logger.Debugf("Copy resources from: %s to %s", sourcePath, destinationPath)
 
@@ -215,7 +197,6 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 		}
 
 		// copy artifact spec
-		artifactSourcePath := srcPath(sourceConfigRepoPath, service, "master", s.ArtifactFileName)
 		artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
 		logger.Debugf("Copy artifact from: %s to %s", artifactSourcePath, artifactDestinationPath)
 		err = copy.CopyFile(ctx, artifactSourcePath, artifactDestinationPath)
@@ -223,13 +204,13 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}
 
-		sourceSpec, err := sourceSpec(ctx, sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+		sourceSpec, err := artifact.Get(artifactSourcePath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
 		authorName := sourceSpec.Application.AuthorName
 		authorEmail := sourceSpec.Application.AuthorEmail
-		releaseMessage := git.ReleaseCommitMessage(environment, service, result.ReleaseID, authorEmail)
+		releaseMessage := git.ReleaseCommitMessage(environment, service, sourceSpec.ID, authorEmail)
 		logger.Debugf("Committing release: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
 		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
 		if err != nil {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
@@ -130,17 +131,6 @@ func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
 		logger := log.WithContext(ctx)
 
-		sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-rollback-source")
-		if err != nil {
-			return true, err
-		}
-		defer closeSource(ctx)
-
-		_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
-		if err != nil {
-			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
-		}
-
 		service := event.Service
 		environment := event.Environment
 		namespace := event.Namespace
@@ -148,10 +138,11 @@ func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {
 		actor := event.Actor
 		newHash := plumbing.NewHash(event.NewHash)
 
-		err = s.Git.Checkout(ctx, sourceConfigRepoPath, newHash)
+		artifactSourcePath, sourcePath, closeSource, err := s.Storage.GetReleasePathFromHash(ctx, newHash.String(), service, environment, namespace)
 		if err != nil {
-			return true, errors.WithMessagef(err, "checkout previous release hash '%v'", newHash)
+			return true, errors.WithMessagef(err, "get source paths from hash '%s'", event.NewHash)
 		}
+		defer closeSource(ctx)
 
 		destinationConfigRepoPath, closeDestination, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-rollback-destination")
 		if err != nil {
@@ -166,7 +157,6 @@ func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {
 		}
 
 		// release service to env from original release
-		sourcePath := releasePath(sourceConfigRepoPath, service, environment, namespace)
 		destinationPath := releasePath(destinationConfigRepoPath, service, environment, namespace)
 		logger.Infof("flow: ReleaseArtifactID: copy resources from %s to %s", sourcePath, destinationPath)
 
@@ -175,7 +165,6 @@ func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {
 			return true, errors.WithMessagef(err, "copy resources from '%s' to '%s'", sourcePath, destinationPath)
 		}
 		// copy artifact spec
-		artifactSourcePath := path.Join(releasePath(sourceConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
 		artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
 		logger.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
 		err = copy.CopyFile(ctx, artifactSourcePath, artifactDestinationPath)
@@ -183,7 +172,7 @@ func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}
 
-		newSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+		newSpec, err := artifact.Get(artifactSourcePath)
 		if err != nil {
 			return true, errors.WithMessagef(err, "get spec of previous release hash '%v'", newHash)
 		}
