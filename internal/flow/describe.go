@@ -65,5 +65,5 @@ func (s *Service) DescribeRelease(ctx context.Context, namespace, environment, s
 func (s *Service) DescribeArtifact(ctx context.Context, service string, n int) ([]artifact.Spec, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.DescribeArtifact")
 	defer span.Finish()
-	return s.Storage.GetArtifacts(ctx, service, n)
+	return s.Storage.GetArtifactSpecifications(ctx, service, n)
 }

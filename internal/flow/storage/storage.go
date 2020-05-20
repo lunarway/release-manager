@@ -26,7 +26,7 @@ type ArtifactLocation struct {
 type Storage interface {
 	GetReleaseSpecification(context.Context, ReleaseLocation) (artifact.Spec, error)
 	GetArtifactSpecification(context.Context, ArtifactLocation) (artifact.Spec, error)
-	GetArtifacts(ctx context.Context, service string, count int) ([]artifact.Spec, error)
+	GetArtifactSpecifications(ctx context.Context, service string, count int) ([]artifact.Spec, error)
 	GetBranch(ctx context.Context, service, artifactID string) (string, error)
 
 	GetArtifactPathFromArtifactID(ctx context.Context, service, environment, branch, artifactID string) (specPath, resourcesPath string, close CloseFunc, err error)
@@ -263,7 +263,7 @@ func artifactResourcesPath(root, service, branch, env string) string {
 	return path.Join(artifactSpecPath(root, service, branch), env)
 }
 
-func (s *Git) GetArtifacts(ctx context.Context, service string, count int) ([]artifact.Spec, error) {
+func (s *Git) GetArtifactSpecifications(ctx context.Context, service string, count int) ([]artifact.Spec, error) {
 	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-describe-artifact")
 	if err != nil {
 		return nil, err
