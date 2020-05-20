@@ -27,16 +27,19 @@ type Storage interface {
 	GetReleaseSpecification(context.Context, ReleaseLocation) (artifact.Spec, error)
 	GetArtifactSpecification(context.Context, ArtifactLocation) (artifact.Spec, error)
 	GetArtifacts(ctx context.Context, service string, count int) ([]artifact.Spec, error)
+	GetBranch(ctx context.Context, service, artifactID string) (string, error)
 
 	GetArtifactPathFromArtifactID(ctx context.Context, service, environment, branch, artifactID string) (specPath, resourcesPath string, close CloseFunc, err error)
 	GetArtifactPath(ctx context.Context, service, environment, branch string) (specPath, resourcesPath string, close CloseFunc, err error)
+
+	// the methods below are defined by the Git implementation and events between
+	// sync and async flow using Git SHA to indicate the releases instead of the
+	// release IDs. We could remove these by removing the passing of storage
+	// details in the events.
 	GetArtifactPathFromHash(ctx context.Context, hash, service, environment string) (specPath, resourcesPath string, close CloseFunc, err error)
 	GetReleasePathFromHash(ctx context.Context, hashStr, service, environment, namespace string) (string, string, CloseFunc, error)
-
 	GetHashForArtifact(ctx context.Context, artifactID string) (plumbing.Hash, error)
 	GetHashForRelease(ctx context.Context, artifactID string) (plumbing.Hash, error)
-
-	GetBranch(ctx context.Context, service, artifactID string) (string, error)
 }
 
 type CloseFunc func(context.Context)
