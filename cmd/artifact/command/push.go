@@ -3,41 +3,32 @@ package command
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 
 	"github.com/lunarway/release-manager/internal/flow"
-	"github.com/lunarway/release-manager/internal/git"
+	"github.com/lunarway/release-manager/internal/releasemanagerclient"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
-	"github.com/lunarway/release-manager/internal/try"
 	"github.com/spf13/cobra"
 )
 
 func pushCommand(options *Options) *cobra.Command {
-	gitSvc := git.Service{
+
+	releaseManagerClient := &releasemanagerclient.Client{
 		Tracer: tracing.NewNoop(),
 	}
+
 	// retries for comitting changes into config repo
 	// can be required for racing writes
 	const maxRetries = 5
 	command := &cobra.Command{
 		Use:   "push",
-		Short: "push artifact to a configuration repository",
+		Short: "push artifact to artifact repository",
 		RunE: func(c *cobra.Command, args []string) error {
 			var artifactID string
 			ctx := context.Background()
-			err := try.Do(ctx, gitSvc.Tracer, maxRetries, func(ctx context.Context, attempt int) (bool, error) {
-				close, err := gitSvc.InitMasterRepo(ctx)
-				if err != nil {
-					return false, err
-				}
-				defer close(ctx)
-				artifactID, err = flow.PushArtifact(ctx, &gitSvc, options.FileName, options.RootPath)
-				if err != nil {
-					return false, err
-				}
-				return true, nil
-			})
+			artifactID, err := flow.PushArtifact(ctx, releaseManagerClient, options.FileName, options.RootPath)
 			if err != nil {
 				return err
 			}
@@ -57,13 +48,14 @@ func pushCommand(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&gitSvc.SSHPrivateKeyPath, "ssh-private-key", "", "private key for the config repo")
+	command.Flags().StringVar(&releaseManagerClient.ReleaseManagerURL, "http-base-url", "https://release-manager.dev.lunarway.com", "address of the http release manager server")
+	command.Flags().StringVar(&releaseManagerClient.ReleaseManagerAuthToken, "http-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "auth token for the http service")
+
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
 	//nolint:errcheck
-	command.MarkFlagRequired("ssh-private-key")
-	command.Flags().StringVar(&gitSvc.ConfigRepoURL, "config-repo", "", "ssh url for the git config repository")
+	command.MarkFlagRequired("http-base-url")
 	//nolint:errcheck
-	command.MarkFlagRequired("config-repo")
+	command.MarkFlagRequired("http-auth-token")
 	return command
 }

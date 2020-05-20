@@ -12,6 +12,7 @@ import (
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/releasemanagerclient"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/lunarway/release-manager/internal/try"
@@ -239,58 +240,22 @@ func releasePath(root, service, env, namespace string) string {
 //
 // The resourceRoot specifies the path to the artifact files. All files in this
 // path will be pushed.
-func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, resourceRoot string) (string, error) {
+func PushArtifact(ctx context.Context, releaseManagerClient *releasemanagerclient.Client, artifactFileName, resourceRoot string) (string, error) {
 	artifactSpecPath := path.Join(resourceRoot, artifactFileName)
 	artifactSpec, err := artifact.Get(artifactSpecPath)
 	if err != nil {
 		return "", errors.WithMessagef(err, "path '%s'", artifactSpecPath)
 	}
-	artifactConfigRepoPath, close, err := git.TempDir(ctx, gitSvc.Tracer, "k8s-config-artifact")
+	files := listFiles(resourceRoot)
+	releaseManagerClient.PushArtifact(artifactSpec, files)
 	if err != nil {
-		return "", err
-	}
-	defer close(ctx)
-	// fmt.Printf is used for logging as this is called from artifact cli only
-	fmt.Printf("Checkout config repository from '%s' into '%s'\n", gitSvc.ConfigRepoURL, resourceRoot)
-	listFiles(resourceRoot)
-	_, err = gitSvc.Clone(ctx, artifactConfigRepoPath)
-	if err != nil {
-		return "", errors.WithMessage(err, "clone config repo")
-	}
-	destinationPath := artifactPath(artifactConfigRepoPath, artifactSpec.Service, artifactSpec.Application.Branch)
-	fmt.Printf("Artifacts destination '%s'\n", destinationPath)
-	listFiles(destinationPath)
-	fmt.Printf("Removing existing files\n")
-	err = os.RemoveAll(destinationPath)
-	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("remove destination path '%s'", destinationPath))
-	}
-	err = os.MkdirAll(destinationPath, os.ModePerm)
-	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
-	}
-	fmt.Printf("Copy configuration into destination\n")
-	err = copy.CopyDir(ctx, resourceRoot, destinationPath)
-	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", resourceRoot, destinationPath))
-	}
-	listFiles(destinationPath)
-	artifactID := artifactSpec.ID
-	authorName := artifactSpec.Application.AuthorName
-	authorEmail := artifactSpec.Application.AuthorEmail
-	commitMsg := git.ArtifactCommitMessage(artifactSpec.Service, artifactID, authorEmail)
-	fmt.Printf("Committing changes\n")
-	err = gitSvc.SignedCommit(ctx, destinationPath, ".", authorName, authorEmail, commitMsg)
-	if err != nil {
-		if err == git.ErrNothingToCommit {
-			return artifactSpec.ID, nil
-		}
-		return "", errors.WithMessage(err, "commit files")
+		return "", errors.WithMessage(err, "push artifact")
 	}
 	return artifactSpec.ID, nil
 }
 
-func listFiles(path string) {
+func listFiles(path string) []string {
+	var files []string
 	fmt.Printf("Files in path '%s'\n", path)
 	err := filepath.Walk(path,
 		func(path string, info os.FileInfo, err error) error {
@@ -298,12 +263,14 @@ func listFiles(path string) {
 				fmt.Printf("failed to walk dir: %v\n", err)
 				return nil
 			}
+			files = append(files, path)
 			fmt.Printf("  %s\n", path)
 			return nil
 		})
 	if err != nil {
 		fmt.Printf("failed to read dir: %v\n", err)
 	}
+	return files
 }
 
 func (s *Service) notifyRelease(ctx context.Context, opts NotifyReleaseOptions) {

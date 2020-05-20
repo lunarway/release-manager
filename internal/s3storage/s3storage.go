@@ -1,6 +1,9 @@
 package s3storage
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -36,6 +39,21 @@ func Initialize(logger *log.Logger) (*Service, error) {
 		logger:     logger,
 		s3client:   s3client,
 	}, nil
+}
+
+func (s *Service) CreateRelease() struct{} {
+	req, _ := s.s3client.PutObjectRequest(&s3.PutObjectInput{
+		Bucket: aws.String("myBucket"),
+		Key:    aws.String("myKey"),
+	})
+	str, err := req.Presign(15 * time.Minute)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	var _ = str
+
+	return struct{}{}
 }
 
 func createBucket(s3client *s3.S3, bucketName string, logger *log.Logger) error {

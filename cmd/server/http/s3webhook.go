@@ -15,7 +15,7 @@ func s3webhook() http.HandlerFunc {
 		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
 		logger := log.WithContext(ctx)
 
-		logger.WithFields("payload", nil).Infof("http: github webhook: payload t")
+		logger.Infof("webhook called")
 
 		w.WriteHeader(http.StatusOK)
 	}
