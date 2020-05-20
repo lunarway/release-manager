@@ -28,16 +28,18 @@ type Storage interface {
 	GetArtifactSpecification(context.Context, ArtifactLocation) (artifact.Spec, error)
 	GetArtifacts(ctx context.Context, service string, count int) ([]artifact.Spec, error)
 
-	GetArtifactPathFromArtifactID(ctx context.Context, service, environment, branch, artifactID string) (specPath, resourcesPath string, close func(context.Context) error, err error)
-	GetArtifactPath(ctx context.Context, service, environment, branch string) (specPath, resourcesPath string, close func(context.Context) error, err error)
-	GetArtifactPathFromHash(ctx context.Context, hash, service, environment string) (specPath, resourcesPath string, close func(context.Context) error, err error)
-	GetReleasePathFromHash(ctx context.Context, hashStr, service, environment, namespace string) (string, string, func(context.Context) error, error)
+	GetArtifactPathFromArtifactID(ctx context.Context, service, environment, branch, artifactID string) (specPath, resourcesPath string, close CloseFunc, err error)
+	GetArtifactPath(ctx context.Context, service, environment, branch string) (specPath, resourcesPath string, close CloseFunc, err error)
+	GetArtifactPathFromHash(ctx context.Context, hash, service, environment string) (specPath, resourcesPath string, close CloseFunc, err error)
+	GetReleasePathFromHash(ctx context.Context, hashStr, service, environment, namespace string) (string, string, CloseFunc, error)
 
 	GetHashForArtifact(ctx context.Context, artifactID string) (plumbing.Hash, error)
 	GetHashForRelease(ctx context.Context, artifactID string) (plumbing.Hash, error)
 
 	GetBranch(ctx context.Context, service, artifactID string) (string, error)
 }
+
+type CloseFunc func(context.Context)
 
 type Git struct {
 	ArtifactFileName string
@@ -106,38 +108,37 @@ func (s *Git) GetHashForArtifact(ctx context.Context, artifactID string) (plumbi
 	return hash, nil
 }
 
-func (s *Git) GetArtifactPathFromArtifactID(ctx context.Context, service, environment, branch, artifactID string) (string, string, func(context.Context) error, error) {
+func (s *Git) GetArtifactPathFromArtifactID(ctx context.Context, service, environment, branch, artifactID string) (string, string, CloseFunc, error) {
 	logger := log.WithContext(ctx)
 	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
 	if err != nil {
-		return "", "", func(context.Context) error { return nil }, errors.WithMessage(err, "get temp dir")
+		return "", "", nil, errors.WithMessage(err, "get temp dir")
 	}
 
 	logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
 	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		closeSource(ctx)
-		return "", "", func(context.Context) error { return nil }, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+		return "", "", nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 
 	hash, err := s.Git.LocateArtifact(ctx, sourceRepo, artifactID)
 	if err != nil {
 		closeSource(ctx)
-		return "", "", func(context.Context) error { return nil }, errors.WithMessage(err, "locate artifact")
+		return "", "", nil, errors.WithMessage(err, "locate artifact")
 	}
 
 	err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
 	if err != nil {
 		closeSource(ctx)
-		return "", "", func(context.Context) error { return nil }, errors.WithMessagef(err, "checkout release hash '%s'", hash)
+		return "", "", nil, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 	}
 
 	resourcesPath := artifactResourcesPath(sourceConfigRepoPath, service, branch, environment)
 	specPath := artifactResourcesPath(sourceConfigRepoPath, service, branch, s.ArtifactFileName)
 	logger.Infof("storage/GetArtifactPathFromArtifactID found resources from '%s' and specification at '%s'", resourcesPath, specPath)
-	return specPath, resourcesPath, func(ctx context.Context) error {
+	return specPath, resourcesPath, func(ctx context.Context) {
 		closeSource(ctx)
-		return nil
 	}, nil
 }
 
@@ -160,31 +161,30 @@ func (s *Git) GetHashForRelease(ctx context.Context, artifactID string) (plumbin
 	return hash, nil
 }
 
-func (s *Git) GetArtifactPath(ctx context.Context, service, environment, branch string) (string, string, func(context.Context) error, error) {
+func (s *Git) GetArtifactPath(ctx context.Context, service, environment, branch string) (string, string, CloseFunc, error) {
 	logger := log.WithContext(ctx)
 	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-branch")
 	if err != nil {
-		return "", "", func(context.Context) error { return nil }, err
+		return "", "", nil, err
 	}
 	_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		close(ctx)
-		return "", "", func(context.Context) error { return nil }, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+		return "", "", nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 	resourcesPath := artifactResourcesPath(sourceConfigRepoPath, service, branch, environment)
 	specPath := artifactResourcesPath(sourceConfigRepoPath, service, branch, s.ArtifactFileName)
 	logger.Infof("storage/GetArtifactPath found resources from '%s' and specification at '%s'", resourcesPath, specPath)
-	return specPath, resourcesPath, func(ctx context.Context) error {
+	return specPath, resourcesPath, func(ctx context.Context) {
 		close(ctx)
-		return nil
 	}, nil
 }
 
-func (s *Git) GetArtifactPathFromHash(ctx context.Context, hashStr, service, environment string) (string, string, func(context.Context) error, error) {
+func (s *Git) GetArtifactPathFromHash(ctx context.Context, hashStr, service, environment string) (string, string, CloseFunc, error) {
 	logger := log.WithContext(ctx)
 	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
 	if err != nil {
-		return "", "", func(context.Context) error { return nil }, err
+		return "", "", nil, err
 	}
 
 	// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
@@ -192,7 +192,7 @@ func (s *Git) GetArtifactPathFromHash(ctx context.Context, hashStr, service, env
 	_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		closeSource(ctx)
-		return "", "", func(context.Context) error { return nil }, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+		return "", "", nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 
 	hash := plumbing.NewHash(hashStr)
@@ -200,23 +200,22 @@ func (s *Git) GetArtifactPathFromHash(ctx context.Context, hashStr, service, env
 	err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
 	if err != nil {
 		closeSource(ctx)
-		return "", "", func(context.Context) error { return nil }, errors.WithMessagef(err, "checkout release hash '%s'", hash)
+		return "", "", nil, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 	}
 
 	resourcesPath := artifactResourcesPath(sourceConfigRepoPath, service, "master", environment)
 	specPath := artifactResourcesPath(sourceConfigRepoPath, service, "master", s.ArtifactFileName)
 	logger.Infof("storage/GetArtifactPathFromHash found resources from '%s' and specification at '%s'", resourcesPath, specPath)
-	return specPath, resourcesPath, func(ctx context.Context) error {
+	return specPath, resourcesPath, func(ctx context.Context) {
 		closeSource(ctx)
-		return nil
 	}, nil
 }
 
-func (s *Git) GetReleasePathFromHash(ctx context.Context, hashStr, service, environment, namespace string) (string, string, func(context.Context) error, error) {
+func (s *Git) GetReleasePathFromHash(ctx context.Context, hashStr, service, environment, namespace string) (string, string, CloseFunc, error) {
 	logger := log.WithContext(ctx)
 	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
 	if err != nil {
-		return "", "", func(context.Context) error { return nil }, err
+		return "", "", nil, err
 	}
 
 	// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
@@ -224,7 +223,7 @@ func (s *Git) GetReleasePathFromHash(ctx context.Context, hashStr, service, envi
 	_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		closeSource(ctx)
-		return "", "", func(context.Context) error { return nil }, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+		return "", "", nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 
 	hash := plumbing.NewHash(hashStr)
@@ -232,15 +231,14 @@ func (s *Git) GetReleasePathFromHash(ctx context.Context, hashStr, service, envi
 	err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
 	if err != nil {
 		closeSource(ctx)
-		return "", "", func(context.Context) error { return nil }, errors.WithMessagef(err, "checkout release hash '%s'", hash)
+		return "", "", nil, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 	}
 
 	resourcesPath := releasePath(sourceConfigRepoPath, service, environment, namespace)
 	specPath := path.Join(releasePath(sourceConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
 	logger.Infof("storage/GetArtifactPathFromHash found resources from '%s' and specification at '%s'", resourcesPath, specPath)
-	return specPath, resourcesPath, func(ctx context.Context) error {
+	return specPath, resourcesPath, func(ctx context.Context) {
 		closeSource(ctx)
-		return nil
 	}, nil
 }
 
