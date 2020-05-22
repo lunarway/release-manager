@@ -224,40 +224,6 @@ func envSpec(root, artifactFileName, service, env, namespace string) (artifact.S
 	return artifact.Get(path.Join(releasePath(root, service, env, namespace), artifactFileName))
 }
 
-// sourceSpec returns the Spec of the "previous" environment following promote
-// order.
-func (s *Service) sourceSpec(ctx context.Context, service, env, namespace string) (artifact.Spec, error) {
-	switch env {
-	case "dev":
-		return s.Storage.LatestArtifactSpecification(ctx, storage.ArtifactLocation{
-			Branch:  "master",
-			Service: service,
-		})
-	case "staging":
-		// if namespace is set to the environment we have to look one environment back when locating the artifact.json
-		if namespace == "staging" {
-			namespace = "dev"
-		}
-		return s.releaseSpecification(ctx, releaseLocation{
-			Environment: "dev",
-			Namespace:   namespace,
-			Service:     service,
-		})
-	case "prod":
-		// if namespace is set to the environment we have to look one environment back when locating the artifact.json
-		if namespace == "prod" {
-			namespace = "staging"
-		}
-		return s.releaseSpecification(ctx, releaseLocation{
-			Environment: "staging",
-			Namespace:   namespace,
-			Service:     service,
-		})
-	default:
-		return artifact.Spec{}, ErrUnknownEnvironment
-	}
-}
-
 func srcPath(root, service, branch, env string) string {
 	return path.Join(artifactPath(root, service, branch), env)
 }

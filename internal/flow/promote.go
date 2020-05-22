@@ -31,7 +31,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		logger.Infof("flow: Promote: using namespace '%s'", namespace)
 
 		// locate the previous environment
-		sourceSpec, err := s.sourceSpec(ctx, service, environment, namespace)
+		sourceSpec, err := s.previousSpec(ctx, service, environment, namespace)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
@@ -213,7 +213,7 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}
 
-		sourceSpec, err := s.sourceSpec(ctx, service, environment, namespace)
+		sourceSpec, err := s.previousSpec(ctx, service, environment, namespace)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
@@ -292,4 +292,38 @@ func (s *Service) releaseExists(ctx context.Context, artifactID string) (bool, e
 		return false, err
 	}
 	return true, nil
+}
+
+// previousSpec returns the Spec of the "previous" environment following promote
+// order.
+func (s *Service) previousSpec(ctx context.Context, service, env, namespace string) (artifact.Spec, error) {
+	switch env {
+	case "dev":
+		return s.Storage.LatestArtifactSpecification(ctx, storage.ArtifactLocation{
+			Branch:  "master",
+			Service: service,
+		})
+	case "staging":
+		// if namespace is set to the environment we have to look one environment back when locating the artifact.json
+		if namespace == "staging" {
+			namespace = "dev"
+		}
+		return s.releaseSpecification(ctx, releaseLocation{
+			Environment: "dev",
+			Namespace:   namespace,
+			Service:     service,
+		})
+	case "prod":
+		// if namespace is set to the environment we have to look one environment back when locating the artifact.json
+		if namespace == "prod" {
+			namespace = "staging"
+		}
+		return s.releaseSpecification(ctx, releaseLocation{
+			Environment: "staging",
+			Namespace:   namespace,
+			Service:     service,
+		})
+	default:
+		return artifact.Spec{}, ErrUnknownEnvironment
+	}
 }
