@@ -162,11 +162,18 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
 		logger := log.WithContext(ctx)
 
-		artifactSourcePath, sourcePath, closeSource, err := s.getArtifactPathFromHash(ctx, p.Hash, p.Service, p.Environment)
+		sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
 		if err != nil {
 			return true, err
 		}
 		defer closeSource(ctx)
+
+		// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
+		logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
+		_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
+		if err != nil {
+			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+		}
 
 		hash := plumbing.NewHash(p.Hash)
 		service := p.Service
@@ -174,6 +181,10 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 		namespace := p.Namespace
 		actor := p.Actor
 		logger.Debugf("internal/flow: Promote: release hash '%v'", hash)
+		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
+		if err != nil {
+			return true, errors.WithMessagef(err, "checkout release hash '%s'", hash)
+		}
 
 		destinationConfigRepoPath, closeDest, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-dest")
 		if err != nil {
@@ -187,6 +198,7 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 		}
 
 		// release service to env from original release
+		sourcePath := srcPath(sourceConfigRepoPath, service, "master", environment)
 		destinationPath := releasePath(destinationConfigRepoPath, service, environment, namespace)
 		logger.Debugf("Copy resources from: %s to %s", sourcePath, destinationPath)
 
@@ -196,6 +208,7 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 		}
 
 		// copy artifact spec
+		artifactSourcePath := srcPath(sourceConfigRepoPath, service, "master", s.ArtifactFileName)
 		artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
 		logger.Debugf("Copy artifact from: %s to %s", artifactSourcePath, artifactDestinationPath)
 		err = copy.CopyFile(ctx, artifactSourcePath, artifactDestinationPath)
@@ -203,7 +216,7 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}
 
-		sourceSpec, err := artifact.Get(artifactSourcePath)
+		sourceSpec, err := s.sourceSpec(ctx, service, environment, namespace)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
@@ -254,35 +267,4 @@ func (s *Service) getHashForRelease(ctx context.Context, artifactID string) (plu
 		return plumbing.ZeroHash, errors.WithMessage(err, "locate artifact")
 	}
 	return hash, nil
-}
-
-func (s *Service) getArtifactPathFromHash(ctx context.Context, hashStr, service, environment string) (string, string, func(context.Context), error) {
-	logger := log.WithContext(ctx)
-	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
-	if err != nil {
-		return "", "", nil, err
-	}
-
-	// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
-	logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
-	_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
-	if err != nil {
-		closeSource(ctx)
-		return "", "", nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
-	}
-
-	hash := plumbing.NewHash(hashStr)
-	logger.Debugf("internal/flow: getArtifactPathFromHash: release hash '%v'", hash)
-	err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
-	if err != nil {
-		closeSource(ctx)
-		return "", "", nil, errors.WithMessagef(err, "checkout release hash '%s'", hash)
-	}
-
-	resourcesPath := srcPath(sourceConfigRepoPath, service, "master", environment)
-	specPath := srcPath(sourceConfigRepoPath, service, "master", s.ArtifactFileName)
-	logger.Infof("internal/flow: getArtifactPathFromHash: found resources from '%s' and specification at '%s'", resourcesPath, specPath)
-	return specPath, resourcesPath, func(ctx context.Context) {
-		closeSource(ctx)
-	}, nil
 }
