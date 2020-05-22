@@ -17,6 +17,7 @@ type ArtifactLocation struct {
 }
 
 type Storage interface {
+	ArtifactExists(ctx context.Context, artifactID string) (bool, error)
 	GetLatestArtifactSpecification(context.Context, ArtifactLocation) (artifact.Spec, error)
 	GetArtifactSpecifications(ctx context.Context, service string, count int) ([]artifact.Spec, error)
 	GetBranch(ctx context.Context, service, artifactID string) (string, error)
@@ -174,4 +175,24 @@ func (s *Git) GetArtifactSpecifications(ctx context.Context, service string, cou
 		artifacts = append(artifacts, spec)
 	}
 	return artifacts, nil
+}
+
+func (s *Git) ArtifactExists(ctx context.Context, artifactID string) (bool, error) {
+	logger := log.WithContext(ctx)
+	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-artifact-exists")
+	if err != nil {
+		return false, err
+	}
+	defer closeSource(ctx)
+
+	logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
+	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
+	if err != nil {
+		return false, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+	}
+	_, err = s.Git.LocateArtifact(ctx, sourceRepo, artifactID)
+	if err != nil {
+		return false, errors.WithMessage(err, "locate artifact")
+	}
+	return true, nil
 }

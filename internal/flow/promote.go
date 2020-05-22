@@ -66,12 +66,15 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		// when promoting to dev we use should look for the artifact instead of
 		// release as the artifact have never been released.
 		if environment == "dev" {
-			// hash, err = s.Storage.GetHashForArtifact(ctx, result.ReleaseID)
+			ok, err = s.Storage.ArtifactExists(ctx, result.ReleaseID)
 		} else {
-			// hash, err = s.getHashForRelease(ctx, result.ReleaseID)
+			ok, err = s.releaseExists(ctx, result.ReleaseID)
 		}
 		if err != nil {
 			return true, errors.WithMessagef(err, "locate release '%s'", result.ReleaseID)
+		}
+		if !ok {
+			return true, git.ErrArtifactNotFound
 		}
 
 		// check that the artifact to be released is not already released in the
@@ -174,7 +177,8 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 		// when promoting to dev we use should look for the artifact instead of
 		// release as the artifact have never been released.
 		if environment == "dev" {
-			artifactSourcePath, sourcePath, closeSource, err = s.Storage.GetArtifactPaths(ctx, service, environment, "branch", artifactID)
+			// TODO: what branch to use here?
+			artifactSourcePath, sourcePath, closeSource, err = s.Storage.GetArtifactPaths(ctx, service, environment, "master", artifactID)
 		} else {
 			artifactSourcePath, sourcePath, closeSource, err = s.releasePaths(ctx, service, environment, artifactID)
 		}
@@ -270,4 +274,24 @@ func (s *Service) releasePaths(ctx context.Context, service, environment, artifa
 	artifactPath := srcPath(sourceConfigRepoPath, service, "master", s.ArtifactFileName)
 	resourcesPath := srcPath(sourceConfigRepoPath, service, "master", environment)
 	return artifactPath, resourcesPath, closeSource, nil
+}
+
+func (s *Service) releaseExists(ctx context.Context, artifactID string) (bool, error) {
+	logger := log.WithContext(ctx)
+	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-exists")
+	if err != nil {
+		return false, err
+	}
+	defer closeSource(ctx)
+
+	logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
+	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
+	if err != nil {
+		return false, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+	}
+	_, err = s.Git.LocateRelease(ctx, sourceRepo, artifactID)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
