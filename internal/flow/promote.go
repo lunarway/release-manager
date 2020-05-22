@@ -8,7 +8,6 @@ import (
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
-	"github.com/lunarway/release-manager/internal/flow/storage"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
@@ -70,7 +69,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		if environment == "dev" {
 			hash, err = s.Storage.GetHashForArtifact(ctx, result.ReleaseID)
 		} else {
-			hash, err = s.Storage.GetHashForRelease(ctx, result.ReleaseID)
+			hash, err = s.getHashForRelease(ctx, result.ReleaseID)
 		}
 		if err != nil {
 			return true, errors.WithMessagef(err, "locate release '%s'", result.ReleaseID)
@@ -80,7 +79,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		// environment. If there is no artifact released to the target environment an
 		// artifact.ErrFileNotFound error is returned. This is OK as the currentSpec
 		// will then be the default value and this its ID will be the empty string.
-		currentSpec, err := s.Storage.GetReleaseSpecification(ctx, storage.ReleaseLocation{
+		currentSpec, err := s.releaseSpecification(ctx, releaseLocation{
 			Environment: environment,
 			Namespace:   namespace,
 			Service:     service,
@@ -163,7 +162,7 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
 		logger := log.WithContext(ctx)
 
-		artifactSourcePath, sourcePath, closeSource, err := s.Storage.GetArtifactPathFromHash(ctx, p.Hash, p.Service, p.Environment)
+		artifactSourcePath, sourcePath, closeSource, err := s.getArtifactPathFromHash(ctx, p.Hash, p.Service, p.Environment)
 		if err != nil {
 			return true, err
 		}
@@ -236,4 +235,54 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 		return err
 	}
 	return nil
+}
+
+func (s *Service) getHashForRelease(ctx context.Context, artifactID string) (plumbing.Hash, error) {
+	logger := log.WithContext(ctx)
+	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
+	if err != nil {
+		return plumbing.ZeroHash, err
+	}
+	defer closeSource(ctx)
+	logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
+	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
+	if err != nil {
+		return plumbing.ZeroHash, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+	}
+	hash, err := s.Git.LocateRelease(ctx, sourceRepo, artifactID)
+	if err != nil {
+		return plumbing.ZeroHash, errors.WithMessage(err, "locate artifact")
+	}
+	return hash, nil
+}
+
+func (s *Service) getArtifactPathFromHash(ctx context.Context, hashStr, service, environment string) (string, string, func(context.Context), error) {
+	logger := log.WithContext(ctx)
+	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
+	logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
+	_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
+	if err != nil {
+		closeSource(ctx)
+		return "", "", nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+	}
+
+	hash := plumbing.NewHash(hashStr)
+	logger.Debugf("internal/flow: getArtifactPathFromHash: release hash '%v'", hash)
+	err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
+	if err != nil {
+		closeSource(ctx)
+		return "", "", nil, errors.WithMessagef(err, "checkout release hash '%s'", hash)
+	}
+
+	resourcesPath := srcPath(sourceConfigRepoPath, service, "master", environment)
+	specPath := srcPath(sourceConfigRepoPath, service, "master", s.ArtifactFileName)
+	logger.Infof("internal/flow: getArtifactPathFromHash: found resources from '%s' and specification at '%s'", resourcesPath, specPath)
+	return specPath, resourcesPath, func(ctx context.Context) {
+		closeSource(ctx)
+	}, nil
 }

@@ -69,7 +69,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 	// artifact.ErrFileNotFound error is returned. This is OK as the currentSpec
 	// will then be the default value and this its ID will be the empty string.
 	// currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
-	currentSpec, err := s.Storage.GetReleaseSpecification(ctx, storage.ReleaseLocation{
+	currentSpec, err := s.releaseSpecification(ctx, releaseLocation{
 		Environment: environment,
 		Namespace:   namespace,
 		Service:     service,
@@ -137,7 +137,7 @@ func (s *Service) ExecReleaseBranch(ctx context.Context, event ReleaseBranchEven
 		actor := event.Actor
 
 		// repo/artifacts/{service}/{branch}/{artifactFileName}
-		artifactSpecPath, artifactPath, closeSource, err := s.Storage.GetArtifactPath(ctx, service, environment, branch)
+		artifactSpecPath, artifactPath, closeSource, err := s.Storage.GetLatestArtifactPaths(ctx, service, environment, branch)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
@@ -239,7 +239,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		return "", errors.WithMessage(err, "locate branch from artifact id")
 	}
 
-	specPath, _, closeSource, err := s.Storage.GetArtifactPathFromArtifactID(ctx, service, environment, branch, artifactID)
+	specPath, _, closeSource, err := s.Storage.GetArtifactPaths(ctx, service, environment, branch, artifactID)
 	if err != nil {
 		return "", errors.WithMessage(err, "locate artifact paths")
 	}
@@ -325,7 +325,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 
 		logger := log.WithContext(ctx)
 
-		artifactSourcePath, sourcePath, closeSource, err := s.Storage.GetArtifactPathFromArtifactID(ctx, service, environment, branch, artifactID)
+		artifactSourcePath, sourcePath, closeSource, err := s.Storage.GetArtifactPaths(ctx, service, environment, branch, artifactID)
 		if err != nil {
 			return true, errors.WithMessage(err, "get artifact paths")
 		}

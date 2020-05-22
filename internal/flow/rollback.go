@@ -138,7 +138,7 @@ func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {
 		actor := event.Actor
 		newHash := plumbing.NewHash(event.NewHash)
 
-		artifactSourcePath, sourcePath, closeSource, err := s.Storage.GetReleasePathFromHash(ctx, newHash.String(), service, environment, namespace)
+		artifactSourcePath, sourcePath, closeSource, err := s.getReleasePathFromHash(ctx, newHash.String(), service, environment, namespace)
 		if err != nil {
 			return true, errors.WithMessagef(err, "get source paths from hash '%s'", event.NewHash)
 		}
@@ -205,4 +205,35 @@ func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {
 		return err
 	}
 	return nil
+}
+
+func (s *Service) getReleasePathFromHash(ctx context.Context, hashStr, service, environment, namespace string) (string, string, func(context.Context), error) {
+	logger := log.WithContext(ctx)
+	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-rollback-source")
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	// find current released artifact.json for service in env - 1 (dev for staging, staging for prod)
+	logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
+	_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
+	if err != nil {
+		closeSource(ctx)
+		return "", "", nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+	}
+
+	hash := plumbing.NewHash(hashStr)
+	logger.Debugf("internal/flow: getReleasePathFromHash: release hash '%v'", hash)
+	err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
+	if err != nil {
+		closeSource(ctx)
+		return "", "", nil, errors.WithMessagef(err, "checkout release hash '%s'", hash)
+	}
+
+	resourcesPath := releasePath(sourceConfigRepoPath, service, environment, namespace)
+	specPath := path.Join(releasePath(sourceConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
+	logger.Infof("internal/flow: getReleasePathFromHash: found resources from '%s' and specification at '%s'", resourcesPath, specPath)
+	return specPath, resourcesPath, func(ctx context.Context) {
+		closeSource(ctx)
+	}, nil
 }

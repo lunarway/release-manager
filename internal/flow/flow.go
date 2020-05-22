@@ -112,7 +112,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "dev")
-	devSpec, err := s.Storage.GetReleaseSpecification(ctx, storage.ReleaseLocation{
+	devSpec, err := s.releaseSpecification(ctx, releaseLocation{
 		Environment: "dev",
 		Service:     service,
 		Namespace:   defaultNamespace("dev"),
@@ -127,7 +127,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "staging")
-	stagingSpec, err := s.Storage.GetReleaseSpecification(ctx, storage.ReleaseLocation{
+	stagingSpec, err := s.releaseSpecification(ctx, releaseLocation{
 		Environment: "staging",
 		Service:     service,
 		Namespace:   defaultNamespace("staging"),
@@ -142,7 +142,7 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "prod")
-	prodSpec, err := s.Storage.GetReleaseSpecification(ctx, storage.ReleaseLocation{
+	prodSpec, err := s.releaseSpecification(ctx, releaseLocation{
 		Environment: "prod",
 		Service:     service,
 		Namespace:   defaultNamespace("prod"),
@@ -210,6 +210,16 @@ func calculateTotalVulnerabilties(severity string, s artifact.Spec) int64 {
 	return int64(result + 0.5)
 }
 
+type releaseLocation struct {
+	Environment string
+	Namespace   string
+	Service     string
+}
+
+func (s *Service) releaseSpecification(ctx context.Context, location releaseLocation) (artifact.Spec, error) {
+	return artifact.Get(path.Join(releasePath(s.Git.MasterPath(), location.Service, location.Environment, location.Namespace), s.ArtifactFileName))
+}
+
 func envSpec(root, artifactFileName, service, env, namespace string) (artifact.Spec, error) {
 	return artifact.Get(path.Join(releasePath(root, service, env, namespace), artifactFileName))
 }
@@ -228,7 +238,7 @@ func (s *Service) sourceSpec(ctx context.Context, service, env, namespace string
 		if namespace == "staging" {
 			namespace = "dev"
 		}
-		return s.Storage.GetReleaseSpecification(ctx, storage.ReleaseLocation{
+		return s.releaseSpecification(ctx, releaseLocation{
 			Environment: "dev",
 			Namespace:   namespace,
 			Service:     service,
@@ -238,7 +248,7 @@ func (s *Service) sourceSpec(ctx context.Context, service, env, namespace string
 		if namespace == "prod" {
 			namespace = "staging"
 		}
-		return s.Storage.GetReleaseSpecification(ctx, storage.ReleaseLocation{
+		return s.releaseSpecification(ctx, releaseLocation{
 			Environment: "staging",
 			Namespace:   namespace,
 			Service:     service,
@@ -246,6 +256,10 @@ func (s *Service) sourceSpec(ctx context.Context, service, env, namespace string
 	default:
 		return artifact.Spec{}, ErrUnknownEnvironment
 	}
+}
+
+func srcPath(root, service, branch, env string) string {
+	return path.Join(artifactPath(root, service, branch), env)
 }
 
 func artifactPath(root, service, branch string) string {
