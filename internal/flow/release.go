@@ -36,7 +36,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		return "", ErrReleaseProhibited
 	}
 
-	artifactSpec, err := s.Storage.GetArtifactSpecification(ctx, storage.ArtifactLocation{
+	artifactSpec, err := s.Storage.GetLatestArtifactSpecification(ctx, storage.ArtifactLocation{
 		Branch:  branch,
 		Service: service,
 	})
@@ -162,7 +162,7 @@ func (s *Service) ExecReleaseBranch(ctx context.Context, event ReleaseBranchEven
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSpecPath, artifactDestinationPath))
 		}
 
-		artifactSpec, err := s.Storage.GetArtifactSpecification(ctx, storage.ArtifactLocation{
+		artifactSpec, err := s.Storage.GetLatestArtifactSpecification(ctx, storage.ArtifactLocation{
 			Service: service,
 			Branch:  branch,
 		})

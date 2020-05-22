@@ -9,7 +9,6 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
-	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 type ArtifactLocation struct {
@@ -18,18 +17,12 @@ type ArtifactLocation struct {
 }
 
 type Storage interface {
-	GetArtifactSpecification(context.Context, ArtifactLocation) (artifact.Spec, error)
+	GetLatestArtifactSpecification(context.Context, ArtifactLocation) (artifact.Spec, error)
 	GetArtifactSpecifications(ctx context.Context, service string, count int) ([]artifact.Spec, error)
 	GetBranch(ctx context.Context, service, artifactID string) (string, error)
 
 	GetArtifactPaths(ctx context.Context, service, environment, branch, artifactID string) (specPath, resourcesPath string, close CloseFunc, err error)
 	GetLatestArtifactPaths(ctx context.Context, service, environment, branch string) (specPath, resourcesPath string, close CloseFunc, err error)
-
-	// the methods below are defined by the Git implementation and events between
-	// sync and async flow using Git SHA to indicate the releases instead of the
-	// release IDs. We could remove these by removing the passing of storage
-	// details in the events.
-	GetHashForArtifact(ctx context.Context, artifactID string) (plumbing.Hash, error)
 }
 
 type CloseFunc func(context.Context)
@@ -79,26 +72,6 @@ func (s *Git) GetBranch(ctx context.Context, service, artifactID string) (string
 		return "", errors.WithMessagef(err, "locate branch from commit hash '%s'", hash)
 	}
 	return branch, nil
-}
-
-func (s *Git) GetHashForArtifact(ctx context.Context, artifactID string) (plumbing.Hash, error) {
-	logger := log.WithContext(ctx)
-	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
-	if err != nil {
-		return plumbing.ZeroHash, err
-	}
-	defer closeSource(ctx)
-
-	logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
-	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
-	if err != nil {
-		return plumbing.ZeroHash, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
-	}
-	hash, err := s.Git.LocateArtifact(ctx, sourceRepo, artifactID)
-	if err != nil {
-		return plumbing.ZeroHash, errors.WithMessage(err, "locate artifact")
-	}
-	return hash, nil
 }
 
 func (s *Git) GetArtifactPaths(ctx context.Context, service, environment, branch, artifactID string) (string, string, CloseFunc, error) {
@@ -154,7 +127,7 @@ func (s *Git) GetLatestArtifactPaths(ctx context.Context, service, environment, 
 	}, nil
 }
 
-func (s *Git) GetArtifactSpecification(ctx context.Context, location ArtifactLocation) (artifact.Spec, error) {
+func (s *Git) GetLatestArtifactSpecification(ctx context.Context, location ArtifactLocation) (artifact.Spec, error) {
 	return artifact.Get(path.Join(artifactSpecPath(s.Git.MasterPath(), location.Service, location.Branch), s.ArtifactFileName))
 }
 
