@@ -30,7 +30,6 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		}
 		logger.Infof("flow: Promote: using namespace '%s'", namespace)
 
-		// locate the previous environment
 		sourceSpec, err := s.previousSpec(ctx, service, environment, namespace)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
