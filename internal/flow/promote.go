@@ -86,7 +86,6 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 			Namespace:   namespace,
 			Service:     service,
 		})
-		// currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
 		if err != nil && errors.Cause(err) != artifact.ErrFileNotFound {
 			return true, errors.WithMessage(err, "get current released spec")
 		}
@@ -177,7 +176,6 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 		// when promoting to dev we use should look for the artifact instead of
 		// release as the artifact have never been released.
 		if environment == "dev" {
-			// TODO: what branch to use here?
 			artifactSourcePath, sourcePath, closeSource, err = s.Storage.GetArtifactPaths(ctx, service, environment, "master", artifactID)
 		} else {
 			artifactSourcePath, sourcePath, closeSource, err = s.releasePaths(ctx, service, environment, artifactID)
@@ -251,7 +249,7 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 
 func (s *Service) releasePaths(ctx context.Context, service, environment, artifactID string) (string, string, storage.CloseFunc, error) {
 	logger := log.WithContext(ctx)
-	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
+	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-paths")
 	if err != nil {
 		return "", "", nil, err
 	}

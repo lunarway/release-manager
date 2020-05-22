@@ -68,7 +68,6 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 	// environment. If there is no artifact released to the target environment an
 	// artifact.ErrFileNotFound error is returned. This is OK as the currentSpec
 	// will then be the default value and this its ID will be the empty string.
-	// currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
 	currentSpec, err := s.releaseSpecification(ctx, releaseLocation{
 		Environment: environment,
 		Namespace:   namespace,
@@ -169,6 +168,7 @@ func (s *Service) ExecReleaseBranch(ctx context.Context, event ReleaseBranchEven
 		if err != nil {
 			return true, errors.WithMessage(err, "get artifact spec")
 		}
+
 		authorName := artifactSpec.Application.AuthorName
 		authorEmail := artifactSpec.Application.AuthorEmail
 		artifactID := artifactSpec.ID
