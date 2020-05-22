@@ -5,12 +5,9 @@ import (
 	"path"
 
 	"github.com/lunarway/release-manager/internal/artifact"
-	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 )
-
-var _ flow.Storage = &Service{}
 
 func (s *Service) ArtifactPaths(ctx context.Context, service, environment, branch, artifactID string) (string, string, func(context.Context), error) {
 	logger := log.WithContext(ctx)
@@ -95,7 +92,7 @@ func (s *Service) ArtifactSpecification(ctx context.Context, service, artifactID
 		return artifact.Spec{}, errors.WithMessagef(err, "checkout hash '%s'", hash)
 	}
 
-	branch, err := git.BranchFromHead(ctx, sourceRepo, s.ArtifactFileName, service)
+	branch, err := BranchFromHead(ctx, sourceRepo, s.ArtifactFileName, service)
 	if err != nil {
 		return artifact.Spec{}, errors.WithMessagef(err, "locate branch from commit hash '%s'", hash)
 	}

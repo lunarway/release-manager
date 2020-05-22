@@ -15,7 +15,6 @@ import (
 	"github.com/lunarway/release-manager/internal/broker/amqp"
 	"github.com/lunarway/release-manager/internal/broker/memory"
 	"github.com/lunarway/release-manager/internal/flow"
-	"github.com/lunarway/release-manager/internal/flow/storage"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/github"
 	"github.com/lunarway/release-manager/internal/grafana"
@@ -182,7 +181,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				Slack:            slackClient,
 				Git:              &gitSvc,
 				CanRelease:       policySvc.CanRelease,
-				Storage:          storage.NewGit(startOptions.configRepo.ArtifactFileName, &gitSvc, tracer),
+				Storage:          &gitSvc,
 				Tracer:           tracer,
 				// TODO: figure out a better way of splitting the consumer and publisher
 				// to avoid this chicken and egg issue. It is not a real problem as the
