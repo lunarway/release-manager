@@ -36,7 +36,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		return "", ErrReleaseProhibited
 	}
 
-	artifactSpec, err := s.Storage.GetLatestArtifactSpecification(ctx, storage.ArtifactLocation{
+	artifactSpec, err := s.Storage.LatestArtifactSpecification(ctx, storage.ArtifactLocation{
 		Branch:  branch,
 		Service: service,
 	})
@@ -136,7 +136,7 @@ func (s *Service) ExecReleaseBranch(ctx context.Context, event ReleaseBranchEven
 		actor := event.Actor
 
 		// repo/artifacts/{service}/{branch}/{artifactFileName}
-		artifactSpecPath, artifactPath, closeSource, err := s.Storage.GetLatestArtifactPaths(ctx, service, environment, branch)
+		artifactSpecPath, artifactPath, closeSource, err := s.Storage.LatestArtifactPaths(ctx, service, environment, branch)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
@@ -161,7 +161,7 @@ func (s *Service) ExecReleaseBranch(ctx context.Context, event ReleaseBranchEven
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSpecPath, artifactDestinationPath))
 		}
 
-		artifactSpec, err := s.Storage.GetLatestArtifactSpecification(ctx, storage.ArtifactLocation{
+		artifactSpec, err := s.Storage.LatestArtifactSpecification(ctx, storage.ArtifactLocation{
 			Service: service,
 			Branch:  branch,
 		})
@@ -234,16 +234,11 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ReleaseArtifactID")
 	defer span.Finish()
 
-	branch, err := s.Storage.GetBranch(ctx, service, artifactID)
+	sourceSpec, err := s.Storage.ArtifactSpecification(ctx, service, artifactID)
 	if err != nil {
-		return "", errors.WithMessage(err, "locate branch from artifact id")
+		return "", errors.WithMessage(err, "get artifact specification")
 	}
-
-	specPath, _, closeSource, err := s.Storage.GetArtifactPaths(ctx, service, environment, branch, artifactID)
-	if err != nil {
-		return "", errors.WithMessage(err, "locate artifact paths")
-	}
-	defer closeSource(ctx)
+	branch := sourceSpec.Application.Branch
 
 	ok, err := s.CanRelease(ctx, service, branch, environment)
 	if err != nil {
@@ -253,10 +248,6 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		return "", ErrReleaseProhibited
 	}
 
-	sourceSpec, err := artifact.Get(specPath)
-	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
-	}
 	logger := log.WithContext(ctx)
 	logger.Infof("flow: ReleaseArtifactID: id '%s'", sourceSpec.ID)
 
@@ -294,6 +285,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	if err != nil && errors.Cause(err) != artifact.ErrFileNotFound {
 		return "", errors.WithMessage(err, "get current released spec")
 	}
+	logger.WithFields("currentSpec", currentSpec).Debugf("Found artifact '%s' in environment '%s'", currentSpec.ID, environment)
 	if currentSpec.ID == sourceSpec.ID {
 		return "", ErrNothingToRelease
 	}
@@ -325,7 +317,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 
 		logger := log.WithContext(ctx)
 
-		artifactSourcePath, sourcePath, closeSource, err := s.Storage.GetArtifactPaths(ctx, service, environment, branch, artifactID)
+		artifactSourcePath, sourcePath, closeSource, err := s.Storage.ArtifactPaths(ctx, service, environment, branch, artifactID)
 		if err != nil {
 			return true, errors.WithMessage(err, "get artifact paths")
 		}

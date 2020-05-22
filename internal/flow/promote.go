@@ -176,7 +176,7 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 		// when promoting to dev we use should look for the artifact instead of
 		// release as the artifact have never been released.
 		if environment == "dev" {
-			artifactSourcePath, sourcePath, closeSource, err = s.Storage.GetArtifactPaths(ctx, service, environment, "master", artifactID)
+			artifactSourcePath, sourcePath, closeSource, err = s.Storage.ArtifactPaths(ctx, service, environment, "master", artifactID)
 		} else {
 			artifactSourcePath, sourcePath, closeSource, err = s.releasePaths(ctx, service, environment, artifactID)
 		}

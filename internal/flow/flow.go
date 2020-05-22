@@ -229,7 +229,7 @@ func envSpec(root, artifactFileName, service, env, namespace string) (artifact.S
 func (s *Service) sourceSpec(ctx context.Context, service, env, namespace string) (artifact.Spec, error) {
 	switch env {
 	case "dev":
-		return s.Storage.GetLatestArtifactSpecification(ctx, storage.ArtifactLocation{
+		return s.Storage.LatestArtifactSpecification(ctx, storage.ArtifactLocation{
 			Branch:  "master",
 			Service: service,
 		})
