@@ -9,7 +9,6 @@ import (
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
-	"github.com/lunarway/release-manager/internal/flow/storage"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
@@ -36,10 +35,7 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		return "", ErrReleaseProhibited
 	}
 
-	artifactSpec, err := s.Storage.LatestArtifactSpecification(ctx, storage.ArtifactLocation{
-		Branch:  branch,
-		Service: service,
-	})
+	artifactSpec, err := s.Storage.LatestArtifactSpecification(ctx, service, branch)
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 	}
@@ -161,10 +157,7 @@ func (s *Service) ExecReleaseBranch(ctx context.Context, event ReleaseBranchEven
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSpecPath, artifactDestinationPath))
 		}
 
-		artifactSpec, err := s.Storage.LatestArtifactSpecification(ctx, storage.ArtifactLocation{
-			Service: service,
-			Branch:  branch,
-		})
+		artifactSpec, err := s.Storage.LatestArtifactSpecification(ctx, service, branch)
 		if err != nil {
 			return true, errors.WithMessage(err, "get artifact spec")
 		}

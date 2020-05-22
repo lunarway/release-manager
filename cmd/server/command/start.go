@@ -156,6 +156,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				SSHPrivateKeyPath: startOptions.configRepo.SSHPrivateKeyPath,
 				ConfigRepoURL:     startOptions.configRepo.ConfigRepo,
 				Config:            startOptions.gitConfigOpts,
+				ArtifactFileName:  startOptions.configRepo.ArtifactFileName,
 			}
 
 			github := github.Service{

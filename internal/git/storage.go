@@ -1,72 +1,38 @@
-package storage
+package git
 
 import (
 	"context"
 	"path"
 
 	"github.com/lunarway/release-manager/internal/artifact"
-	"github.com/lunarway/release-manager/internal/git"
+	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/log"
-	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
 )
 
-type ArtifactLocation struct {
-	Branch  string
-	Service string
-}
+var _ flow.Storage = &Service{}
 
-type Storage interface {
-	ArtifactExists(ctx context.Context, artifactID string) (bool, error)
-
-	ArtifactSpecification(ctx context.Context, service, artifactID string) (artifact.Spec, error)
-	ArtifactPaths(ctx context.Context, service, environment, branch, artifactID string) (specPath, resourcesPath string, close CloseFunc, err error)
-
-	LatestArtifactSpecification(context.Context, ArtifactLocation) (artifact.Spec, error)
-	LatestArtifactPaths(ctx context.Context, service, environment, branch string) (specPath, resourcesPath string, close CloseFunc, err error)
-
-	ArtifactSpecifications(ctx context.Context, service string, count int) ([]artifact.Spec, error)
-}
-
-type CloseFunc func(context.Context)
-
-type Git struct {
-	ArtifactFileName string
-	Git              *git.Service
-	Tracer           tracing.Tracer
-}
-
-var _ Storage = &Git{}
-
-func NewGit(artifactFileName string, gitService *git.Service, tracer tracing.Tracer) *Git {
-	return &Git{
-		ArtifactFileName: artifactFileName,
-		Git:              gitService,
-		Tracer:           tracer,
-	}
-}
-
-func (s *Git) ArtifactPaths(ctx context.Context, service, environment, branch, artifactID string) (string, string, CloseFunc, error) {
+func (s *Service) ArtifactPaths(ctx context.Context, service, environment, branch, artifactID string) (string, string, func(context.Context), error) {
 	logger := log.WithContext(ctx)
-	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-promote-source")
+	sourceConfigRepoPath, closeSource, err := TempDirAsync(ctx, s.Tracer, "k8s-config-artifact-paths-source")
 	if err != nil {
 		return "", "", nil, errors.WithMessage(err, "get temp dir")
 	}
 
-	logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
-	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
+	logger.Debugf("Cloning source config repo %s into %s", s.ConfigRepoURL, sourceConfigRepoPath)
+	sourceRepo, err := s.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		closeSource(ctx)
 		return "", "", nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 
-	hash, err := s.Git.LocateArtifact(ctx, sourceRepo, artifactID)
+	hash, err := s.LocateArtifact(ctx, sourceRepo, artifactID)
 	if err != nil {
 		closeSource(ctx)
 		return "", "", nil, errors.WithMessage(err, "locate artifact")
 	}
 
-	err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
+	err = s.Checkout(ctx, sourceConfigRepoPath, hash)
 	if err != nil {
 		closeSource(ctx)
 		return "", "", nil, errors.WithMessagef(err, "checkout artifact hash '%s'", hash)
@@ -80,13 +46,13 @@ func (s *Git) ArtifactPaths(ctx context.Context, service, environment, branch, a
 	}, nil
 }
 
-func (s *Git) LatestArtifactPaths(ctx context.Context, service, environment, branch string) (string, string, CloseFunc, error) {
+func (s *Service) LatestArtifactPaths(ctx context.Context, service, environment, branch string) (string, string, func(context.Context), error) {
 	logger := log.WithContext(ctx)
-	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-branch")
+	sourceConfigRepoPath, close, err := TempDirAsync(ctx, s.Tracer, "k8s-config-release-branch")
 	if err != nil {
 		return "", "", nil, err
 	}
-	_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
+	_, err = s.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		close(ctx)
 		return "", "", nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
@@ -99,8 +65,8 @@ func (s *Git) LatestArtifactPaths(ctx context.Context, service, environment, bra
 	}, nil
 }
 
-func (s *Git) LatestArtifactSpecification(ctx context.Context, location ArtifactLocation) (artifact.Spec, error) {
-	return artifact.Get(path.Join(artifactSpecPath(s.Git.MasterPath(), location.Service, location.Branch), s.ArtifactFileName))
+func (s *Service) LatestArtifactSpecification(ctx context.Context, service, branch string) (artifact.Spec, error) {
+	return artifact.Get(path.Join(artifactSpecPath(s.MasterPath(), service, branch), s.ArtifactFileName))
 }
 
 func artifactSpecPath(root, service, branch string) string {
@@ -110,21 +76,21 @@ func artifactResourcesPath(root, service, branch, env string) string {
 	return path.Join(artifactSpecPath(root, service, branch), env)
 }
 
-func (s *Git) ArtifactSpecification(ctx context.Context, service, artifactID string) (artifact.Spec, error) {
-	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-describe-artifact")
+func (s *Service) ArtifactSpecification(ctx context.Context, service, artifactID string) (artifact.Spec, error) {
+	sourceConfigRepoPath, close, err := TempDirAsync(ctx, s.Tracer, "k8s-config-describe-artifact")
 	if err != nil {
 		return artifact.Spec{}, err
 	}
 	defer close(ctx)
-	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
+	sourceRepo, err := s.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		return artifact.Spec{}, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
-	hash, err := s.Git.LocateArtifact(ctx, sourceRepo, artifactID)
+	hash, err := s.LocateArtifact(ctx, sourceRepo, artifactID)
 	if err != nil {
 		return artifact.Spec{}, errors.WithMessage(err, "locate artifact")
 	}
-	err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
+	err = s.Checkout(ctx, sourceConfigRepoPath, hash)
 	if err != nil {
 		return artifact.Spec{}, errors.WithMessagef(err, "checkout hash '%s'", hash)
 	}
@@ -143,18 +109,18 @@ func (s *Git) ArtifactSpecification(ctx context.Context, service, artifactID str
 	return spec, nil
 }
 
-func (s *Git) ArtifactSpecifications(ctx context.Context, service string, count int) ([]artifact.Spec, error) {
-	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-describe-artifact")
+func (s *Service) ArtifactSpecifications(ctx context.Context, service string, count int) ([]artifact.Spec, error) {
+	sourceConfigRepoPath, close, err := TempDirAsync(ctx, s.Tracer, "k8s-config-describe-artifact")
 	if err != nil {
 		return nil, err
 	}
 	defer close(ctx)
-	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
+	sourceRepo, err := s.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		return nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 
-	hashes, err := s.Git.LocateArtifacts(ctx, sourceRepo, service, count)
+	hashes, err := s.LocateArtifacts(ctx, sourceRepo, service, count)
 	if err != nil {
 		return nil, errors.WithMessage(err, "locate artifacts")
 	}
@@ -162,11 +128,11 @@ func (s *Git) ArtifactSpecifications(ctx context.Context, service string, count 
 	var artifacts []artifact.Spec
 	logger.Debugf("flow/describe: hashes %+v", hashes)
 	for _, hash := range hashes {
-		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
+		err = s.Checkout(ctx, sourceConfigRepoPath, hash)
 		if err != nil {
 			return nil, errors.WithMessagef(err, "checkout release hash '%s'", hash)
 		}
-		branch, err := git.BranchFromHead(ctx, sourceRepo, s.ArtifactFileName, service)
+		branch, err := BranchFromHead(ctx, sourceRepo, s.ArtifactFileName, service)
 		if err != nil {
 			logger.Errorf("flow/describe: get branch from head failed at hash '%s': skipping hash: %v", hash, err)
 			continue
@@ -181,20 +147,20 @@ func (s *Git) ArtifactSpecifications(ctx context.Context, service string, count 
 	return artifacts, nil
 }
 
-func (s *Git) ArtifactExists(ctx context.Context, artifactID string) (bool, error) {
+func (s *Service) ArtifactExists(ctx context.Context, artifactID string) (bool, error) {
 	logger := log.WithContext(ctx)
-	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-artifact-exists")
+	sourceConfigRepoPath, closeSource, err := TempDirAsync(ctx, s.Tracer, "k8s-config-artifact-exists")
 	if err != nil {
 		return false, err
 	}
 	defer closeSource(ctx)
 
-	logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
-	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
+	logger.Debugf("Cloning source config repo %s into %s", s.ConfigRepoURL, sourceConfigRepoPath)
+	sourceRepo, err := s.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		return false, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
-	_, err = s.Git.LocateArtifact(ctx, sourceRepo, artifactID)
+	_, err = s.LocateArtifact(ctx, sourceRepo, artifactID)
 	if err != nil {
 		return false, errors.WithMessage(err, "locate artifact")
 	}

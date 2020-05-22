@@ -10,7 +10,6 @@ import (
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
-	"github.com/lunarway/release-manager/internal/flow/storage"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/slack"
@@ -34,7 +33,7 @@ type Service struct {
 	Git              *git.Service
 	Tracer           tracing.Tracer
 	CanRelease       func(ctx context.Context, svc, branch, env string) (bool, error)
-	Storage          storage.Storage
+	Storage          Storage
 
 	PublishPromote           func(context.Context, PromoteEvent) error
 	PublishRollback          func(context.Context, RollbackEvent) error
@@ -46,6 +45,18 @@ type Service struct {
 	// NotifyReleaseHook is triggered in a Go routine when a release is completed.
 	// The context.Context is cancelled if the originating flow call is cancelled.
 	NotifyReleaseHook func(ctx context.Context, options NotifyReleaseOptions)
+}
+
+type Storage interface {
+	ArtifactExists(ctx context.Context, artifactID string) (bool, error)
+
+	ArtifactSpecification(ctx context.Context, service, artifactID string) (artifact.Spec, error)
+	ArtifactPaths(ctx context.Context, service, environment, branch, artifactID string) (specPath, resourcesPath string, close func(context.Context), err error)
+
+	LatestArtifactSpecification(ctx context.Context, service, branch string) (artifact.Spec, error)
+	LatestArtifactPaths(ctx context.Context, service, environment, branch string) (specPath, resourcesPath string, close func(context.Context), err error)
+
+	ArtifactSpecifications(ctx context.Context, service string, count int) ([]artifact.Spec, error)
 }
 
 type NotifyReleaseOptions struct {

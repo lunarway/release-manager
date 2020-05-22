@@ -8,7 +8,6 @@ import (
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
-	"github.com/lunarway/release-manager/internal/flow/storage"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
@@ -169,7 +168,7 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 
 		var (
 			artifactSourcePath, sourcePath string
-			closeSource                    storage.CloseFunc
+			closeSource                    func(context.Context)
 			err                            error
 		)
 		// when promoting to dev we use should look for the artifact instead of
@@ -246,7 +245,7 @@ func (s *Service) ExecPromote(ctx context.Context, p PromoteEvent) error {
 	return nil
 }
 
-func (s *Service) releasePaths(ctx context.Context, service, environment, artifactID string) (string, string, storage.CloseFunc, error) {
+func (s *Service) releasePaths(ctx context.Context, service, environment, artifactID string) (string, string, func(context.Context), error) {
 	logger := log.WithContext(ctx)
 	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-paths")
 	if err != nil {
@@ -298,10 +297,7 @@ func (s *Service) releaseExists(ctx context.Context, artifactID string) (bool, e
 func (s *Service) previousSpec(ctx context.Context, service, env, namespace string) (artifact.Spec, error) {
 	switch env {
 	case "dev":
-		return s.Storage.LatestArtifactSpecification(ctx, storage.ArtifactLocation{
-			Branch:  "master",
-			Service: service,
-		})
+		return s.Storage.LatestArtifactSpecification(ctx, service, "master")
 	case "staging":
 		// if namespace is set to the environment we have to look one environment back when locating the artifact.json
 		if namespace == "staging" {
