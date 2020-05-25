@@ -29,6 +29,7 @@ var (
 type Service struct {
 	ArtifactFileName string
 	UserMappings     map[string]string
+	Environments     []string
 	Slack            *slack.Client
 	Git              *git.Service
 	Tracer           tracing.Tracer

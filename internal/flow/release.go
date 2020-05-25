@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path"
 
 	"github.com/lunarway/release-manager/internal/artifact"
@@ -49,6 +50,18 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 	if err != nil {
 		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 	}
+
+	// Verify environment existences
+	envPath := path.Join(artifactPath(sourceConfigRepoPath, service, branch), environment)
+	f, err := os.Open(envPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", ErrUnknownEnvironment
+		}
+		return "", errors.WithMessage(err, fmt.Sprintf("unknown error in validating env: %s", environment))
+	}
+	defer f.Close()
+
 	logger := log.WithContext(ctx)
 	logger.Infof("flow: ReleaseBranch: release branch: id '%s'", artifactSpec.ID)
 
@@ -259,6 +272,17 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	}
 	logger := log.WithContext(ctx)
 	logger.Infof("flow: ReleaseArtifactID: hash '%s' id '%s'", hash, sourceSpec.ID)
+
+	// Verify environment existences
+	envPath := srcPath(sourceConfigRepoPath, service, branch, environment)
+	f, err := os.Open(envPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", ErrUnknownEnvironment
+		}
+		return "", errors.WithMessage(err, fmt.Sprintf("unknown error in validating env: %s", environment))
+	}
+	defer f.Close()
 
 	// default to environment name for the namespace if none is specified
 	namespace := sourceSpec.Namespace
