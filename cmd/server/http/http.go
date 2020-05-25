@@ -699,6 +699,10 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 					Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
 				}
 				return
+			case flow.ErrUnknownEnvironment:
+				logger.Infof("http: release: service '%s' environment '%s': release rejected: %v", req.Service, req.Environment, err)
+				Error(w, fmt.Sprintf("unknown environment: %s", req.Environment), http.StatusBadRequest)
+				return
 			case flow.ErrUnknownConfiguration:
 				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: source configuration not found: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
 				Error(w, fmt.Sprintf("configuration for environment '%s' not found for service '%s'. Is the environment specified in 'shuttle.yaml'?", req.Environment, req.Service), http.StatusBadRequest)
