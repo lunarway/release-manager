@@ -35,21 +35,22 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		return "", ErrReleaseProhibited
 	}
 
-	artifactSpec, err := s.Storage.LatestArtifactSpecification(ctx, service, branch)
+	specPath, resourcePath, close, err := s.Storage.LatestArtifactPaths(ctx, service, environment, branch)
 	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
+		return "", errors.WithMessage(err, "get artifact paths")
 	}
+	defer close(ctx)
 
 	// Verify environment existences
-	envPath := path.Join(artifactPath(sourceConfigRepoPath, service, branch), environment)
-	f, err := os.Open(envPath)
+	err = releaseConfigurationExists(resourcePath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return "", ErrUnknownEnvironment
-		}
-		return "", errors.WithMessage(err, fmt.Sprintf("unknown error in validating env: %s", environment))
+		return "", errors.WithMessagef(err, "verify configuration for environment in '%s'", resourcePath)
 	}
-	defer f.Close()
+
+	artifactSpec, err := artifact.Get(specPath)
+	if err != nil {
+		return "", errors.WithMessage(err, "get artifact spec")
+	}
 
 	logger := log.WithContext(ctx)
 	logger.Infof("flow: ReleaseBranch: release branch: id '%s'", artifactSpec.ID)
@@ -87,6 +88,20 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		return "", errors.WithMessage(err, "publish event")
 	}
 	return artifactSpec.ID, nil
+}
+
+// releaseConfigurationExists verifies that the provided path exists. Useful to
+// ensure that a given configuration is available for an environment.
+func releaseConfigurationExists(resourcePath string) error {
+	f, err := os.Open(resourcePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return ErrUnknownEnvironment
+		}
+		return err
+	}
+	defer f.Close()
+	return nil
 }
 
 type ReleaseBranchEvent struct {
@@ -244,16 +259,17 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	logger := log.WithContext(ctx)
 	logger.Infof("flow: ReleaseArtifactID: id '%s'", sourceSpec.ID)
 
-	// Verify environment existences
-	envPath := srcPath(sourceConfigRepoPath, service, branch, environment)
-	f, err := os.Open(envPath)
+	_, resourcePath, close, err := s.Storage.LatestArtifactPaths(ctx, service, environment, branch)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return "", ErrUnknownEnvironment
-		}
-		return "", errors.WithMessage(err, fmt.Sprintf("unknown error in validating env: %s", environment))
+		return "", errors.WithMessage(err, "get artifact paths")
 	}
-	defer f.Close()
+	defer close(ctx)
+
+	// Verify environment existences
+	err = releaseConfigurationExists(resourcePath)
+	if err != nil {
+		return "", errors.WithMessagef(err, "verify configuration for environment in '%s'", resourcePath)
+	}
 
 	// default to environment name for the namespace if none is specified
 	namespace := sourceSpec.Namespace
