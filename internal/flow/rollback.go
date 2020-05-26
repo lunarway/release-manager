@@ -152,6 +152,7 @@ func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {
 		if err != nil {
 			return true, errors.WithMessagef(err, "checkout previous release hash '%v'", newHash)
 		}
+		defer closeSource(ctx)
 
 		destinationConfigRepoPath, closeDestination, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-rollback-destination")
 		if err != nil {

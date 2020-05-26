@@ -2,7 +2,6 @@ package flow
 
 import (
 	"context"
-	"path"
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
@@ -66,41 +65,5 @@ func (s *Service) DescribeRelease(ctx context.Context, namespace, environment, s
 func (s *Service) DescribeArtifact(ctx context.Context, service string, n int) ([]artifact.Spec, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.DescribeArtifact")
 	defer span.Finish()
-	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-describe-artifact")
-	if err != nil {
-		return nil, err
-	}
-	defer close(ctx)
-
-	logger := log.WithContext(ctx)
-	logger.Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
-	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
-	if err != nil {
-		return nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
-	}
-
-	hashes, err := s.Git.LocateArtifacts(ctx, sourceRepo, service, n)
-	if err != nil {
-		return nil, errors.WithMessage(err, "locate artifacts")
-	}
-	var artifacts []artifact.Spec
-	logger.Debugf("flow/describe: hashes %+v", hashes)
-	for _, hash := range hashes {
-		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
-		if err != nil {
-			return nil, errors.WithMessagef(err, "checkout release hash '%s'", hash)
-		}
-		branch, err := git.BranchFromHead(ctx, sourceRepo, s.ArtifactFileName, service)
-		if err != nil {
-			logger.Errorf("flow/describe: get branch from head failed at hash '%s': skipping hash: %v", hash, err)
-			continue
-		}
-		artifactPath := path.Join(artifactPath(sourceConfigRepoPath, service, branch), s.ArtifactFileName)
-		spec, err := artifact.Get(artifactPath)
-		if err != nil {
-			return nil, errors.WithMessagef(err, "get artifact at path '%s' at hash '%s'", artifactPath, hash)
-		}
-		artifacts = append(artifacts, spec)
-	}
-	return artifacts, nil
+	return s.Storage.ArtifactSpecifications(ctx, service, n)
 }

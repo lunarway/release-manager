@@ -155,6 +155,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				SSHPrivateKeyPath: startOptions.configRepo.SSHPrivateKeyPath,
 				ConfigRepoURL:     startOptions.configRepo.ConfigRepo,
 				Config:            startOptions.gitConfigOpts,
+				ArtifactFileName:  startOptions.configRepo.ArtifactFileName,
 			}
 
 			github := github.Service{
@@ -180,6 +181,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				Slack:            slackClient,
 				Git:              &gitSvc,
 				CanRelease:       policySvc.CanRelease,
+				Storage:          &gitSvc,
 				Tracer:           tracer,
 				// TODO: figure out a better way of splitting the consumer and publisher
 				// to avoid this chicken and egg issue. It is not a real problem as the

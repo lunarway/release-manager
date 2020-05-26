@@ -35,32 +35,22 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		return "", ErrReleaseProhibited
 	}
 
-	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-branch")
+	specPath, resourcePath, close, err := s.Storage.LatestArtifactPaths(ctx, service, environment, branch)
 	if err != nil {
-		return "", err
+		return "", errors.WithMessage(err, "get artifact paths")
 	}
 	defer close(ctx)
-	_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
-	if err != nil {
-		return "", errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
-	}
-	// repo/artifacts/{service}/{branch}/{artifactFileName}
-	artifactSpecPath := path.Join(artifactPath(sourceConfigRepoPath, service, branch), s.ArtifactFileName)
-	artifactSpec, err := artifact.Get(artifactSpecPath)
-	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
-	}
 
 	// Verify environment existences
-	envPath := path.Join(artifactPath(sourceConfigRepoPath, service, branch), environment)
-	f, err := os.Open(envPath)
+	err = releaseConfigurationExists(resourcePath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return "", ErrUnknownEnvironment
-		}
-		return "", errors.WithMessage(err, fmt.Sprintf("unknown error in validating env: %s", environment))
+		return "", errors.WithMessagef(err, "verify configuration for environment in '%s'", resourcePath)
 	}
-	defer f.Close()
+
+	artifactSpec, err := artifact.Get(specPath)
+	if err != nil {
+		return "", errors.WithMessage(err, "get artifact spec")
+	}
 
 	logger := log.WithContext(ctx)
 	logger.Infof("flow: ReleaseBranch: release branch: id '%s'", artifactSpec.ID)
@@ -75,7 +65,11 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 	// environment. If there is no artifact released to the target environment an
 	// artifact.ErrFileNotFound error is returned. This is OK as the currentSpec
 	// will then be the default value and this its ID will be the empty string.
-	currentSpec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+	currentSpec, err := s.releaseSpecification(ctx, releaseLocation{
+		Environment: environment,
+		Namespace:   namespace,
+		Service:     service,
+	})
 	if err != nil && errors.Cause(err) != artifact.ErrFileNotFound {
 		return "", errors.WithMessage(err, "get current released spec")
 	}
@@ -94,6 +88,20 @@ func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, s
 		return "", errors.WithMessage(err, "publish event")
 	}
 	return artifactSpec.ID, nil
+}
+
+// releaseConfigurationExists verifies that the provided path exists. Useful to
+// ensure that a given configuration is available for an environment.
+func releaseConfigurationExists(resourcePath string) error {
+	f, err := os.Open(resourcePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return ErrUnknownEnvironment
+		}
+		return err
+	}
+	defer f.Close()
+	return nil
 }
 
 type ReleaseBranchEvent struct {
@@ -139,15 +147,13 @@ func (s *Service) ExecReleaseBranch(ctx context.Context, event ReleaseBranchEven
 		actor := event.Actor
 
 		// repo/artifacts/{service}/{branch}/{artifactFileName}
-		artifactSpecPath := path.Join(artifactPath(sourceConfigRepoPath, service, branch), s.ArtifactFileName)
-		artifactSpec, err := artifact.Get(artifactSpecPath)
+		artifactSpecPath, artifactPath, closeSource, err := s.Storage.LatestArtifactPaths(ctx, service, environment, branch)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
+		defer closeSource(ctx)
 
 		// release service to env from the artifact path
-		// repo/artifacts/{service}/{branch}/{env}
-		artifactPath := srcPath(sourceConfigRepoPath, service, branch, environment)
 		// repo/{env}/releases/{ns}/{service}
 		destinationPath := releasePath(sourceConfigRepoPath, service, environment, namespace)
 		logger.Infof("flow: ReleaseBranch: copy resources from %s to %s", artifactPath, destinationPath)
@@ -164,6 +170,11 @@ func (s *Service) ExecReleaseBranch(ctx context.Context, event ReleaseBranchEven
 		err = copy.CopyFile(ctx, artifactSpecPath, artifactDestinationPath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSpecPath, artifactDestinationPath))
+		}
+
+		artifactSpec, err := s.Storage.LatestArtifactSpecification(ctx, service, branch)
+		if err != nil {
+			return true, errors.WithMessage(err, "get artifact spec")
 		}
 
 		authorName := artifactSpec.Application.AuthorName
@@ -230,33 +241,12 @@ func (p *ReleaseArtifactIDEvent) Unmarshal(data []byte) error {
 func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environment, service, artifactID string) (string, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ReleaseArtifactID")
 	defer span.Finish()
-	sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-artifact-source")
-	if err != nil {
-		return "", err
-	}
-	defer closeSource(ctx)
 
-	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
+	sourceSpec, err := s.Storage.ArtifactSpecification(ctx, service, artifactID)
 	if err != nil {
-		return "", errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+		return "", errors.WithMessage(err, "get artifact specification")
 	}
-
-	// FIXME: this is a bottleneck regarding response-time. We do a git
-	// rev-parse to find the hash of the artifact. If we can eliminate this need
-	// we can skip the initial master repo clone
-	hash, err := s.Git.LocateArtifact(ctx, sourceRepo, artifactID)
-	if err != nil {
-		return "", errors.WithMessagef(err, "locate release '%s'", artifactID)
-	}
-	err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
-	if err != nil {
-		return "", errors.WithMessagef(err, "checkout release hash '%s'", hash)
-	}
-
-	branch, err := git.BranchFromHead(ctx, sourceRepo, s.ArtifactFileName, service)
-	if err != nil {
-		return "", errors.WithMessagef(err, "locate branch from commit hash '%s'", hash)
-	}
+	branch := sourceSpec.Application.Branch
 
 	ok, err := s.CanRelease(ctx, service, branch, environment)
 	if err != nil {
@@ -266,23 +256,20 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		return "", ErrReleaseProhibited
 	}
 
-	sourceSpec, err := artifact.Get(srcPath(sourceConfigRepoPath, service, branch, s.ArtifactFileName))
-	if err != nil {
-		return "", errors.WithMessage(err, fmt.Sprintf("locate source spec"))
-	}
 	logger := log.WithContext(ctx)
-	logger.Infof("flow: ReleaseArtifactID: hash '%s' id '%s'", hash, sourceSpec.ID)
+	logger.Infof("flow: ReleaseArtifactID: id '%s'", sourceSpec.ID)
+
+	_, resourcePath, close, err := s.Storage.LatestArtifactPaths(ctx, service, environment, branch)
+	if err != nil {
+		return "", errors.WithMessage(err, "get artifact paths")
+	}
+	defer close(ctx)
 
 	// Verify environment existences
-	envPath := srcPath(sourceConfigRepoPath, service, branch, environment)
-	f, err := os.Open(envPath)
+	err = releaseConfigurationExists(resourcePath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return "", ErrUnknownEnvironment
-		}
-		return "", errors.WithMessage(err, fmt.Sprintf("unknown error in validating env: %s", environment))
+		return "", errors.WithMessagef(err, "verify configuration for environment in '%s'", resourcePath)
 	}
-	defer f.Close()
 
 	// default to environment name for the namespace if none is specified
 	namespace := sourceSpec.Namespace
@@ -301,12 +288,13 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	defer closeDestinationSource(ctx)
 	_, err = s.Git.Clone(ctx, destinationConfigRepoPath)
 	if err != nil {
-		return "", errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+		return "", errors.WithMessagef(err, "clone into '%s'", destinationConfigRepoPath)
 	}
 	currentSpec, err := envSpec(destinationConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
 	if err != nil && errors.Cause(err) != artifact.ErrFileNotFound {
 		return "", errors.WithMessage(err, "get current released spec")
 	}
+	logger.WithFields("currentSpec", currentSpec).Debugf("Found artifact '%s' in environment '%s'", currentSpec.ID, environment)
 	if currentSpec.ID == sourceSpec.ID {
 		return "", ErrNothingToRelease
 	}
@@ -329,18 +317,20 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ExecReleaseArtifactID")
 	defer span.Finish()
 	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
+		service := event.Service
+		branch := event.Branch
+		environment := event.Environment
+		namespace := event.Namespace
+		actor := event.Actor
+		artifactID := event.ArtifactID
+
 		logger := log.WithContext(ctx)
 
-		sourceConfigRepoPath, closeSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-artifact-source")
+		artifactSourcePath, sourcePath, closeSource, err := s.Storage.ArtifactPaths(ctx, service, environment, branch, artifactID)
 		if err != nil {
-			return true, err
+			return true, errors.WithMessage(err, "get artifact paths")
 		}
 		defer closeSource(ctx)
-
-		sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
-		if err != nil {
-			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
-		}
 
 		destinationConfigRepoPath, closeDestination, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-artifact-destination")
 		if err != nil {
@@ -353,24 +343,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 			return true, errors.WithMessagef(err, "clone destination repo into '%s'", destinationConfigRepoPath)
 		}
 
-		service := event.Service
-		branch := event.Branch
-		environment := event.Environment
-		namespace := event.Namespace
-		actor := event.Actor
-		artifactID := event.ArtifactID
-
-		hash, err := s.Git.LocateArtifact(ctx, sourceRepo, artifactID)
-		if err != nil {
-			return true, errors.WithMessagef(err, "locate release '%s'", artifactID)
-		}
-		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
-		if err != nil {
-			return true, errors.WithMessagef(err, "checkout release hash '%s'", hash)
-		}
-
 		// release service to env from original release
-		sourcePath := srcPath(sourceConfigRepoPath, service, branch, environment)
 		destinationPath := releasePath(destinationConfigRepoPath, service, environment, namespace)
 		logger.Infof("flow: ReleaseArtifactID: copy resources from %s to %s", sourcePath, destinationPath)
 
@@ -379,14 +352,13 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 			return true, errors.WithMessagef(err, "copy resources from '%s' to '%s'", sourcePath, destinationPath)
 		}
 		// copy artifact spec
-		artifactSourcePath := srcPath(sourceConfigRepoPath, service, branch, s.ArtifactFileName)
 		artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
 		logger.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
 		err = copy.CopyFile(ctx, artifactSourcePath, artifactDestinationPath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}
-		sourceSpec, err := artifact.Get(srcPath(sourceConfigRepoPath, service, branch, s.ArtifactFileName))
+		sourceSpec, err := artifact.Get(artifactSourcePath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}

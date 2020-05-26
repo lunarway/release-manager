@@ -33,6 +33,7 @@ type Service struct {
 	Git              *git.Service
 	Tracer           tracing.Tracer
 	CanRelease       func(ctx context.Context, svc, branch, env string) (bool, error)
+	Storage          ArtifactReadStorage
 
 	PublishPromote           func(context.Context, PromoteEvent) error
 	PublishRollback          func(context.Context, RollbackEvent) error
@@ -110,7 +111,11 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "dev")
-	devSpec, err := envSpec(s.Git.MasterPath(), s.ArtifactFileName, service, "dev", defaultNamespace("dev"))
+	devSpec, err := s.releaseSpecification(ctx, releaseLocation{
+		Environment: "dev",
+		Service:     service,
+		Namespace:   defaultNamespace("dev"),
+	})
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -121,7 +126,11 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "staging")
-	stagingSpec, err := envSpec(s.Git.MasterPath(), s.ArtifactFileName, service, "staging", defaultNamespace("staging"))
+	stagingSpec, err := s.releaseSpecification(ctx, releaseLocation{
+		Environment: "staging",
+		Service:     service,
+		Namespace:   defaultNamespace("staging"),
+	})
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -132,7 +141,11 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "prod")
-	prodSpec, err := envSpec(s.Git.MasterPath(), s.ArtifactFileName, service, "prod", defaultNamespace("prod"))
+	prodSpec, err := s.releaseSpecification(ctx, releaseLocation{
+		Environment: "prod",
+		Service:     service,
+		Namespace:   defaultNamespace("prod"),
+	})
 	if err != nil {
 		cause := errors.Cause(err)
 		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
@@ -196,33 +209,18 @@ func calculateTotalVulnerabilties(severity string, s artifact.Spec) int64 {
 	return int64(result + 0.5)
 }
 
-func envSpec(root, artifactFileName, service, env, namespace string) (artifact.Spec, error) {
-	return artifact.Get(path.Join(releasePath(root, service, env, namespace), artifactFileName))
+type releaseLocation struct {
+	Environment string
+	Namespace   string
+	Service     string
 }
 
-// sourceSpec returns the Spec of the current release.
-func sourceSpec(ctx context.Context, root, artifactFileName, service, env, namespace string) (artifact.Spec, error) {
-	var specPath string
-	switch env {
-	case "dev":
-		specPath = path.Join(artifactPath(root, service, "master"), artifactFileName)
-	case "staging":
-		// if namespace is set to the environment we have to look one environment back when locating the artifact.json
-		if namespace == "staging" {
-			namespace = "dev"
-		}
-		specPath = path.Join(releasePath(root, service, "dev", namespace), artifactFileName)
-	case "prod":
-		// if namespace is set to the environment we have to look one environment back when locating the artifact.json
-		if namespace == "prod" {
-			namespace = "staging"
-		}
-		specPath = path.Join(releasePath(root, service, "staging", namespace), artifactFileName)
-	default:
-		return artifact.Spec{}, ErrUnknownEnvironment
-	}
-	log.WithContext(ctx).Infof("Get artifact spec from %s", specPath)
-	return artifact.Get(specPath)
+func (s *Service) releaseSpecification(ctx context.Context, location releaseLocation) (artifact.Spec, error) {
+	return artifact.Get(path.Join(releasePath(s.Git.MasterPath(), location.Service, location.Environment, location.Namespace), s.ArtifactFileName))
+}
+
+func envSpec(root, artifactFileName, service, env, namespace string) (artifact.Spec, error) {
+	return artifact.Get(path.Join(releasePath(root, service, env, namespace), artifactFileName))
 }
 
 func srcPath(root, service, branch, env string) string {

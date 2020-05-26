@@ -43,6 +43,7 @@ type Service struct {
 	SSHPrivateKeyPath string
 	ConfigRepoURL     string
 	Config            *GitConfig
+	ArtifactFileName  string
 
 	masterPath  string
 	masterMutex sync.RWMutex
