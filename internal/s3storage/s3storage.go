@@ -1,13 +1,15 @@
 package s3storage
 
 import (
-	"fmt"
+	"crypto/md5"
+	"encoding/base64"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/log"
 )
 
@@ -41,19 +43,29 @@ func Initialize(logger *log.Logger) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) CreateRelease() struct{} {
-	req, _ := s.s3client.PutObjectRequest(&s3.PutObjectInput{
-		Bucket: aws.String("myBucket"),
-		Key:    aws.String("myKey"),
-	})
-	str, err := req.Presign(15 * time.Minute)
+func (s *Service) CreateArtifact(artifactSpec artifact.Spec) (string, error) {
+	jsonSpec, err := artifact.Encode(artifactSpec, false)
 	if err != nil {
-		fmt.Println(err)
+		return "", err
 	}
 
-	var _ = str
+	req, _ := s.s3client.PutObjectRequest(&s3.PutObjectInput{
+		Bucket: aws.String(s.bucketName),
+		Key:    aws.String(artifactSpec.ID),
+		Metadata: map[string]*string{
+			"ArtifactSpec": aws.String(jsonSpec),
+		},
+	})
+	h := md5.New()
+	md5s := base64.StdEncoding.EncodeToString(h.Sum(nil))
+	req.HTTPRequest.Header.Set("Content-MD5", md5s)
 
-	return struct{}{}
+	uploadURL, err := req.Presign(15 * time.Minute)
+	if err != nil {
+		return "", err
+	}
+
+	return uploadURL, nil
 }
 
 func createBucket(s3client *s3.S3, bucketName string, logger *log.Logger) error {

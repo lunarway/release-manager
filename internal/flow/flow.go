@@ -1,8 +1,15 @@
 package flow
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
+	"crypto/md5"
+	"encoding/base64"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,8 +18,8 @@ import (
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/git"
+	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
-	"github.com/lunarway/release-manager/internal/releasemanagerclient"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/lunarway/release-manager/internal/try"
@@ -240,37 +247,135 @@ func releasePath(root, service, env, namespace string) string {
 //
 // The resourceRoot specifies the path to the artifact files. All files in this
 // path will be pushed.
-func PushArtifact(ctx context.Context, releaseManagerClient *releasemanagerclient.Client, artifactFileName, resourceRoot string) (string, error) {
+func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, resourceRoot string) (string, error) {
 	artifactSpecPath := path.Join(resourceRoot, artifactFileName)
 	artifactSpec, err := artifact.Get(artifactSpecPath)
 	if err != nil {
 		return "", errors.WithMessagef(err, "path '%s'", artifactSpecPath)
 	}
-	files := listFiles(resourceRoot)
-	releaseManagerClient.PushArtifact(artifactSpec, files)
+	artifactConfigRepoPath, close, err := git.TempDir(ctx, gitSvc.Tracer, "k8s-config-artifact")
 	if err != nil {
-		return "", errors.WithMessage(err, "push artifact")
+		return "", err
+	}
+	defer close(ctx)
+	// fmt.Printf is used for logging as this is called from artifact cli only
+	fmt.Printf("Checkout config repository from '%s' into '%s'\n", gitSvc.ConfigRepoURL, resourceRoot)
+	listFiles(resourceRoot)
+	_, err = gitSvc.Clone(ctx, artifactConfigRepoPath)
+	if err != nil {
+		return "", errors.WithMessage(err, "clone config repo")
+	}
+	destinationPath := artifactPath(artifactConfigRepoPath, artifactSpec.Service, artifactSpec.Application.Branch)
+	fmt.Printf("Artifacts destination '%s'\n", destinationPath)
+	listFiles(destinationPath)
+	fmt.Printf("Removing existing files\n")
+	err = os.RemoveAll(destinationPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("remove destination path '%s'", destinationPath))
+	}
+	err = os.MkdirAll(destinationPath, os.ModePerm)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("create destination dir '%s'", destinationPath))
+	}
+	fmt.Printf("Copy configuration into destination\n")
+	err = copy.CopyDir(ctx, resourceRoot, destinationPath)
+	if err != nil {
+		return "", errors.WithMessage(err, fmt.Sprintf("copy resources from '%s' to '%s'", resourceRoot, destinationPath))
+	}
+	listFiles(destinationPath)
+	artifactID := artifactSpec.ID
+	authorName := artifactSpec.Application.AuthorName
+	authorEmail := artifactSpec.Application.AuthorEmail
+	commitMsg := git.ArtifactCommitMessage(artifactSpec.Service, artifactID, authorEmail)
+	fmt.Printf("Committing changes\n")
+	err = gitSvc.SignedCommit(ctx, destinationPath, ".", authorName, authorEmail, commitMsg)
+	if err != nil {
+		if err == git.ErrNothingToCommit {
+			return artifactSpec.ID, nil
+		}
+		return "", errors.WithMessage(err, "commit files")
 	}
 	return artifactSpec.ID, nil
 }
 
-func listFiles(path string) []string {
-	var files []string
+// PushArtifactToReleaseManager pushes an artifact to the release manager
+func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *httpinternal.Client, artifactFileName, resourceRoot string) (string, error) {
+	artifactSpecPath := path.Join(resourceRoot, artifactFileName)
+	artifactSpec, err := artifact.Get(artifactSpecPath)
+	if err != nil {
+		return "", errors.WithMessagef(err, "path '%s'", artifactSpecPath)
+	}
+
+	path, err := releaseManagerClient.URLWithQuery(fmt.Sprintf("artifacts/create"), url.Values{})
+	if err != nil {
+		return "", errors.WithMessage(err, "push artifact URL generation failed")
+	}
+
+	resp := httpinternal.ArtifactUploadResponse{}
+	err = releaseManagerClient.Do(http.MethodPost, path, httpinternal.ArtifactUploadRequest{
+		Artifact: artifactSpec,
+	}, &resp)
+	if err != nil {
+		return "", errors.WithMessage(err, "create artifact request failed")
+	}
+	log.WithFields("artifactID", artifactSpec.ID, "uploadURL", resp.ArtifactUploadURL).Infof("artifact upload URL created for %s", artifactSpec.ID)
+
+	files := listFiles(resourceRoot)
+
+	zipContent, err := zipFiles(files)
+	if err != nil {
+		return "", errors.WithMessage(err, "zip artifact failed")
+	}
+	log.WithFields("artifactID", artifactSpec.ID, "artifactFiles", files).Infof("artifact zip created for %s", artifactSpec.ID)
+
+	err = uploadFile(resp.ArtifactUploadURL, zipContent)
+
+	if err != nil {
+		return "", errors.WithMessage(err, "upload artifact failed")
+	}
+
+	log.WithFields("artifactID", artifactSpec.ID).Infof("uploaded artifact %s", artifactSpec.ID)
+
+	return artifactSpec.ID, nil
+}
+
+func listFiles(path string) []fileInfo {
+	var files []fileInfo
 	fmt.Printf("Files in path '%s'\n", path)
 	err := filepath.Walk(path,
-		func(path string, info os.FileInfo, err error) error {
+		func(filePath string, info os.FileInfo, err error) error {
 			if err != nil {
 				fmt.Printf("failed to walk dir: %v\n", err)
 				return nil
 			}
-			files = append(files, path)
-			fmt.Printf("  %s\n", path)
+			if !info.IsDir() {
+				fullPath, err := filepath.Abs(filePath)
+				if err != nil {
+					fmt.Printf("failed to generate absolute path for %s: %v\n", filePath, err)
+					return nil
+				}
+				relativePath, err := filepath.Rel(path, filePath)
+				if err != nil {
+					fmt.Printf("failed to generate relative path for %s: %v\n", filePath, err)
+					return nil
+				}
+				files = append(files, fileInfo{
+					fullPath:     fullPath,
+					relativePath: relativePath,
+				})
+			}
+			fmt.Printf("  %s\n", filePath)
 			return nil
 		})
 	if err != nil {
 		fmt.Printf("failed to read dir: %v\n", err)
 	}
 	return files
+}
+
+type fileInfo struct {
+	fullPath     string
+	relativePath string
 }
 
 func (s *Service) notifyRelease(ctx context.Context, opts NotifyReleaseOptions) {
@@ -315,5 +420,57 @@ func (s *Service) cleanCopy(ctx context.Context, src, dest string) error {
 		}
 		return errors.WithMessage(err, "copy files")
 	}
+	return nil
+}
+
+func zipFiles(files []fileInfo) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	w := zip.NewWriter(buf)
+	for _, file := range files {
+		f, err := w.Create(file.relativePath)
+		if err != nil {
+			return nil, err
+		}
+		fileContent, err := ioutil.ReadFile(file.fullPath)
+		if err != nil {
+			return nil, err
+		}
+		_, err = f.Write(fileContent)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Make sure to check the error on Close.
+	err := w.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func uploadFile(url string, fileContent []byte) error {
+	h := md5.New()
+	md5s := base64.StdEncoding.EncodeToString(h.Sum(nil))
+	//resp.HTTPRequest.Header.Set("Content-MD5", md5s)
+
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(fileContent))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-MD5", md5s)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed upload file to %s with status code %v and request id %v", url, resp.StatusCode, resp.Header["X-Amz-Request-Id"])
+	}
+
+	//fmt.Printf("RESPONSE %#v\n", resp)
+
 	return nil
 }

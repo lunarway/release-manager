@@ -18,7 +18,6 @@ import (
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
-	"github.com/lunarway/release-manager/internal/s3storage"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -38,7 +37,7 @@ type Options struct {
 	S3WebhookSecret     string
 }
 
-func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, s3storageSvc *s3storage.Service, tracer tracing.Tracer) error {
+func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, artifactWriteStorage ArtifactWriteStorage, tracer tracing.Tracer) error {
 	payloader := payload{
 		tracer: tracer,
 	}
@@ -59,7 +58,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 
 	// s3 endpoints
 	mux.HandleFunc("/webhook/daemon/s3", trace(tracer, authenticate(opts.S3WebhookSecret, s3webhook())))
-	mux.HandleFunc("/artifact/upload", trace(tracer, authenticate(opts.ArtifactAuthToken, artifactUpload(s3storageSvc))))
+	mux.HandleFunc("/artifacts/create", trace(tracer, authenticate(opts.ArtifactAuthToken, createArtifact(&payloader, artifactWriteStorage))))
 
 	// profiling endpoints
 	mux.HandleFunc("/debug/pprof/", pprof.Index)

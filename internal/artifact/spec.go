@@ -2,6 +2,7 @@ package artifact
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -123,23 +124,7 @@ func Get(path string) (Spec, error) {
 		return Spec{}, err
 	}
 	defer s.Close()
-	var fileSpec Spec
-	decoder := json.NewDecoder(s)
-	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&fileSpec)
-	if err != nil {
-		_, ok := err.(*json.SyntaxError)
-		if ok {
-			return Spec{}, ErrNotParsable
-		}
-		// there is no other way to detect this error type unfortunately
-		// https://github.com/golang/go/blob/277609f844ed9254d25e975f7cf202d042beecc6/src/encoding/json/decode.go#L739
-		if strings.HasPrefix(err.Error(), "json: unknown field") {
-			return Spec{}, errors.WithMessagef(ErrUnknownFields, "%v", err)
-		}
-		return Spec{}, err
-	}
-	return fileSpec, nil
+	return Decode(s)
 }
 
 func Persist(path string, spec Spec) error {
@@ -171,4 +156,39 @@ func Update(path string, f func(Spec) Spec) error {
 		return errors.WithMessagef(err, "persiste artifact to '%s'", path)
 	}
 	return nil
+}
+
+func Encode(spec Spec, pretty bool) (string, error) {
+	var jsonOutput []byte
+	var err error
+	if pretty {
+		jsonOutput, err = json.MarshalIndent(spec, "", "  ")
+	} else {
+		jsonOutput, err = json.Marshal(spec)
+	}
+	if err != nil {
+		return "", errors.WithMessage(err, "encode spec to json")
+	}
+
+	return string(jsonOutput), nil
+}
+
+func Decode(reader io.Reader) (Spec, error) {
+	var fileSpec Spec
+	decoder := json.NewDecoder(reader)
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&fileSpec)
+	if err != nil {
+		_, ok := err.(*json.SyntaxError)
+		if ok {
+			return Spec{}, ErrNotParsable
+		}
+		// there is no other way to detect this error type unfortunately
+		// https://github.com/golang/go/blob/277609f844ed9254d25e975f7cf202d042beecc6/src/encoding/json/decode.go#L739
+		if strings.HasPrefix(err.Error(), "json: unknown field") {
+			return Spec{}, errors.WithMessagef(ErrUnknownFields, "%v", err)
+		}
+		return Spec{}, err
+	}
+	return fileSpec, nil
 }
