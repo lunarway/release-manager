@@ -1,8 +1,6 @@
 package s3storage
 
 import (
-	"crypto/md5"
-	"encoding/base64"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -53,12 +51,13 @@ func (s *Service) CreateArtifact(artifactSpec artifact.Spec) (string, error) {
 		Bucket: aws.String(s.bucketName),
 		Key:    aws.String(artifactSpec.ID),
 		Metadata: map[string]*string{
-			"ArtifactSpec": aws.String(jsonSpec),
+			"artifact-spec": aws.String(jsonSpec),
 		},
 	})
-	h := md5.New()
-	md5s := base64.StdEncoding.EncodeToString(h.Sum(nil))
-	req.HTTPRequest.Header.Set("Content-MD5", md5s)
+	// TODO: Add MD5 content hashing
+	// h := md5.New()
+	// md5s := base64.StdEncoding.EncodeToString(h.Sum(nil))
+	// req.HTTPRequest.Header.Set("Content-MD5", md5s)
 
 	uploadURL, err := req.Presign(15 * time.Minute)
 	if err != nil {

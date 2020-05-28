@@ -4,8 +4,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"crypto/md5"
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -328,7 +326,7 @@ func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *htt
 	}
 	log.WithFields("artifactID", artifactSpec.ID, "artifactFiles", files).Infof("artifact zip created for %s", artifactSpec.ID)
 
-	err = uploadFile(resp.ArtifactUploadURL, zipContent)
+	err = uploadFile(resp.ArtifactUploadURL, zipContent, artifactSpec)
 
 	if err != nil {
 		return "", errors.WithMessage(err, "upload artifact failed")
@@ -450,27 +448,37 @@ func zipFiles(files []fileInfo) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func uploadFile(url string, fileContent []byte) error {
-	h := md5.New()
-	md5s := base64.StdEncoding.EncodeToString(h.Sum(nil))
-	//resp.HTTPRequest.Header.Set("Content-MD5", md5s)
+func uploadFile(url string, fileContent []byte, artifactSpec artifact.Spec) error {
+	// TODO: MD5
+	//h := md5.New()
+	//md5s := base64.StdEncoding.EncodeToString
 
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(fileContent))
+	//req, err := http.NewRequest(http.MethodPut, url, strings.NewReader(""))
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("Content-MD5", md5s)
+	jsonSpec, err := artifact.Encode(artifactSpec, false)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("x-amz-meta-artifact-spec", jsonSpec)
+
+	//req.Header.Set("Content-MD5", md5s)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed upload file to %s with status code %v and request id %v", url, resp.StatusCode, resp.Header["X-Amz-Request-Id"])
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
 	}
 
-	//fmt.Printf("RESPONSE %#v\n", resp)
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed upload file to %s with status code %v and request id %v and body %s", url, resp.StatusCode, resp.Header["X-Amz-Request-Id"], string(body))
+	}
 
 	return nil
 }
