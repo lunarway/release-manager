@@ -57,7 +57,6 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	mux.HandleFunc("/webhook/daemon/k8s/error", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sPodErrorWebhook(&payloader, flowSvc))))
 
 	// s3 endpoints
-	mux.HandleFunc("/webhook/daemon/s3", trace(tracer, authenticate(opts.S3WebhookSecret, s3webhook())))
 	mux.HandleFunc("/artifacts/create", trace(tracer, authenticate(opts.ArtifactAuthToken, createArtifact(&payloader, artifactWriteStorage))))
 
 	// profiling endpoints
