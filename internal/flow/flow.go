@@ -438,7 +438,6 @@ func zipFiles(files []fileInfo) ([]byte, error) {
 		}
 	}
 
-	// Make sure to check the error on Close.
 	err := w.Close()
 	if err != nil {
 		return nil, err
@@ -448,12 +447,7 @@ func zipFiles(files []fileInfo) ([]byte, error) {
 }
 
 func uploadFile(url string, fileContent []byte, artifactSpec artifact.Spec) error {
-	// TODO: MD5
-	//h := md5.New()
-	//md5s := base64.StdEncoding.EncodeToString
-
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(fileContent))
-	//req, err := http.NewRequest(http.MethodPut, url, strings.NewReader(""))
 	if err != nil {
 		return err
 	}
@@ -464,18 +458,21 @@ func uploadFile(url string, fileContent []byte, artifactSpec artifact.Spec) erro
 	}
 	req.Header.Set("x-amz-meta-artifact-spec", jsonSpec)
 
+	// TODO: MD5
+	//h := md5.New()
+	//md5s := base64.StdEncoding.EncodeToString(h.Sum(nil))
 	//req.Header.Set("Content-MD5", md5s)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
 	if resp.StatusCode != http.StatusOK {
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed upload file to %s with status code %v and request id %v and and also got an error reading body %w", url, resp.StatusCode, resp.Header["X-Amz-Request-Id"], err)
+		}
 		return fmt.Errorf("failed upload file to %s with status code %v and request id %v and body %s", url, resp.StatusCode, resp.Header["X-Amz-Request-Id"], string(body))
 	}
 
