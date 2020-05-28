@@ -304,7 +304,7 @@ func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *htt
 		return "", errors.WithMessagef(err, "path '%s'", artifactSpecPath)
 	}
 
-	path, err := releaseManagerClient.URLWithQuery(fmt.Sprintf("artifacts/create"), url.Values{})
+	path, err := releaseManagerClient.URL(fmt.Sprintf("artifacts/create"))
 	if err != nil {
 		return "", errors.WithMessage(err, "push artifact URL generation failed")
 	}
