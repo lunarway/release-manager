@@ -327,7 +327,6 @@ func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *htt
 	log.WithFields("artifactID", artifactSpec.ID, "artifactFiles", files).Infof("artifact zip created for %s", artifactSpec.ID)
 
 	err = uploadFile(resp.ArtifactUploadURL, zipContent, artifactSpec)
-
 	if err != nil {
 		return "", errors.WithMessage(err, "upload artifact failed")
 	}
