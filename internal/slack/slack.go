@@ -15,7 +15,6 @@ type Client struct {
 	client        *slack.Client
 	emailMappings map[string]string
 	muteOptions   MuteOptions
-	skip          bool
 }
 
 type MuteOptions struct {
