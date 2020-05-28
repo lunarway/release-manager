@@ -209,5 +209,5 @@ type ArtifactUploadRequest struct {
 }
 
 type ArtifactUploadResponse struct {
-	ArtifactUploadURL string `json:"artifactUploadURL,omitempty"`
+	ArtifactUploadURL string `json:"artifactUploadUrl,omitempty"`
 }
