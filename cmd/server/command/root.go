@@ -73,7 +73,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().IntVar(&httpOpts.Port, "http-port", 8080, "port of the http server")
 	command.PersistentFlags().DurationVar(&httpOpts.Timeout, "timeout", 20*time.Second, "HTTP server timeout for incomming requests")
 	command.PersistentFlags().StringVar(&httpOpts.HamCtlAuthToken, "hamctl-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "hamctl authentication token")
-	command.PersistentFlags().StringVar(&httpOpts.ArtifactAuthToken, "artifact-auth-token", os.Getenv("ARTIFACT_AUTH_TOKEN"), "hamctl authentication token")
+	command.PersistentFlags().StringVar(&httpOpts.ArtifactAuthToken, "artifact-auth-token", os.Getenv("ARTIFACT_AUTH_TOKEN"), "artifact authentication token")
 	command.PersistentFlags().StringVar(&httpOpts.DaemonAuthToken, "daemon-auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "daemon webhook authentication token")
 	command.PersistentFlags().StringVar(&configRepoOpts.ConfigRepo, "config-repo", os.Getenv("CONFIG_REPO"), "ssh url for the git config repository")
 	command.PersistentFlags().StringVar(&configRepoOpts.ArtifactFileName, "artifact-filename", "artifact.json", "the filename of the artifact to be used")
