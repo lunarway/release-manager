@@ -14,6 +14,7 @@ import (
 	"github.com/lunarway/release-manager/internal/broker"
 	"github.com/lunarway/release-manager/internal/broker/amqp"
 	"github.com/lunarway/release-manager/internal/broker/memory"
+	"github.com/lunarway/release-manager/internal/fallbackstorage"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/github"
@@ -159,6 +160,15 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				ArtifactFileName:  startOptions.configRepo.ArtifactFileName,
 			}
 
+			s3storageSvc, err := s3storage.New()
+			if err != nil {
+				return err
+			}
+			err = s3storageSvc.InitializeBucket()
+			if err != nil {
+				return err
+			}
+
 			github := github.Service{
 				Token: *startOptions.githubAPIToken,
 			}
@@ -182,7 +192,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				Slack:            slackClient,
 				Git:              &gitSvc,
 				CanRelease:       policySvc.CanRelease,
-				Storage:          &gitSvc,
+				Storage:          fallbackstorage.New(s3storageSvc, &gitSvc),
 				Tracer:           tracer,
 				// TODO: figure out a better way of splitting the consumer and publisher
 				// to avoid this chicken and egg issue. It is not a real problem as the
@@ -262,15 +272,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 
 					logger.Infof("Release [%s]: %s (%s) by %s, author %s", opts.Environment, opts.Service, opts.Spec.ID, opts.Releaser, opts.Spec.Application.AuthorName)
 				},
-			}
-
-			s3storageSvc, err := s3storage.New()
-			if err != nil {
-				return err
-			}
-			err = s3storageSvc.InitializeBucket()
-			if err != nil {
-				return err
 			}
 
 			eventHandlers := map[string]func([]byte) error{
