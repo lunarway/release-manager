@@ -36,9 +36,9 @@ func New(logger *log.Logger) (*Service, error) {
 	}, nil
 }
 
-func InitializeBucket() error {
-	_, err := s3client.CreateBucket(&s3.CreateBucketInput{
-		Bucket: aws.String(bucketName),
+func (s *Service) InitializeBucket() error {
+	_, err := s.s3client.CreateBucket(&s3.CreateBucketInput{
+		Bucket: aws.String(s.bucketName),
 	})
 	aerr, isAwsErr := err.(awserr.Error)
 	if isAwsErr && (aerr.Code() == s3.ErrCodeBucketAlreadyOwnedByYou || aerr.Code() == s3.ErrCodeBucketAlreadyExists) {
