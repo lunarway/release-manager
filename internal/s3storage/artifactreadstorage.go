@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/pkg/errors"
 )
 
 func (f *Service) ArtifactExists(ctx context.Context, service, artifactID string) (bool, error) {
@@ -72,7 +73,33 @@ func (f *Service) LatestArtifactPaths(ctx context.Context, service string, envir
 }
 
 func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n int) ([]artifact.Spec, error) {
-	return nil, nil
+	list, err := f.s3client.ListObjectsV2(&s3.ListObjectsV2Input{
+		Bucket:  aws.String(f.bucketName),
+		MaxKeys: aws.Int64(1000), // TODO: Find a solution to handle more than 1000
+		Prefix:  aws.String(getServiceObjectKeyPrefix(service)),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(list.Contents, func(i, j int) bool {
+		return list.Contents[i].LastModified.After(*list.Contents[j].LastModified)
+	})
+
+	var artifactSpecs []artifact.Spec
+	for _, object := range list.Contents {
+		artifactSpec, err := f.getArtifactSpecFromObjectKey(ctx, *object.Key)
+		if err != nil {
+			return nil, errors.WithMessagef(err, "failed getting object %s", *object.Key)
+		}
+		artifactSpecs = append(artifactSpecs, artifactSpec)
+		if len(artifactSpecs) >= n {
+			break
+		}
+	}
+
+	return artifactSpecs, nil
 }
 
 func (f *Service) getLatestObjectKey(ctx context.Context, service string, branch string) (string, error) {
