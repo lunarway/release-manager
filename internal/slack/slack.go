@@ -22,6 +22,8 @@ type MuteOptions struct {
 	Kubernetes       bool
 	Policy           bool
 	ReleaseProcessed bool
+	Releases         bool
+	BuildStatus      bool
 }
 
 var (
@@ -31,6 +33,20 @@ var (
 )
 
 func NewClient(token string, emailMappings map[string]string) (*Client, error) {
+	if token == "" {
+		log.Infof("slack: skipping: no token, so no slack notification")
+		return &Client{
+			muteOptions: MuteOptions{
+				Flux:             true,
+				Kubernetes:       true,
+				Policy:           true,
+				ReleaseProcessed: true,
+				Releases:         true,
+				BuildStatus:      true,
+			},
+		}, nil
+	}
+
 	log.Infof("slack: new client: initialized with emailMappings: %+v", emailMappings)
 	slackClient := slack.New(token)
 	client := Client{
@@ -42,6 +58,20 @@ func NewClient(token string, emailMappings map[string]string) (*Client, error) {
 }
 
 func NewMuteableClient(token string, emailMappings map[string]string, muteOptions MuteOptions) (*Client, error) {
+	if token == "" {
+		log.Infof("slack: skipping: no token, so no slack notification")
+		return &Client{
+			muteOptions: MuteOptions{
+				Flux:             true,
+				Kubernetes:       true,
+				Policy:           true,
+				ReleaseProcessed: true,
+				Releases:         true,
+				BuildStatus:      true,
+			},
+		}, nil
+	}
+
 	log.Infof("slack: new client: initialized with emailMappings: %+v", emailMappings)
 	slackClient := slack.New(token)
 	client := Client{
@@ -70,6 +100,10 @@ func (c *Client) getIdByEmail(ctx context.Context, email string) (string, error)
 }
 
 func (c *Client) UpdateSlackBuildStatus(channel, title, titleLink, text, color, timestamp string) (string, string, error) {
+	if c.muteOptions.BuildStatus {
+		return "", "", nil
+	}
+
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      title,
@@ -86,6 +120,10 @@ func (c *Client) UpdateSlackBuildStatus(channel, title, titleLink, text, color, 
 }
 
 func (c *Client) PostSlackBuildStarted(email, title, titleLink, text, color string) (string, string, error) {
+	if c.muteOptions.BuildStatus {
+		return "", "", nil
+	}
+
 	userID, err := c.getIdByEmail(context.Background(), email)
 	if err != nil {
 		return "", "", err
@@ -119,6 +157,10 @@ type ReleaseOptions struct {
 }
 
 func (c *Client) NotifySlackReleasesChannel(ctx context.Context, options ReleaseOptions) error {
+	if c.muteOptions.Releases {
+		return nil
+	}
+
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      fmt.Sprintf("%s (%s)", options.Service, options.ArtifactID),

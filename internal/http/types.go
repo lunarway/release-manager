@@ -203,3 +203,11 @@ type DescribeArtifactResponse struct {
 	Service   string          `json:"service,omitempty"`
 	Artifacts []artifact.Spec `json:"artifacts,omitempty"`
 }
+
+type ArtifactUploadRequest struct {
+	Artifact artifact.Spec `json:"artifact,omitempty"`
+}
+
+type ArtifactUploadResponse struct {
+	ArtifactUploadURL string `json:"artifactUploadUrl,omitempty"`
+}

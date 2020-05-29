@@ -7,11 +7,11 @@ example:
 	  --artifact-id "master-1234ds13g3-12s46g356g"\
 		--git-branch "master"\
 		--git-author-name "Kasper Nissen"\
-		--git-author-email "kni@lunarway.com"\
+		--git-author-email "kni@lunar.app"\
 		--git-message "Some message"\
 		--git-sha "asd39sdas0g392"\
 		--git-committer-name "Bjørn Sørensen"\
-		--git-committer-email "bso@lunarway.com"\
+		--git-committer-email "bso@lunar.app"\
 		--provider "BitBucket"\
 		--url "https://someurl.com"\
 		--name "lunar-way-application"\
@@ -81,8 +81,15 @@ example_resources:
 	echo "$$CONFIG_MAP" > examples/staging/configmap.yaml
 	echo "$$CONFIG_MAP" > examples/prod/configmap.yaml
 
+SSH_PRIVATE_KEY=~/.ssh/github
+RELEASE_MANAGER_URL=http://localhost:8080
+RELEASE_MANAGER_AUTH_TOKEN=test
+CONFIG_REPO=git@github.com:lunarway/release-manager-test-config-repo.git
+
 test_push: example example_resources
 	./artifact push \
 		--root examples \
-		--config-repo git@github.com:lunarway/release-manager-test-config-repo.git \
-		--ssh-private-key ~/.ssh/github
+		--http-base-url ${RELEASE_MANAGER_URL} \
+		--http-auth-token ${RELEASE_MANAGER_AUTH_TOKEN} \
+		--config-repo="${CONFIG_REPO}" \
+		--ssh-private-key=${SSH_PRIVATE_KEY}

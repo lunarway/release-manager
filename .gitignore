@@ -10,3 +10,7 @@ artifact.json
 /profiles/
 e2e-test/source-git-repo/
 e2e-test/binaries/
+/server
+/daemon
+/artifact
+/hamctl

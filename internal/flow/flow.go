@@ -1,8 +1,12 @@
 package flow
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,6 +15,7 @@ import (
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/git"
+	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
@@ -290,20 +295,83 @@ func PushArtifact(ctx context.Context, gitSvc *git.Service, artifactFileName, re
 	return artifactSpec.ID, nil
 }
 
-func listFiles(path string) {
+// PushArtifactToReleaseManager pushes an artifact to the release manager
+func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *httpinternal.Client, artifactFileName, resourceRoot string) (string, error) {
+	artifactSpecPath := path.Join(resourceRoot, artifactFileName)
+	artifactSpec, err := artifact.Get(artifactSpecPath)
+	if err != nil {
+		return "", errors.WithMessagef(err, "path '%s'", artifactSpecPath)
+	}
+
+	path, err := releaseManagerClient.URL(fmt.Sprintf("artifacts/create"))
+	if err != nil {
+		return "", errors.WithMessage(err, "push artifact URL generation failed")
+	}
+
+	resp := httpinternal.ArtifactUploadResponse{}
+	err = releaseManagerClient.Do(http.MethodPost, path, httpinternal.ArtifactUploadRequest{
+		Artifact: artifactSpec,
+	}, &resp)
+	if err != nil {
+		return "", errors.WithMessage(err, "create artifact request failed")
+	}
+	log.WithFields("artifactID", artifactSpec.ID, "uploadURL", resp.ArtifactUploadURL).Infof("artifact upload URL created for %s", artifactSpec.ID)
+
+	files := listFiles(resourceRoot)
+
+	zipContent, err := zipFiles(files)
+	if err != nil {
+		return "", errors.WithMessage(err, "zip artifact failed")
+	}
+	log.WithFields("artifactID", artifactSpec.ID, "artifactFiles", files).Infof("artifact zip created for %s", artifactSpec.ID)
+
+	err = uploadFile(resp.ArtifactUploadURL, zipContent, artifactSpec)
+	if err != nil {
+		return "", errors.WithMessage(err, "upload artifact failed")
+	}
+
+	log.WithFields("artifactID", artifactSpec.ID).Infof("uploaded artifact %s", artifactSpec.ID)
+
+	return artifactSpec.ID, nil
+}
+
+func listFiles(path string) []fileInfo {
+	var files []fileInfo
 	fmt.Printf("Files in path '%s'\n", path)
 	err := filepath.Walk(path,
-		func(path string, info os.FileInfo, err error) error {
+		func(filePath string, info os.FileInfo, err error) error {
 			if err != nil {
 				fmt.Printf("failed to walk dir: %v\n", err)
 				return nil
 			}
-			fmt.Printf("  %s\n", path)
+			if !info.IsDir() {
+				fullPath, err := filepath.Abs(filePath)
+				if err != nil {
+					fmt.Printf("failed to generate absolute path for %s: %v\n", filePath, err)
+					return nil
+				}
+				relativePath, err := filepath.Rel(path, filePath)
+				if err != nil {
+					fmt.Printf("failed to generate relative path for %s: %v\n", filePath, err)
+					return nil
+				}
+				files = append(files, fileInfo{
+					fullPath:     fullPath,
+					relativePath: relativePath,
+				})
+			}
+			fmt.Printf("  %s\n", filePath)
 			return nil
 		})
 	if err != nil {
 		fmt.Printf("failed to read dir: %v\n", err)
 	}
+	return files
+}
+
+type fileInfo struct {
+	fullPath     string
+	relativePath string
 }
 
 func (s *Service) notifyRelease(ctx context.Context, opts NotifyReleaseOptions) {
@@ -348,5 +416,64 @@ func (s *Service) cleanCopy(ctx context.Context, src, dest string) error {
 		}
 		return errors.WithMessage(err, "copy files")
 	}
+	return nil
+}
+
+func zipFiles(files []fileInfo) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	w := zip.NewWriter(buf)
+	for _, file := range files {
+		f, err := w.Create(file.relativePath)
+		if err != nil {
+			return nil, err
+		}
+		fileContent, err := ioutil.ReadFile(file.fullPath)
+		if err != nil {
+			return nil, err
+		}
+		_, err = f.Write(fileContent)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err := w.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func uploadFile(url string, fileContent []byte, artifactSpec artifact.Spec) error {
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(fileContent))
+	if err != nil {
+		return err
+	}
+
+	jsonSpec, err := artifact.Encode(artifactSpec, false)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("x-amz-meta-artifact-spec", jsonSpec)
+
+	// TODO: MD5
+	//h := md5.New()
+	//md5s := base64.StdEncoding.EncodeToString(h.Sum(nil))
+	//req.Header.Set("Content-MD5", md5s)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed upload file to %s with status code %v and request id %v and and also got an error reading body %w", url, resp.StatusCode, resp.Header["X-Amz-Request-Id"], err)
+		}
+		return fmt.Errorf("failed upload file to %s with status code %v and request id %v and body %s", url, resp.StatusCode, resp.Header["X-Amz-Request-Id"], string(body))
+	}
+
 	return nil
 }

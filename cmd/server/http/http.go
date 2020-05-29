@@ -33,9 +33,11 @@ type Options struct {
 	GithubWebhookSecret string
 	HamCtlAuthToken     string
 	DaemonAuthToken     string
+	ArtifactAuthToken   string
+	S3WebhookSecret     string
 }
 
-func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, tracer tracing.Tracer) error {
+func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, artifactWriteStorage ArtifactWriteStorage, tracer tracing.Tracer) error {
 	payloader := payload{
 		tracer: tracer,
 	}
@@ -53,6 +55,9 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	mux.HandleFunc("/webhook/daemon/flux", trace(tracer, authenticate(opts.DaemonAuthToken, daemonFluxWebhook(&payloader, flowSvc))))
 	mux.HandleFunc("/webhook/daemon/k8s/deploy", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sDeployWebhook(&payloader, flowSvc))))
 	mux.HandleFunc("/webhook/daemon/k8s/error", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sPodErrorWebhook(&payloader, flowSvc))))
+
+	// s3 endpoints
+	mux.HandleFunc("/artifacts/create", trace(tracer, authenticate(opts.ArtifactAuthToken, createArtifact(&payloader, artifactWriteStorage))))
 
 	// profiling endpoints
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
