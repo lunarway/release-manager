@@ -17,6 +17,7 @@ import (
 	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/s3storage"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/lunarway/release-manager/internal/try"
@@ -451,11 +452,11 @@ func uploadFile(url string, fileContent []byte, artifactSpec artifact.Spec) erro
 		return err
 	}
 
-	jsonSpec, err := artifact.Encode(artifactSpec, false)
+	metadataSpec, err := s3storage.EncodeSpecToMetadataContent(artifactSpec)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("x-amz-meta-artifact-spec", jsonSpec)
+	req.Header.Set(s3storage.MetadataArtifactSpecFullKey, metadataSpec)
 
 	// TODO: MD5
 	//h := md5.New()

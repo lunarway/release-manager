@@ -170,12 +170,8 @@ func (f *Service) getArtifactSpecFromObjectKey(ctx context.Context, objectKey st
 		return artifact.Spec{}, err
 	}
 
-	jsonSpec := head.Metadata["artifact-spec"]
-	if jsonSpec == nil {
-		return artifact.Spec{}, fmt.Errorf("artifact-spec is missing in metadata")
-	}
+	artifactSpec, err := decodeSpecFromMetadata(head.Metadata)
 
-	artifactSpec, err := artifact.Decode(strings.NewReader(*jsonSpec))
 	if err != nil {
 		return artifact.Spec{}, err
 	}

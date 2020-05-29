@@ -51,7 +51,7 @@ func (s *Service) InitializeBucket() error {
 }
 
 func (s *Service) CreateArtifact(artifactSpec artifact.Spec) (string, error) {
-	jsonSpec, err := artifact.Encode(artifactSpec, false)
+	metadataSpec, err := EncodeSpecToMetadataContent(artifactSpec)
 	if err != nil {
 		return "", err
 	}
@@ -60,7 +60,7 @@ func (s *Service) CreateArtifact(artifactSpec artifact.Spec) (string, error) {
 		Bucket: aws.String(s.bucketName),
 		Key:    aws.String(getObjectKeyName(artifactSpec.Service, artifactSpec.ID)),
 		Metadata: map[string]*string{
-			"artifact-spec": aws.String(jsonSpec),
+			MetadataArtifactSpecPartialWriteKey: aws.String(metadataSpec),
 		},
 	})
 	// TODO: Add MD5 content hashing

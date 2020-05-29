@@ -71,5 +71,16 @@ func (f *Fallback) LatestArtifactPaths(ctx context.Context, service string, envi
 
 // ArtifactSpecifications takes as many as can be found in primary and the rest from secondary
 func (f *Fallback) ArtifactSpecifications(ctx context.Context, service string, n int) ([]artifact.Spec, error) {
-	panic("not implemented") // TODO: Implement
+	artifactSpecs, err := f.primary.ArtifactSpecifications(ctx, service, n)
+	if err != nil {
+		log.WithContext(ctx).WithFields("storageType", "fallback").Infof("storage: fallback: ArtifactSpecifications failed for primary: %s", err)
+	}
+	if len(artifactSpecs) >= n {
+		return artifactSpecs, nil
+	}
+	secondaryArtifactSpecs, err := f.secondary.ArtifactSpecifications(ctx, service, n)
+	if err != nil {
+		return nil, err
+	}
+	return append(artifactSpecs, secondaryArtifactSpecs...), nil
 }
