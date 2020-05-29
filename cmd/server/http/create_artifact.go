@@ -13,7 +13,7 @@ import (
 func createArtifact(payload *payload, artifactWriteStorage ArtifactWriteStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
-		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
+		ctx := r.Context()
 		logger := log.WithContext(ctx)
 
 		var req httpinternal.ArtifactUploadRequest
