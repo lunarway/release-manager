@@ -13,11 +13,10 @@ import (
 
 type Service struct {
 	bucketName string
-	logger     *log.Logger
 	s3client   *s3.S3
 }
 
-func New(logger *log.Logger) (*Service, error) {
+func New() (*Service, error) {
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("eu-west-1"),
 	})
@@ -31,7 +30,6 @@ func New(logger *log.Logger) (*Service, error) {
 
 	return &Service{
 		bucketName: bucketName,
-		logger:     logger,
 		s3client:   s3client,
 	}, nil
 }
@@ -42,13 +40,13 @@ func (s *Service) InitializeBucket() error {
 	})
 	aerr, isAwsErr := err.(awserr.Error)
 	if isAwsErr && (aerr.Code() == s3.ErrCodeBucketAlreadyOwnedByYou || aerr.Code() == s3.ErrCodeBucketAlreadyExists) {
-		log.Info("s3 bucket already exists")
+		log.WithFields("type", "s3storage").Info("s3 bucket already exists")
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	log.Info("s3 bucket create")
+	log.WithFields("type", "s3storage").Info("s3 bucket create")
 	return nil
 }
 

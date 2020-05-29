@@ -264,11 +264,11 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				},
 			}
 
-			s3storageSvc, err := s3storage.New(log.With("type", "s3storage"))
+			s3storageSvc, err := s3storage.New()
 			if err != nil {
 				return err
 			}
-			err := s3storageSvc.InitializeBucket()
+			err = s3storageSvc.InitializeBucket()
 			if err != nil {
 				return err
 			}
