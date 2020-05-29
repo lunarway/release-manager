@@ -58,7 +58,7 @@ func (s *Service) CreateArtifact(artifactSpec artifact.Spec) (string, error) {
 
 	req, _ := s.s3client.PutObjectRequest(&s3.PutObjectInput{
 		Bucket: aws.String(s.bucketName),
-		Key:    aws.String(artifactSpec.ID),
+		Key:    aws.String(getObjectKeyName(artifactSpec.Service, artifactSpec.ID)),
 		Metadata: map[string]*string{
 			"artifact-spec": aws.String(jsonSpec),
 		},

@@ -64,7 +64,7 @@ func (s *Service) Promote(ctx context.Context, actor Actor, environment, namespa
 		// when promoting to dev we use should look for the artifact instead of
 		// release as the artifact have never been released.
 		if environment == "dev" {
-			ok, err = s.Storage.ArtifactExists(ctx, result.ReleaseID)
+			ok, err = s.Storage.ArtifactExists(ctx, service, result.ReleaseID)
 		} else {
 			ok, err = s.releaseExists(ctx, result.ReleaseID)
 		}

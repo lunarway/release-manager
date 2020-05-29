@@ -144,7 +144,7 @@ func (s *Service) ArtifactSpecifications(ctx context.Context, service string, co
 	return artifacts, nil
 }
 
-func (s *Service) ArtifactExists(ctx context.Context, artifactID string) (bool, error) {
+func (s *Service) ArtifactExists(ctx context.Context, service, artifactID string) (bool, error) {
 	logger := log.WithContext(ctx)
 	sourceConfigRepoPath, closeSource, err := TempDirAsync(ctx, s.Tracer, "k8s-config-artifact-exists")
 	if err != nil {

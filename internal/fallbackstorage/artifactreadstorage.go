@@ -21,14 +21,14 @@ func New(primary flow.ArtifactReadStorage, secondary flow.ArtifactReadStorage) *
 	}
 }
 
-func (f *Fallback) ArtifactExists(ctx context.Context, artifactID string) (bool, error) {
-	exists, primaryErr := f.primary.ArtifactExists(ctx, artifactID)
+func (f *Fallback) ArtifactExists(ctx context.Context, service, artifactID string) (bool, error) {
+	exists, primaryErr := f.primary.ArtifactExists(ctx, service, artifactID)
 	if primaryErr != nil {
 		log.WithContext(ctx).WithFields("storageType", "fallback").Infof("storage: fallback: ArtifactExists failed for primary: %s", primaryErr)
-		return f.secondary.ArtifactExists(ctx, artifactID)
+		return f.secondary.ArtifactExists(ctx, service, artifactID)
 	}
 	if !exists {
-		return f.secondary.ArtifactExists(ctx, artifactID)
+		return f.secondary.ArtifactExists(ctx, service, artifactID)
 	}
 	return true, nil
 }
