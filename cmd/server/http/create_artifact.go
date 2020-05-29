@@ -1,18 +1,15 @@
 package http
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
-	opentracing "github.com/opentracing/opentracing-go"
 )
 
 func createArtifact(payload *payload, artifactWriteStorage ArtifactWriteStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// copy span from request context but ignore any deadlines on the request context
 		ctx := r.Context()
 		logger := log.WithContext(ctx)
 
