@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/log"
@@ -16,7 +17,7 @@ import (
 var _ flow.ArtifactReadStorage = &s3storage.Service{}
 
 func TestService_ArtifactPaths(t *testing.T) {
-	t.Skip()
+	SkipIfNoAWS(t)
 	tt := []struct {
 		name       string
 		service    string
@@ -58,5 +59,47 @@ func TestService_ArtifactPaths(t *testing.T) {
 			t.Logf("Spec: %#v", spec)
 			assert.Equal(t, tc.artifactID, spec.ID, "artifact ID not as expected")
 		})
+	}
+}
+
+func TestService_ArtifactSpecification(t *testing.T) {
+	SkipIfNoAWS(t)
+	tt := []struct {
+		name       string
+		service    string
+		env        string
+		branch     string
+		artifactID string
+	}{
+		{
+			name:       "known artifact",
+			service:    "test-service",
+			env:        "dev",
+			artifactID: "master-1234ds13g3-12s46g356g",
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			log.Init(&log.Configuration{
+				Level: log.Level{
+					Level: zapcore.DebugLevel,
+				},
+				Development: true,
+			})
+			svc, err := s3storage.New()
+			if !assert.NoError(t, err, "initialization error") {
+				return
+			}
+			ctx := context.Background()
+			artifactSpec, err := svc.ArtifactSpecification(ctx, tc.service, tc.artifactID)
+			assert.NoError(t, err, "get ArtifactSpecification error")
+			assert.Equal(t, tc.artifactID, artifactSpec.ID, "artifact ID not as expected")
+		})
+	}
+}
+
+func SkipIfNoAWS(t *testing.T) {
+	if aws.NewConfig().Credentials == nil {
+		t.Skip("AWS not configured to run AWS integration tests")
 	}
 }
