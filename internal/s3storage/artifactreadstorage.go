@@ -2,6 +2,7 @@ package s3storage
 
 import (
 	"context"
+	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -11,9 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/lunarway/release-manager/internal/artifact"
-	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
-	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
 )
 
@@ -137,8 +136,7 @@ func (f *Service) getArtifactSpecFromObjectKey(ctx context.Context, objectKey st
 func (f *Service) downloadArtifact(ctx context.Context, key string) (string, func(context.Context), error) {
 	logger := log.WithContext(ctx)
 
-	// FIXME:  we should move that out of package git
-	zipDestPath, closeSource, err := git.TempDirAsync(ctx, tracing.NewNoop(), "s3-artifact-paths")
+	zipDestPath, closeSource, err := tempDir("s3-artifact-paths")
 	if err != nil {
 		return "", nil, errors.WithMessage(err, "get temp dir")
 	}
@@ -167,8 +165,7 @@ func (f *Service) downloadArtifact(ctx context.Context, key string) (string, fun
 	}
 	logger.Infof("Downloaded %d bytes", n)
 
-	// FIXME:  we should move that out of package git
-	destPath, closeSource, err := git.TempDirAsync(ctx, tracing.NewNoop(), "s3-artifact-paths")
+	destPath, closeSource, err := tempDir("s3-artifact-paths")
 	if err != nil {
 		return "", nil, errors.WithMessage(err, "get temp dir")
 	}
@@ -183,4 +180,17 @@ func (f *Service) downloadArtifact(ctx context.Context, key string) (string, fun
 	}
 	logger.Infof("Found files: %v", files)
 	return destPath, closeSource, nil
+}
+
+func tempDir(prefix string) (string, func(context.Context), error) {
+	path, err := ioutil.TempDir("", prefix)
+	if err != nil {
+		return "", func(context.Context) {}, err
+	}
+	return path, func(ctx context.Context) {
+		err := os.RemoveAll(path)
+		if err != nil {
+			log.WithContext(ctx).Errorf("Removing temporary directory failed: path '%s': %v", path, err)
+		}
+	}, nil
 }
