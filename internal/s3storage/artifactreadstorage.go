@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"sort"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -38,19 +37,30 @@ func (f *Service) ArtifactSpecification(ctx context.Context, service string, art
 }
 
 func (f *Service) ArtifactPaths(ctx context.Context, service string, environment string, branch string, artifactID string) (specPath string, resourcesPath string, close func(context.Context), err error) {
+	key := getObjectKeyName(service, artifactID)
+	artifact, close, err := f.downloadArtifact(ctx, key)
+	if err != nil {
+		return "", "", nil, err
+	}
+	return path.Join(artifact, "artifact.json"), path.Join(artifact, environment), close, nil
+}
+
+// downloadArtifact downloads an artifact from its AWS S3 key. The returned
+// string is a file system path to a raw artifact, ie. unzipped.
+func (f *Service) downloadArtifact(ctx context.Context, key string) (string, func(context.Context), error) {
 	logger := log.WithContext(ctx)
 
 	// FIXME:  we should move that out of package git
 	zipDestPath, closeSource, err := git.TempDirAsync(ctx, tracing.NewNoop(), "s3-artifact-paths")
 	if err != nil {
-		return "", "", nil, errors.WithMessage(err, "get temp dir")
+		return "", nil, errors.WithMessage(err, "get temp dir")
 	}
 	defer closeSource(ctx)
 	zipDestPath = path.Join(zipDestPath, "artifact.zip")
 	logger.Debugf("Zip destination: %s", zipDestPath)
 	zipDest, err := os.Create(zipDestPath)
 	if err != nil {
-		return "", "", nil, errors.WithMessage(err, "get temp dir")
+		return "", nil, errors.WithMessage(err, "get temp dir")
 	}
 	defer func() {
 		err := zipDest.Close()
@@ -59,7 +69,6 @@ func (f *Service) ArtifactPaths(ctx context.Context, service string, environment
 		}
 	}()
 
-	key := getObjectKeyName(service, artifactID)
 	downloader := s3manager.NewDownloaderWithClient(f.s3client)
 	logger.Infof("Downloading object at key '%s'", key)
 	n, err := downloader.DownloadWithContext(ctx, zipDest, &s3.GetObjectInput{
@@ -67,14 +76,14 @@ func (f *Service) ArtifactPaths(ctx context.Context, service string, environment
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return "", "", nil, errors.WithMessage(err, "download object")
+		return "", nil, errors.WithMessage(err, "download object")
 	}
 	logger.Infof("Downloaded %d bytes", n)
 
 	// FIXME:  we should move that out of package git
 	destPath, closeSource, err := git.TempDirAsync(ctx, tracing.NewNoop(), "s3-artifact-paths")
 	if err != nil {
-		return "", "", nil, errors.WithMessage(err, "get temp dir")
+		return "", nil, errors.WithMessage(err, "get temp dir")
 	}
 	logger.Infof("Resources dest: %s", destPath)
 
@@ -83,20 +92,10 @@ func (f *Service) ArtifactPaths(ctx context.Context, service string, environment
 		// manually close destination directory here as we must allow callers to
 		// access the directory and this cannot use defer
 		closeSource(ctx)
-		return "", "", nil, errors.WithMessage(err, "unzip file")
+		return "", nil, errors.WithMessage(err, "unzip file")
 	}
 	logger.Infof("Found files: %v", files)
-
-	return getArtifactFilePath(files, "artifact.json"), path.Join(destPath, environment), closeSource, nil
-}
-
-func getArtifactFilePath(files []string, fileName string) string {
-	for _, file := range files {
-		if strings.HasSuffix(file, fileName) {
-			return file
-		}
-	}
-	return ""
+	return destPath, closeSource, nil
 }
 
 func (f *Service) LatestArtifactSpecification(ctx context.Context, service string, branch string) (artifact.Spec, error) {
