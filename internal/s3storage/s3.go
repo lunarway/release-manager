@@ -21,7 +21,7 @@ import (
 // string is a file system path to a raw artifact, ie. unzipped.
 func (f *Service) downloadArtifact(ctx context.Context, key string) (string, func(context.Context), error) {
 	logger := log.WithContext(ctx)
-
+	logger.WithFields("key", key).Infof("Downloading artifact from S3 key '%s'", key)
 	zipDestPath, closeSource, err := tempDir("s3-artifact-paths")
 	if err != nil {
 		return "", nil, errors.WithMessage(err, "get temp dir")

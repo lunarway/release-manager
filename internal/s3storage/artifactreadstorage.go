@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 )
 
@@ -67,10 +68,11 @@ func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n 
 		MaxKeys: aws.Int64(1000), // TODO: Find a solution to handle more than 1000
 		Prefix:  aws.String(getServiceObjectKeyPrefix(service)),
 	})
-
 	if err != nil {
 		return nil, err
 	}
+
+	log.WithContext(ctx).WithFields("service", service, "count", n).Infof("Found %d artifacts for service '%s'", len(list.Contents), service)
 
 	sort.Slice(list.Contents, func(i, j int) bool {
 		return list.Contents[i].LastModified.After(*list.Contents[j].LastModified)
