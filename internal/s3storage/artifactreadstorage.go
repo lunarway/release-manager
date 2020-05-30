@@ -44,59 +44,6 @@ func (f *Service) ArtifactPaths(ctx context.Context, service string, environment
 	return path.Join(artifact, "artifact.json"), path.Join(artifact, environment), close, nil
 }
 
-// downloadArtifact downloads an artifact from its AWS S3 key. The returned
-// string is a file system path to a raw artifact, ie. unzipped.
-func (f *Service) downloadArtifact(ctx context.Context, key string) (string, func(context.Context), error) {
-	logger := log.WithContext(ctx)
-
-	// FIXME:  we should move that out of package git
-	zipDestPath, closeSource, err := git.TempDirAsync(ctx, tracing.NewNoop(), "s3-artifact-paths")
-	if err != nil {
-		return "", nil, errors.WithMessage(err, "get temp dir")
-	}
-	defer closeSource(ctx)
-	zipDestPath = path.Join(zipDestPath, "artifact.zip")
-	logger.Debugf("Zip destination: %s", zipDestPath)
-	zipDest, err := os.Create(zipDestPath)
-	if err != nil {
-		return "", nil, errors.WithMessage(err, "get temp dir")
-	}
-	defer func() {
-		err := zipDest.Close()
-		if err != nil {
-			logger.Errorf("Failed to close zip destination file: %v", err)
-		}
-	}()
-
-	downloader := s3manager.NewDownloaderWithClient(f.s3client)
-	logger.Infof("Downloading object at key '%s'", key)
-	n, err := downloader.DownloadWithContext(ctx, zipDest, &s3.GetObjectInput{
-		Bucket: aws.String(f.bucketName),
-		Key:    aws.String(key),
-	})
-	if err != nil {
-		return "", nil, errors.WithMessage(err, "download object")
-	}
-	logger.Infof("Downloaded %d bytes", n)
-
-	// FIXME:  we should move that out of package git
-	destPath, closeSource, err := git.TempDirAsync(ctx, tracing.NewNoop(), "s3-artifact-paths")
-	if err != nil {
-		return "", nil, errors.WithMessage(err, "get temp dir")
-	}
-	logger.Infof("Resources dest: %s", destPath)
-
-	files, err := unzipFile(zipDestPath, destPath)
-	if err != nil {
-		// manually close destination directory here as we must allow callers to
-		// access the directory and this cannot use defer
-		closeSource(ctx)
-		return "", nil, errors.WithMessage(err, "unzip file")
-	}
-	logger.Infof("Found files: %v", files)
-	return destPath, closeSource, nil
-}
-
 func (f *Service) LatestArtifactSpecification(ctx context.Context, service string, branch string) (artifact.Spec, error) {
 	key, err := f.getLatestObjectKey(ctx, service, branch)
 
@@ -183,4 +130,57 @@ func (f *Service) getArtifactSpecFromObjectKey(ctx context.Context, objectKey st
 	}
 
 	return artifactSpec, nil
+}
+
+// downloadArtifact downloads an artifact from its AWS S3 key. The returned
+// string is a file system path to a raw artifact, ie. unzipped.
+func (f *Service) downloadArtifact(ctx context.Context, key string) (string, func(context.Context), error) {
+	logger := log.WithContext(ctx)
+
+	// FIXME:  we should move that out of package git
+	zipDestPath, closeSource, err := git.TempDirAsync(ctx, tracing.NewNoop(), "s3-artifact-paths")
+	if err != nil {
+		return "", nil, errors.WithMessage(err, "get temp dir")
+	}
+	defer closeSource(ctx)
+	zipDestPath = path.Join(zipDestPath, "artifact.zip")
+	logger.Debugf("Zip destination: %s", zipDestPath)
+	zipDest, err := os.Create(zipDestPath)
+	if err != nil {
+		return "", nil, errors.WithMessage(err, "get temp dir")
+	}
+	defer func() {
+		err := zipDest.Close()
+		if err != nil {
+			logger.Errorf("Failed to close zip destination file: %v", err)
+		}
+	}()
+
+	downloader := s3manager.NewDownloaderWithClient(f.s3client)
+	logger.Infof("Downloading object at key '%s'", key)
+	n, err := downloader.DownloadWithContext(ctx, zipDest, &s3.GetObjectInput{
+		Bucket: aws.String(f.bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return "", nil, errors.WithMessage(err, "download object")
+	}
+	logger.Infof("Downloaded %d bytes", n)
+
+	// FIXME:  we should move that out of package git
+	destPath, closeSource, err := git.TempDirAsync(ctx, tracing.NewNoop(), "s3-artifact-paths")
+	if err != nil {
+		return "", nil, errors.WithMessage(err, "get temp dir")
+	}
+	logger.Infof("Resources dest: %s", destPath)
+
+	files, err := unzipFile(zipDestPath, destPath)
+	if err != nil {
+		// manually close destination directory here as we must allow callers to
+		// access the directory and this cannot use defer
+		closeSource(ctx)
+		return "", nil, errors.WithMessage(err, "unzip file")
+	}
+	logger.Infof("Found files: %v", files)
+	return destPath, closeSource, nil
 }
