@@ -2,7 +2,6 @@ package s3storage
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path"
 	"sort"
@@ -40,7 +39,7 @@ func (f *Service) ArtifactPaths(ctx context.Context, service string, environment
 	key := getObjectKeyName(service, artifactID)
 	artifact, close, err := f.downloadArtifact(ctx, key)
 	if err != nil {
-		return "", "", nil, err
+		return "", "", nil, errors.WithMessagef(err, "download from key '%s'", key)
 	}
 	return path.Join(artifact, "artifact.json"), path.Join(artifact, environment), close, nil
 }
@@ -109,7 +108,15 @@ func (f *Service) LatestArtifactSpecification(ctx context.Context, service strin
 }
 
 func (f *Service) LatestArtifactPaths(ctx context.Context, service string, environment string, branch string) (specPath string, resourcesPath string, close func(context.Context), err error) {
-	return "", "", nil, fmt.Errorf("artifact not found")
+	key, err := f.getLatestObjectKey(ctx, service, branch)
+	if err != nil {
+		return "", "", nil, errors.WithMessage(err, "get latest artifact key")
+	}
+	artifact, close, err := f.downloadArtifact(ctx, key)
+	if err != nil {
+		return "", "", nil, errors.WithMessagef(err, "download from key '%s'", key)
+	}
+	return path.Join(artifact, "artifact.json"), path.Join(artifact, environment), close, nil
 }
 
 func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n int) ([]artifact.Spec, error) {
