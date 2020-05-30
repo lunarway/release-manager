@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -20,28 +19,30 @@ import (
 // downloadArtifact downloads an artifact from its AWS S3 key. The returned
 // string is a file system path to a raw artifact, ie. unzipped.
 func (f *Service) downloadArtifact(ctx context.Context, key string) (string, func(context.Context), error) {
+	span, ctx := f.tracer.FromCtx(ctx, "s3storage.downloadArtifact")
+	defer span.Finish()
+
 	logger := log.WithContext(ctx)
 	logger.WithFields("key", key).Infof("Downloading artifact from S3 key '%s'", key)
-	zipDestPath, closeSource, err := tempDir("s3-artifact-paths")
+	zipDest, err := ioutil.TempFile("", "s3-artifact-zip")
 	if err != nil {
-		return "", nil, errors.WithMessage(err, "get temp dir")
+		return "", nil, errors.WithMessage(err, "create temp file for zip")
 	}
-	defer closeSource(ctx)
-	zipDestPath = path.Join(zipDestPath, "artifact.zip")
-	logger.Debugf("Zip destination: %s", zipDestPath)
-	zipDest, err := os.Create(zipDestPath)
-	if err != nil {
-		return "", nil, errors.WithMessage(err, "get temp dir")
-	}
+
+	logger.Debugf("Zip destination: %s", zipDest.Name())
+
 	defer func() {
 		err := zipDest.Close()
 		if err != nil {
 			logger.Errorf("Failed to close zip destination file: %v", err)
 		}
+		err = os.Remove(zipDest.Name())
+		if err != nil {
+			logger.Errorf("Failed to remove zip destination file '%s': %v", zipDest.Name(), err)
+		}
 	}()
 
 	downloader := s3manager.NewDownloaderWithClient(f.s3client)
-	logger.Infof("Downloading object at key '%s'", key)
 	n, err := downloader.DownloadWithContext(ctx, zipDest, &s3.GetObjectInput{
 		Bucket: aws.String(f.bucketName),
 		Key:    aws.String(key),
@@ -55,16 +56,18 @@ func (f *Service) downloadArtifact(ctx context.Context, key string) (string, fun
 	if err != nil {
 		return "", nil, errors.WithMessage(err, "get temp dir")
 	}
-	logger.Infof("Resources dest: %s", destPath)
+	logger.Infof("Artifact destination: %s", destPath)
 
-	files, err := unzipFile(zipDestPath, destPath)
+	span, _ = f.tracer.FromCtx(ctx, "unzip artifact")
+	files, err := unzipFile(zipDest.Name(), destPath)
+	defer span.Finish()
 	if err != nil {
 		// manually close destination directory here as we must allow callers to
 		// access the directory and this cannot use defer
 		closeSource(ctx)
 		return "", nil, errors.WithMessage(err, "unzip file")
 	}
-	logger.Infof("Found files: %v", files)
+	logger.WithFields("files", files).Infof("Artifact contains %d files", len(files))
 	return destPath, closeSource, nil
 }
 

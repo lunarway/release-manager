@@ -20,7 +20,9 @@ func getServiceAndBranchObjectKeyPrefix(service, branch string) string {
 }
 
 func (f *Service) getLatestObjectKey(ctx context.Context, service string, branch string) (string, error) {
-	list, err := f.s3client.ListObjectsV2(&s3.ListObjectsV2Input{
+	span, ctx := f.tracer.FromCtx(ctx, "s3storage.getLatestObjectKey")
+	defer span.Finish()
+	list, err := f.s3client.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
 		Bucket:  aws.String(f.bucketName),
 		MaxKeys: aws.Int64(1000), // TODO: Find a solution to handle more than 1000
 		Prefix:  aws.String(getServiceAndBranchObjectKeyPrefix(service, branch)),

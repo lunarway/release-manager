@@ -9,14 +9,16 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/tracing"
 )
 
 type Service struct {
 	bucketName string
 	s3client   *s3.S3
+	tracer     tracing.Tracer
 }
 
-func New() (*Service, error) {
+func New(tracer tracing.Tracer) (*Service, error) {
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("eu-west-1"),
 	})
@@ -31,6 +33,7 @@ func New() (*Service, error) {
 	return &Service{
 		bucketName: bucketName,
 		s3client:   s3client,
+		tracer:     tracer,
 	}, nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/s3storage"
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
 )
@@ -38,7 +39,7 @@ func TestService_ArtifactPaths(t *testing.T) {
 				},
 				Development: true,
 			})
-			svc, err := s3storage.New()
+			svc, err := s3storage.New(tracing.NewNoop())
 			if !assert.NoError(t, err, "initialization error") {
 				return
 			}

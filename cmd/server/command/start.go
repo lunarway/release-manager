@@ -160,7 +160,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				ArtifactFileName:  startOptions.configRepo.ArtifactFileName,
 			}
 
-			s3storageSvc, err := s3storage.New()
+			s3storageSvc, err := s3storage.New(tracer)
 			if err != nil {
 				return err
 			}
@@ -192,7 +192,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				Slack:            slackClient,
 				Git:              &gitSvc,
 				CanRelease:       policySvc.CanRelease,
-				Storage:          fallbackstorage.New(s3storageSvc, &gitSvc),
+				Storage:          fallbackstorage.New(s3storageSvc, &gitSvc, tracer),
 				Tracer:           tracer,
 				// TODO: figure out a better way of splitting the consumer and publisher
 				// to avoid this chicken and egg issue. It is not a real problem as the

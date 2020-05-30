@@ -14,7 +14,7 @@ import (
 )
 
 func (f *Service) ArtifactExists(ctx context.Context, service, artifactID string) (bool, error) {
-	_, err := f.s3client.HeadObject(&s3.HeadObjectInput{
+	_, err := f.s3client.HeadObjectWithContext(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(f.bucketName),
 		Key:    aws.String(getObjectKeyName(service, artifactID)),
 	})
@@ -63,7 +63,7 @@ func (f *Service) LatestArtifactPaths(ctx context.Context, service string, envir
 }
 
 func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n int) ([]artifact.Spec, error) {
-	list, err := f.s3client.ListObjectsV2(&s3.ListObjectsV2Input{
+	list, err := f.s3client.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
 		Bucket:  aws.String(f.bucketName),
 		MaxKeys: aws.Int64(1000), // TODO: Find a solution to handle more than 1000
 		Prefix:  aws.String(getServiceObjectKeyPrefix(service)),
@@ -94,7 +94,7 @@ func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n 
 }
 
 func (f *Service) getArtifactSpecFromObjectKey(ctx context.Context, objectKey string) (artifact.Spec, error) {
-	head, err := f.s3client.HeadObject(&s3.HeadObjectInput{
+	head, err := f.s3client.HeadObjectWithContext(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(f.bucketName),
 		Key:    aws.String(objectKey),
 	})

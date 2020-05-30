@@ -8,6 +8,7 @@ import (
 	"github.com/lunarway/release-manager/internal/fallbackstorage"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
 )
@@ -83,7 +84,7 @@ func TestFallback_ArtifactSpecifications(t *testing.T) {
 			secondary := mockStorage{
 				specs: tc.secondarySpecs,
 			}
-			storage := fallbackstorage.New(&primary, &secondary)
+			storage := fallbackstorage.New(&primary, &secondary, tracing.NewNoop())
 
 			specs, err := storage.ArtifactSpecifications(context.Background(), "", tc.n)
 			if !assert.NoError(t, err, "unexpected error when getting specs") {
