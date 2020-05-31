@@ -1,11 +1,12 @@
-ARTIFACT_ID=master-$(date +"%Y%m%d")-$(date +"%H%M")
+ARTIFACT_ID=master-`date +"%Y%m%d"`-`date +"%H%M"`
+
 example:
 	rm -rf examples
 	mkdir -p  examples
 	go build
 	./artifact init \
 		--service "test-service"\
-	  --artifact-id "$(ARTIFACT_ID)"\
+		--artifact-id "${ARTIFACT_ID}"\
 		--git-branch "master"\
 		--git-author-name "Kasper Nissen"\
 		--git-author-email "kni@lunar.app"\
@@ -18,20 +19,20 @@ example:
 		--name "lunar-way-application"\
 		--shuttle-plan-sha "asdasdo300asd0asd90as92"\
 		--shuttle-plan-url "https://someplanurl"\
-    --shuttle-plan-message "Some commit"\
+		--shuttle-plan-message "Some commit"\
 		--shuttle-plan-branch "plan-branch"\
 		--ci-job-url "https://jenkins.dev.lunarway.com/job/asdasd"\
 		--root examples
 
 	./artifact add build\
 		--image "quay.io/lunarway/application"\
-		--tag "$(ARTIFACT_ID)"\
+		--tag "${ARTIFACT_ID}"\
 		--docker-version "1.18.6"\
 		--root examples
 
 	./artifact add push\
 		--image "quay.io/lunarway/application"\
-		--tag "$(ARTIFACT_ID)"\
+		--tag "${ARTIFACT_ID}"\
 		--docker-version "1.18.6"\
 		--root examples
 
@@ -70,7 +71,7 @@ metadata:
   name: product
   namespace: dev
 annotations:
-  lunar.tech/artifact-id: $(ARTIFACT_ID)
+  lunar.tech/artifact-id: ${ARTIFACT_ID}
 data:
   cdn.url: 'https://cdn.dev.lunarway.com'
   log.console.as.json: 'true'
