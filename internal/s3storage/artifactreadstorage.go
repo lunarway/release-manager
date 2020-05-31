@@ -96,16 +96,21 @@ func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n 
 }
 
 func (f *Service) getArtifactSpecFromObjectKey(ctx context.Context, objectKey string) (artifact.Spec, error) {
-	head, err := f.s3client.HeadObjectWithContext(ctx, &s3.HeadObjectInput{
+	span, ctx := f.tracer.FromCtx(ctx, "s3storage.getArtifactSpecFromObjectKey")
+	defer span.Finish()
+	span, headCtx := f.tracer.FromCtx(ctx, "head object")
+	head, err := f.s3client.HeadObjectWithContext(headCtx, &s3.HeadObjectInput{
 		Bucket: aws.String(f.bucketName),
 		Key:    aws.String(objectKey),
 	})
+	span.Finish()
 	if err != nil {
 		return artifact.Spec{}, errors.Wrap(err, "get head of object")
 	}
 
+	span, _ = f.tracer.FromCtx(ctx, "decode from metatadata")
+	defer span.Finish()
 	artifactSpec, err := decodeSpecFromMetadata(head.Metadata)
-
 	if err != nil {
 		return artifact.Spec{}, errors.WithMessage(err, "decode metadata")
 	}
