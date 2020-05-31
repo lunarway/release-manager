@@ -9,7 +9,9 @@ import (
 	"github.com/lunarway/release-manager/internal/tracing"
 )
 
-// TODO: Describe how it works like only looking in primary when primary works
+// Fallback is a flow.ArtifactReadStorage implementation that combines the
+// storage of two implementations, a primary and secondary. If the primary
+// storage returns an error the secondary storage is invoked.
 type Fallback struct {
 	primary   flow.ArtifactReadStorage
 	secondary flow.ArtifactReadStorage
