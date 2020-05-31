@@ -99,8 +99,6 @@ type mockStorage struct {
 	specs []artifact.Spec
 }
 
-// ArtifactSpecifications returns a list of n newest artifact specifications
-// for service. They should be ordered by newest first.
 func (m *mockStorage) ArtifactSpecifications(ctx context.Context, service string, n int) ([]artifact.Spec, error) {
 	var output []artifact.Spec
 	for _, s := range m.specs {
@@ -112,36 +110,24 @@ func (m *mockStorage) ArtifactSpecifications(ctx context.Context, service string
 	return output, nil
 }
 
-// ArtifactExists returns whether an artifact with id artifactID is available.
 func (m *mockStorage) ArtifactExists(ctx context.Context, service string, artifactID string) (bool, error) {
-	panic("not implemented") // TODO: Implement
+	panic("not implemented")
 }
 
-// ArtifactSpecification returns the artifact specification for a given
-// service and artifact ID.
 func (m *mockStorage) ArtifactSpecification(ctx context.Context, service string, artifactID string) (artifact.Spec, error) {
-	panic("not implemented") // TODO: Implement
+	panic("not implemented")
 }
 
-// ArtifactPaths returns file system paths for the artifact specification
-// (specPath) and yaml resources directory (resourcesPath) available on the
-// file system for copying to releases. The returned close function is
-// responsible for clean up of the persisted files.
 func (m *mockStorage) ArtifactPaths(ctx context.Context, service string, environment string, branch string, artifactID string) (specPath string, resourcesPath string, close func(context.Context), err error) {
-	panic("not implemented") // TODO: Implement
+	panic("not implemented")
 }
 
 // LatestArtifactSpecification returns the latest artifact specification for a
 // given service and branch.
 func (m *mockStorage) LatestArtifactSpecification(ctx context.Context, service string, branch string) (artifact.Spec, error) {
-	panic("not implemented") // TODO: Implement
+	panic("not implemented")
 }
 
-// LatestArtifactPaths returns file system paths for the artifact
-// specification (specPath) and yaml resources directory (resourcesPath)
-// available on the file system for copying to releases of the latest artifact
-// for provided service and branch. The returned close function is responsible
-// for clean up of the persisted files.
 func (m *mockStorage) LatestArtifactPaths(ctx context.Context, service string, environment string, branch string) (specPath string, resourcesPath string, close func(context.Context), err error) {
-	panic("not implemented") // TODO: Implement
+	panic("not implemented")
 }
