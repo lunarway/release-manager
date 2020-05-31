@@ -21,8 +21,7 @@ func createArtifact(payload *payload, artifactWriteStorage ArtifactWriteStorage)
 			return
 		}
 
-		logger.Infof("http: artifact: creating artiact for '%s' hash '%x'", req.Artifact.ID, req.MD5Hash)
-		uploadURL, err := artifactWriteStorage.CreateArtifact(req.Artifact, req.MD5Hash)
+		uploadURL, err := artifactWriteStorage.CreateArtifact(req.Artifact)
 		if err != nil {
 			logger.Errorf("http: artifact: create: storage failed failed creating artifact: %v", err)
 			unknownError(w)
@@ -42,5 +41,5 @@ func createArtifact(payload *payload, artifactWriteStorage ArtifactWriteStorage)
 
 type ArtifactWriteStorage interface {
 	// CreateArtifact creates the artifact in the storage and returns an URL for uploading the artifact zipped
-	CreateArtifact(artifactSpec artifact.Spec, md5hash string) (string, error)
+	CreateArtifact(artifactSpec artifact.Spec) (string, error)
 }
