@@ -19,7 +19,7 @@ type Service struct {
 	tracer     tracing.Tracer
 }
 
-func New(tracer tracing.Tracer) (*Service, error) {
+func New(bucketName string, tracer tracing.Tracer) (*Service, error) {
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("eu-west-1"),
 	})
@@ -28,8 +28,6 @@ func New(tracer tracing.Tracer) (*Service, error) {
 	}
 	// Create a S3 client from just a session.
 	s3client := s3.New(sess)
-
-	bucketName := "lunar-release-artifacts"
 
 	return &Service{
 		bucketName: bucketName,

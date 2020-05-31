@@ -160,7 +160,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				ArtifactFileName:  startOptions.configRepo.ArtifactFileName,
 			}
 
-			s3storageSvc, err := s3storage.New(tracer)
+			s3storageSvc, err := s3storage.New("lunar-release-artifacts", tracer)
 			if err != nil {
 				return err
 			}
