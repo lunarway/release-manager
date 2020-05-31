@@ -40,8 +40,6 @@ func EnsureTestS3Objects(t *testing.T, setup S3BucketSetup) {
 		objectContent, err := base64.StdEncoding.DecodeString(object.Base64Content)
 		assert.NoError(t, err)
 
-		t.Logf("TEST: %s", object.Metadata["artifact-spec"])
-
 		_, err = s3client.PutObject(&s3.PutObjectInput{
 			Bucket:   aws.String(setup.BucketName),
 			Key:      aws.String(keyName),
