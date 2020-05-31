@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -31,9 +32,12 @@ func decodeSpecFromMetadata(metadata map[string]*string) (artifact.Spec, error) 
 		return artifact.Spec{}, fmt.Errorf("artifact-spec is missing in metadata")
 	}
 	jsonSpec, err := base64.StdEncoding.DecodeString(*jsonSpecBase64)
+	if err != nil {
+		return artifact.Spec{}, errors.Wrap(err, "decode base64 spec")
+	}
 	artifactSpec, err := artifact.Decode(strings.NewReader(string(jsonSpec)))
 	if err != nil {
-		return artifact.Spec{}, err
+		return artifact.Spec{}, errors.WithMessage(err, "decode spec")
 	}
 	return artifactSpec, nil
 }
