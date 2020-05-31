@@ -1,4 +1,4 @@
-ARTIFACT_ID=master-1234ds13g3-12s46g356g
+ARTIFACT_ID=master-$(date +"%Y%m%d")-$(date +"%H%M")
 example:
 	rm -rf examples
 	mkdir -p  examples
