@@ -54,7 +54,7 @@ func (s *Service) InitializeBucket() error {
 	return nil
 }
 
-func (s *Service) CreateArtifact(artifactSpec artifact.Spec) (string, error) {
+func (s *Service) CreateArtifact(artifactSpec artifact.Spec, md5Hash string) (string, error) {
 	metadataSpec, err := EncodeSpecToMetadataContent(artifactSpec)
 	if err != nil {
 		return "", err
@@ -68,10 +68,7 @@ func (s *Service) CreateArtifact(artifactSpec artifact.Spec) (string, error) {
 			MetadataArtifactSpecPartialWriteKey: aws.String(metadataSpec),
 		},
 	})
-	// TODO: Add MD5 content hashing
-	// h := md5.New()
-	// md5s := base64.StdEncoding.EncodeToString(h.Sum(nil))
-	// req.HTTPRequest.Header.Set("Content-MD5", md5s)
+	req.HTTPRequest.Header.Set("Content-MD5", md5Hash)
 
 	uploadURL, err := req.Presign(15 * time.Minute)
 	if err != nil {
