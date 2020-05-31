@@ -10,6 +10,7 @@ import (
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
+	"github.com/pkg/errors"
 )
 
 type Service struct {
@@ -47,7 +48,7 @@ func (s *Service) InitializeBucket() error {
 		return nil
 	}
 	if err != nil {
-		return err
+		return errors.Wrap(err, "create bucket")
 	}
 	log.WithFields("type", "s3storage").Info("s3 bucket create")
 	return nil
@@ -59,9 +60,10 @@ func (s *Service) CreateArtifact(artifactSpec artifact.Spec) (string, error) {
 		return "", err
 	}
 
+	key := getObjectKeyName(artifactSpec.Service, artifactSpec.ID)
 	req, _ := s.s3client.PutObjectRequest(&s3.PutObjectInput{
 		Bucket: aws.String(s.bucketName),
-		Key:    aws.String(getObjectKeyName(artifactSpec.Service, artifactSpec.ID)),
+		Key:    aws.String(key),
 		Metadata: map[string]*string{
 			MetadataArtifactSpecPartialWriteKey: aws.String(metadataSpec),
 		},
@@ -73,7 +75,7 @@ func (s *Service) CreateArtifact(artifactSpec artifact.Spec) (string, error) {
 
 	uploadURL, err := req.Presign(15 * time.Minute)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "create put object for key '%s'", key)
 	}
 
 	return uploadURL, nil

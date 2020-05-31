@@ -14,15 +14,16 @@ import (
 )
 
 func (f *Service) ArtifactExists(ctx context.Context, service, artifactID string) (bool, error) {
+	key := getObjectKeyName(service, artifactID)
 	_, err := f.s3client.HeadObjectWithContext(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(f.bucketName),
-		Key:    aws.String(getObjectKeyName(service, artifactID)),
+		Key:    aws.String(key),
 	})
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "NotFound" {
 			return false, nil
 		}
-		return false, err
+		return false, errors.Wrapf(err, "head object at key '%s'", key)
 	}
 	return true, nil
 }
@@ -44,10 +45,10 @@ func (f *Service) LatestArtifactSpecification(ctx context.Context, service strin
 	key, err := f.getLatestObjectKey(ctx, service, branch)
 
 	if err != nil {
-		return artifact.Spec{}, err
+		return artifact.Spec{}, errors.WithMessage(err, "get latest object key")
 	}
-
-	return f.getArtifactSpecFromObjectKey(ctx, getObjectKeyName(service, key))
+	log.WithContext(ctx).WithFields("key", key).Infof("Latest artifact for service '%s' and branch '%s' is at key '%s'", service, branch, key)
+	return f.getArtifactSpecFromObjectKey(ctx, key)
 }
 
 func (f *Service) LatestArtifactPaths(ctx context.Context, service string, environment string, branch string) (specPath string, resourcesPath string, close func(context.Context), err error) {
@@ -63,13 +64,14 @@ func (f *Service) LatestArtifactPaths(ctx context.Context, service string, envir
 }
 
 func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n int) ([]artifact.Spec, error) {
+	prefix := getServiceObjectKeyPrefix(service)
 	list, err := f.s3client.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
 		Bucket:  aws.String(f.bucketName),
 		MaxKeys: aws.Int64(1000), // TODO: Find a solution to handle more than 1000
-		Prefix:  aws.String(getServiceObjectKeyPrefix(service)),
+		Prefix:  aws.String(prefix),
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "list objects with prefix '%s'", prefix)
 	}
 
 	log.WithContext(ctx).WithFields("service", service, "count", n).Infof("Found %d artifacts for service '%s'", len(list.Contents), service)
@@ -99,13 +101,13 @@ func (f *Service) getArtifactSpecFromObjectKey(ctx context.Context, objectKey st
 		Key:    aws.String(objectKey),
 	})
 	if err != nil {
-		return artifact.Spec{}, err
+		return artifact.Spec{}, errors.Wrap(err, "get head of object")
 	}
 
 	artifactSpec, err := decodeSpecFromMetadata(head.Metadata)
 
 	if err != nil {
-		return artifact.Spec{}, err
+		return artifact.Spec{}, errors.WithMessage(err, "decode metadata")
 	}
 
 	return artifactSpec, nil
