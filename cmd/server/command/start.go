@@ -164,6 +164,10 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			err = s3storageSvc.InitializeSQS()
+			if err != nil {
+				return err
+			}
 			err = s3storageSvc.InitializeBucket()
 			if err != nil {
 				return err
