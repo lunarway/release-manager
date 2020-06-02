@@ -53,10 +53,7 @@ func (s *Service) InitializeBucket() error {
 }
 
 func (s *Service) CreateArtifact(artifactSpec artifact.Spec, md5 string) (string, error) {
-	jsonSpec, err := artifact.Encode(artifactSpec, false)
-	if err != nil {
-		return "", err
-	}
+	key := getObjectKeyName(artifactSpec.Service, artifactSpec.ID)
 
 	req, _ := s.s3client.PutObjectRequest(&s3.PutObjectInput{
 		Bucket: aws.String(s.bucketName),
