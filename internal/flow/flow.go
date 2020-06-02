@@ -4,6 +4,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/md5"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -303,20 +305,6 @@ func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *htt
 		return "", errors.WithMessagef(err, "path '%s'", artifactSpecPath)
 	}
 
-	path, err := releaseManagerClient.URL(fmt.Sprintf("artifacts/create"))
-	if err != nil {
-		return "", errors.WithMessage(err, "push artifact URL generation failed")
-	}
-
-	resp := httpinternal.ArtifactUploadResponse{}
-	err = releaseManagerClient.Do(http.MethodPost, path, httpinternal.ArtifactUploadRequest{
-		Artifact: artifactSpec,
-	}, &resp)
-	if err != nil {
-		return "", errors.WithMessage(err, "create artifact request failed")
-	}
-	log.WithFields("artifactID", artifactSpec.ID, "uploadURL", resp.ArtifactUploadURL).Infof("artifact upload URL created for %s", artifactSpec.ID)
-
 	files := listFiles(resourceRoot)
 
 	zipContent, err := zipFiles(files)
@@ -325,7 +313,31 @@ func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *htt
 	}
 	log.WithFields("artifactID", artifactSpec.ID, "artifactFiles", files).Infof("artifact zip created for %s", artifactSpec.ID)
 
-	err = uploadFile(resp.ArtifactUploadURL, zipContent, artifactSpec)
+	zipMD5 := md5.New()
+	_, err = zipMD5.Write(zipContent)
+	if err != nil {
+		return "", errors.Wrap(err, "calculate md5 hash")
+	}
+	zipMD5s := base64.StdEncoding.EncodeToString(zipMD5.Sum(nil))
+
+	log.WithFields("artifactID", artifactSpec.ID, "artifactFiles", files).Infof("calculated zip md5: %x", zipMD5s)
+
+	path, err := releaseManagerClient.URL(fmt.Sprintf("artifacts/create"))
+	if err != nil {
+		return "", errors.WithMessage(err, "push artifact URL generation failed")
+	}
+
+	resp := httpinternal.ArtifactUploadResponse{}
+	err = releaseManagerClient.Do(http.MethodPost, path, httpinternal.ArtifactUploadRequest{
+		Artifact: artifactSpec,
+		MD5:      zipMD5s,
+	}, &resp)
+	if err != nil {
+		return "", errors.WithMessage(err, "create artifact request failed")
+	}
+	log.WithFields("artifactID", artifactSpec.ID, "uploadURL", resp.ArtifactUploadURL).Infof("artifact upload URL created for %s", artifactSpec.ID)
+
+	err = uploadFile(resp.ArtifactUploadURL, zipContent, artifactSpec, string(zipMD5s))
 	if err != nil {
 		return "", errors.WithMessage(err, "upload artifact failed")
 	}
@@ -445,16 +457,19 @@ func zipFiles(files []fileInfo) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func uploadFile(url string, fileContent []byte, artifactSpec artifact.Spec) error {
+func uploadFile(url string, fileContent []byte, artifactSpec artifact.Spec, md5 string) error {
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(fileContent))
 	if err != nil {
 		return err
 	}
 
-	// TODO: MD5
-	//h := md5.New()
-	//md5s := base64.StdEncoding.EncodeToString(h.Sum(nil))
-	//req.Header.Set("Content-MD5", md5s)
+	jsonSpec, err := artifact.Encode(artifactSpec, false)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("x-amz-meta-artifact-spec", jsonSpec)
+	req.Header.Set("Content-MD5", md5)
+  
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err

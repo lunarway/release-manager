@@ -52,16 +52,17 @@ func (s *Service) InitializeBucket() error {
 	return nil
 }
 
-func (s *Service) CreateArtifact(artifactSpec artifact.Spec) (string, error) {
-	key := getObjectKeyName(artifactSpec.Service, artifactSpec.ID)
+func (s *Service) CreateArtifact(artifactSpec artifact.Spec, md5 string) (string, error) {
+	jsonSpec, err := artifact.Encode(artifactSpec, false)
+	if err != nil {
+		return "", err
+	}
+
 	req, _ := s.s3client.PutObjectRequest(&s3.PutObjectInput{
 		Bucket: aws.String(s.bucketName),
 		Key:    aws.String(key),
 	})
-	// TODO: Add MD5 content hashing
-	// h := md5.New()
-	// md5s := base64.StdEncoding.EncodeToString(h.Sum(nil))
-	// req.HTTPRequest.Header.Set("Content-MD5", md5s)
+	req.HTTPRequest.Header.Set("Content-MD5", md5)
 
 	uploadURL, err := req.Presign(15 * time.Minute)
 	if err != nil {
