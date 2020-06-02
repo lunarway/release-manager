@@ -41,7 +41,7 @@ func (b *Broker) Publish(ctx context.Context, event broker.Publishable) error {
 	return nil
 }
 
-func (b *Broker) StartConsumer(handlers map[string]func([]byte) error) error {
+func (b *Broker) StartConsumer(handlers map[string]func([]byte) error, errorHandler func(msgType string, msgBody []byte, err error)) error {
 	for msg := range b.queue {
 		logger := b.logger.With(
 			"eventType", msg.Type(),
@@ -68,7 +68,8 @@ func (b *Broker) StartConsumer(handlers map[string]func([]byte) error) error {
 				"status":       "failed",
 				"responseTime": duration,
 				"error":        fmt.Sprintf("%+v", err),
-			}).Errorf("[consumer] [FAILED] Failed to handle message: nacking and requeing: %v", err)
+			}).Errorf("[consumer] [FAILED] Failed to handle message: trigger error handling and acking: %v", err)
+			errorHandler(msg.Type(), body, err)
 			continue
 		}
 		logger.With("res", map[string]interface{}{
