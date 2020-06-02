@@ -1,7 +1,9 @@
 package s3storage
 
 import (
+	"bytes"
 	"context"
+	"io/ioutil"
 	"path"
 	"sort"
 
@@ -98,21 +100,23 @@ func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n 
 func (f *Service) getArtifactSpecFromObjectKey(ctx context.Context, objectKey string) (artifact.Spec, error) {
 	span, ctx := f.tracer.FromCtx(ctx, "s3storage.getArtifactSpecFromObjectKey")
 	defer span.Finish()
-	span, headCtx := f.tracer.FromCtx(ctx, "head object")
-	head, err := f.s3client.HeadObjectWithContext(headCtx, &s3.HeadObjectInput{
-		Bucket: aws.String(f.bucketName),
-		Key:    aws.String(objectKey),
-	})
-	span.Finish()
+
+	artifactPath, close, err := f.downloadArtifact(ctx, objectKey)
 	if err != nil {
-		return artifact.Spec{}, errors.Wrap(err, "get head of object")
+		return artifact.Spec{}, errors.WithMessagef(err, "download from key '%s'", objectKey)
+	}
+	defer close(ctx)
+
+	subSpan, _ := f.tracer.FromCtx(ctx, "read json file")
+	defer subSpan.Finish()
+	jsonSpec, err := ioutil.ReadFile(path.Join(artifactPath, "artifact.json"))
+	if err != nil {
+		return artifact.Spec{}, errors.WithMessage(err, "read artifact.json file")
 	}
 
-	span, _ = f.tracer.FromCtx(ctx, "decode from metatadata")
-	defer span.Finish()
-	artifactSpec, err := decodeSpecFromMetadata(head.Metadata)
+	artifactSpec, err := artifact.Decode(bytes.NewReader(jsonSpec))
 	if err != nil {
-		return artifact.Spec{}, errors.WithMessage(err, "decode metadata")
+		return artifact.Spec{}, errors.WithMessage(err, "decode artifact spec")
 	}
 
 	return artifactSpec, nil
