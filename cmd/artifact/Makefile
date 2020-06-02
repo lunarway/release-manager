@@ -1,10 +1,12 @@
+ARTIFACT_ID=master-`date +"%Y%m%d"`-`date +"%H%M"`
+
 example:
 	rm -rf examples
 	mkdir -p  examples
 	go build
 	./artifact init \
 		--service "test-service"\
-	  --artifact-id "master-1234ds13g3-12s46g356g"\
+		--artifact-id "${ARTIFACT_ID}"\
 		--git-branch "master"\
 		--git-author-name "Kasper Nissen"\
 		--git-author-email "kni@lunar.app"\
@@ -17,20 +19,20 @@ example:
 		--name "lunar-way-application"\
 		--shuttle-plan-sha "asdasdo300asd0asd90as92"\
 		--shuttle-plan-url "https://someplanurl"\
-    --shuttle-plan-message "Some commit"\
+		--shuttle-plan-message "Some commit"\
 		--shuttle-plan-branch "plan-branch"\
 		--ci-job-url "https://jenkins.dev.lunarway.com/job/asdasd"\
 		--root examples
 
 	./artifact add build\
 		--image "quay.io/lunarway/application"\
-		--tag "master-1234ds13g3-12s46g356g"\
+		--tag "${ARTIFACT_ID}"\
 		--docker-version "1.18.6"\
 		--root examples
 
 	./artifact add push\
 		--image "quay.io/lunarway/application"\
-		--tag "master-1234ds13g3-12s46g356g"\
+		--tag "${ARTIFACT_ID}"\
 		--docker-version "1.18.6"\
 		--root examples
 
@@ -68,6 +70,8 @@ kind: ConfigMap
 metadata:
   name: product
   namespace: dev
+annotations:
+  lunar.tech/artifact-id: ${ARTIFACT_ID}
 data:
   cdn.url: 'https://cdn.dev.lunarway.com'
   log.console.as.json: 'true'
@@ -90,6 +94,6 @@ test_push: example example_resources
 	./artifact push \
 		--root examples \
 		--http-base-url ${RELEASE_MANAGER_URL} \
-		--http-auth-token ${RELEASE_MANAGER_AUTH_TOKEN} \
-		--config-repo="${CONFIG_REPO}" \
-		--ssh-private-key=${SSH_PRIVATE_KEY}
+		--http-auth-token ${RELEASE_MANAGER_AUTH_TOKEN}
+		# --config-repo="${CONFIG_REPO}" \
+		# --ssh-private-key=${SSH_PRIVATE_KEY}

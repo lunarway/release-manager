@@ -8,7 +8,7 @@ import (
 
 type ArtifactReadStorage interface {
 	// ArtifactExists returns whether an artifact with id artifactID is available.
-	ArtifactExists(ctx context.Context, artifactID string) (bool, error)
+	ArtifactExists(ctx context.Context, service, artifactID string) (bool, error)
 
 	// ArtifactSpecification returns the artifact specification for a given
 	// service and artifact ID.

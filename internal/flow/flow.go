@@ -468,8 +468,8 @@ func uploadFile(url string, fileContent []byte, artifactSpec artifact.Spec, md5 
 		return err
 	}
 	req.Header.Set("x-amz-meta-artifact-spec", jsonSpec)
-
 	req.Header.Set("Content-MD5", md5)
+  
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
