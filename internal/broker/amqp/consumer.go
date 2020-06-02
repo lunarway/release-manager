@@ -104,7 +104,7 @@ func (c *consumer) Start(logger *log.Logger, handlers map[string]func([]byte) er
 				"status":       "failed",
 				"responseTime": duration,
 				"error":        fmt.Sprintf("%+v", err),
-			}).Errorf("[consumer] [FAILED] Failed to handle message: trigger error handling and acking: %v", err)
+			}).Errorf("[consumer] [FAILED] Failed to handle message: trigger error handling and nacking with no requeue: %v", err)
 			// TODO: remove comments to allow for redelivery. This will put events
 			// into the unacknowledged state
 
@@ -112,7 +112,7 @@ func (c *consumer) Start(logger *log.Logger, handlers map[string]func([]byte) er
 			//  logger.WithFields("error", fmt.Sprintf("%+v", err)).Errorf("Failed to nack message: %v", err)
 			// }
 			errorHandler(msg.Type, msg.Body, err)
-			msg.Ack(false)
+			msg.Nack(false, false)
 			continue
 		}
 		logger.With("res", map[string]interface{}{
