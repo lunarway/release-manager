@@ -206,6 +206,7 @@ type DescribeArtifactResponse struct {
 
 type ArtifactUploadRequest struct {
 	Artifact artifact.Spec `json:"artifact,omitempty"`
+	MD5      string        `json:"md5,omitempty"`
 }
 
 type ArtifactUploadResponse struct {
