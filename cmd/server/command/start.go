@@ -316,7 +316,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					log.Errorf("errorhandling could not unmarshal event of type %s to generic event with error: %s", msgType, unmarshalErr)
 					return
 				}
-				slackErr := slackClient.NotifyReleaseManagerError(ctx, event.Service, event.Environment, event.Branch, event.Namespace, event.Actor.Email, err)
+				slackErr := slackClient.NotifyReleaseManagerError(ctx, msgType, event.Service, event.Environment, event.Branch, event.Namespace, event.Actor.Email, err)
 				if slackErr != nil {
 					log.Errorf("slack notification failed with error %s", slackErr)
 				}

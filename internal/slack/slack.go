@@ -372,7 +372,7 @@ func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErro
 	return err
 }
 
-func (c *Client) NotifyReleaseManagerError(ctx context.Context, service, environment, branch, namespace, authorEmail string, err error) error {
+func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service, environment, branch, namespace, authorEmail string, err error) error {
 	if c.muteOptions.ReleaseManagerError {
 		return nil
 	}
@@ -386,7 +386,7 @@ func (c *Client) NotifyReleaseManagerError(ctx context.Context, service, environ
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      fmt.Sprintf(":boom: Release Manager failed :x:"),
 		Color:      MsgColorRed,
-		Text:       fmt.Sprintf("Failed handling event in release manager for:\nService: %s\nEnvironment: %s\nBranch: %s\nNamespace: %s\nError: %s", service, environment, branch, namespace, err),
+		Text:       generateSlackMessage(msgType, service, environment, branch, namespace, err),
 		MarkdownIn: []string{"text", "fields"},
 	})
 	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
@@ -394,4 +394,13 @@ func (c *Client) NotifyReleaseManagerError(ctx context.Context, service, environ
 		return err
 	}
 	return nil
+}
+
+func generateSlackMessage(msgType, service, environment, branch, namespace string, err error) string {
+	switch {
+	case msgType == "promote" && service != "" && environment != "" && branch != "":
+		return fmt.Sprintf("Failed promoting %s #%s in %s. Try promiting again.\nError: %s", service, branch, environment, err)
+	default:
+		return fmt.Sprintf("Failed handling event in release manager for:\nEvent: %s\nService: %s\nEnvironment: %s\nBranch: %s\nNamespace: %s\nError: %s", msgType, service, environment, branch, namespace, err)
+	}
 }
