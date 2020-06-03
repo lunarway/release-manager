@@ -25,7 +25,7 @@ func createArtifact(payload *payload, artifactWriteStorage ArtifactWriteStorage)
 			return
 		}
 
-		logger.Infof("http: artifact: creating artiact for '%s' hash '%x'", req.Artifact.ID, req.MD5)
+		logger.Infof("http: artifact: creating artifact for '%s/%s' with hash '%x'", req.Artifact.Service, req.Artifact.ID, req.MD5)
 		uploadURL, err := artifactWriteStorage.CreateArtifact(req.Artifact, req.MD5)
 		if err != nil {
 			logger.Errorf("http: artifact: create: storage failed failed creating artifact: %v", err)
