@@ -164,14 +164,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = s3storageSvc.InitializeSQS()
-			if err != nil {
-				return err
-			}
-			err = s3storageSvc.InitializeBucket()
-			if err != nil {
-				return err
-			}
 
 			github := github.Service{
 				Token: *startOptions.githubAPIToken,
@@ -359,6 +351,26 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			go func() {
 				err := brokerImpl.StartConsumer(eventHandlers, errorHandler)
 				done <- errors.WithMessage(err, "broker")
+			}()
+
+			sqsHandler := func() error {
+				return nil
+			}
+
+			err = s3storageSvc.InitializeBucket()
+			if err != nil {
+				return err
+			}
+			err = s3storageSvc.InitializeSQS(sqsHandler)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				err := s3storageSvc.Close()
+				if err != nil {
+					log.Errorf("Failed to close s3 storage: %v", err)
+					done <- errors.WithMessage(err, "s3 storage")
+				}
 			}()
 
 			sigs := make(chan os.Signal, 1)

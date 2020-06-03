@@ -16,13 +16,15 @@ import (
 )
 
 type Service struct {
-	region      string
-	bucketName  string
-	s3client    *s3.S3
-	sqsClient   *sqs.SQS
-	tracer      tracing.Tracer
-	sqsQueueURL string
-	sqsQueueARN string
+	region                 string
+	bucketName             string
+	s3client               *s3.S3
+	sqsClient              *sqs.SQS
+	tracer                 tracing.Tracer
+	sqsQueueURL            string
+	sqsQueueARN            string
+	sqsHandlerQuitChannel  chan struct{}
+	sqsHandlerErrorChannel chan error
 }
 
 func New(bucketName string, tracer tracing.Tracer) (*Service, error) {
@@ -46,7 +48,15 @@ func New(bucketName string, tracer tracing.Tracer) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) InitializeSQS() error {
+// InitializeSQS set up a subscription from S3 to a SQS queue. The SQS queue events triggers calls to handler.InitializeSQS
+//
+// Note on S3 notifications:
+// There are 2 ways to get S3 notifications into SQS:
+//  - Directly from S3 Notification to SQS Queue
+//  - From S3 Notification to SNS Topic to SQS Queue
+// Using a SNS Topic should be more powerful, since it fx can send to multiple SQS Queues, but it requires more configuration
+// and moving parts. The simpler model should suffice, therefore we connect it directly.k
+func (s *Service) InitializeSQS(handler func() error) error {
 	// Amazon SQS returns only an error if the request includes attributes whose values differ from those of the existing queue.
 	queue, err := s.sqsClient.CreateQueue(&sqs.CreateQueueInput{
 		QueueName: aws.String(s.sqsQueueName()),
@@ -101,47 +111,6 @@ func (s *Service) InitializeSQS() error {
 	}
 	log.Infof("SQS policy updated for s3 bucket %s to SQS %s", s.bucketName, s.sqsQueueARN)
 
-	go func() {
-		for {
-			log.Infof("Looping messages")
-			output, err := s.sqsClient.ReceiveMessage(&sqs.ReceiveMessageInput{
-				QueueUrl:            aws.String(s.sqsQueueURL),
-				MaxNumberOfMessages: aws.Int64(1),
-				WaitTimeSeconds:     aws.Int64(5),
-			})
-
-			if err != nil {
-				log.Errorf("failed to fetch sqs message %v", err)
-			}
-
-			for _, message := range output.Messages {
-				log.Infof("Received message %s: %#v", *message.MessageId, *message.Body)
-				_, err := s.sqsClient.DeleteMessage(&sqs.DeleteMessageInput{
-					QueueUrl:      &s.sqsQueueURL,
-					ReceiptHandle: message.ReceiptHandle,
-				})
-				if err != nil {
-					log.Errorf("Failed deleting SQS message %s. Error: %s", *message.ReceiptHandle, err)
-				}
-			}
-		}
-	}()
-
-	return nil
-}
-
-func (s *Service) InitializeBucket() error {
-	_, err := s.s3client.CreateBucket(&s3.CreateBucketInput{
-		Bucket: aws.String(s.bucketName),
-	})
-	aerr, isAwsErr := err.(awserr.Error)
-	if isAwsErr && (aerr.Code() == s3.ErrCodeBucketAlreadyOwnedByYou || aerr.Code() == s3.ErrCodeBucketAlreadyExists) {
-		log.WithFields("type", "s3storage").Info("s3 bucket already exists")
-	} else if err != nil {
-		return errors.Wrap(err, "create bucket")
-	}
-	log.WithFields("type", "s3storage").Info("s3 bucket ensured")
-
 	_, err = s.s3client.PutBucketNotificationConfiguration(&s3.PutBucketNotificationConfigurationInput{
 		Bucket: aws.String(s.bucketName),
 		NotificationConfiguration: &s3.NotificationConfiguration{
@@ -160,6 +129,22 @@ func (s *Service) InitializeBucket() error {
 	}
 	log.WithFields("type", "s3storage").Info("s3 bucket notifications updated")
 
+	s.startSQSHandler(handler)
+
+	return nil
+}
+
+func (s *Service) InitializeBucket() error {
+	_, err := s.s3client.CreateBucket(&s3.CreateBucketInput{
+		Bucket: aws.String(s.bucketName),
+	})
+	aerr, isAwsErr := err.(awserr.Error)
+	if isAwsErr && (aerr.Code() == s3.ErrCodeBucketAlreadyOwnedByYou || aerr.Code() == s3.ErrCodeBucketAlreadyExists) {
+		log.WithFields("type", "s3storage").Info("s3 bucket already exists")
+	} else if err != nil {
+		return errors.Wrap(err, "create bucket")
+	}
+	log.WithFields("type", "s3storage").Info("s3 bucket ensured")
 	return nil
 }
 
@@ -180,19 +165,62 @@ func (s *Service) CreateArtifact(artifactSpec artifact.Spec, md5 string) (string
 	return uploadURL, nil
 }
 
+func (s *Service) Close() error {
+	log.Infof("QUITING")
+	if s.sqsHandlerQuitChannel != nil {
+		close(s.sqsHandlerQuitChannel)
+		log.Infof("QUITING CLOSE")
+	}
+	log.Infof("QUITING CLOSED")
+	if s.sqsHandlerErrorChannel != nil {
+		err := <-s.sqsHandlerErrorChannel
+		log.Infof("PAST ERROR")
+		return err
+	}
+	log.Infof("PAST")
+	return nil
+}
+
+func (s *Service) startSQSHandler(handler func() error) {
+	log.Errorf("starting SQS handler")
+	s.sqsHandlerQuitChannel = make(chan struct{})
+	s.sqsHandlerErrorChannel = make(chan error, 1)
+	go func() {
+		for {
+
+			_, ok := <-s.sqsHandlerQuitChannel
+			if !ok {
+				log.Infof("QUUUIT")
+				s.sqsHandlerErrorChannel <- nil
+				return
+			}
+
+			output, err := s.sqsClient.ReceiveMessage(&sqs.ReceiveMessageInput{
+				QueueUrl:            aws.String(s.sqsQueueURL),
+				MaxNumberOfMessages: aws.Int64(1),
+				WaitTimeSeconds:     aws.Int64(1),
+			})
+
+			if err != nil {
+				log.Errorf("failed to fetch sqs messages %v", err)
+				continue
+			}
+
+			for _, message := range output.Messages {
+				log.Infof("Received message %s: %#v", *message.MessageId, *message.Body)
+				_, err := s.sqsClient.DeleteMessage(&sqs.DeleteMessageInput{
+					QueueUrl:      &s.sqsQueueURL,
+					ReceiptHandle: message.ReceiptHandle,
+				})
+				if err != nil {
+					log.Errorf("Failed deleting SQS message %s. Error: %s", *message.ReceiptHandle, err)
+				}
+			}
+		}
+		s.sqsHandlerErrorChannel <- nil
+	}()
+}
+
 func (s *Service) sqsQueueName() string {
 	return fmt.Sprintf("%s-s3-bucket-notifications", s.bucketName)
 }
-
-// func (s *Service) sqsQueueArn() string {
-// 	https://sqs.us-east-2.amazonaws.com/123456789012/MyQueue
-
-// 	re := regexp.MustCompile(^`https://sqs.(?P<region>[^.]+).amazonaws.com/(?P<accountnumber>[^/]+)/(?P<queuename>.*)$`)
-// 	fmt.Println(re.MatchString(s.sqsQueueURL))
-// 	fmt.Printf("%q\n", re.SubexpNames())
-// 	reversed := fmt.Sprintf("${%s} ${%s}", re.SubexpNames()[2], re.SubexpNames()[1])
-// 	fmt.Println(reversed)
-// 	fmt.Println(re.ReplaceAllString("Alan Turing", reversed))
-
-// 	return fmt.Sprintf("arn:aws:sqs:%s:%s:%s", region, "", s.sqsQueueName())
-// }
