@@ -92,7 +92,7 @@ func TestWorker_PublishAndConsumer(t *testing.T) {
 				logger.Infof("Received %s", msg.Message)
 				return nil
 			},
-		})
+		}, func(msgType string, msgBody []byte, err error) {})
 		assert.EqualError(t, err, broker.ErrBrokerClosed.Error(), "unexpected consumer error")
 	}()
 
@@ -237,7 +237,7 @@ func TestWorker_reconnection(t *testing.T) {
 			atomic.AddInt32(&consumedCount, 1)
 			return nil
 		},
-	})
+	}, func(msgType string, msgBody []byte, err error) {})
 	logger.Infof("TEST: worker error: %v", err)
 	assert.EqualError(t, err, broker.ErrBrokerClosed.Error(), "consumer returned unexpected error")
 	wg.Wait()

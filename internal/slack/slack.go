@@ -18,12 +18,13 @@ type Client struct {
 }
 
 type MuteOptions struct {
-	Flux             bool
-	Kubernetes       bool
-	Policy           bool
-	ReleaseProcessed bool
-	Releases         bool
-	BuildStatus      bool
+	Flux                bool
+	Kubernetes          bool
+	Policy              bool
+	ReleaseProcessed    bool
+	Releases            bool
+	BuildStatus         bool
+	ReleaseManagerError bool
 }
 
 var (
@@ -37,12 +38,13 @@ func NewClient(token string, emailMappings map[string]string) (*Client, error) {
 		log.Infof("slack: skipping: no token, so no slack notification")
 		return &Client{
 			muteOptions: MuteOptions{
-				Flux:             true,
-				Kubernetes:       true,
-				Policy:           true,
-				ReleaseProcessed: true,
-				Releases:         true,
-				BuildStatus:      true,
+				Flux:                true,
+				Kubernetes:          true,
+				Policy:              true,
+				ReleaseProcessed:    true,
+				Releases:            true,
+				BuildStatus:         true,
+				ReleaseManagerError: true,
 			},
 		}, nil
 	}
@@ -62,12 +64,13 @@ func NewMuteableClient(token string, emailMappings map[string]string, muteOption
 		log.Infof("slack: skipping: no token, so no slack notification")
 		return &Client{
 			muteOptions: MuteOptions{
-				Flux:             true,
-				Kubernetes:       true,
-				Policy:           true,
-				ReleaseProcessed: true,
-				Releases:         true,
-				BuildStatus:      true,
+				Flux:                true,
+				Kubernetes:          true,
+				Policy:              true,
+				ReleaseProcessed:    true,
+				Releases:            true,
+				BuildStatus:         true,
+				ReleaseManagerError: true,
 			},
 		}, nil
 	}
@@ -367,4 +370,38 @@ func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErro
 		return err
 	}
 	return err
+}
+
+func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service, environment, branch, namespace, actorEmail string, err error) error {
+	if c.muteOptions.ReleaseManagerError {
+		return nil
+	}
+	userID, err := c.getIdByEmail(ctx, actorEmail)
+	if err != nil {
+		// If user id somehow couldn't be found, post the message to #squad-nasa
+		log.With("actorEmail", actorEmail).Infof("slack: skipping: no user id found, so no slack notification")
+		return nil
+	}
+
+	asUser := slack.MsgOptionAsUser(true)
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      fmt.Sprintf(":boom: Release Manager failed :x:"),
+		Color:      MsgColorRed,
+		Text:       generateSlackMessage(msgType, service, environment, branch, namespace, err),
+		MarkdownIn: []string{"text", "fields"},
+	})
+	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func generateSlackMessage(msgType, service, environment, branch, namespace string, err error) string {
+	switch {
+	case msgType == "promote" && service != "" && environment != "" && branch != "":
+		return fmt.Sprintf("Failed promoting %s #%s in %s. Try promiting again.\nError: %s", service, branch, environment, err)
+	default:
+		return fmt.Sprintf("Failed handling event in release manager for:\nEvent: %s\nService: %s\nEnvironment: %s\nBranch: %s\nNamespace: %s\nError: %s", msgType, service, environment, branch, namespace, err)
+	}
 }

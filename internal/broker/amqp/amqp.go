@@ -93,7 +93,7 @@ func (s *Worker) Close() error {
 
 // StartConsumer starts the consumer on the worker. The method is blocking and
 // will only return if the worker is stopped with Close.
-func (s *Worker) StartConsumer(handlers map[string]func([]byte) error) error {
+func (s *Worker) StartConsumer(handlers map[string]func([]byte) error, errorHandler func(msgType string, msgBody []byte, err error)) error {
 	for {
 		select {
 		// worker is instructed to shutdown from a Close call
@@ -103,7 +103,7 @@ func (s *Worker) StartConsumer(handlers map[string]func([]byte) error) error {
 		// worker has a new connection that can be used to consume messages with the handler
 		case conn := <-s.currentConsumer:
 			// this call is blocking as long as the connection is available.
-			err := conn.Start(s.config.Logger, handlers)
+			err := conn.Start(s.config.Logger, handlers, errorHandler)
 			if err != nil {
 				return err
 			}

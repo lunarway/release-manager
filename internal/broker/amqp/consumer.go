@@ -60,7 +60,7 @@ func (c *consumer) Close() error {
 	return nil
 }
 
-func (c *consumer) Start(logger *log.Logger, handlers map[string]func([]byte) error) error {
+func (c *consumer) Start(logger *log.Logger, handlers map[string]func([]byte) error, errorHandler func(msgType string, msgBody []byte, err error)) error {
 	msgs, err := c.channel.Consume(
 		c.queue.Name,      // queue
 		"release-manager", // consumer
@@ -100,22 +100,32 @@ func (c *consumer) Start(logger *log.Logger, handlers map[string]func([]byte) er
 		err := handler(msg.Body)
 		duration := time.Since(now).Milliseconds()
 		if err != nil {
-			logger.With("res", map[string]interface{}{
+			res := map[string]interface{}{
 				"status":       "failed",
 				"responseTime": duration,
 				"error":        fmt.Sprintf("%+v", err),
-			}).Errorf("[consumer] [FAILED] Failed to handle message: nacking and requeing: %v", err)
-			// TODO: remove comments to allow for redelivery. This will put events
-			// into the unacknowledged state
-
-			// err := msg.Nack(false, true) if err != nil {
-			//  logger.WithFields("error", fmt.Sprintf("%+v", err)).Errorf("Failed to nack message: %v", err)
-			// }
+				"redelivered":  msg.Redelivered,
+			}
+			if msg.Redelivered {
+				logger.With("res", res).Errorf("[consumer] [FAILED] Failed to handle message: trigger error handling and nacking with no requeue")
+				errorHandler(msg.Type, msg.Body, err)
+				err = msg.Nack(false, false)
+				if err != nil {
+					logger.Errorf("Failed to nack message: %v", err)
+				}
+				continue
+			}
+			logger.With("res", res).Errorf("[consumer] [FAILED] Failed to handle message: requeuing")
+			err = msg.Nack(false, true)
+			if err != nil {
+				logger.Errorf("Failed to nack message: %v", err)
+			}
 			continue
 		}
 		logger.With("res", map[string]interface{}{
 			"status":       "ok",
 			"responseTime": duration,
+			"redelivered":  msg.Redelivered,
 		}).Info("[OK] Event handled successfully")
 		err = msg.Ack(false)
 		if err != nil {

@@ -308,6 +308,20 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					return flowSvc.ExecRollback(context.Background(), event)
 				},
 			}
+
+			errorHandler := func(msgType string, msgBody []byte, err error) {
+				var event flow.GenericEvent
+				unmarshalErr := event.Unmarshal(msgBody)
+				if unmarshalErr != nil {
+					log.Errorf("errorhandling could not unmarshal event of type %s to generic event with error: %s", msgType, unmarshalErr)
+					return
+				}
+				slackErr := slackClient.NotifyReleaseManagerError(ctx, msgType, event.Service, event.Environment, event.Branch, event.Namespace, event.Actor.Email, err)
+				if slackErr != nil {
+					log.Errorf("slack notification failed with error %s", slackErr)
+				}
+			}
+
 			brokerImpl, err := getBroker(startOptions.broker)
 			if err != nil {
 				return errors.WithMessage(err, "setup broker")
@@ -339,8 +353,8 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				}
 			}()
 			go func() {
-				err := brokerImpl.StartConsumer(eventHandlers)
-				done <- errors.WithMessage(err, "amqp broker")
+				err := brokerImpl.StartConsumer(eventHandlers, errorHandler)
+				done <- errors.WithMessage(err, "broker")
 			}()
 
 			sigs := make(chan os.Signal, 1)
