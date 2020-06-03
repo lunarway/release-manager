@@ -113,3 +113,66 @@ func TestService_ArtifactSpecification(t *testing.T) {
 		})
 	}
 }
+
+func TestService_LatestArtifactSpecification(t *testing.T) {
+	SkipIfNoAWS(t)
+	tt := []struct {
+		name             string
+		service          string
+		branch           string
+		s3               S3BucketSetup
+		expectedArtifact artifact.Spec
+		expectedError    string
+	}{
+		{
+			name:    "no artifacts",
+			service: "test-service",
+			branch:  "master",
+			s3: S3BucketSetup{
+				BucketName: "release-manager-test-latest-artifact-specification",
+				Objects:    map[string]S3BucketSetupObject{},
+			},
+			expectedError: "get latest object key: service test-service on branch master has no objects, thus latest can't be found",
+		},
+		{
+			name:    "no artifacts",
+			service: "test-service",
+			branch:  "master",
+			s3: S3BucketSetup{
+				BucketName: "release-manager-test-latest-artifact-specification",
+				Objects: map[string]S3BucketSetupObject{
+					"test-service/master-1234ds13g3-12s46g356g": {
+						Base64Content: S3File_ZippedArtifact,
+					},
+				},
+			},
+			expectedArtifact: artifact.Spec{
+				ID: "master-1234ds13g3-12s46g356g",
+			},
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			log.Init(&log.Configuration{
+				Level: log.Level{
+					Level: zapcore.DebugLevel,
+				},
+				Development: true,
+			})
+			EnsureTestS3Objects(t, tc.s3)
+			svc, err := s3storage.New(tc.s3.BucketName, tracing.NewNoop())
+			if !assert.NoError(t, err, "initialization error") {
+				return
+			}
+			ctx := context.Background()
+			artifactSpec, err := svc.LatestArtifactSpecification(ctx, tc.service, tc.branch)
+
+			if tc.expectedError != "" {
+				assert.EqualError(t, err, tc.expectedError, "error returned from LatestArtifactSpecification is not as expected")
+				return
+			}
+			assert.NoError(t, err, "get ArtifactSpecification error")
+			assert.Equal(t, tc.expectedArtifact.ID, artifactSpec.ID, "artifact ID not as expected")
+		})
+	}
+}
