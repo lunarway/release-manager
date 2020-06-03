@@ -56,7 +56,7 @@ func New(bucketName string, tracer tracing.Tracer) (*Service, error) {
 //  - From S3 Notification to SNS Topic to SQS Queue
 // Using a SNS Topic should be more powerful, since it fx can send to multiple SQS Queues, but it requires more configuration
 // and moving parts. The simpler model should suffice, therefore we connect it directly.k
-func (s *Service) InitializeSQS(handler func() error) error {
+func (s *Service) InitializeSQS(handler func(msg string) error) error {
 	// Amazon SQS returns only an error if the request includes attributes whose values differ from those of the existing queue.
 	queue, err := s.sqsClient.CreateQueue(&sqs.CreateQueueInput{
 		QueueName: aws.String(s.sqsQueueName()),
@@ -106,7 +106,6 @@ func (s *Service) InitializeSQS(handler func() error) error {
 	})
 	if err != nil {
 		log.With("policy", policy, "bucketName", s.bucketName, "Error", fmt.Sprintf("%s", err)).Errorf("Failed update policy: %s", err)
-		log.Errorf("Failed with body: %s", err)
 		return errors.Wrap(err, "update sqs permission")
 	}
 	log.Infof("SQS policy updated for s3 bucket %s to SQS %s", s.bucketName, s.sqsQueueARN)
@@ -124,7 +123,7 @@ func (s *Service) InitializeSQS(handler func() error) error {
 			},
 		},
 	})
-	if err == nil {
+	if err != nil {
 		return errors.Wrap(err, "update bucket notifications")
 	}
 	log.WithFields("type", "s3storage").Info("s3 bucket notifications updated")
@@ -166,31 +165,24 @@ func (s *Service) CreateArtifact(artifactSpec artifact.Spec, md5 string) (string
 }
 
 func (s *Service) Close() error {
-	log.Infof("QUITING")
 	if s.sqsHandlerQuitChannel != nil {
 		close(s.sqsHandlerQuitChannel)
-		log.Infof("QUITING CLOSE")
 	}
-	log.Infof("QUITING CLOSED")
 	if s.sqsHandlerErrorChannel != nil {
 		err := <-s.sqsHandlerErrorChannel
-		log.Infof("PAST ERROR")
 		return err
 	}
-	log.Infof("PAST")
 	return nil
 }
 
-func (s *Service) startSQSHandler(handler func() error) {
-	log.Errorf("starting SQS handler")
+func (s *Service) startSQSHandler(handler func(msg string) error) {
+	log.Infof("starting SQS handler")
 	s.sqsHandlerQuitChannel = make(chan struct{})
 	s.sqsHandlerErrorChannel = make(chan error, 1)
 	go func() {
 		for {
-
 			_, ok := <-s.sqsHandlerQuitChannel
 			if !ok {
-				log.Infof("QUUUIT")
 				s.sqsHandlerErrorChannel <- nil
 				return
 			}
@@ -207,8 +199,12 @@ func (s *Service) startSQSHandler(handler func() error) {
 			}
 
 			for _, message := range output.Messages {
-				log.Infof("Received message %s: %#v", *message.MessageId, *message.Body)
-				_, err := s.sqsClient.DeleteMessage(&sqs.DeleteMessageInput{
+				err := handler(*message.Body)
+				if err != nil {
+					log.With("messageID", *message.MessageId, "messageBody", *message.Body).Errorf("Failed handling SQS message. Error: %s", err)
+				}
+
+				_, err = s.sqsClient.DeleteMessage(&sqs.DeleteMessageInput{
 					QueueUrl:      &s.sqsQueueURL,
 					ReceiptHandle: message.ReceiptHandle,
 				})

@@ -353,7 +353,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				done <- errors.WithMessage(err, "broker")
 			}()
 
-			sqsHandler := func() error {
+			sqsHandler := func(msg string) error {
 				return nil
 			}
 
