@@ -372,14 +372,15 @@ func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErro
 	return err
 }
 
-func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service, environment, branch, namespace, authorEmail string, err error) error {
+func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service, environment, branch, namespace, actorEmail string, err error) error {
 	if c.muteOptions.ReleaseManagerError {
 		return nil
 	}
-	userID, err := c.getIdByEmail(ctx, authorEmail)
+	userID, err := c.getIdByEmail(ctx, actorEmail)
 	if err != nil {
 		// If user id somehow couldn't be found, post the message to #squad-nasa
-		userID = "#squad-nasa"
+		log.With("actorEmail", actorEmail).Infof("slack: skipping: no user id found, so no slack notification")
+		return nil
 	}
 
 	asUser := slack.MsgOptionAsUser(true)
