@@ -65,11 +65,45 @@ func (s *Service) InitializeSQS() error {
 		return errors.Wrap(err, "get sqs queue ARN")
 	}
 	s.sqsQueueARN = *queueAttributes.Attributes[sqs.QueueAttributeNameQueueArn]
-
 	log.Infof("SQS queue arn acquired: %s", s.sqsQueueARN)
+
+	policy := `{
+		"Version": "2012-10-17",
+		"Id": "` + s.sqsQueueARN + `/SQSDefaultPolicy",
+		"Statement": [
+		 {
+			"Sid": "` + s.bucketName + `-s3-permission",
+			"Effect": "Allow",
+			"Principal": {
+			 "AWS":"*"
+			},
+			"Action": [
+			 "SQS:SendMessage"
+			],
+			"Resource": "` + s.sqsQueueARN + `",
+			"Condition": {
+				 "ArnLike": { "aws:SourceArn": "arn:aws:s3:*:*:` + s.bucketName + `" }
+			}
+		 }
+		]
+	 }`
+
+	_, err = s.sqsClient.SetQueueAttributes(&sqs.SetQueueAttributesInput{
+		QueueUrl: &s.sqsQueueURL,
+		Attributes: aws.StringMap(map[string]string{
+			sqs.QueueAttributeNamePolicy: policy,
+		}),
+	})
+	if err != nil {
+		log.With("policy", policy, "bucketName", s.bucketName, "Error", fmt.Sprintf("%s", err)).Errorf("Failed update policy: %s", err)
+		log.Errorf("Failed with body: %s", err)
+		return errors.Wrap(err, "update sqs permission")
+	}
+	log.Infof("SQS policy updated for s3 bucket %s to SQS %s", s.bucketName, s.sqsQueueARN)
 
 	go func() {
 		for {
+			log.Infof("Looping messages")
 			output, err := s.sqsClient.ReceiveMessage(&sqs.ReceiveMessageInput{
 				QueueUrl:            aws.String(s.sqsQueueURL),
 				MaxNumberOfMessages: aws.Int64(1),
@@ -82,20 +116,17 @@ func (s *Service) InitializeSQS() error {
 
 			for _, message := range output.Messages {
 				log.Infof("Received message %s: %#v", *message.MessageId, *message.Body)
-				s.sqsClient.DeleteMessage(&sqs.DeleteMessageInput{
+				_, err := s.sqsClient.DeleteMessage(&sqs.DeleteMessageInput{
 					QueueUrl:      &s.sqsQueueURL,
 					ReceiptHandle: message.ReceiptHandle,
 				})
+				if err != nil {
+					log.Errorf("Failed deleting SQS message %s. Error: %s", *message.ReceiptHandle, err)
+				}
 			}
 		}
 	}()
 
-	// aerr, isAwsErr := err.(awserr.Error)
-	// if isAwsErr && (aerr.Code() == sqs.Que || aerr.Code() == s3.ErrCodeBucketAlreadyExists) {
-	// 	log.WithFields("type", "s3storage").Info("sqs queue already exists")
-	// 	return nil
-	// }
-	log.WithFields("type", "s3storage").Info("s3 bucket create")
 	return nil
 }
 
@@ -106,7 +137,6 @@ func (s *Service) InitializeBucket() error {
 	aerr, isAwsErr := err.(awserr.Error)
 	if isAwsErr && (aerr.Code() == s3.ErrCodeBucketAlreadyOwnedByYou || aerr.Code() == s3.ErrCodeBucketAlreadyExists) {
 		log.WithFields("type", "s3storage").Info("s3 bucket already exists")
-		return nil
 	} else if err != nil {
 		return errors.Wrap(err, "create bucket")
 	}
@@ -125,10 +155,10 @@ func (s *Service) InitializeBucket() error {
 			},
 		},
 	})
-
 	if err == nil {
 		return errors.Wrap(err, "update bucket notifications")
 	}
+	log.WithFields("type", "s3storage").Info("s3 bucket notifications updated")
 
 	return nil
 }
