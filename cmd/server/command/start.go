@@ -91,6 +91,10 @@ type configRepoOptions struct {
 	SSHPrivateKeyPath string
 }
 
+type s3storageOptions struct {
+	S3BucketName string
+}
+
 type startOptions struct {
 	slackAuthToken            *string
 	githubAPIToken            *string
@@ -99,6 +103,7 @@ type startOptions struct {
 	gitConfigOpts             *git.GitConfig
 	http                      *http.Options
 	broker                    *brokerOptions
+	s3storage                 *s3storageOptions
 	slackMutes                *slack.MuteOptions
 	gpgKeyPaths               *[]string
 	userMappings              *map[string]string
@@ -160,9 +165,12 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				ArtifactFileName:  startOptions.configRepo.ArtifactFileName,
 			}
 
-			s3storageSvc, err := s3storage.New("lunar-release-artifacts", tracer)
-			if err != nil {
-				return err
+			var s3storageSvc *s3storage.Service
+			if startOptions.s3storage.S3BucketName != "" {
+				s3storageSvc, err = s3storage.New(startOptions.s3storage.S3BucketName, tracer)
+				if err != nil {
+					return err
+				}
 			}
 
 			github := github.Service{
@@ -182,13 +190,19 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				MaxRetries:                      3,
 				GlobalBranchRestrictionPolicies: *startOptions.branchRestrictionPolicies,
 			}
+
+			var storage flow.ArtifactReadStorage = &gitSvc
+			if s3storageSvc != nil {
+				storage = fallbackstorage.New(s3storageSvc, storage, tracer)
+			}
+
 			flowSvc := flow.Service{
 				ArtifactFileName: startOptions.configRepo.ArtifactFileName,
 				UserMappings:     *startOptions.userMappings,
 				Slack:            slackClient,
 				Git:              &gitSvc,
 				CanRelease:       policySvc.CanRelease,
-				Storage:          fallbackstorage.New(s3storageSvc, &gitSvc, tracer),
+				Storage:          storage,
 				Tracer:           tracer,
 				// TODO: figure out a better way of splitting the consumer and publisher
 				// to avoid this chicken and egg issue. It is not a real problem as the
@@ -353,25 +367,27 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				done <- errors.WithMessage(err, "broker")
 			}()
 
+			if s3storageSvc != nil {
 			sqsHandler := func(msg string) error {
 				return nil
 			}
 
-			err = s3storageSvc.InitializeBucket()
-			if err != nil {
-				return err
-			}
-			err = s3storageSvc.InitializeSQS(sqsHandler)
-			if err != nil {
-				return err
-			}
-			defer func() {
-				err := s3storageSvc.Close()
+				err = s3storageSvc.InitializeBucket()
 				if err != nil {
-					log.Errorf("Failed to close s3 storage: %v", err)
-					done <- errors.WithMessage(err, "s3 storage")
+					return err
 				}
-			}()
+				err = s3storageSvc.InitializeSQS(sqsHandler)
+				if err != nil {
+					return err
+				}
+				defer func() {
+					err := s3storageSvc.Close()
+					if err != nil {
+						log.Errorf("Failed to close s3 storage: %v", err)
+						done <- errors.WithMessage(err, "s3 storage")
+					}
+				}()
+			}
 
 			sigs := make(chan os.Signal, 1)
 			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
