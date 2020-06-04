@@ -372,7 +372,7 @@ func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErro
 	return err
 }
 
-func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service, environment, branch, namespace, actorEmail string, err error) error {
+func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service, environment, branch, namespace, actorEmail string, inputErr error) error {
 	if c.muteOptions.ReleaseManagerError {
 		return nil
 	}
@@ -387,7 +387,7 @@ func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      fmt.Sprintf(":boom: Release Manager failed :x:"),
 		Color:      MsgColorRed,
-		Text:       generateSlackMessage(msgType, service, environment, branch, namespace, err),
+		Text:       generateSlackMessage(msgType, service, environment, branch, namespace, inputErr),
 		MarkdownIn: []string{"text", "fields"},
 	})
 	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
@@ -400,7 +400,9 @@ func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service
 func generateSlackMessage(msgType, service, environment, branch, namespace string, err error) string {
 	switch {
 	case msgType == "promote" && service != "" && environment != "" && branch != "":
-		return fmt.Sprintf("Failed promoting %s #%s in %s. Try promiting again.\nError: %s", service, branch, environment, err)
+		return fmt.Sprintf("Failed promoting %s #%s in %s. Validate the options you used and try promoting again.\nError: %s", service, branch, environment, err)
+	case msgType == "release.branch" && service != "" && environment != "" && branch != "":
+		return fmt.Sprintf("Failed releasing %s #%s to %s. Validate the options you used and try releasing again.\nError: %s", service, branch, environment, err)
 	default:
 		return fmt.Sprintf("Failed handling event in release manager for:\nEvent: %s\nService: %s\nEnvironment: %s\nBranch: %s\nNamespace: %s\nError: %s", msgType, service, environment, branch, namespace, err)
 	}
