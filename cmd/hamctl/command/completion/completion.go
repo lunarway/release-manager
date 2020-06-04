@@ -11,9 +11,10 @@ import (
 // completionFunc is the bash function identifier that should be called upon
 // completion requests.
 func FlagAnnotation(c *cobra.Command, f string, completionFunc string) {
-	c.Flag(f).Annotations = map[string][]string{
-		cobra.BashCompCustom: []string{completionFunc},
+	if c.Flag(f).Annotations == nil {
+		c.Flag(f).Annotations = map[string][]string{}
 	}
+	c.Flag(f).Annotations[cobra.BashCompCustom] = []string{completionFunc}
 }
 
 // Hamctl contains bash completions for the hamctl command.
