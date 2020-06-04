@@ -114,7 +114,7 @@ func (s *Service) InitializeSQS(handler func(msg string) error) error {
 		Bucket: aws.String(s.bucketName),
 		NotificationConfiguration: &s3.NotificationConfiguration{
 			QueueConfigurations: []*s3.QueueConfiguration{
-				&s3.QueueConfiguration{
+				{
 					QueueArn: aws.String(s.sqsQueueARN),
 					Events: []*string{
 						aws.String(s3.EventS3ObjectCreated),
@@ -181,10 +181,14 @@ func (s *Service) startSQSHandler(handler func(msg string) error) {
 	s.sqsHandlerErrorChannel = make(chan error, 1)
 	go func() {
 		for {
-			_, ok := <-s.sqsHandlerQuitChannel
-			if !ok {
-				s.sqsHandlerErrorChannel <- nil
-				return
+			select {
+			case _, ok := <-s.sqsHandlerQuitChannel:
+				if !ok {
+					s.sqsHandlerErrorChannel <- nil
+					return
+				}
+			default:
+				// continue
 			}
 
 			output, err := s.sqsClient.ReceiveMessage(&sqs.ReceiveMessageInput{
@@ -202,6 +206,8 @@ func (s *Service) startSQSHandler(handler func(msg string) error) {
 				err := handler(*message.Body)
 				if err != nil {
 					log.With("messageID", *message.MessageId, "messageBody", *message.Body).Errorf("Failed handling SQS message. Error: %s", err)
+				} else {
+					log.With("messageID", *message.MessageId, "messageBody", *message.Body).Infof("Handled SQS message %s", *message.MessageId)
 				}
 
 				_, err = s.sqsClient.DeleteMessage(&sqs.DeleteMessageInput{
@@ -213,7 +219,6 @@ func (s *Service) startSQSHandler(handler func(msg string) error) {
 				}
 			}
 		}
-		s.sqsHandlerErrorChannel <- nil
 	}()
 }
 
