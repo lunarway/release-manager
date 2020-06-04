@@ -38,5 +38,9 @@ func (f *Service) getLatestObjectKey(ctx context.Context, service string, branch
 		return list.Contents[i].LastModified.After(*list.Contents[j].LastModified)
 	})
 
+	if len(list.Contents) == 0 {
+		return "", errors.Errorf("service %s on branch %s has no objects, thus latest can't be found", service, branch)
+	}
+
 	return *list.Contents[0].Key, nil
 }
