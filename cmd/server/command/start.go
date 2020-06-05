@@ -359,6 +359,9 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			flowSvc.PublishRollback = func(ctx context.Context, event flow.RollbackEvent) error {
 				return brokerImpl.Publish(ctx, &event)
 			}
+			flowSvc.PublishNewArtifact = func(ctx context.Context, event flow.NewArtifactEvent) error {
+				return brokerImpl.Publish(ctx, &event)
+			}
 			defer func() {
 				err := brokerImpl.Close()
 				if err != nil {
@@ -388,7 +391,12 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					}
 
 					for _, record := range s3event.Records {
-						log.Infof("Got S3 event: %+v", record)
+						parts := strings.Split(record.S3.Object.Key, "/")
+						if len(parts) != 2 {
+							log.With("s3event", s3event).Infof("Got s3 object creation event on %s which can't be parsed to service and artifact id", record.S3.Object.Key)
+							continue
+						}
+						flowSvc.NewArtifact(ctx, parts[0], parts[1])
 					}
 					return nil
 				}
