@@ -203,6 +203,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				Git:              &gitSvc,
 				CanRelease:       policySvc.CanRelease,
 				Storage:          storage,
+				Policy:           &policySvc,
 				Tracer:           tracer,
 				// TODO: figure out a better way of splitting the consumer and publisher
 				// to avoid this chicken and egg issue. It is not a real problem as the
@@ -212,6 +213,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				PublishReleaseArtifactID: nil,
 				PublishReleaseBranch:     nil,
 				PublishRollback:          nil,
+				PublishNewArtifact:       nil,
 				// retries for comitting changes into config repo
 				// can be required for racing writes
 				MaxRetries: 3,
@@ -316,6 +318,14 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 						return errors.WithMessage(err, "unmarshal event")
 					}
 					return flowSvc.ExecRollback(context.Background(), event)
+				},
+				flow.NewArtifactEvent{}.Type(): func(d []byte) error {
+					var event flow.NewArtifactEvent
+					err := event.Unmarshal(d)
+					if err != nil {
+						return errors.WithMessage(err, "unmarshal event")
+					}
+					return flowSvc.ExecNewArtifact(context.Background(), event)
 				},
 			}
 
