@@ -9,6 +9,7 @@ import (
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
+	"github.com/lunarway/release-manager/internal/servicefilter"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -31,6 +32,8 @@ func NewCommand() (*cobra.Command, error) {
 	var logConfiguration *log.Configuration
 	var slackMuteOpts slack.MuteOptions
 	var s3storageOpts s3storageOptions
+	var serviceFilterStr string
+	var serviceFilter servicefilter.ServiceFilter
 
 	var command = &cobra.Command{
 		Use:   "server",
@@ -48,6 +51,15 @@ func NewCommand() (*cobra.Command, error) {
 			branchRestrictions, err = parseBranchRestrictions(branchRestrictionsList)
 			if err != nil {
 				return errors.WithMessage(err, "branch restrictions")
+			}
+
+			if len(serviceFilterStr) > 0 {
+				serviceFilter, err = servicefilter.FromStringRegex(serviceFilterStr)
+				if err != nil {
+					return errors.WithMessage(err, "service filter")
+				}
+			} else {
+				serviceFilter = servicefilter.NewIncludeAll()
 			}
 
 			logConfiguration.ParseFromEnvironmnet()
@@ -71,6 +83,7 @@ func NewCommand() (*cobra.Command, error) {
 		slackMutes:                &slackMuteOpts,
 		userMappings:              &userMappings,
 		branchRestrictionPolicies: &branchRestrictions,
+		serviceFilter:             serviceFilter,
 	}))
 	command.PersistentFlags().IntVar(&httpOpts.Port, "http-port", 8080, "port of the http server")
 	command.PersistentFlags().DurationVar(&httpOpts.Timeout, "timeout", 20*time.Second, "HTTP server timeout for incomming requests")
@@ -92,6 +105,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between emails used by Git and Slack, key-value pair: <email>=<slack-email>")
 	command.PersistentFlags().StringSliceVar(&branchRestrictionsList, "policy-branch-restrictions", []string{}, "branch restriction policies applied to all releases, key-value pair: <environment>=<branch-regex>")
 	command.PersistentFlags().StringSliceVar(&gpgKeyPaths, "git-gpg-key-import-paths", []string{}, "a list of paths for signing keys to import to gpg")
+	command.PersistentFlags().StringVar(&serviceFilterStr, "service-filter", "", "a regex that filters which services that the release manager handles")
 
 	registerBrokerFlags(command, &brokerOpts)
 	registerSlackNotificationFlags(command, &slackMuteOpts)

@@ -22,6 +22,7 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/s3storage"
+	"github.com/lunarway/release-manager/internal/servicefilter"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
@@ -108,6 +109,7 @@ type startOptions struct {
 	gpgKeyPaths               *[]string
 	userMappings              *map[string]string
 	branchRestrictionPolicies *[]policy.BranchRestriction
+	serviceFilter             servicefilter.ServiceFilter
 }
 
 func NewStart(startOptions *startOptions) *cobra.Command {
@@ -205,6 +207,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				Storage:          storage,
 				Policy:           &policySvc,
 				Tracer:           tracer,
+				ServiceFilter:    startOptions.serviceFilter,
 				// TODO: figure out a better way of splitting the consumer and publisher
 				// to avoid this chicken and egg issue. It is not a real problem as the
 				// consumer is started later on and this we are sure this gets set, it

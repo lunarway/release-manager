@@ -20,6 +20,7 @@ import (
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
+	"github.com/lunarway/release-manager/internal/servicefilter"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/lunarway/release-manager/internal/try"
@@ -43,6 +44,7 @@ type Service struct {
 	CanRelease       func(ctx context.Context, svc, branch, env string) (bool, error)
 	Storage          ArtifactReadStorage
 	Policy           *policy.Service
+	ServiceFilter    servicefilter.ServiceFilter
 
 	PublishPromote           func(context.Context, PromoteEvent) error
 	PublishRollback          func(context.Context, RollbackEvent) error
