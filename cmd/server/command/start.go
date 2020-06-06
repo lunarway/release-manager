@@ -383,7 +383,10 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			if s3storageSvc != nil {
 				sqsHandler := func(msg string) error {
 					var s3event s3storage.S3Event
-					s3event.Unmarshal([]byte(msg))
+					err := s3event.Unmarshal([]byte(msg))
+					if err != nil {
+						return errors.WithMessage(err, "unmarshal S3Event")
+					}
 
 					if len(s3event.Records) == 0 {
 						log.With("sqsMessage", msg).Infof("Skipping SQS message because it does not look like S3 notification")
