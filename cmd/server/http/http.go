@@ -23,7 +23,6 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.uber.org/multierr"
 	"gopkg.in/go-playground/webhooks.v5/github"
 )
 
@@ -462,48 +461,9 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 				return
 			}
 
-			logger = logger.WithFields("branch", branch, "service", commitInfo.Service, "commit", payload.HeadCommit)
-			// lookup policies for branch
-			autoReleases, err := policySvc.GetAutoReleases(ctx, commitInfo.Service, branch)
+			err = flowSvc.NewArtifact(ctx, commitInfo.Service, commitInfo.ArtifactID)
 			if err != nil {
-				logger.Errorf("http: github webhook: service '%s' branch '%s': get auto release policies failed: %v", commitInfo.Service, branch, err)
-				err := slackClient.NotifySlackPolicyFailed(ctx, commitInfo.AuthorEmail, ":rocket: Release Manager :no_entry:", fmt.Sprintf("Auto release policy failed for service %s and %s", commitInfo.Service, branch))
-				if err != nil {
-					logger.Errorf("http: github webhook: get auto-release policies: error notifying slack: %v", err)
-				}
-				unknownError(w)
-				return
-			}
-			logger.Infof("http: github webhook: service '%s' branch '%s': found %d release policies", commitInfo.Service, branch, len(autoReleases))
-			var errs error
-			for _, autoRelease := range autoReleases {
-				releaseID, err := flowSvc.ReleaseBranch(ctx, flow.Actor{
-					Name:  commitInfo.AuthorName,
-					Email: commitInfo.AuthorEmail,
-				}, autoRelease.Environment, commitInfo.Service, autoRelease.Branch)
-				if err != nil {
-					if errorCause(err) != git.ErrNothingToCommit {
-						errs = multierr.Append(errs, err)
-						err := slackClient.NotifySlackPolicyFailed(ctx, commitInfo.AuthorEmail, ":rocket: Release Manager :no_entry:", fmt.Sprintf("Service %s was not released into %s from branch %s.\nYou can deploy manually using `hamctl`:\nhamctl release --service %[1]s --branch %[3]s --env %[2]s", commitInfo.Service, autoRelease.Environment, autoRelease.Branch))
-						if err != nil {
-							logger.Errorf("http: github webhook: auto-release failed: error notifying slack: %v", err)
-						}
-						continue
-					}
-					logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' to '%s': %v", commitInfo.Service, autoRelease.ID, autoRelease.Environment, err)
-					continue
-				}
-				//TODO: Parse and switch to signoff user
-				err = slackClient.NotifySlackPolicySucceeded(ctx, commitInfo.AuthorEmail, ":rocket: Release Manager :white_check_mark:", fmt.Sprintf("Service *%s* will be auto released to *%s*\nArtifact: <%s|*%s*>", commitInfo.Service, autoRelease.Environment, payload.HeadCommit.URL, releaseID))
-				if err != nil {
-					if errors.Cause(err) != slack.ErrUnknownEmail {
-						logger.Errorf("http: github webhook: auto-release succeeded: error notifying slack: %v", err)
-					}
-				}
-				logger.Infof("http: github webhook: service '%s': auto-release from policy '%s' of %s to %s", commitInfo.Service, autoRelease.ID, releaseID, autoRelease.Environment)
-			}
-			if errs != nil {
-				logger.Errorf("http: github webhook: service '%s' branch '%s': auto-release failed with one or more errors: %v", commitInfo.Service, branch, errs)
+				logger.Infof("http: github webhook: service '%s': could not publish new artifact event for %s: %v", commitInfo.Service, commitInfo.ArtifactID, err)
 				unknownError(w)
 				return
 			}
@@ -728,23 +688,31 @@ func convertTimeToEpoch(t time.Time) int64 {
 }
 
 type commitInfo struct {
+	ArtifactID  string
 	AuthorName  string
 	AuthorEmail string
 	Service     string
 }
 
 func extractInfoFromCommit() func(string) (commitInfo, error) {
-	pattern := `^\[(?P<service>.*)\].*\nArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>`
-	regex := regexp.MustCompile(pattern)
+	extractInfoFromCommitRegex := regexp.MustCompile(`^\[(?P<service>.*)\]( artifact (?P<artifactID>[^ ]+) by)?.*\nArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>`)
+	extractInfoFromCommitRegexNamesLookup := make(map[string]int)
+	for index, name := range extractInfoFromCommitRegex.SubexpNames() {
+		if name != "" {
+			extractInfoFromCommitRegexNamesLookup[name] = index
+		}
+	}
+
 	return func(message string) (commitInfo, error) {
-		matches := regex.FindStringSubmatch(message)
+		matches := extractInfoFromCommitRegex.FindStringSubmatch(message)
 		if matches == nil {
 			return commitInfo{}, errors.New("no match")
 		}
 		return commitInfo{
-			Service:     matches[1],
-			AuthorName:  matches[2],
-			AuthorEmail: matches[3],
+			Service:     matches[extractInfoFromCommitRegexNamesLookup["service"]],
+			ArtifactID:  matches[extractInfoFromCommitRegexNamesLookup["artifactID"]],
+			AuthorName:  matches[extractInfoFromCommitRegexNamesLookup["authorName"]],
+			AuthorEmail: matches[extractInfoFromCommitRegexNamesLookup["authorEmail"]],
 		}, nil
 	}
 }

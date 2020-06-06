@@ -19,6 +19,7 @@ import (
 	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/lunarway/release-manager/internal/try"
@@ -41,11 +42,13 @@ type Service struct {
 	Tracer           tracing.Tracer
 	CanRelease       func(ctx context.Context, svc, branch, env string) (bool, error)
 	Storage          ArtifactReadStorage
+	Policy           *policy.Service
 
 	PublishPromote           func(context.Context, PromoteEvent) error
 	PublishRollback          func(context.Context, RollbackEvent) error
 	PublishReleaseArtifactID func(context.Context, ReleaseArtifactIDEvent) error
 	PublishReleaseBranch     func(context.Context, ReleaseBranchEvent) error
+	PublishNewArtifact       func(context.Context, NewArtifactEvent) error
 
 	MaxRetries int
 
@@ -337,7 +340,7 @@ func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *htt
 	}
 	log.WithFields("artifactID", artifactSpec.ID, "uploadURL", resp.ArtifactUploadURL).Infof("artifact upload URL created for %s", artifactSpec.ID)
 
-	err = uploadFile(resp.ArtifactUploadURL, zipContent, artifactSpec, string(zipMD5s))
+	err = uploadFile(resp.ArtifactUploadURL, zipContent, string(zipMD5s))
 	if err != nil {
 		return "", errors.WithMessage(err, "upload artifact failed")
 	}
@@ -457,19 +460,14 @@ func zipFiles(files []fileInfo) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func uploadFile(url string, fileContent []byte, artifactSpec artifact.Spec, md5 string) error {
+func uploadFile(url string, fileContent []byte, md5 string) error {
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(fileContent))
 	if err != nil {
 		return err
 	}
 
-	jsonSpec, err := artifact.Encode(artifactSpec, false)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("x-amz-meta-artifact-spec", jsonSpec)
 	req.Header.Set("Content-MD5", md5)
-  
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err

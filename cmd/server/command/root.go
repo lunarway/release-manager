@@ -30,6 +30,7 @@ func NewCommand() (*cobra.Command, error) {
 	var branchRestrictions []policy.BranchRestriction
 	var logConfiguration *log.Configuration
 	var slackMuteOpts slack.MuteOptions
+	var s3storageOpts s3storageOptions
 
 	var command = &cobra.Command{
 		Use:   "server",
@@ -63,6 +64,7 @@ func NewCommand() (*cobra.Command, error) {
 		githubAPIToken:            &githubAPIToken,
 		configRepo:                &configRepoOpts,
 		gitConfigOpts:             &gitConfigOpts,
+		s3storage:                 &s3storageOpts,
 		http:                      &httpOpts,
 		gpgKeyPaths:               &gpgKeyPaths,
 		broker:                    &brokerOpts,
@@ -94,6 +96,7 @@ func NewCommand() (*cobra.Command, error) {
 	registerBrokerFlags(command, &brokerOpts)
 	registerSlackNotificationFlags(command, &slackMuteOpts)
 	registerGitFlags(command, &gitConfigOpts)
+	registerS3Flags(command, &s3storageOpts)
 	logConfiguration = log.RegisterFlags(command)
 
 	return command, nil
@@ -129,6 +132,10 @@ func registerGitFlags(cmd *cobra.Command, opts *git.GitConfig) {
 	cmd.PersistentFlags().StringVar(&opts.User, "git-user", "HamAstrochimp", "the user that all commits will be committed with.")
 	cmd.PersistentFlags().StringVar(&opts.Email, "git-email", "operations@lunar.app", "the email that all commits will be committed with.")
 	cmd.PersistentFlags().StringVar(&opts.SigningKey, "git-signing-key", "", "the signingkey which all commits will be signed with. The path to the key has to be provided.")
+}
+
+func registerS3Flags(cmd *cobra.Command, opts *s3storageOptions) {
+	cmd.PersistentFlags().StringVar(&opts.S3BucketName, "s3-artifact-storage-bucket-name", "", "the S3 bucket to store artifacts in.")
 }
 
 // parseBranchRestrictions pases a slice of key-value pairs formatted as
