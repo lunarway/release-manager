@@ -465,6 +465,7 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 			if err != nil {
 				logger.Infof("http: github webhook: service '%s': could not publish new artifact event for %s: %v", commitInfo.Service, commitInfo.ArtifactID, err)
 				unknownError(w)
+				return
 			}
 			logger.Infof("http: github webhook: handled successfully: service '%s' branch '%s' commit '%s'", commitInfo.Service, branch, payload.HeadCommit.ID)
 			w.WriteHeader(http.StatusOK)
