@@ -207,6 +207,7 @@ func (s *Service) startSQSHandler(handler func(msg string) error) {
 				err := handler(*message.Body)
 				if err != nil {
 					log.With("messageID", *message.MessageId, "messageBody", *message.Body).Errorf("Failed handling SQS message. Error: %s", err)
+					continue
 				} else {
 					log.With("messageID", *message.MessageId, "messageBody", *message.Body).Infof("Handled SQS message %s", *message.MessageId)
 				}
