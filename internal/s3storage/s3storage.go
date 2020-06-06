@@ -105,7 +105,7 @@ func (s *Service) InitializeSQS(handler func(msg string) error) error {
 		}),
 	})
 	if err != nil {
-		log.With("policy", policy, "bucketName", s.bucketName, "Error", fmt.Sprintf("%s", err)).Errorf("Failed update policy: %s", err)
+		log.With("policy", policy, "bucketName", s.bucketName, "Error", err).Errorf("Failed update policy: %s", err)
 		return errors.Wrap(err, "update sqs permission")
 	}
 	log.Infof("SQS policy updated for s3 bucket %s to SQS %s", s.bucketName, s.sqsQueueARN)
@@ -164,6 +164,7 @@ func (s *Service) CreateArtifact(artifactSpec artifact.Spec, md5 string) (string
 	return uploadURL, nil
 }
 
+// Close closes the S3 storage service. Multiple calls to this method will result in a panic.
 func (s *Service) Close() error {
 	if s.sqsHandlerQuitChannel != nil {
 		close(s.sqsHandlerQuitChannel)

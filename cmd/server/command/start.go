@@ -413,7 +413,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					err := s3storageSvc.Close()
 					if err != nil {
 						log.Errorf("Failed to close s3 storage: %v", err)
-						done <- errors.WithMessage(err, "s3 storage")
 					}
 				}()
 			}
