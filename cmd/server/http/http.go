@@ -136,7 +136,7 @@ func authenticate(token string, h http.HandlerFunc) http.HandlerFunc {
 		t := strings.TrimPrefix(authorization, "Bearer ")
 		t = strings.TrimSpace(t)
 		if t != token {
-			Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
+			httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
 			return
 		}
 		h(w, r)
@@ -255,7 +255,7 @@ func status(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 func rollback(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			Error(w, "not found", http.StatusNotFound)
+			httpinternal.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		ctx := r.Context()
@@ -264,29 +264,16 @@ func rollback(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
 			logger.Errorf("http: rollback failed: decode request body: %v", err)
-			Error(w, "invalid payload", http.StatusBadRequest)
-			return
-		}
-		if emptyString(req.Service) {
-			requiredFieldError(w, "service")
-			return
-		}
-		if emptyString(req.Environment) {
-			requiredFieldError(w, "environment")
-			return
-		}
-		if emptyString(req.CommitterName) {
-			requiredFieldError(w, "committerName")
-			return
-		}
-		if emptyString(req.CommitterEmail) {
-			requiredFieldError(w, "committerEmail")
+			httpinternal.Error(w, "invalid payload", http.StatusBadRequest)
 			return
 		}
 		// default namespace to environment if it's empty. For most devlopers this
 		// allows them to avoid setting the namespace flag for requests.
 		if emptyString(req.Namespace) {
 			req.Namespace = req.Environment
+		}
+		if !req.Validate(w) {
+			return
 		}
 
 		logger = logger.WithFields("service", req.Service, "namespace", req.Namespace, "req", req)
@@ -303,27 +290,27 @@ func rollback(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			switch errorCause(err) {
 			case flow.ErrNamespaceNotAllowedByArtifact:
 				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
-				Error(w, "namespace not allowed by artifact", http.StatusBadRequest)
+				httpinternal.Error(w, "namespace not allowed by artifact", http.StatusBadRequest)
 				return
 			case git.ErrReleaseNotFound:
 				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
-				Error(w, fmt.Sprintf("no release of service '%s' available for rollback in environment '%s'", req.Service, req.Environment), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("no release of service '%s' available for rollback in environment '%s'", req.Service, req.Environment), http.StatusBadRequest)
 				return
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: rollback: service '%s' environment '%s': %v", req.Service, req.Environment, err)
-				Error(w, "could not roll back right now. Please try again in a moment.", http.StatusServiceUnavailable)
+				httpinternal.Error(w, "could not roll back right now. Please try again in a moment.", http.StatusServiceUnavailable)
 				return
 			case artifact.ErrFileNotFound:
 				logger.Infof("http: rollback rejected: env '%s' service '%s': %v", req.Environment, req.Service, err)
-				Error(w, fmt.Sprintf("no release of service '%s' available for rollback in environment '%s'. Are you missing a namespace?", req.Service, req.Environment), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("no release of service '%s' available for rollback in environment '%s'. Are you missing a namespace?", req.Service, req.Environment), http.StatusBadRequest)
 				return
 			case git.ErrNothingToCommit:
 				logger.Infof("http: rollback rejected: env '%s' service '%s': already rolled back: %v", req.Environment, req.Service, err)
-				Error(w, fmt.Sprintf("service '%s' already rolled back in environment '%s'", req.Service, req.Environment), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("service '%s' already rolled back in environment '%s'", req.Service, req.Environment), http.StatusBadRequest)
 				return
 			default:
 				logger.Errorf("http: rollback failed: env '%s' service '%s': %v", req.Environment, req.Service, err)
-				Error(w, "unknown error", http.StatusInternalServerError)
+				httpinternal.Error(w, "unknown error", http.StatusInternalServerError)
 				return
 			}
 		}
@@ -358,6 +345,9 @@ func daemonFluxWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc
 		if err != nil {
 			logger.Errorf("http: daemon flux webhook: decode request body failed: %v", err)
 			invalidBodyError(w)
+			return
+		}
+		if !fluxNotifyEvent.Validate(w) {
 			return
 		}
 		logger = logger.WithFields(
@@ -549,6 +539,10 @@ func promote(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			req.Namespace = req.Environment
 		}
 
+		if !req.Validate(w) {
+			return
+		}
+
 		logger = logger.WithFields("service", req.Service, "namespace", req.Namespace, "req", req)
 		result, err := flowSvc.Promote(ctx, flow.Actor{
 			Name:  req.CommitterName,
@@ -565,30 +559,30 @@ func promote(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			switch errorCause(err) {
 			case flow.ErrReleaseProhibited:
 				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: branch prohibited in environment: %v", req.Service, req.Environment, err)
-				Error(w, fmt.Sprintf("artifact cannot be promoted to environment '%s' due to branch restriction policy", req.Environment), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("artifact cannot be promoted to environment '%s' due to branch restriction policy", req.Environment), http.StatusBadRequest)
 				return
 			case flow.ErrNothingToRelease:
 				statusString = "Environment is already up-to-date"
 				logger.Infof("http: promote: service '%s' environment '%s': promote skipped: environment up to date: %v", req.Service, req.Environment, err)
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: promote: service '%s' environment '%s': %v", req.Service, req.Environment, err)
-				Error(w, "could not promote right now. Please try again in a moment.", http.StatusServiceUnavailable)
+				httpinternal.Error(w, "could not promote right now. Please try again in a moment.", http.StatusServiceUnavailable)
 				return
 			case flow.ErrUnknownEnvironment:
 				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: %v", req.Service, req.Environment, err)
-				Error(w, fmt.Sprintf("unknown environment: %s", req.Environment), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("unknown environment: %s", req.Environment), http.StatusBadRequest)
 				return
 			case flow.ErrNamespaceNotAllowedByArtifact:
 				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: %v", req.Service, req.Environment, err)
-				Error(w, "namespace not allowed by artifact", http.StatusBadRequest)
+				httpinternal.Error(w, "namespace not allowed by artifact", http.StatusBadRequest)
 				return
 			case artifact.ErrFileNotFound:
 				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: %v", req.Service, req.Environment, err)
-				Error(w, fmt.Sprintf("artifact not found for service '%s'. Are you missing a namespace?", req.Service), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("artifact not found for service '%s'. Are you missing a namespace?", req.Service), http.StatusBadRequest)
 				return
 			case flow.ErrUnknownConfiguration:
 				logger.Infof("http: promote: service '%s' environment '%s': promote rejected: %v", req.Service, req.Environment, err)
-				Error(w, fmt.Sprintf("configuration for environment '%s' not found for service '%s'. Is the environment specified in 'shuttle.yaml'?", req.Environment, req.Service), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("configuration for environment '%s' not found for service '%s'. Is the environment specified in 'shuttle.yaml'?", req.Environment, req.Service), http.StatusBadRequest)
 				return
 			default:
 				logger.Errorf("http: promote: service '%s' environment '%s': promote failed: %v", req.Service, req.Environment, err)
@@ -639,34 +633,29 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			invalidBodyError(w)
 			return
 		}
+		if !req.Validate(w) {
+			return
+		}
 		logger = logger.WithFields(
 			"service", req.Service,
 			"req", req)
 		var releaseID string
 		switch {
-		case req.Branch != "" && req.ArtifactID != "":
-			logger.Infof("http: release: service '%s' environment '%s' artifact id '%s' branch '%s': brand and artifact id both specified", req.Service, req.Environment, req.ArtifactID, req.Branch)
-			Error(w, "branch and artifact id cannot both be specified. Pick one", http.StatusBadRequest)
-			return
-		case req.Branch == "" && req.ArtifactID == "":
-			logger.Infof("http: release: service '%s' environment '%s' artifact id '%s' branch '%s': brand or artifact id not specified", req.Service, req.Environment, req.ArtifactID, req.Branch)
-			Error(w, "branch or artifact id must be specified.", http.StatusBadRequest)
-			return
-		case req.Branch != "":
+		case !emptyString(req.Branch):
 			logger.Infof("http: release: service '%s' environment '%s' branch '%s': releasing branch", req.Service, req.Environment, req.Branch)
 			releaseID, err = flowSvc.ReleaseBranch(ctx, flow.Actor{
 				Name:  req.CommitterName,
 				Email: req.CommitterEmail,
 			}, req.Environment, req.Service, req.Branch)
-		case req.ArtifactID != "":
+		case !emptyString(req.ArtifactID):
 			logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': releasing artifact", req.Service, req.Environment, req.ArtifactID)
 			releaseID, err = flowSvc.ReleaseArtifactID(ctx, flow.Actor{
 				Name:  req.CommitterName,
 				Email: req.CommitterEmail,
 			}, req.Environment, req.Service, req.ArtifactID)
 		default:
-			logger.Infof("http: release: service '%s' environment '%s' artifact id '%s' branch '%s': neither brand nor artifact id specified", req.Service, req.Environment, req.ArtifactID, req.Branch)
-			Error(w, "either branch or artifact id must be specified", http.StatusBadRequest)
+			logger.Infof("http: release: service '%s' environment '%s' artifact id '%s' branch '%s': neither branch nor artifact id specified", req.Service, req.Environment, req.ArtifactID, req.Branch)
+			httpinternal.Error(w, "either branch or artifact id must be specified", http.StatusBadRequest)
 			return
 		}
 		var statusString string
@@ -680,9 +669,9 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			case flow.ErrReleaseProhibited:
 				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: branch prohibited in environment: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
 				if req.Branch != "" {
-					Error(w, fmt.Sprintf("branch '%s' cannot be released to environment '%s' due to branch restriction policy", req.Branch, req.Environment), http.StatusBadRequest)
+					httpinternal.Error(w, fmt.Sprintf("branch '%s' cannot be released to environment '%s' due to branch restriction policy", req.Branch, req.Environment), http.StatusBadRequest)
 				} else {
-					Error(w, fmt.Sprintf("artifact '%s' cannot be released to environment '%s' due to branch restriction policy", req.ArtifactID, req.Environment), http.StatusBadRequest)
+					httpinternal.Error(w, fmt.Sprintf("artifact '%s' cannot be released to environment '%s' due to branch restriction policy", req.ArtifactID, req.Environment), http.StatusBadRequest)
 				}
 				return
 			case flow.ErrNothingToRelease:
@@ -690,27 +679,27 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release skipped: environment up to date: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
 			case git.ErrArtifactNotFound:
 				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
-				Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
 				return
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
-				Error(w, "could not release right now. Please try again in a moment.", http.StatusServiceUnavailable)
+				httpinternal.Error(w, "could not release right now. Please try again in a moment.", http.StatusServiceUnavailable)
 				return
 			case artifact.ErrFileNotFound:
 				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
 				if req.Branch != "" {
-					Error(w, fmt.Sprintf("artifact for branch '%s' not found for service '%s'", req.Branch, req.Service), http.StatusBadRequest)
+					httpinternal.Error(w, fmt.Sprintf("artifact for branch '%s' not found for service '%s'", req.Branch, req.Service), http.StatusBadRequest)
 				} else {
-					Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
+					httpinternal.Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
 				}
 				return
 			case flow.ErrUnknownEnvironment:
 				logger.Infof("http: release: service '%s' environment '%s': release rejected: %v", req.Service, req.Environment, err)
-				Error(w, fmt.Sprintf("unknown environment: %s", req.Environment), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("unknown environment: %s", req.Environment), http.StatusBadRequest)
 				return
 			case flow.ErrUnknownConfiguration:
 				logger.Infof("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release rejected: source configuration not found: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)
-				Error(w, fmt.Sprintf("configuration for environment '%s' not found for service '%s'. Is the environment specified in 'shuttle.yaml'?", req.Environment, req.Service), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("configuration for environment '%s' not found for service '%s'. Is the environment specified in 'shuttle.yaml'?", req.Environment, req.Service), http.StatusBadRequest)
 				return
 			default:
 				logger.Errorf("http: release: service '%s' environment '%s' branch '%s' artifact id '%s': release failed: %v", req.Service, req.Environment, req.Branch, req.ArtifactID, err)

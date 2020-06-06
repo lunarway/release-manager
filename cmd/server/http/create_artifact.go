@@ -21,6 +21,10 @@ func createArtifact(payload *payload, artifactWriteStorage ArtifactWriteStorage)
 			return
 		}
 
+		if !req.Validate(w) {
+			return
+		}
+
 		logger.Infof("http: artifact: creating artiact for '%s' hash '%x'", req.Artifact.ID, req.MD5)
 		uploadURL, err := artifactWriteStorage.CreateArtifact(req.Artifact, req.MD5)
 		if err != nil {

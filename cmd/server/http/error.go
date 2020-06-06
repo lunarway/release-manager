@@ -1,51 +1,37 @@
 package http
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
 	httpinternal "github.com/lunarway/release-manager/internal/http"
-	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/try"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 )
 
-func Error(w http.ResponseWriter, message string, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	err := json.NewEncoder(w).Encode(httpinternal.ErrorResponse{
-		Status:  statusCode,
-		Message: message,
-	})
-	if err != nil {
-		log.Errorf("json encoding failed in error response: %v", err)
-	}
-}
-
 func unknownError(w http.ResponseWriter) {
-	Error(w, "unknown error", http.StatusInternalServerError)
+	httpinternal.Error(w, "unknown error", http.StatusInternalServerError)
 }
 
 func invalidBodyError(w http.ResponseWriter) {
-	Error(w, "invalid body", http.StatusBadRequest)
+	httpinternal.Error(w, "invalid body", http.StatusBadRequest)
 }
 
 func cancelled(w http.ResponseWriter) {
-	Error(w, "request cancelled", http.StatusBadRequest)
+	httpinternal.Error(w, "request cancelled", http.StatusBadRequest)
 }
 
 func requiredFieldError(w http.ResponseWriter, field string) {
-	Error(w, fmt.Sprintf("field %s required but was empty", field), http.StatusBadRequest)
+	httpinternal.Error(w, fmt.Sprintf("field %s required but was empty", field), http.StatusBadRequest)
 }
 
 func requiredQueryError(w http.ResponseWriter, field string) {
-	Error(w, fmt.Sprintf("query param %s required but was empty", field), http.StatusBadRequest)
+	httpinternal.Error(w, fmt.Sprintf("query param %s required but was empty", field), http.StatusBadRequest)
 }
 
 func notFound(w http.ResponseWriter) {
-	Error(w, "not found", http.StatusNotFound)
+	httpinternal.Error(w, "not found", http.StatusNotFound)
 }
 
 // errorCause unwraps err from pkg/errors messages and if err contains a

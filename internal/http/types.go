@@ -1,7 +1,7 @@
 package http
 
 import (
-	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
@@ -39,27 +39,32 @@ type PromoteRequest struct {
 	CommitterEmail string `json:"committerEmail,omitempty"`
 }
 
+func (r PromoteRequest) Validate(w http.ResponseWriter) bool {
+	var errs validationErrors
+	if emptyString(r.Service) {
+		errs.Append(requiredField("service"))
+	}
+	if emptyString(r.Namespace) {
+		errs.Append(requiredField("namespace"))
+	}
+	if emptyString(r.Environment) {
+		errs.Append(requiredField("environment"))
+	}
+	if emptyString(r.CommitterName) {
+		errs.Append(requiredField("committerName"))
+	}
+	if emptyString(r.CommitterEmail) {
+		errs.Append(requiredField("committerEmail"))
+	}
+	return errs.Evaluate(w)
+}
+
 type PromoteResponse struct {
 	Service         string `json:"service,omitempty"`
 	FromEnvironment string `json:"fromEnvironment,omitempty"`
 	Status          string `json:"status,omitempty"`
 	ToEnvironment   string `json:"toEnvironment,omitempty"`
 	Tag             string `json:"tag,omitempty"`
-}
-
-type ErrorResponse struct {
-	Status  int    `json:"status,omitempty"`
-	Message string `json:"message,omitempty"`
-	ID      string `json:"-"`
-}
-
-var _ error = &ErrorResponse{}
-
-func (e *ErrorResponse) Error() string {
-	if e.ID != "" {
-		return fmt.Sprintf("%s\nReference: %s", e.Message, e.ID)
-	}
-	return e.Message
 }
 
 type ReleaseRequest struct {
@@ -69,6 +74,26 @@ type ReleaseRequest struct {
 	ArtifactID     string `json:"artifactId,omitempty"`
 	CommitterName  string `json:"committerName,omitempty"`
 	CommitterEmail string `json:"committerEmail,omitempty"`
+}
+
+func (r ReleaseRequest) Validate(w http.ResponseWriter) bool {
+	var errs validationErrors
+	if emptyString(r.Service) {
+		errs.Append(requiredField("service"))
+	}
+	if emptyString(r.Environment) {
+		errs.Append(requiredField("environment"))
+	}
+	if emptyString(r.CommitterName) {
+		errs.Append(requiredField("committerName"))
+	}
+	if emptyString(r.CommitterEmail) {
+		errs.Append(requiredField("committerEmail"))
+	}
+	if emptyString(r.Branch) && emptyString(r.ArtifactID) {
+		errs.Append("required fields branch or artifact id not specified")
+	}
+	return errs.Evaluate(w)
 }
 
 type ReleaseResponse struct {
@@ -85,6 +110,14 @@ type FluxNotifyResponse struct {
 type FluxNotifyRequest struct {
 	Environment string `json:"environment,omitempty"`
 	FluxEvent   event.Event
+}
+
+func (r FluxNotifyRequest) Validate(w http.ResponseWriter) bool {
+	var errs validationErrors
+	if emptyString(r.Environment) {
+		errs.Append("environment")
+	}
+	return errs.Evaluate(w)
 }
 
 type ReleaseEvent struct {
@@ -140,6 +173,26 @@ type ApplyBranchRestrictionPolicyRequest struct {
 	CommitterEmail string `json:"committerEmail,omitempty"`
 }
 
+func (r ApplyBranchRestrictionPolicyRequest) Validate(w http.ResponseWriter) bool {
+	var errs validationErrors
+	if emptyString(r.Service) {
+		errs.Append(requiredField("service"))
+	}
+	if emptyString(r.Environment) {
+		errs.Append(requiredField("environment"))
+	}
+	if emptyString(r.BranchRegex) {
+		errs.Append(requiredField("branch regex"))
+	}
+	if emptyString(r.CommitterName) {
+		errs.Append(requiredField("committerName"))
+	}
+	if emptyString(r.CommitterEmail) {
+		errs.Append(requiredField("committerEmail"))
+	}
+	return errs.Evaluate(w)
+}
+
 type ApplyBranchRestrictionPolicyResponse struct {
 	ID          string `json:"id,omitempty"`
 	Service     string `json:"service,omitempty"`
@@ -153,6 +206,26 @@ type ApplyAutoReleasePolicyRequest struct {
 	Environment    string `json:"environment,omitempty"`
 	CommitterName  string `json:"committerName,omitempty"`
 	CommitterEmail string `json:"committerEmail,omitempty"`
+}
+
+func (r ApplyAutoReleasePolicyRequest) Validate(w http.ResponseWriter) bool {
+	var errs validationErrors
+	if emptyString(r.Service) {
+		errs.Append(requiredField("service"))
+	}
+	if emptyString(r.Branch) {
+		errs.Append(requiredField("branch"))
+	}
+	if emptyString(r.Environment) {
+		errs.Append(requiredField("environment"))
+	}
+	if emptyString(r.CommitterName) {
+		errs.Append(requiredField("committerName"))
+	}
+	if emptyString(r.CommitterEmail) {
+		errs.Append(requiredField("committerEmail"))
+	}
+	return errs.Evaluate(w)
 }
 
 type ApplyPolicyResponse struct {
@@ -169,6 +242,24 @@ type DeletePolicyRequest struct {
 	CommitterEmail string   `json:"committerEmail,omitempty"`
 }
 
+func (r DeletePolicyRequest) Validate(w http.ResponseWriter) bool {
+	var errs validationErrors
+	if emptyString(r.Service) {
+		errs.Append(requiredField("service"))
+	}
+	if emptyString(r.CommitterName) {
+		errs.Append(requiredField("committerName"))
+	}
+	if emptyString(r.CommitterEmail) {
+		errs.Append(requiredField("committerEmail"))
+	}
+	ids := filterEmptyStrings(r.PolicyIDs)
+	if len(ids) == 0 {
+		errs.Append("no policy ids suplied")
+	}
+	return errs.Evaluate(w)
+}
+
 type DeletePolicyResponse struct {
 	Service string `json:"service,omitempty"`
 	Count   int    `json:"count,omitempty"`
@@ -180,6 +271,23 @@ type RollbackRequest struct {
 	Environment    string `json:"environment,omitempty"`
 	CommitterName  string `json:"committerName,omitempty"`
 	CommitterEmail string `json:"committerEmail,omitempty"`
+}
+
+func (r RollbackRequest) Validate(w http.ResponseWriter) bool {
+	var errs validationErrors
+	if emptyString(r.Service) {
+		errs.Append("service")
+	}
+	if emptyString(r.Environment) {
+		errs.Append("environment")
+	}
+	if emptyString(r.CommitterName) {
+		errs.Append("committerName")
+	}
+	if emptyString(r.CommitterEmail) {
+		errs.Append("committerEmail")
+	}
+	return errs.Evaluate(w)
 }
 
 type RollbackResponse struct {
@@ -207,6 +315,20 @@ type DescribeArtifactResponse struct {
 type ArtifactUploadRequest struct {
 	Artifact artifact.Spec `json:"artifact,omitempty"`
 	MD5      string        `json:"md5,omitempty"`
+}
+
+func (r ArtifactUploadRequest) Validate(w http.ResponseWriter) bool {
+	var errs validationErrors
+	if emptyString(r.MD5) {
+		errs.Append(requiredField("md5"))
+	}
+	if emptyString(r.Artifact.ID) {
+		errs.Append(requiredField("artifact.id"))
+	}
+	if emptyString(r.Artifact.Service) {
+		errs.Append(requiredField("artifact.service"))
+	}
+	return errs.Evaluate(w)
 }
 
 type ArtifactUploadResponse struct {

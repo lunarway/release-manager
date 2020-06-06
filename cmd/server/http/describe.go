@@ -96,7 +96,7 @@ func describeRelease(ctx context.Context, payload *payload, flowSvc *flow.Servic
 			}
 			switch errorCause(err) {
 			case artifact.ErrFileNotFound:
-				Error(w, fmt.Sprintf("no release of service '%s' available in environment '%s'. Are you missing a namespace?", service, environment), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("no release of service '%s' available in environment '%s'. Are you missing a namespace?", service, environment), http.StatusBadRequest)
 				return
 			default:
 				logger.Errorf("http: describe release: service '%s' environment '%s': failed: %v", service, environment, err)
@@ -134,7 +134,7 @@ func describeArtifact(ctx context.Context, payload *payload, flowSvc *flow.Servi
 		}
 		count, err := strconv.Atoi(countParam)
 		if err != nil || count <= 0 {
-			Error(w, fmt.Sprintf("invalid value '%s' of count. Must be a positive integer.", countParam), http.StatusBadRequest)
+			httpinternal.Error(w, fmt.Sprintf("invalid value '%s' of count. Must be a positive integer.", countParam), http.StatusBadRequest)
 			return
 		}
 		logger := log.WithContext(ctx).WithFields("service", service, "count", count)
@@ -148,7 +148,7 @@ func describeArtifact(ctx context.Context, payload *payload, flowSvc *flow.Servi
 			}
 			switch errorCause(err) {
 			case git.ErrArtifactNotFound:
-				Error(w, fmt.Sprintf("no artifacts available for service '%s'.", service), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("no artifacts available for service '%s'.", service), http.StatusBadRequest)
 				return
 			default:
 				logger.Errorf("http: describe artifact: service '%s': failed: %v", service, err)
