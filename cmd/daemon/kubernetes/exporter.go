@@ -6,6 +6,7 @@ import (
 
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
+	"go.uber.org/multierr"
 )
 
 // Exporter sends a formatted event to an upstream.
@@ -18,35 +19,34 @@ type Exporter interface {
 type ReleaseManagerExporter struct {
 	Log         *log.Logger
 	Environment string
-	Client      httpinternal.Client
+	Clients     []httpinternal.Client
 }
 
 func (e *ReleaseManagerExporter) SendSuccessfulReleaseEvent(ctx context.Context, event httpinternal.ReleaseEvent) error {
 	e.Log.With("event", event).Infof("SuccesfulRelease Event")
-	var resp httpinternal.KubernetesNotifyResponse
-	url, err := e.Client.URL("webhook/daemon/k8s/deploy")
-	if err != nil {
-		return err
-	}
 	event.Environment = e.Environment
-	err = e.Client.Do(http.MethodPost, url, event, &resp)
-	if err != nil {
-		return err
-	}
-	return nil
+	return e.notifyServers(ctx, event)
 }
 
 func (e *ReleaseManagerExporter) SendPodErrorEvent(ctx context.Context, event httpinternal.PodErrorEvent) error {
 	e.Log.With("event", event).Infof("PodError Event")
-	var resp httpinternal.KubernetesNotifyResponse
-	url, err := e.Client.URL("webhook/daemon/k8s/error")
-	if err != nil {
-		return err
-	}
 	event.Environment = e.Environment
-	err = e.Client.Do(http.MethodPost, url, event, &resp)
-	if err != nil {
-		return err
+	return e.notifyServers(ctx, event)
+}
+
+func (e *ReleaseManagerExporter) notifyServers(ctx context.Context, event interface{}) error {
+	var errs error
+	for _, client := range e.Clients {
+		var resp httpinternal.KubernetesNotifyResponse
+		url, err := client.URL("webhook/daemon/k8s/deploy")
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		err = client.Do(http.MethodPost, url, event, &resp)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+		}
 	}
-	return nil
+	return errs
 }

@@ -24,6 +24,9 @@ func StartDaemon() *cobra.Command {
 	var environment, kubeConfigPath, fluxApiBinding string
 	var moduloCrashReportNotif float64
 	var logConfiguration *log.Configuration
+	var baseURLs []string
+	var clientAuthToken string
+	var clientTimeout time.Duration
 
 	client := httpinternal.Client{}
 	var command = &cobra.Command{
@@ -35,9 +38,20 @@ func StartDaemon() *cobra.Command {
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 
+			var clients []httpinternal.Client
+			for _, baseURL := range baseURLs {
+				clients = append(clients, httpinternal.Client{
+					BaseURL: baseURL,
+					Metadata: httpinternal.Metadata{
+						AuthToken: clientAuthToken,
+					},
+					Timeout: clientTimeout,
+				})
+			}
+
 			kubectl, err := kubernetes.NewClient(kubeConfigPath, moduloCrashReportNotif, &kubernetes.ReleaseManagerExporter{
 				Log:         log.With("type", "k8s-exporter"),
-				Client:      client,
+				Clients:     clients,
 				Environment: environment,
 			})
 			if err != nil {
@@ -121,9 +135,9 @@ func StartDaemon() *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&client.BaseURL, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")
-	command.Flags().StringVar(&client.Metadata.AuthToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
-	command.Flags().DurationVar(&client.Timeout, "http-timeout", 20*time.Second, "HTTP request timeout")
+	command.Flags().StringSliceVar(&baseURLs, "release-manager-url", nil, "address of the release-manager, e.g. http://release-manager")
+	command.Flags().StringVar(&clientAuthToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
+	command.Flags().DurationVar(&clientTimeout, "http-timeout", 20*time.Second, "HTTP request timeout")
 	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
 	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "path to kubeconfig file. If not specified, then daemon is expected to run inside kubernetes")
 	command.Flags().StringVar(&fluxApiBinding, "flux-api-binding", ":8080", "binding of the daemon flux api server")
