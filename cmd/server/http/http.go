@@ -695,7 +695,7 @@ type commitInfo struct {
 }
 
 func extractInfoFromCommit() func(string) (commitInfo, error) {
-	extractInfoFromCommitRegex := regexp.MustCompile(`^\[(?P<service>.*)\]( artifact (?P<artifactID>[^ ]+) by)?.*\nArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>`)
+	extractInfoFromCommitRegex := regexp.MustCompile(`^\[(?P<service>.*)\] artifact (?P<artifactID>[^ ]+) by .*\nArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>`)
 	extractInfoFromCommitRegexNamesLookup := make(map[string]int)
 	for index, name := range extractInfoFromCommitRegex.SubexpNames() {
 		if name != "" {
