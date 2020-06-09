@@ -109,6 +109,23 @@ func TestExtractInfoFromCommit(t *testing.T) {
 			commitInfo:    commitInfo{},
 			err:           errors.New("no match"),
 		},
+		{
+			name:          "release commit from product should not match",
+			commitMessage: "[dev/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app\nArtifact-created-by: Emil Ingerslev <eki@lunar.app>\nArtifact-released-by: Bjørn Hald Sørensen <bso@lunar.app>",
+			commitInfo:    commitInfo{},
+			err:           errors.New("no match"),
+		},
+		{
+			name:          "artifact commit from product should match",
+			commitMessage: "[product] artifact test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app\nArtifact-created-by: Emil Ingerslev <eki@lunar.app>",
+			commitInfo: commitInfo{
+				ArtifactID:  "test-s3-push-f4440b4ccb-1ba3085aa7",
+				AuthorEmail: "eki@lunar.app",
+				AuthorName:  "Emil Ingerslev",
+				Service:     "product",
+			},
+			err: nil,
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
