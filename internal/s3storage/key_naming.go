@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -17,7 +18,8 @@ func getServiceObjectKeyPrefix(service string) string {
 	return fmt.Sprintf("%s/", service)
 }
 func getServiceAndBranchObjectKeyPrefix(service, branch string) string {
-	return fmt.Sprintf("%s/%s-", service, branch)
+
+	return fmt.Sprintf("%s/%s-", service, strings.ReplaceAll(branch, "/", "_"))
 }
 
 func (f *Service) getLatestObjectKey(ctx context.Context, service string, branch string) (string, error) {
