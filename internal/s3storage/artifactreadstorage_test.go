@@ -150,6 +150,25 @@ func TestService_LatestArtifactSpecification(t *testing.T) {
 				ID: "master-1234ds13g3-12s46g356g",
 			},
 		},
+		{
+			name:    "works with features branches",
+			service: "test-service",
+			branch:  "feature/greatwork",
+			s3: S3BucketSetup{
+				BucketName: "release-manager-test-latest-artifact-specification",
+				Objects: map[string]S3BucketSetupObject{
+					"test-service/feature_greatwork-1234ds13g3-12s46g356g": {
+						Base64Content: RewriteArtifactWithSpec(S3File_ZippedArtifact, func(spec *artifact.Spec) {
+							spec.ID = "feature_greatwork-1234ds13g3-12s46g356g"
+							spec.Application.Branch = "feature/greatwork"
+						}),
+					},
+				},
+			},
+			expectedArtifact: artifact.Spec{
+				ID: "feature_greatwork-1234ds13g3-12s46g356g",
+			},
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
