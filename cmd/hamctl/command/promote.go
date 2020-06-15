@@ -1,17 +1,13 @@
 package command
 
 import (
-	"fmt"
-	"net/http"
-
-	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
-	"github.com/lunarway/release-manager/internal/git"
+	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
 
 func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
-	var environment, namespace string
+	var toEnvironment, fromEnvironment, namespace string
 	var command = &cobra.Command{
 		Use:   "promote",
 		Short: "Promote a service to a specific environment following promoting conventions.",
@@ -21,43 +17,38 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 			})
 		},
 		RunE: func(c *cobra.Command, args []string) error {
-			committerName, committerEmail, err := git.CommitterDetails()
+			switch toEnvironment {
+			case "dev":
+				// TODO: Deploy master branch to dev
+				if fromEnvironment == "" {
+					fromEnvironment = "master"
+				}
+			case "staging":
+				// TODO: Deploy dev branch to staging
+				if fromEnvironment == "" {
+					fromEnvironment = "dev"
+				}
+			case "prod":
+				// TODO: Deploy staging branch to prod
+				if fromEnvironment == "" {
+					fromEnvironment = "staging"
+				}
+			}
+			artifactID, err := actions.ArtifactIDFromEnvironment(client, *service, namespace, fromEnvironment)
 			if err != nil {
 				return err
 			}
 
-			var resp httpinternal.PromoteResponse
-			url, err := client.URL("promote")
 			if err != nil {
 				return err
-			}
-			err = client.Do(http.MethodPost, url, httpinternal.PromoteRequest{
-				Service:        *service,
-				Environment:    environment,
-				Namespace:      namespace,
-				CommitterName:  committerName,
-				CommitterEmail: committerEmail,
-			}, &resp)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("Promote service: %s\n", *service)
-			if resp.Status != "" {
-				fmt.Printf("%s\n", resp.Status)
-			} else {
-				fmt.Printf("[✓] Promotion of %s from %s to %s initialized\n", resp.Tag, resp.FromEnvironment, resp.ToEnvironment)
 			}
 
-			return nil
+			return actions.ReleaseArtifactID(client, *service, toEnvironment, artifactID, struct{}{})
 		},
 	}
-	command.Flags().StringVarP(&environment, "env", "e", "", "Environment to promote to (required)")
-	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
-	// errors are skipped here as the only case they can occour are if thee flag
-	// does not exist on the command.
-	//nolint:errcheck
-	command.MarkFlagRequired("env")
-	command.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace the service is deployed to (defaults to env)")
-	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")
+	command.Flags().StringVarP(&toEnvironment, "env", "", "", "Alias for '--to-env' (deprecated)")
+	command.Flags().StringVarP(&toEnvironment, "to-env", "e", "", "Environment to promote to (required)")
+	command.Flags().StringVarP(&fromEnvironment, "from-env", "", "", "Environment to promote from")
+
 	return command
 }
