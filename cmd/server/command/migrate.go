@@ -4,6 +4,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/md5"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -153,11 +155,19 @@ func NewMigrate(startOptions *startOptions) *cobra.Command {
 					}
 					artifactClose(ctx)
 
+					zipMD5 := md5.New()
+					_, err = zipMD5.Write(zippedBytes)
+					if err != nil {
+						return errors.Wrap(err, "calculate md5 hash")
+					}
+					md5hash := base64.StdEncoding.EncodeToString(zipMD5.Sum(nil))
+
 					artifactResult = append(artifactResult, ArtifactInfo{
 						ServiceName: service,
 						ArtifactID:  artifactID,
 						ExistsInS3:  false,
 						ZippedBytes: zippedBytes,
+						MD5Hash:     md5hash,
 						Spec:        artifactSpec,
 					})
 
@@ -173,10 +183,20 @@ func NewMigrate(startOptions *startOptions) *cobra.Command {
 					fmt.Printf(" - %s - %s - invalid\n", res.ServiceName, res.ArtifactID)
 					continue
 				}
-				fmt.Printf(" - %s - %s - length: %v\n", res.ServiceName, res.ArtifactID, len(res.ZippedBytes))
+
+				uploadURL, err := s3storageSvc.CreateArtifact(res.Spec, res.MD5Hash)
+				if err != nil {
+					return err
+				}
+
+				err = uploadFile(uploadURL, res.ZippedBytes, res.MD5Hash)
+				if err != nil {
+					return err
+				}
+
+				fmt.Printf(" - %s - %s - uploaded: %v\n", res.ServiceName, res.ArtifactID, len(res.ZippedBytes))
 			}
 
-			//s3storageSvc.CreateArtifact()
 			//gitSvc.ArtifactPaths(ctx, service)
 
 			return nil
@@ -190,6 +210,7 @@ type ArtifactInfo struct {
 	ArtifactID      string
 	ExistsInS3      bool
 	ZippedBytes     []byte
+	MD5Hash         string
 	Spec            artifact.Spec
 	InvalidArtifact bool
 }
