@@ -62,8 +62,10 @@ func NewMigrate(startOptions *startOptions) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed setting up s3 storage: %w", err)
 			}
-
-			var _ = s3storageSvc
+			err = s3storageSvc.InitializeBucket()
+			if err != nil {
+				return fmt.Errorf("failed setting up s3 storage: %w", err)
+			}
 
 			ctx := context.Background()
 			close, err := gitSvc.InitMasterRepo(ctx)
@@ -72,17 +74,8 @@ func NewMigrate(startOptions *startOptions) *cobra.Command {
 			}
 			defer close(ctx)
 
-			readDir, closeReadDir, err := git.TempDir(ctx, tracer, "read")
-			if err != nil {
-				return fmt.Errorf("failed creating tmp read dir: %w", err)
-			}
-			defer closeReadDir(ctx)
-			_, err = gitSvc.Clone(ctx, readDir)
-			if err != nil {
-				return fmt.Errorf("failed creating tmp read dir: %w", err)
-			}
+			readDir := gitSvc.MasterPath()
 
-			serviceAndNamespace := map[string]string{}                // serviceName -> namespace
 			serviceArtifacts := map[string]map[string]artifact.Spec{} // serviceName -> map of artifact IDs -> artifact.Spec
 			for _, env := range []string{"dev", "staging", "prod"} {
 				namespaceDirs, err := ioutil.ReadDir(path.Join(readDir, env, "releases"))
@@ -107,7 +100,6 @@ func NewMigrate(startOptions *startOptions) *cobra.Command {
 						if err != nil {
 							return err
 						}
-						serviceAndNamespace[serviceDir.Name()] = namespaceDir.Name()
 						if _, ok := serviceArtifacts[serviceDir.Name()]; !ok {
 							serviceArtifacts[serviceDir.Name()] = make(map[string]artifact.Spec)
 						}
@@ -116,9 +108,17 @@ func NewMigrate(startOptions *startOptions) *cobra.Command {
 				}
 			}
 
+			artifactsCount := 0
+			for _, artifacts := range serviceArtifacts {
+				artifactsCount += len(artifacts)
+			}
+
+			log.Infof("found %v services to create artifacts for and %v artifacts", len(serviceArtifacts), artifactsCount)
+
 			var artifactResult []ArtifactInfo
 			for service, artifactsMap := range serviceArtifacts {
 				for artifactID, artifactSpec := range artifactsMap {
+					log.Infof("generating artifact %s %s - %v out of %v", service, artifactID, len(artifactResult)+1, artifactsCount)
 					exists, err := s3storageSvc.ArtifactExists(ctx, service, artifactID)
 					if err != nil {
 						return err
@@ -142,6 +142,7 @@ func NewMigrate(startOptions *startOptions) *cobra.Command {
 								ExistsInS3:      false,
 								InvalidArtifact: true,
 							})
+							log.WithFields("error", err).Infof("could not find artifact %s %s", service, artifactID)
 							continue
 						}
 
@@ -174,13 +175,13 @@ func NewMigrate(startOptions *startOptions) *cobra.Command {
 				}
 			}
 
-			for _, res := range artifactResult {
+			for i, res := range artifactResult {
 				if res.ExistsInS3 {
-					fmt.Printf(" - %s - %s - exists in s3\n", res.ServiceName, res.ArtifactID)
+					fmt.Printf("%v/%v - %s - %s - exists in s3\n", i+1, artifactsCount, res.ServiceName, res.ArtifactID)
 					continue
 				}
 				if res.InvalidArtifact {
-					fmt.Printf(" - %s - %s - invalid\n", res.ServiceName, res.ArtifactID)
+					fmt.Printf("%v/%v - %s - %s - invalid\n", i+1, artifactsCount, res.ServiceName, res.ArtifactID)
 					continue
 				}
 
@@ -194,7 +195,7 @@ func NewMigrate(startOptions *startOptions) *cobra.Command {
 					return err
 				}
 
-				fmt.Printf(" - %s - %s - uploaded: %v\n", res.ServiceName, res.ArtifactID, len(res.ZippedBytes))
+				fmt.Printf("%v/%v - %s - %s - uploaded: %v\n", i+1, artifactsCount, res.ServiceName, res.ArtifactID, len(res.ZippedBytes))
 			}
 
 			//gitSvc.ArtifactPaths(ctx, service)

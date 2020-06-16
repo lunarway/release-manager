@@ -11,35 +11,35 @@ import (
 
 func (s *Service) ArtifactPaths(ctx context.Context, service, environment, branch, artifactID string) (string, string, func(context.Context), error) {
 	logger := log.WithContext(ctx)
-	sourceConfigRepoPath, closeSource, err := TempDirAsync(ctx, s.Tracer, "k8s-config-artifact-paths-source")
-	if err != nil {
-		return "", "", nil, errors.WithMessage(err, "get temp dir")
-	}
+	// sourceConfigRepoPath, closeSource, err := TempDirAsync(ctx, s.Tracer, "k8s-config-artifact-paths-source")
+	// if err != nil {
+	// 	return "", "", nil, errors.WithMessage(err, "get temp dir")
+	// }
 
-	logger.Debugf("Cloning source config repo %s into %s", s.ConfigRepoURL, sourceConfigRepoPath)
-	sourceRepo, err := s.Clone(ctx, sourceConfigRepoPath)
-	if err != nil {
-		closeSource(ctx)
-		return "", "", nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
-	}
+	// logger.Debugf("Cloning source config repo %s into %s", s.ConfigRepoURL, sourceConfigRepoPath)
+	// sourceRepo, err := s.Clone(ctx, sourceConfigRepoPath)
+	// if err != nil {
+	// 	closeSource(ctx)
+	// 	return "", "", nil, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
+	// }
 
-	hash, err := s.LocateArtifact(ctx, sourceRepo, artifactID)
+	hash, err := s.LocateArtifact(ctx, s.master, artifactID)
 	if err != nil {
-		closeSource(ctx)
+		//closeSource(ctx)
 		return "", "", nil, errors.WithMessage(err, "locate artifact")
 	}
 
-	err = s.Checkout(ctx, sourceConfigRepoPath, hash)
+	err = s.Checkout(ctx, s.masterPath, hash)
 	if err != nil {
-		closeSource(ctx)
+		//closeSource(ctx)
 		return "", "", nil, errors.WithMessagef(err, "checkout artifact hash '%s'", hash)
 	}
 
-	resourcesPath := artifactResourcesPath(sourceConfigRepoPath, service, branch, environment)
-	specPath := artifactResourcesPath(sourceConfigRepoPath, service, branch, s.ArtifactFileName)
+	resourcesPath := artifactResourcesPath(s.masterPath, service, branch, environment)
+	specPath := artifactResourcesPath(s.masterPath, service, branch, s.ArtifactFileName)
 	logger.Infof("storage/ArtifactPaths found resources from '%s' and specification at '%s'", resourcesPath, specPath)
 	return specPath, resourcesPath, func(ctx context.Context) {
-		closeSource(ctx)
+		//closeSource(ctx)
 	}, nil
 }
 
