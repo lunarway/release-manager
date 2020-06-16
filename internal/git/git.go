@@ -337,7 +337,7 @@ func locate(r *git.Repository, condition conditionFunc, notFoundErr error) (plum
 
 func locateN(r *git.Repository, condition conditionFunc, notFoundErr error, n int) ([]plumbing.Hash, error) {
 	var hashes []plumbing.Hash
-	ref, err := r.Head()
+	ref, err := r.Reference(plumbing.Master, true)
 	if err != nil {
 		return nil, errors.WithMessage(err, "retrieve HEAD branch")
 	}
