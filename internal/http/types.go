@@ -74,6 +74,7 @@ type ReleaseRequest struct {
 	ArtifactID     string `json:"artifactId,omitempty"`
 	CommitterName  string `json:"committerName,omitempty"`
 	CommitterEmail string `json:"committerEmail,omitempty"`
+	Intent         Intent `json:"intent,omitempty"`
 }
 
 func (r ReleaseRequest) Validate(w http.ResponseWriter) bool {
@@ -92,6 +93,9 @@ func (r ReleaseRequest) Validate(w http.ResponseWriter) bool {
 	}
 	if emptyString(r.Branch) && emptyString(r.ArtifactID) {
 		errs.Append("required fields branch or artifact id not specified")
+	}
+	if emptyString(r.Intent.IntentType) {
+		errs.Append("required intent is not specified")
 	}
 	return errs.Evaluate(w)
 }
