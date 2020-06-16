@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/lunarway/release-manager/internal/git"
+	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/try"
@@ -69,10 +70,10 @@ func (s *Service) ExecNewArtifact(ctx context.Context, e NewArtifactEvent) error
 	logger.Infof("flow: exec new artifact: service '%s' branch '%s': found %d release policies", artifactSpec.Service, artifactSpec.Application.Branch, len(autoReleases))
 	var errs error
 	for _, autoRelease := range autoReleases {
-		releaseID, err := s.ReleaseBranch(ctx, Actor{
+		releaseID, err := s.ReleaseArtifactID(ctx, Actor{
 			Name:  artifactSpec.Application.AuthorName,
 			Email: artifactSpec.Application.AuthorEmail,
-		}, autoRelease.Environment, artifactSpec.Service, autoRelease.Branch)
+		}, autoRelease.Environment, artifactSpec.Service, artifactSpec.ID, intent.NewAutoRelease())
 		if err != nil {
 			if errorCause(err) != git.ErrNothingToCommit {
 				errs = multierr.Append(errs, err)

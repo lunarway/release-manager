@@ -4,6 +4,7 @@ import (
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -32,9 +33,9 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				if err != nil {
 					return err
 				}
-				actions.ReleaseArtifactID(client, *service, environment, artifactID, httpinternal.NewReleaseBranchIntent(branch))
+				actions.ReleaseArtifactID(client, *service, environment, artifactID, intent.NewReleaseBranch(branch))
 			case artifact != "":
-				actions.ReleaseArtifactID(client, *service, environment, artifact, httpinternal.NewReleaseArtifactIntent(artifact))
+				actions.ReleaseArtifactID(client, *service, environment, artifact, intent.NewReleaseArtifact(artifact))
 			}
 
 			return nil

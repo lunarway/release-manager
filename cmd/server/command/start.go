@@ -211,7 +211,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				// just complicates the flow of the code.
 				PublishPromote:           nil,
 				PublishReleaseArtifactID: nil,
-				PublishReleaseBranch:     nil,
 				PublishRollback:          nil,
 				PublishNewArtifact:       nil,
 				// retries for comitting changes into config repo
@@ -303,14 +302,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					}
 					return flowSvc.ExecReleaseArtifactID(context.Background(), event)
 				},
-				flow.ReleaseBranchEvent{}.Type(): func(d []byte) error {
-					var event flow.ReleaseBranchEvent
-					err := event.Unmarshal(d)
-					if err != nil {
-						return errors.WithMessage(err, "unmarshal event")
-					}
-					return flowSvc.ExecReleaseBranch(context.Background(), event)
-				},
 				flow.RollbackEvent{}.Type(): func(d []byte) error {
 					var event flow.RollbackEvent
 					err := event.Unmarshal(d)
@@ -351,9 +342,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				return brokerImpl.Publish(ctx, &event)
 			}
 			flowSvc.PublishReleaseArtifactID = func(ctx context.Context, event flow.ReleaseArtifactIDEvent) error {
-				return brokerImpl.Publish(ctx, &event)
-			}
-			flowSvc.PublishReleaseBranch = func(ctx context.Context, event flow.ReleaseBranchEvent) error {
 				return brokerImpl.Publish(ctx, &event)
 			}
 			flowSvc.PublishRollback = func(ctx context.Context, event flow.RollbackEvent) error {

@@ -3,6 +3,7 @@ package command
 import (
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +37,7 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 				return err
 			}
 
-			return actions.ReleaseArtifactID(client, *service, toEnvironment, artifactID, httpinternal.NewPromoteEnvironmentIntent(fromEnvironment))
+			return actions.ReleaseArtifactID(client, *service, toEnvironment, artifactID, intent.NewPromoteEnvironment(fromEnvironment))
 		},
 	}
 	command.Flags().StringVarP(&toEnvironment, "env", "", "", "Alias for '--to-env' (deprecated)")

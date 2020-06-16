@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/weaveworks/flux/event"
 )
 
@@ -68,13 +69,12 @@ type PromoteResponse struct {
 }
 
 type ReleaseRequest struct {
-	Service        string `json:"service,omitempty"`
-	Environment    string `json:"environment,omitempty"`
-	Branch         string `json:"branch,omitempty"`
-	ArtifactID     string `json:"artifactId,omitempty"`
-	CommitterName  string `json:"committerName,omitempty"`
-	CommitterEmail string `json:"committerEmail,omitempty"`
-	Intent         Intent `json:"intent,omitempty"`
+	Service        string        `json:"service,omitempty"`
+	Environment    string        `json:"environment,omitempty"`
+	ArtifactID     string        `json:"artifactId,omitempty"`
+	CommitterName  string        `json:"committerName,omitempty"`
+	CommitterEmail string        `json:"committerEmail,omitempty"`
+	Intent         intent.Intent `json:"intent,omitempty"`
 }
 
 func (r ReleaseRequest) Validate(w http.ResponseWriter) bool {
@@ -91,11 +91,14 @@ func (r ReleaseRequest) Validate(w http.ResponseWriter) bool {
 	if emptyString(r.CommitterEmail) {
 		errs.Append(requiredField("committerEmail"))
 	}
-	if emptyString(r.Branch) && emptyString(r.ArtifactID) {
-		errs.Append("required fields branch or artifact id not specified")
+	if emptyString(r.ArtifactID) {
+		errs.Append("required field artifact id is not specified")
 	}
-	if emptyString(r.Intent.IntentType) {
+	if r.Intent.Empty() {
 		errs.Append("required intent is not specified")
+	}
+	if !r.Intent.Valid() {
+		errs.Append("required intent is not valid")
 	}
 	return errs.Evaluate(w)
 }

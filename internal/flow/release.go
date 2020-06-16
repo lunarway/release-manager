@@ -10,85 +10,10 @@ import (
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/git"
+	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 )
-
-// ReleaseBranch releases the latest artifact from a branch of a specific
-// service to environment env.
-//
-// Flow
-//
-// Checkout the current kubernetes configuration status and find the
-// artifact spec for the service and branch.
-//
-// Copy artifacts from the artifacts into the environment and commit the changes.
-func (s *Service) ReleaseBranch(ctx context.Context, actor Actor, environment, service, branch string) (string, error) {
-	span, ctx := s.Tracer.FromCtx(ctx, "flow.ReleaseBranch")
-	defer span.Finish()
-
-	ok, err := s.CanRelease(ctx, service, branch, environment)
-	if err != nil {
-		return "", errors.WithMessage(err, "validate release policies")
-	}
-	if !ok {
-		return "", ErrReleaseProhibited
-	}
-
-	specPath, resourcePath, close, err := s.Storage.LatestArtifactPaths(ctx, service, environment, branch)
-	if err != nil {
-		return "", errors.WithMessage(err, "get artifact paths")
-	}
-	defer close(ctx)
-
-	// Verify environment existences
-	err = releaseConfigurationExists(resourcePath)
-	if err != nil {
-		return "", errors.WithMessagef(err, "verify configuration for environment in '%s'", resourcePath)
-	}
-
-	artifactSpec, err := artifact.Get(specPath)
-	if err != nil {
-		return "", errors.WithMessage(err, "get artifact spec")
-	}
-
-	logger := log.WithContext(ctx)
-	logger.Infof("flow: ReleaseBranch: release branch: id '%s'", artifactSpec.ID)
-
-	// default to environment name for the namespace if none is specified
-	namespace := artifactSpec.Namespace
-	if namespace == "" {
-		namespace = environment
-	}
-
-	// check that the artifact to be released is not already released in the
-	// environment. If there is no artifact released to the target environment an
-	// artifact.ErrFileNotFound error is returned. This is OK as the currentSpec
-	// will then be the default value and this its ID will be the empty string.
-	currentSpec, err := s.releaseSpecification(ctx, releaseLocation{
-		Environment: environment,
-		Namespace:   namespace,
-		Service:     service,
-	})
-	if err != nil && errors.Cause(err) != artifact.ErrFileNotFound {
-		return "", errors.WithMessage(err, "get current released spec")
-	}
-	if currentSpec.ID == artifactSpec.ID {
-		return "", ErrNothingToRelease
-	}
-
-	err = s.PublishReleaseBranch(ctx, ReleaseBranchEvent{
-		Branch:      branch,
-		Actor:       actor,
-		Environment: environment,
-		Namespace:   namespace,
-		Service:     service,
-	})
-	if err != nil {
-		return "", errors.WithMessage(err, "publish event")
-	}
-	return artifactSpec.ID, nil
-}
 
 // releaseConfigurationExists verifies that the provided path exists. Useful to
 // ensure that a given configuration is available for an environment.
@@ -104,117 +29,14 @@ func releaseConfigurationExists(resourcePath string) error {
 	return nil
 }
 
-type ReleaseBranchEvent struct {
-	Service     string `json:"service,omitempty"`
-	Environment string `json:"environment,omitempty"`
-	Namespace   string `json:"namespace,omitempty"`
-	Branch      string `json:"branch,omitempty"`
-	Actor       Actor  `json:"actor,omitempty"`
-}
-
-func (ReleaseBranchEvent) Type() string {
-	return "release.branch"
-}
-
-func (p ReleaseBranchEvent) Marshal() ([]byte, error) {
-	return json.Marshal(p)
-}
-
-func (p *ReleaseBranchEvent) Unmarshal(data []byte) error {
-	return json.Unmarshal(data, p)
-}
-
-func (s *Service) ExecReleaseBranch(ctx context.Context, event ReleaseBranchEvent) error {
-	span, ctx := s.Tracer.FromCtx(ctx, "flow.ExecReleaseBranch")
-	defer span.Finish()
-	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
-		logger := log.WithContext(ctx)
-
-		sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-branch")
-		if err != nil {
-			return true, err
-		}
-		defer close(ctx)
-		_, err = s.Git.Clone(ctx, sourceConfigRepoPath)
-		if err != nil {
-			return true, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
-		}
-
-		service := event.Service
-		branch := event.Branch
-		environment := event.Environment
-		namespace := event.Namespace
-		actor := event.Actor
-
-		// repo/artifacts/{service}/{branch}/{artifactFileName}
-		artifactSpecPath, artifactPath, closeSource, err := s.Storage.LatestArtifactPaths(ctx, service, environment, branch)
-		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
-		}
-		defer closeSource(ctx)
-
-		// release service to env from the artifact path
-		// repo/{env}/releases/{ns}/{service}
-		destinationPath := releasePath(sourceConfigRepoPath, service, environment, namespace)
-		logger.Infof("flow: ReleaseBranch: copy resources from %s to %s", artifactPath, destinationPath)
-
-		err = s.cleanCopy(ctx, artifactPath, destinationPath)
-		if err != nil {
-			return true, errors.WithMessagef(err, "copy resources from '%s' to '%s'", artifactPath, destinationPath)
-		}
-
-		// copy artifact spec
-		// repo/{env}/releases/{ns}/{service}/{artifactFileName}
-		artifactDestinationPath := path.Join(releasePath(sourceConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
-		logger.Infof("flow: ReleaseBranch: copy artifact from %s to %s", artifactSpecPath, artifactDestinationPath)
-		err = copy.CopyFile(ctx, artifactSpecPath, artifactDestinationPath)
-		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSpecPath, artifactDestinationPath))
-		}
-
-		artifactSpec, err := s.Storage.LatestArtifactSpecification(ctx, service, branch)
-		if err != nil {
-			return true, errors.WithMessage(err, "get artifact spec")
-		}
-
-		authorName := artifactSpec.Application.AuthorName
-		authorEmail := artifactSpec.Application.AuthorEmail
-		artifactID := artifactSpec.ID
-		releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID, authorEmail)
-		err = s.Git.Commit(ctx, sourceConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
-		if err != nil {
-			if errors.Cause(err) == git.ErrNothingToCommit {
-				logger.Infof("Environment is up to date: dropping event: %v", err)
-				// TODO: notify actor that there was nothing to commit
-				return true, nil
-			}
-			// we can see races here where other changes are committed to the master repo
-			// after we cloned. Because of this we retry on any error.
-			return false, errors.WithMessage(err, fmt.Sprintf("commit changes from path '%s'", destinationPath))
-		}
-		s.notifyRelease(ctx, NotifyReleaseOptions{
-			Service:     service,
-			Environment: environment,
-			Namespace:   namespace,
-			Spec:        artifactSpec,
-			Releaser:    actor.Name,
-		})
-		logger.Infof("flow: ReleaseBranch: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
-		return true, nil
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 type ReleaseArtifactIDEvent struct {
-	Service     string `json:"service,omitempty"`
-	Environment string `json:"environment,omitempty"`
-	Namespace   string `json:"namespace,omitempty"`
-	ArtifactID  string `json:"artifactID,omitempty"`
-	Branch      string `json:"branch,omitempty"`
-	Actor       Actor  `json:"actor,omitempty"`
+	Service     string        `json:"service,omitempty"`
+	Environment string        `json:"environment,omitempty"`
+	Namespace   string        `json:"namespace,omitempty"`
+	ArtifactID  string        `json:"artifactID,omitempty"`
+	Branch      string        `json:"branch,omitempty"`
+	Actor       Actor         `json:"actor,omitempty"`
+	Intent      intent.Intent `json:"intent,omitempty"`
 }
 
 func (ReleaseArtifactIDEvent) Type() string {
@@ -238,7 +60,7 @@ func (p *ReleaseArtifactIDEvent) Unmarshal(data []byte) error {
 //
 // Copy resources from the artifact commit into the environment and commit
 // the changes
-func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environment, service, artifactID string) (string, error) {
+func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environment, service, artifactID string, intent intent.Intent) (string, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ReleaseArtifactID")
 	defer span.Finish()
 
@@ -306,6 +128,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		Environment: environment,
 		Namespace:   namespace,
 		Service:     service,
+		Intent:      intent,
 	})
 	if err != nil {
 		return "", errors.WithMessage(err, "publish event")
