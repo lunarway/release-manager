@@ -72,6 +72,20 @@ func NewCommand() (*cobra.Command, error) {
 		userMappings:              &userMappings,
 		branchRestrictionPolicies: &branchRestrictions,
 	}))
+	command.AddCommand(NewMigrate(&startOptions{
+		grafana:                   &grafanaOpts,
+		slackAuthToken:            &slackAuthToken,
+		githubAPIToken:            &githubAPIToken,
+		configRepo:                &configRepoOpts,
+		gitConfigOpts:             &gitConfigOpts,
+		s3storage:                 &s3storageOpts,
+		http:                      &httpOpts,
+		gpgKeyPaths:               &gpgKeyPaths,
+		broker:                    &brokerOpts,
+		slackMutes:                &slackMuteOpts,
+		userMappings:              &userMappings,
+		branchRestrictionPolicies: &branchRestrictions,
+	}))
 	command.PersistentFlags().IntVar(&httpOpts.Port, "http-port", 8080, "port of the http server")
 	command.PersistentFlags().DurationVar(&httpOpts.Timeout, "timeout", 20*time.Second, "HTTP server timeout for incomming requests")
 	command.PersistentFlags().StringVar(&httpOpts.HamCtlAuthToken, "hamctl-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "hamctl authentication token")
