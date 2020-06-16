@@ -8,7 +8,7 @@ import (
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 )
 
-func ReleaseArtifactID(client *httpinternal.Client, service, environment, artifactID string, intent struct{}) error {
+func ReleaseArtifactID(client *httpinternal.Client, service, environment, artifactID string, intent httpinternal.Intent) error {
 	committerName, committerEmail, err := git.CommitterDetails()
 	if err != nil {
 		return err
@@ -24,6 +24,7 @@ func ReleaseArtifactID(client *httpinternal.Client, service, environment, artifa
 		ArtifactID:     artifactID,
 		CommitterName:  committerName,
 		CommitterEmail: committerEmail,
+		Intent:         intent,
 	}, &resp)
 	if err != nil {
 		return err

@@ -32,9 +32,9 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				if err != nil {
 					return err
 				}
-				actions.ReleaseArtifactID(client, *service, environment, artifactID, struct{}{})
+				actions.ReleaseArtifactID(client, *service, environment, artifactID, httpinternal.NewReleaseBranchIntent(branch))
 			case artifact != "":
-				actions.ReleaseArtifactID(client, *service, environment, artifact, struct{}{})
+				actions.ReleaseArtifactID(client, *service, environment, artifact, httpinternal.NewReleaseArtifactIntent(artifact))
 			}
 
 			return nil

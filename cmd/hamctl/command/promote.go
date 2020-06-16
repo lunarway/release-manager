@@ -17,20 +17,13 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 			})
 		},
 		RunE: func(c *cobra.Command, args []string) error {
-			switch toEnvironment {
-			case "dev":
-				// TODO: Deploy master branch to dev
-				if fromEnvironment == "" {
+			if fromEnvironment == "" {
+				switch toEnvironment {
+				case "dev":
 					fromEnvironment = "master"
-				}
-			case "staging":
-				// TODO: Deploy dev branch to staging
-				if fromEnvironment == "" {
+				case "staging":
 					fromEnvironment = "dev"
-				}
-			case "prod":
-				// TODO: Deploy staging branch to prod
-				if fromEnvironment == "" {
+				case "prod":
 					fromEnvironment = "staging"
 				}
 			}
@@ -43,7 +36,7 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 				return err
 			}
 
-			return actions.ReleaseArtifactID(client, *service, toEnvironment, artifactID, struct{}{})
+			return actions.ReleaseArtifactID(client, *service, toEnvironment, artifactID, httpinternal.NewPromoteEnvironmentIntent(fromEnvironment))
 		},
 	}
 	command.Flags().StringVarP(&toEnvironment, "env", "", "", "Alias for '--to-env' (deprecated)")
