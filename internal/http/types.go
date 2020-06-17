@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/weaveworks/flux/event"
 )
 
@@ -31,49 +32,13 @@ type Environment struct {
 	LowVulnerabilities    int64  `json:"lowVulnerabilities,omitempty"`
 }
 
-type PromoteRequest struct {
-	Service        string `json:"service,omitempty"`
-	Namespace      string `json:"namespace,omitempty"`
-	Environment    string `json:"environment,omitempty"`
-	CommitterName  string `json:"committerName,omitempty"`
-	CommitterEmail string `json:"committerEmail,omitempty"`
-}
-
-func (r PromoteRequest) Validate(w http.ResponseWriter) bool {
-	var errs validationErrors
-	if emptyString(r.Service) {
-		errs.Append(requiredField("service"))
-	}
-	if emptyString(r.Namespace) {
-		errs.Append(requiredField("namespace"))
-	}
-	if emptyString(r.Environment) {
-		errs.Append(requiredField("environment"))
-	}
-	if emptyString(r.CommitterName) {
-		errs.Append(requiredField("committerName"))
-	}
-	if emptyString(r.CommitterEmail) {
-		errs.Append(requiredField("committerEmail"))
-	}
-	return errs.Evaluate(w)
-}
-
-type PromoteResponse struct {
-	Service         string `json:"service,omitempty"`
-	FromEnvironment string `json:"fromEnvironment,omitempty"`
-	Status          string `json:"status,omitempty"`
-	ToEnvironment   string `json:"toEnvironment,omitempty"`
-	Tag             string `json:"tag,omitempty"`
-}
-
 type ReleaseRequest struct {
-	Service        string `json:"service,omitempty"`
-	Environment    string `json:"environment,omitempty"`
-	Branch         string `json:"branch,omitempty"`
-	ArtifactID     string `json:"artifactId,omitempty"`
-	CommitterName  string `json:"committerName,omitempty"`
-	CommitterEmail string `json:"committerEmail,omitempty"`
+	Service        string        `json:"service,omitempty"`
+	Environment    string        `json:"environment,omitempty"`
+	ArtifactID     string        `json:"artifactId,omitempty"`
+	CommitterName  string        `json:"committerName,omitempty"`
+	CommitterEmail string        `json:"committerEmail,omitempty"`
+	Intent         intent.Intent `json:"intent,omitempty"`
 }
 
 func (r ReleaseRequest) Validate(w http.ResponseWriter) bool {
@@ -90,8 +55,14 @@ func (r ReleaseRequest) Validate(w http.ResponseWriter) bool {
 	if emptyString(r.CommitterEmail) {
 		errs.Append(requiredField("committerEmail"))
 	}
-	if emptyString(r.Branch) && emptyString(r.ArtifactID) {
-		errs.Append("required fields branch or artifact id not specified")
+	if emptyString(r.ArtifactID) {
+		errs.Append("required field artifact id is not specified")
+	}
+	if r.Intent.Empty() {
+		errs.Append("required intent is not specified")
+	}
+	if !r.Intent.Valid() {
+		errs.Append("required intent is not valid")
 	}
 	return errs.Evaluate(w)
 }

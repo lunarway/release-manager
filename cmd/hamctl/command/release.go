@@ -1,12 +1,10 @@
 package command
 
 import (
-	"fmt"
-	"net/http"
-
+	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
-	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -24,37 +22,20 @@ Release latest artifact from branch 'master' of service 'product' into environme
 
   hamctl release --service product --env dev --branch master`,
 		RunE: func(c *cobra.Command, args []string) error {
-			if branch != "" && artifact != "" {
+			switch {
+			case branch != "" && artifact != "":
 				return errors.New("--branch and --artifact cannot both be specificed")
-			}
-			if branch == "" && artifact == "" {
+
+			case branch == "" && artifact == "":
 				return errors.New("--branch or --artifact is required")
-			}
-			committerName, committerEmail, err := git.CommitterDetails()
-			if err != nil {
-				return err
-			}
-			var resp httpinternal.ReleaseResponse
-			path, err := client.URL("release")
-			if err != nil {
-				return err
-			}
-			err = client.Do(http.MethodPost, path, httpinternal.ReleaseRequest{
-				Service:        *service,
-				Environment:    environment,
-				Branch:         branch,
-				ArtifactID:     artifact,
-				CommitterName:  committerName,
-				CommitterEmail: committerEmail,
-			}, &resp)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("Release of service: %s\n", *service)
-			if resp.Status != "" {
-				fmt.Printf("%s\n", resp.Status)
-			} else {
-				fmt.Printf("[✓] Release of %s to %s initialized\n", resp.Tag, resp.ToEnvironment)
+			case branch != "":
+				artifactID, err := actions.ArtifactIDFromBranch(client, *service, branch)
+				if err != nil {
+					return err
+				}
+				actions.ReleaseArtifactID(client, *service, environment, artifactID, intent.NewReleaseBranch(branch))
+			case artifact != "":
+				actions.ReleaseArtifactID(client, *service, environment, artifact, intent.NewReleaseArtifact())
 			}
 
 			return nil

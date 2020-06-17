@@ -44,10 +44,8 @@ type Service struct {
 	Storage          ArtifactReadStorage
 	Policy           *policy.Service
 
-	PublishPromote           func(context.Context, PromoteEvent) error
 	PublishRollback          func(context.Context, RollbackEvent) error
 	PublishReleaseArtifactID func(context.Context, ReleaseArtifactIDEvent) error
-	PublishReleaseBranch     func(context.Context, ReleaseBranchEvent) error
 	PublishNewArtifact       func(context.Context, NewArtifactEvent) error
 
 	MaxRetries int

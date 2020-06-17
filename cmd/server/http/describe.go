@@ -31,6 +31,8 @@ func describe(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			describeRelease(ctx, payload, flowSvc, p.Namespace(), p.Environment(), p.Service())(w, r)
 		case "artifact":
 			describeArtifact(ctx, payload, flowSvc, p.Service())(w, r)
+		case "latest-artifact":
+			describeLatestArtifacts(ctx, payload, flowSvc, p.Service())(w, r)
 		default:
 			log.WithContext(ctx).Errorf("describe path not found: %+v", p)
 			notFound(w)
@@ -165,6 +167,51 @@ func describeArtifact(ctx context.Context, payload *payload, flowSvc *flow.Servi
 		})
 		if err != nil {
 			logger.Errorf("http: describe artifact: service '%s': marshal response failed: %v", service, err)
+		}
+	}
+}
+
+func describeLatestArtifacts(ctx context.Context, payload *payload, flowSvc *flow.Service, service string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if emptyString(service) {
+			requiredFieldError(w, "service")
+			return
+		}
+		values := r.URL.Query()
+		branch := values.Get("branch")
+		if emptyString(branch) {
+			requiredFieldError(w, "branch")
+			return
+		}
+
+		logger := log.WithContext(ctx).WithFields("service", service, "branch", branch)
+		ctx := r.Context()
+		resp, err := flowSvc.DescribeLatestArtifact(ctx, service, branch)
+		if err != nil {
+			if ctx.Err() == context.Canceled {
+				logger.Infof("http: describe latest artifact: service '%s': request cancelled", service)
+				cancelled(w)
+				return
+			}
+			switch errorCause(err) {
+			case git.ErrArtifactNotFound:
+				httpinternal.Error(w, fmt.Sprintf("no artifacts available for service '%s' and branch '%s'.", service, branch), http.StatusBadRequest)
+				return
+			default:
+				logger.Errorf("http: describe latest artifact: service '%s' and branch '%s': failed: %v", service, branch, err)
+				unknownError(w)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		err = payload.encodeResponse(ctx, w, httpinternal.DescribeArtifactResponse{
+			Service:   service,
+			Artifacts: []artifact.Spec{resp},
+		})
+		if err != nil {
+			logger.Errorf("http: describe latest artifact: service '%s' and branch '%s': marshal response failed: %v", service, branch, err)
 		}
 	}
 }
