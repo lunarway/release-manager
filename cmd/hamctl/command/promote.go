@@ -2,6 +2,7 @@ package command
 
 import (
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
+	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/spf13/cobra"
@@ -43,7 +44,10 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 		},
 	}
 	command.Flags().StringVarP(&toEnvironment, "env", "", "", "Environment to promote to (required)")
+	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
+
 	command.Flags().StringVarP(&fromEnvironment, "from-env", "", "", "Environment to promote from")
+	completion.FlagAnnotation(command, "from-env", "__hamctl_get_environments")
 
 	command.MarkFlagRequired("env")
 
