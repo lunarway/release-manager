@@ -9,6 +9,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/lunarway/release-manager/internal/commitinfo"
 	internalgit "github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
@@ -40,7 +41,7 @@ type Service struct {
 type GitService interface {
 	MasterPath() string
 	Clone(context.Context, string) (*git.Repository, error)
-	Commit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error
+	Commit(ctx context.Context, rootPath, changesPath, msg string) error
 }
 
 type Actor struct {
@@ -175,7 +176,7 @@ func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch
 		return "", ErrConflict
 	}
 
-	commitMsg := internalgit.PolicyUpdateApplyCommitMessage(env, svc, "auto-release")
+	commitMsg := commitinfo.FullMessage(commitinfo.PolicyUpdateApplyCommitMessage(env, svc, "auto-release"), actor.Name, actor.Email, actor.Name, actor.Email)
 	var policyID string
 	err = s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
 		policyID = p.SetAutoRelease(branch, env)
@@ -190,7 +191,7 @@ func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch
 func (s *Service) Delete(ctx context.Context, actor Actor, svc string, ids []string) (int, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.Delete")
 	defer span.Finish()
-	commitMsg := internalgit.PolicyUpdateDeleteCommitMessage(svc)
+	commitMsg := commitinfo.PolicyUpdateDeleteCommitMessage(svc)
 	var deleted int
 	err := s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
 		deleted = p.Delete(ids...)
@@ -269,7 +270,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 
 		// commit changes
 		logger.Debugf("internal/policy: commit policies file '%s'", policiesPath)
-		err = s.Git.Commit(ctx, configRepoPath, path.Join(".", "policies"), actor.Name, actor.Email, actor.Name, actor.Email, commitMsg)
+		err = s.Git.Commit(ctx, configRepoPath, path.Join(".", "policies"), commitMsg)
 		if err != nil {
 			// indicates that the applied policy was already set
 			if errors.Cause(err) == internalgit.ErrNothingToCommit {

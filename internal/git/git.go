@@ -322,7 +322,7 @@ func locateN(r *git.Repository, condition conditionFunc, notFoundErr error, n in
 	}
 }
 
-func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
+func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
 	defer span.Finish()
 
@@ -339,7 +339,6 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName,
 	if err != nil {
 		return errors.WithMessage(err, "check for changes")
 	}
-	commitMessage := fmt.Sprintf("%s\nArtifact-created-by: %s <%s>\nArtifact-released-by: %s <%s>", msg, authorName, authorEmail, committerName, committerEmail)
 	args := []string{
 		"-c", fmt.Sprintf(`user.name="%s"`, s.Config.User),
 		"-c", fmt.Sprintf(`user.email="%s"`, s.Config.Email),
@@ -349,7 +348,7 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName,
 	if s.Config.SigningKey != "" {
 		args = append(args, fmt.Sprintf("--gpg-sign=%s", s.Config.SigningKey))
 	}
-	args = append(args, fmt.Sprintf(`-m%s`, commitMessage))
+	args = append(args, fmt.Sprintf(`-m%s`, msg))
 
 	span, _ = s.Tracer.FromCtx(ctx, "commit")
 	err = execCommand(ctx, rootPath, "git", args...)

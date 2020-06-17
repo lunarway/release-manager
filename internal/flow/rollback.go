@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
@@ -191,8 +192,8 @@ func (s *Service) ExecRollback(ctx context.Context, event RollbackEvent) error {
 
 		authorName := newSpec.Application.AuthorName
 		authorEmail := newSpec.Application.AuthorEmail
-		releaseMessage := git.RollbackCommitMessage(environment, service, currentSpecID, newSpec.ID, authorEmail)
-		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
+		releaseMessage := commitinfo.FullMessage(commitinfo.RollbackCommitMessage(environment, service, currentSpecID, newSpec.ID, authorEmail), authorName, authorEmail, actor.Name, actor.Email)
+		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), releaseMessage)
 		if err != nil {
 			if errors.Cause(err) == git.ErrNothingToCommit {
 				logger.Infof("Environment is up to date: dropping event: %v", err)

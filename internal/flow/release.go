@@ -8,6 +8,7 @@ import (
 	"path"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/intent"
@@ -187,8 +188,8 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		}
 		authorName := sourceSpec.Application.AuthorName
 		authorEmail := sourceSpec.Application.AuthorEmail
-		releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID, authorEmail)
-		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
+		releaseMessage := commitinfo.FullMessage(commitinfo.ReleaseCommitMessage(environment, service, artifactID, authorEmail), authorName, authorEmail, actor.Name, actor.Email)
+		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), releaseMessage)
 		if err != nil {
 			if errors.Cause(err) == git.ErrNothingToCommit {
 				logger.Infof("Environment is up to date: dropping event: %v", err)

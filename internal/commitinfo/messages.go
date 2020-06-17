@@ -1,4 +1,4 @@
-package git
+package commitinfo
 
 import "fmt"
 
@@ -20,4 +20,8 @@ func PolicyUpdateApplyCommitMessage(env, service, policy string) string {
 // PolicyUpdateDeleteCommitMessage returns a delete policy commit message.
 func PolicyUpdateDeleteCommitMessage(service string) string {
 	return fmt.Sprintf("[%s] policy update: delete policies", service)
+}
+
+func FullMessage(msg, authorName, authorEmail, committerName, committerEmail string) string {
+	return fmt.Sprintf("%s\nArtifact-created-by: %s <%s>\nArtifact-released-by: %s <%s>", msg, authorName, authorEmail, committerName, committerEmail)
 }
