@@ -47,7 +47,6 @@ type Service struct {
 
 	masterPath  string
 	masterMutex sync.RWMutex
-	master      *git.Repository
 }
 
 func (s *Service) MasterPath() string {
@@ -63,44 +62,43 @@ func (s *Service) InitMasterRepo(ctx context.Context) (func(context.Context), er
 		close(ctx)
 		return nil, errors.WithMessage(err, "get temporary directory")
 	}
-	repo, err := s.clone(ctx, path)
+	err = s.clone(ctx, path)
 	if err != nil {
 		close(ctx)
 		return nil, errors.WithMessagef(err, "clone into '%s'", path)
 	}
 	s.masterMutex.Lock()
 	defer s.masterMutex.Unlock()
-	s.master = repo
 	s.masterPath = path
 	log.WithContext(ctx).Infof("Master repo cloned into '%s'", path)
 	return close, nil
 }
 
-func (s *Service) clone(ctx context.Context, destination string) (*git.Repository, error) {
+func (s *Service) clone(ctx context.Context, destination string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.clone")
 	defer span.Finish()
 	authSSH, err := ssh.NewPublicKeysFromFile("git", s.SSHPrivateKeyPath, "")
 	if err != nil {
-		return nil, errors.WithMessage(err, "public keys from file")
+		return errors.WithMessage(err, "public keys from file")
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "remove destination")
 	span.SetTag("path", destination)
 	err = os.RemoveAll(destination)
 	span.Finish()
 	if err != nil {
-		return nil, errors.WithMessage(err, "remove existing destination")
+		return errors.WithMessage(err, "remove existing destination")
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "plain clone")
-	r, err := git.PlainCloneContext(ctx, destination, false, &git.CloneOptions{
+	_, err = git.PlainCloneContext(ctx, destination, false, &git.CloneOptions{
 		URL:  s.ConfigRepoURL,
 		Auth: authSSH,
 	})
 	span.Finish()
 	if err != nil {
-		return nil, errors.WithMessage(err, "clone repo")
+		return errors.WithMessage(err, "clone repo")
 	}
-	return r, nil
+	return nil
 }
 
 // SyncMaster pulls latest changes from master repo.
