@@ -9,10 +9,6 @@ import (
 )
 
 func ArtifactIDFromEnvironment(client *httpinternal.Client, service, namespace, environment string) (string, error) {
-	if environment == "master" {
-		return ArtifactIDFromBranch(client, service, "master")
-	}
-
 	var statusResp httpinternal.StatusResponse
 	params := url.Values{}
 	params.Add("service", service)

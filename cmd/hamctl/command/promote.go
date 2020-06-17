@@ -28,11 +28,13 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 					fromEnvironment = "staging"
 				}
 			}
-			artifactID, err := actions.ArtifactIDFromEnvironment(client, *service, namespace, fromEnvironment)
-			if err != nil {
-				return err
+			var artifactID string
+			var err error
+			if fromEnvironment == "master" {
+				artifactID, err = actions.ArtifactIDFromBranch(client, *service, "master")
+			} else {
+				artifactID, err = actions.ArtifactIDFromEnvironment(client, *service, namespace, fromEnvironment)
 			}
-
 			if err != nil {
 				return err
 			}
