@@ -35,7 +35,7 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				}
 				actions.ReleaseArtifactID(client, *service, environment, artifactID, intent.NewReleaseBranch(branch))
 			case artifact != "":
-				actions.ReleaseArtifactID(client, *service, environment, artifact, intent.NewReleaseArtifact(artifact))
+				actions.ReleaseArtifactID(client, *service, environment, artifact, intent.NewReleaseArtifact())
 			}
 
 			return nil
