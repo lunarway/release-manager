@@ -29,13 +29,14 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 		}
 		logger = logger.WithFields(
 			"service", req.Service,
-			"req", req)
+			"req", req,
+			"intent", req.Intent)
 
 		logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': releasing artifact", req.Service, req.Environment, req.ArtifactID)
 		releaseID, err := flowSvc.ReleaseArtifactID(ctx, flow.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
-		}, req.Environment, req.Service, req.ArtifactID, intent.NewReleaseArtifact(req.ArtifactID))
+		}, req.Environment, req.Service, req.ArtifactID, intent.NewReleaseArtifact())
 
 		var statusString string
 		if err != nil {
@@ -47,22 +48,22 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			switch errorCause(err) {
 			case flow.ErrReleaseProhibited:
 				logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': release rejected: branch prohibited in environment: %v", req.Service, req.Environment, req.ArtifactID, err)
-				httpinternal.Error(w, fmt.Sprintf("artifact '%s' cannot be released to environment '%s' due to branch restriction policy", req.ArtifactID, req.Environment), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("cannot release %s to environment '%s' due to branch restriction policy", req.Intent.AsArtifactWithIntent(req.ArtifactID), req.Environment), http.StatusBadRequest)
 				return
 			case flow.ErrNothingToRelease:
 				statusString = "Environment is already up-to-date"
 				logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': release skipped: environment up to date: %v", req.Service, req.Environment, req.ArtifactID, err)
 			case git.ErrArtifactNotFound:
 				logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': release rejected: %v", req.Service, req.Environment, req.ArtifactID, err)
-				httpinternal.Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("%s not found for service '%s'", req.Intent.AsArtifactWithIntent(req.ArtifactID), req.Service), http.StatusBadRequest)
 				return
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': %v", req.Service, req.Environment, req.ArtifactID, err)
-				httpinternal.Error(w, "could not release right now. Please try again in a moment.", http.StatusServiceUnavailable)
+				httpinternal.Error(w, fmt.Sprintf("could not release %s right now. Please try again in a moment.", req.Intent.AsArtifactWithIntent(req.ArtifactID)), http.StatusServiceUnavailable)
 				return
 			case artifact.ErrFileNotFound:
 				logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': release rejected: %v", req.Service, req.Environment, req.ArtifactID, err)
-				httpinternal.Error(w, fmt.Sprintf("artifact '%s' not found for service '%s'", req.ArtifactID, req.Service), http.StatusBadRequest)
+				httpinternal.Error(w, fmt.Sprintf("%s not found for service '%s'", req.Intent.AsArtifactWithIntent(req.ArtifactID), req.Service), http.StatusBadRequest)
 				return
 			case flow.ErrUnknownEnvironment:
 				logger.Infof("http: release: service '%s' environment '%s': release rejected: %v", req.Service, req.Environment, err)

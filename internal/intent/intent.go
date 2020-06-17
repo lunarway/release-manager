@@ -1,40 +1,39 @@
 package intent
 
+import "fmt"
+
 const (
-	TypeRelease     = "Release"
-	TypePromote     = "Promote"
-	TypeRollback    = "Rollback"
-	TypeAutoRelease = "AutoRelease"
+	TypeReleaseArtifactID = "ReleaseArtifactID"
+	TypeReleaseBranch     = "ReleaseBranch"
+	TypePromote           = "Promote"
+	TypeRollback          = "Rollback"
+	TypeAutoRelease       = "AutoRelease"
 )
 
 type Intent struct {
-	Type    string        `json:"intentType,omitempty"`
-	Release ReleaseIntent `json:"release,omitempty"`
-	Promote PromoteIntent `json:"promote,omitempty"`
+	Type          string              `json:"intentType,omitempty"`
+	ReleaseBranch ReleaseBranchIntent `json:"releaseBranch,omitempty"`
+	Promote       PromoteIntent       `json:"promote,omitempty"`
 }
 
-type ReleaseIntent struct {
-	Branch     string `json:"branch,omitempty"`
-	ArtifactID string `json:"artifactId,omitempty"`
+type ReleaseBranchIntent struct {
+	Branch string `json:"branch,omitempty"`
 }
 
 type PromoteIntent struct {
 	FromEnvironment string `json:"fromEnvironment,omitempty"`
 }
 
-func NewReleaseArtifact(artifactID string) Intent {
+func NewReleaseArtifact() Intent {
 	return Intent{
-		Type: TypeRelease,
-		Release: ReleaseIntent{
-			ArtifactID: artifactID,
-		},
+		Type: TypeReleaseArtifactID,
 	}
 }
 
 func NewReleaseBranch(branch string) Intent {
 	return Intent{
-		Type: TypeRelease,
-		Release: ReleaseIntent{
+		Type: TypeReleaseBranch,
+		ReleaseBranch: ReleaseBranchIntent{
 			Branch: branch,
 		},
 	}
@@ -42,7 +41,7 @@ func NewReleaseBranch(branch string) Intent {
 
 func NewPromoteEnvironment(fromEnvironment string) Intent {
 	return Intent{
-		Type: TypeRelease,
+		Type: TypePromote,
 		Promote: PromoteIntent{
 			FromEnvironment: fromEnvironment,
 		},
@@ -67,4 +66,21 @@ func (intent *Intent) Valid() bool {
 
 func (intent *Intent) Empty() bool {
 	return intent.Type == ""
+}
+
+func (intent *Intent) AsArtifactWithIntent(artifactID string) string {
+	switch intent.Type {
+	case TypeReleaseBranch:
+		return fmt.Sprintf("branch '%s' with artifact '%s'", intent.ReleaseBranch.Branch, artifactID)
+	case TypeReleaseArtifactID:
+		return fmt.Sprintf("artifact '%s'", artifactID)
+	case TypePromote:
+		return fmt.Sprintf("promotion from '%s' with artifact '%s'", intent.Promote.FromEnvironment, artifactID)
+	case TypeRollback:
+		return fmt.Sprintf("rollback to artifact '%s'", artifactID)
+	case TypeAutoRelease:
+		return fmt.Sprintf("autorelease artifact '%s'", artifactID)
+	default:
+		return fmt.Sprintf("invalid intent with artifact '%s'", artifactID)
+	}
 }
