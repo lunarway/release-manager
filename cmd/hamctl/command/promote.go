@@ -42,9 +42,10 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 			return actions.ReleaseArtifactID(client, *service, toEnvironment, artifactID, intent.NewPromoteEnvironment(fromEnvironment))
 		},
 	}
-	command.Flags().StringVarP(&toEnvironment, "env", "", "", "Alias for '--to-env' (deprecated)")
-	command.Flags().StringVarP(&toEnvironment, "to-env", "e", "", "Environment to promote to (required)")
+	command.Flags().StringVarP(&toEnvironment, "env", "", "", "Environment to promote to (required)")
 	command.Flags().StringVarP(&fromEnvironment, "from-env", "", "", "Environment to promote from")
+
+	command.MarkFlagRequired("env")
 
 	return command
 }
