@@ -16,7 +16,6 @@ import (
 )
 
 func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
-	commitMessageExtractorFunc := commitinfo.ExtractInfoFromCommit()
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
 		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
@@ -41,7 +40,7 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			commitInfo, err := commitMessageExtractorFunc(payload.HeadCommit.Message)
+			commitInfo, err := commitinfo.ExtractInfoFromCommit(payload.HeadCommit.Message)
 			if err != nil {
 				logger.Infof("http: github webhook: extract author details from commit failed: message '%s'", payload.HeadCommit.Message)
 				w.WriteHeader(http.StatusOK)

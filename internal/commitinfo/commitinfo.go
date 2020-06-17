@@ -13,25 +13,26 @@ type CommitInfo struct {
 	Service     string
 }
 
-func ExtractInfoFromCommit() func(string) (CommitInfo, error) {
-	extractInfoFromCommitRegex := regexp.MustCompile(`^\[(?P<service>.*)\] artifact (?P<artifactID>[^ ]+) by .*\nArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>`)
-	extractInfoFromCommitRegexNamesLookup := make(map[string]int)
+func ExtractInfoFromCommit(commitMessage string) (CommitInfo, error) {
+	matches := extractInfoFromCommitRegex.FindStringSubmatch(commitMessage)
+	if matches == nil {
+		return CommitInfo{}, errors.New("no match")
+	}
+	return CommitInfo{
+		Service:     matches[extractInfoFromCommitRegexNamesLookup["service"]],
+		ArtifactID:  matches[extractInfoFromCommitRegexNamesLookup["artifactID"]],
+		AuthorName:  matches[extractInfoFromCommitRegexNamesLookup["authorName"]],
+		AuthorEmail: matches[extractInfoFromCommitRegexNamesLookup["authorEmail"]],
+	}, nil
+}
+
+var extractInfoFromCommitRegex = regexp.MustCompile(`^\[(?P<service>.*)\] artifact (?P<artifactID>[^ ]+) by .*\nArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>`)
+var extractInfoFromCommitRegexNamesLookup = make(map[string]int)
+
+func init() {
 	for index, name := range extractInfoFromCommitRegex.SubexpNames() {
 		if name != "" {
 			extractInfoFromCommitRegexNamesLookup[name] = index
 		}
-	}
-
-	return func(message string) (CommitInfo, error) {
-		matches := extractInfoFromCommitRegex.FindStringSubmatch(message)
-		if matches == nil {
-			return CommitInfo{}, errors.New("no match")
-		}
-		return CommitInfo{
-			Service:     matches[extractInfoFromCommitRegexNamesLookup["service"]],
-			ArtifactID:  matches[extractInfoFromCommitRegexNamesLookup["artifactID"]],
-			AuthorName:  matches[extractInfoFromCommitRegexNamesLookup["authorName"]],
-			AuthorEmail: matches[extractInfoFromCommitRegexNamesLookup["authorEmail"]],
-		}, nil
 	}
 }
