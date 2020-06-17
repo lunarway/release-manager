@@ -43,7 +43,7 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 			return actions.ReleaseArtifactID(client, *service, toEnvironment, artifactID, intent.NewPromoteEnvironment(fromEnvironment))
 		},
 	}
-	command.Flags().StringVarP(&toEnvironment, "env", "", "", "Environment to promote to (required)")
+	command.Flags().StringVarP(&toEnvironment, "env", "e", "", "Environment to promote to (required)")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 
 	command.Flags().StringVarP(&fromEnvironment, "from-env", "", "", "Environment to promote from")
