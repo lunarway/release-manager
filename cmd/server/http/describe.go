@@ -180,7 +180,8 @@ func describeLatestArtifacts(ctx context.Context, payload *payload, flowSvc *flo
 		values := r.URL.Query()
 		branch := values.Get("branch")
 		if emptyString(branch) {
-			branch = "master"
+			httpinternal.Error(w, "missing required branch parameter", http.StatusBadRequest)
+			return
 		}
 
 		logger := log.WithContext(ctx).WithFields("service", service, "branch", branch)
