@@ -51,7 +51,7 @@ func ArtifactIDFromBranch(client *httpinternal.Client, service string, branch st
 
 	if len(describeResp.Artifacts) == 0 {
 		// TODO: write better message:
-		return "", fmt.Errorf("no artifacts found on master branch")
+		return "", fmt.Errorf("no artifacts found on from branch '%s'", branch)
 	}
 
 	return describeResp.Artifacts[0].ID, nil
