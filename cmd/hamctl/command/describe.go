@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
@@ -28,18 +29,24 @@ Get details about the current release of product in the dev environment:
 	return command
 }
 
-var describeReleaseDefaultTemplate = `Service: {{ .Artifact.Service }}
-{{ if ne (len .Artifact.Namespace) 0 -}}
-Namespace:  {{ .Artifact.Namespace }}
-{{ end -}}
+var describeReleaseDefaultTemplate = `Service: {{ .Service }}
 Environment: {{ .Environment }}
-Released at: {{ .ReleasedAt.Format "2006-01-02 15:04:03" }}
-Released by: {{ .ReleasedByName }} ({{ .ReleasedByEmail }})
-Commit: {{ .Artifact.Application.URL }}
+{{ range $k, $v := .Releases }}
+ - Artifact: {{ .Artifact.ID }}
+   {{ if ne (len .Artifact.Namespace) 0 -}}
+   Namespace:  {{ .Artifact.Namespace }}
+   {{ end -}}
+   Released at: {{ .ReleasedAt.Format "2006-01-02 15:04:03" }}
+   Released by: {{ .ReleasedByName }} ({{ .ReleasedByEmail }})
+   Commit: {{ .Artifact.Application.URL }}
+{{ end }}
 `
+
+// TODO: Add intent 👆 Intent: {{ .Intent.String() }}
 
 func newDescribeRelease(client *httpinternal.Client, service *string) *cobra.Command {
 	var environment, namespace, template string
+	var count int
 	var command = &cobra.Command{
 		Use:   "release",
 		Short: "Show details about a release.",
@@ -58,6 +65,7 @@ Format the output with a custom template:
 		RunE: func(c *cobra.Command, args []string) error {
 			var resp httpinternal.DescribeReleaseResponse
 			params := url.Values{}
+			params.Add("count", strconv.Itoa(count))
 			if namespace != "" {
 				params.Add("namespace", namespace)
 			}
@@ -79,6 +87,7 @@ Format the output with a custom template:
 			return nil
 		},
 	}
+	command.Aliases = append(command.Aliases, "releases")
 	command.Flags().StringVarP(&environment, "env", "e", "", "environment to promote to (required)")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	// errors are skipped here as the only case they can occour are if thee flag
@@ -88,6 +97,7 @@ Format the output with a custom template:
 	command.Flags().StringVarP(&namespace, "namespace", "n", "", "namespace the service is deployed to (defaults to env)")
 	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")
 	command.Flags().StringVarP(&template, "template", "", "", "template string to format the output. The format is Go templates (http://golang.org/pkg/text/template/#pkg-overview). Available data structure is an 'http.DescribeReleaseResponse' struct.")
+	command.Flags().IntVarP(&count, "count", "c", 1, "number of releases to describe (default 1)")
 	return command
 }
 

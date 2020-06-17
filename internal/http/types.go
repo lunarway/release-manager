@@ -270,12 +270,17 @@ type RollbackResponse struct {
 }
 
 type DescribeReleaseResponse struct {
-	Service         string        `json:"service,omitempty"`
-	Environment     string        `json:"environment,omitempty"`
+	Service     string                           `json:"service,omitempty"`
+	Environment string                           `json:"environment,omitempty"`
+	Releases    []DescribeReleaseResponseRelease `json:"releases,omitempty"`
+}
+
+type DescribeReleaseResponseRelease struct {
 	Artifact        artifact.Spec `json:"artifact,omitempty"`
 	ReleasedAt      time.Time     `json:"releasedAt,omitempty"`
 	ReleasedByEmail string        `json:"releasedByEmail,omitempty"`
 	ReleasedByName  string        `json:"releasedByName,omitempty"`
+	Intent          string        `json:"intent,omitempty"`
 }
 
 type DescribeArtifactResponse struct {

@@ -86,9 +86,19 @@ func describeRelease(ctx context.Context, payload *payload, flowSvc *flow.Servic
 			requiredFieldError(w, "environment")
 			return
 		}
+		values := r.URL.Query()
+		countParam := values.Get("count")
+		if emptyString(countParam) {
+			countParam = "1"
+		}
+		count, err := strconv.Atoi(countParam)
+		if err != nil || count <= 0 {
+			httpinternal.Error(w, fmt.Sprintf("invalid value '%s' of count. Must be a positive integer.", countParam), http.StatusBadRequest)
+			return
+		}
 		logger := log.WithContext(ctx).WithFields("service", service, "environment", environment, "namespace", namespace)
 		ctx := r.Context()
-		resp, err := flowSvc.DescribeRelease(ctx, namespace, environment, service)
+		resp, err := flowSvc.DescribeRelease(ctx, environment, service, count)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Infof("http: describe release: service '%s' environment '%s': request cancelled", service, environment)
@@ -106,15 +116,23 @@ func describeRelease(ctx context.Context, payload *payload, flowSvc *flow.Servic
 			}
 		}
 
+		var releases []httpinternal.DescribeReleaseResponseRelease
+		for _, release := range resp.Releases {
+			releases = append(releases, httpinternal.DescribeReleaseResponseRelease{
+				Artifact:        release.Artifact,
+				ReleasedAt:      release.ReleasedAt,
+				ReleasedByName:  release.ReleasedByName,
+				ReleasedByEmail: release.ReleasedByEmail,
+				// TODO: Add Intent:,
+			})
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		err = payload.encodeResponse(ctx, w, httpinternal.DescribeReleaseResponse{
-			Service:         service,
-			Environment:     environment,
-			Artifact:        resp.Artifact,
-			ReleasedAt:      resp.ReleasedAt,
-			ReleasedByEmail: resp.ReleasedByEmail,
-			ReleasedByName:  resp.ReleasedByName,
+			Service:     service,
+			Environment: environment,
+			Releases:    releases,
 		})
 		if err != nil {
 			logger.Errorf("http: describe release: service '%s' environment '%s': marshal response failed: %v", service, environment, err)
