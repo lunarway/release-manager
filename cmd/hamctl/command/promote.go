@@ -50,6 +50,8 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 	completion.FlagAnnotation(command, "from-env", "__hamctl_get_environments")
 
 	command.MarkFlagRequired("env")
+	command.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace the service is deployed to (defaults to env)")
+	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")
 
 	return command
 }
