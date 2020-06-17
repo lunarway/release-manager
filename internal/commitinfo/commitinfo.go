@@ -1,4 +1,4 @@
-package http
+package commitinfo
 
 import (
 	"regexp"
@@ -6,14 +6,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-type commitInfo struct {
+type CommitInfo struct {
 	ArtifactID  string
 	AuthorName  string
 	AuthorEmail string
 	Service     string
 }
 
-func extractInfoFromCommit() func(string) (commitInfo, error) {
+func ExtractInfoFromCommit() func(string) (CommitInfo, error) {
 	extractInfoFromCommitRegex := regexp.MustCompile(`^\[(?P<service>.*)\] artifact (?P<artifactID>[^ ]+) by .*\nArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>`)
 	extractInfoFromCommitRegexNamesLookup := make(map[string]int)
 	for index, name := range extractInfoFromCommitRegex.SubexpNames() {
@@ -22,12 +22,12 @@ func extractInfoFromCommit() func(string) (commitInfo, error) {
 		}
 	}
 
-	return func(message string) (commitInfo, error) {
+	return func(message string) (CommitInfo, error) {
 		matches := extractInfoFromCommitRegex.FindStringSubmatch(message)
 		if matches == nil {
-			return commitInfo{}, errors.New("no match")
+			return CommitInfo{}, errors.New("no match")
 		}
-		return commitInfo{
+		return CommitInfo{
 			Service:     matches[extractInfoFromCommitRegexNamesLookup["service"]],
 			ArtifactID:  matches[extractInfoFromCommitRegexNamesLookup["artifactID"]],
 			AuthorName:  matches[extractInfoFromCommitRegexNamesLookup["authorName"]],

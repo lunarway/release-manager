@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
@@ -15,7 +16,7 @@ import (
 )
 
 func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
-	commitMessageExtractorFunc := extractInfoFromCommit()
+	commitMessageExtractorFunc := commitinfo.ExtractInfoFromCommit()
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
 		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
