@@ -11,7 +11,7 @@ const (
 )
 
 type Intent struct {
-	Type          string              `json:"intentType,omitempty"`
+	Type          string              `json:"type,omitempty"`
 	ReleaseBranch ReleaseBranchIntent `json:"releaseBranch,omitempty"`
 	Promote       PromoteIntent       `json:"promote,omitempty"`
 }
