@@ -48,7 +48,6 @@ func NewCommand(version *string) (*cobra.Command, error) {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(NewPromote(&client, &service))
 	command.AddCommand(NewRelease(&client, &service))
 	command.AddCommand(NewStatus(&client, &service))
 	command.AddCommand(NewRollback(&client, &service))

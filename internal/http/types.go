@@ -32,42 +32,6 @@ type Environment struct {
 	LowVulnerabilities    int64  `json:"lowVulnerabilities,omitempty"`
 }
 
-type PromoteRequest struct {
-	Service        string `json:"service,omitempty"`
-	Namespace      string `json:"namespace,omitempty"`
-	Environment    string `json:"environment,omitempty"`
-	CommitterName  string `json:"committerName,omitempty"`
-	CommitterEmail string `json:"committerEmail,omitempty"`
-}
-
-func (r PromoteRequest) Validate(w http.ResponseWriter) bool {
-	var errs validationErrors
-	if emptyString(r.Service) {
-		errs.Append(requiredField("service"))
-	}
-	if emptyString(r.Namespace) {
-		errs.Append(requiredField("namespace"))
-	}
-	if emptyString(r.Environment) {
-		errs.Append(requiredField("environment"))
-	}
-	if emptyString(r.CommitterName) {
-		errs.Append(requiredField("committerName"))
-	}
-	if emptyString(r.CommitterEmail) {
-		errs.Append(requiredField("committerEmail"))
-	}
-	return errs.Evaluate(w)
-}
-
-type PromoteResponse struct {
-	Service         string `json:"service,omitempty"`
-	FromEnvironment string `json:"fromEnvironment,omitempty"`
-	Status          string `json:"status,omitempty"`
-	ToEnvironment   string `json:"toEnvironment,omitempty"`
-	Tag             string `json:"tag,omitempty"`
-}
-
 type ReleaseRequest struct {
 	Service        string        `json:"service,omitempty"`
 	Environment    string        `json:"environment,omitempty"`

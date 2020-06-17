@@ -35,7 +35,6 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
-	mux.HandleFunc("/promote", trace(tracer, authenticate(opts.HamCtlAuthToken, promote(&payloader, flowSvc))))
 	mux.HandleFunc("/release", trace(tracer, authenticate(opts.HamCtlAuthToken, release(&payloader, flowSvc))))
 	mux.HandleFunc("/status", trace(tracer, authenticate(opts.HamCtlAuthToken, status(&payloader, flowSvc))))
 	mux.HandleFunc("/rollback", trace(tracer, authenticate(opts.HamCtlAuthToken, rollback(&payloader, flowSvc))))

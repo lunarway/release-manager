@@ -209,7 +209,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				// to avoid this chicken and egg issue. It is not a real problem as the
 				// consumer is started later on and this we are sure this gets set, it
 				// just complicates the flow of the code.
-				PublishPromote:           nil,
 				PublishReleaseArtifactID: nil,
 				PublishRollback:          nil,
 				PublishNewArtifact:       nil,
@@ -286,14 +285,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			}
 
 			eventHandlers := map[string]func([]byte) error{
-				flow.PromoteEvent{}.Type(): func(d []byte) error {
-					var event flow.PromoteEvent
-					err := event.Unmarshal(d)
-					if err != nil {
-						return errors.WithMessage(err, "unmarshal event")
-					}
-					return flowSvc.ExecPromote(context.Background(), event)
-				},
 				flow.ReleaseArtifactIDEvent{}.Type(): func(d []byte) error {
 					var event flow.ReleaseArtifactIDEvent
 					err := event.Unmarshal(d)
@@ -338,9 +329,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				return errors.WithMessage(err, "setup broker")
 			}
 
-			flowSvc.PublishPromote = func(ctx context.Context, event flow.PromoteEvent) error {
-				return brokerImpl.Publish(ctx, &event)
-			}
 			flowSvc.PublishReleaseArtifactID = func(ctx context.Context, event flow.ReleaseArtifactIDEvent) error {
 				return brokerImpl.Publish(ctx, &event)
 			}
