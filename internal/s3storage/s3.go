@@ -10,8 +10,10 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 )
@@ -48,6 +50,9 @@ func (f *Service) downloadArtifact(ctx context.Context, key string) (string, fun
 		Key:    aws.String(key),
 	})
 	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "NoSuchKey" {
+			return "", nil, flow.ErrArtifactNotFound
+		}
 		return "", nil, errors.WithMessage(err, "download object")
 	}
 	logger.Infof("Downloaded %d bytes", n)

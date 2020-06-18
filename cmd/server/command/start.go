@@ -14,7 +14,6 @@ import (
 	"github.com/lunarway/release-manager/internal/broker"
 	"github.com/lunarway/release-manager/internal/broker/amqp"
 	"github.com/lunarway/release-manager/internal/broker/memory"
-	"github.com/lunarway/release-manager/internal/fallbackstorage"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/github"
@@ -191,18 +190,13 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				GlobalBranchRestrictionPolicies: *startOptions.branchRestrictionPolicies,
 			}
 
-			var storage flow.ArtifactReadStorage = &gitSvc
-			if s3storageSvc != nil {
-				storage = fallbackstorage.New(s3storageSvc, storage, tracer)
-			}
-
 			flowSvc := flow.Service{
 				ArtifactFileName: startOptions.configRepo.ArtifactFileName,
 				UserMappings:     *startOptions.userMappings,
 				Slack:            slackClient,
 				Git:              &gitSvc,
 				CanRelease:       policySvc.CanRelease,
-				Storage:          storage,
+				Storage:          s3storageSvc,
 				Policy:           &policySvc,
 				Tracer:           tracer,
 				// TODO: figure out a better way of splitting the consumer and publisher

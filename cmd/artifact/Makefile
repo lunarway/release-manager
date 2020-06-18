@@ -85,15 +85,11 @@ example_resources:
 	echo "$$CONFIG_MAP" > examples/staging/configmap.yaml
 	echo "$$CONFIG_MAP" > examples/prod/configmap.yaml
 
-SSH_PRIVATE_KEY=~/.ssh/github
 RELEASE_MANAGER_URL=http://localhost:8080
 RELEASE_MANAGER_AUTH_TOKEN=test
-CONFIG_REPO=git@github.com:lunarway/release-manager-test-config-repo.git
 
 test_push: example example_resources
 	./artifact push \
 		--root examples \
 		--http-base-url ${RELEASE_MANAGER_URL} \
 		--http-auth-token ${RELEASE_MANAGER_AUTH_TOKEN}
-		# --config-repo="${CONFIG_REPO}" \
-		# --ssh-private-key=${SSH_PRIVATE_KEY}

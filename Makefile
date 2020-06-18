@@ -62,6 +62,8 @@ GRAFANA_API_KEY=grafana-api-key
 SLACK_TOKEN=slack-token
 USER_MAPPINGS=
 BRANCH_RESTRICTIONS=
+S3_BUCKET=release-manager-test
+
 SERVER_START=./dist/server start \
 		--ssh-private-key ${SSH_PRIVATE_KEY} \
 		--slack-token ${SLACK_TOKEN} \
@@ -70,6 +72,7 @@ SERVER_START=./dist/server start \
 		--hamctl-auth-token ${AUTH_TOKEN} \
 		--daemon-auth-token ${AUTH_TOKEN} \
 		--artifact-auth-token ${AUTH_TOKEN} \
+		--s3-artifact-storage-bucket-name '${S3_BUCKET}' \
 		--log.level debug \
 		--log.development t \
 		--config-repo ${CONFIG_REPO} \
@@ -133,13 +136,7 @@ github-webhook:
 		"ref": "refs/heads/master", \
 		"head_commit": { \
 			"id": "sha", \
-			"message": "[product] artifact master-1234ds13g3-12s46g356g by Foo Bar\nArtifact-created-by: Foo Bar <test@lunar.app>", \
-			"modified": [ \
-				"artifacts/product/master/artifact.json", \
-				"artifacts/product/master/dev/40-deployment.yaml", \
-				"artifacts/product/master/prod/40-deployment.yaml", \
-				"artifacts/product/master/staging/40-deployment.yaml" \
-			] \
+			"message": "[product] artifact master-1234ds13g3-12s46g356g by Foo Bar\nArtifact-created-by: Foo Bar <test@lunar.app>" \
 		} \
 	}' \
 	$(URL)/webhook/github

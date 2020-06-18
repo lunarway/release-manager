@@ -2,11 +2,6 @@ package git
 
 import "fmt"
 
-// ArtifactCommitMessage returns an artifact commit message.
-func ArtifactCommitMessage(service, artifactID, author string) string {
-	return fmt.Sprintf("[%s] artifact %s by %s", service, artifactID, author)
-}
-
 // ReleaseCommitMessage returns an artifact release commit message.
 func ReleaseCommitMessage(env, service, artifactID, authorEmail string) string {
 	return fmt.Sprintf("[%s/%s] release %s by %s", env, service, artifactID, authorEmail)

@@ -9,7 +9,6 @@ import (
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/flow"
-	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 )
@@ -149,7 +148,7 @@ func describeArtifact(ctx context.Context, payload *payload, flowSvc *flow.Servi
 				return
 			}
 			switch errorCause(err) {
-			case git.ErrArtifactNotFound:
+			case flow.ErrArtifactNotFound:
 				httpinternal.Error(w, fmt.Sprintf("no artifacts available for service '%s'.", service), http.StatusBadRequest)
 				return
 			default:
@@ -194,7 +193,7 @@ func describeLatestArtifacts(ctx context.Context, payload *payload, flowSvc *flo
 				return
 			}
 			switch errorCause(err) {
-			case git.ErrArtifactNotFound:
+			case flow.ErrArtifactNotFound:
 				httpinternal.Error(w, fmt.Sprintf("no artifacts available for service '%s' and branch '%s'.", service, branch), http.StatusBadRequest)
 				return
 			default:

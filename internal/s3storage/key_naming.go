@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/pkg/errors"
 )
 
@@ -41,7 +42,7 @@ func (f *Service) getLatestObjectKey(ctx context.Context, service string, branch
 	})
 
 	if len(list.Contents) == 0 {
-		return "", errors.Errorf("service %s on branch %s has no objects, thus latest can't be found", service, branch)
+		return "", flow.ErrArtifactNotFound
 	}
 
 	return *list.Contents[0].Key, nil
