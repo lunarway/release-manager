@@ -53,7 +53,7 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			case flow.ErrNothingToRelease:
 				statusString = "Environment is already up-to-date"
 				logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': release skipped: environment up to date: %v", req.Service, req.Environment, req.ArtifactID, err)
-			case git.ErrArtifactNotFound:
+			case flow.ErrArtifactNotFound:
 				logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': release rejected: %v", req.Service, req.Environment, req.ArtifactID, err)
 				httpinternal.Error(w, fmt.Sprintf("%s not found for service '%s'", req.Intent.AsArtifactWithIntent(req.ArtifactID), req.Service), http.StatusBadRequest)
 				return

@@ -47,23 +47,13 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 				return
 			}
 
-			// locate branch of commit. Look at both modified and added commits to
-			// cover both updated artifacts and added ones (new versions vs first
-			// version)
-			branch, ok := git.BranchName(append(payload.HeadCommit.Added, payload.HeadCommit.Modified...), flowSvc.ArtifactFileName, commitInfo.Service)
-			if !ok {
-				logger.Infof("http: github webhook: service '%s': branch name not found", commitInfo.Service)
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-
 			err = flowSvc.NewArtifact(ctx, commitInfo.Service, commitInfo.ArtifactID)
 			if err != nil {
 				logger.Infof("http: github webhook: service '%s': could not publish new artifact event for %s: %v", commitInfo.Service, commitInfo.ArtifactID, err)
 				unknownError(w)
 				return
 			}
-			logger.Infof("http: github webhook: handled successfully: service '%s' branch '%s' commit '%s'", commitInfo.Service, branch, payload.HeadCommit.ID)
+			logger.Infof("http: github webhook: handled successfully: service '%s' commit '%s'", commitInfo.Service, payload.HeadCommit.ID)
 			w.WriteHeader(http.StatusOK)
 			return
 		default:

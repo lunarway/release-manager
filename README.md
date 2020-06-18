@@ -296,13 +296,26 @@ hamctl completion --help
 `daemon` uses a token-based authentication model for interacting with the release-manager. This token can be set using the command-line argument `--auth-token` or the ENV variable: `HAMCTL_AUTH_TOKEN`
 
 
-# Directory structure
+# Storage
 
-Files are structured as shown below.
+Multiple entities are stored in different storage layers to allow the release manager to work.
 
-Artifacts are stored in the `artifacts` directory.
-It contains artifacts based of Git branches on the application repositories and must contain resource definitions for the environments that it is able to be released to.
+## Artifacts
 
+Artifacts are stored in an AWS S3 bucket.
+They are stored as `zip` files with keys from the service name and artifact id.
+
+```
+.
+├── <service>
+│  └── <artifact-id>
+└── example
+    └── master-sha1234-plan1234
+```
+
+## Releases and policies
+
+Release files are structured as shown below.
 In the root are folders for each environment, e.g. `dev`, `prod`.
 These folders contain a `releases` directory with kubernetes resource definitions of each namespace and their running applications.
 Provisioning setup resources are like wise stored here, e.g. kops yaml resources.
@@ -314,17 +327,6 @@ These are stored as JSON files for each service.
 .
 ├── policies
 │   └── <service>.json
-├── artifacts
-│   └── <service>
-│       ├── <branches>
-│       └── master
-│           ├── artifact.json
-│           ├── <environment>
-│           └── dev
-│               ├── 01-configmap.yaml
-│               ├── 02-db-configmap.yaml
-│               ├── 40-deployment.yaml
-│               └── 50-service.yaml
 ├── <environments>
 └── dev
     ├── provisioning

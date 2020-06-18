@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/pkg/errors"
 )
 
 type ArtifactReadStorage interface {
@@ -35,3 +36,7 @@ type ArtifactReadStorage interface {
 	// for service. They should be ordered by newest first.
 	ArtifactSpecifications(ctx context.Context, service string, n int) ([]artifact.Spec, error)
 }
+
+// ErrArtifactNotFound should be returned by implementations of
+// ArtifactReadStorage to indicate that an artifact was not found.
+var ErrArtifactNotFound = errors.New("artifact not found")

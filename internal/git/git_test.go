@@ -421,66 +421,6 @@ func TestLocateServiceReleaseRollbackSkipCondition(t *testing.T) {
 	}
 }
 
-func TestLocateArtifactCondition(t *testing.T) {
-	tt := []struct {
-		name       string
-		artifactID string
-		message    string
-		output     bool
-		err        error
-	}{
-		{
-			name:       "empty artifact id",
-			artifactID: "",
-			message:    "[service-name] artifact master-1234567890-1234567890 by Author",
-			output:     false,
-		},
-		{
-			name:       "regexp like artifact id",
-			artifactID: `(\`,
-			message:    "[service-name] artifact master-1234567890-1234567890 by Author",
-			output:     false,
-		},
-		{
-			name:       "partial artifact id",
-			artifactID: "master-1234",
-			message:    "[service-name] artifact master-1234567890-1234567890 by Author",
-			output:     false,
-		},
-		{
-			name:       "partial artifact id with complete application hash",
-			artifactID: "master-1234567890",
-			message:    "[service-name] artifact master-1234567890-1234567890 by Author",
-			output:     false,
-		},
-		{
-			name:       "exact artifact id",
-			artifactID: "master-1234567890-1234567890",
-			message:    "[service-name] artifact master-1234567890-1234567890 by Author",
-			output:     true,
-		},
-		{
-			name:       "wrong cased artifact id",
-			artifactID: "MASTER-1234567890-1234567890",
-			message:    "[service-name] artifact master-1234567890-1234567890 by Author",
-			output:     true,
-		},
-		{
-			name:       "artifact-created-by trailer",
-			artifactID: "master-1234567890-1234567890",
-			message: `[service-name] artifact master-1234567890-1234567890 by Author
-Artifact-created-by: Foo Bar <test@lunar.app>`,
-			output: true,
-		},
-	}
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			output := locateArtifactCondition(tc.artifactID)(tc.message)
-			assert.Equal(t, tc.output, output, "output not as expected")
-		})
-	}
-}
-
 func TestLocateEnvReleaseCondition(t *testing.T) {
 	tt := []struct {
 		name       string
@@ -635,58 +575,6 @@ func TestLocateEnvReleaseCondition(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			output := locateEnvReleaseCondition(tc.env, tc.artifactID)(tc.message)
-			assert.Equal(t, tc.output, output, "output not as expected")
-		})
-	}
-}
-
-func TestLocateArtifactServiceCondition(t *testing.T) {
-	tt := []struct {
-		name    string
-		service string
-		message string
-		output  bool
-	}{
-		{
-			name:    "empty service",
-			service: "",
-			message: "[service-name] artifact master-1234567890-1234567890",
-			output:  false,
-		},
-		{
-			name:    "regexp like service",
-			service: `(\`,
-			message: "[service-name] artifact master-1234567890-1234567890",
-			output:  false,
-		},
-		{
-			name:    "partial service",
-			service: "service",
-			message: "[service-name] artifact master-1234567890-1234567890",
-			output:  false,
-		},
-		{
-			name:    "exact service",
-			service: "service-name",
-			message: "[service-name] artifact master-1234567890-1234567890",
-			output:  true,
-		},
-		{
-			name:    "wrong cased service",
-			service: "SERVICE-NAME",
-			message: "[service-name] artifact master-1234567890-1234567890",
-			output:  true,
-		},
-		{
-			name:    "release of exact service",
-			service: "service-name",
-			message: "[env/service-name] release master-1234567890-1234567890",
-			output:  false,
-		},
-	}
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			output := locateArtifactServiceCondition(tc.service)(tc.message)
 			assert.Equal(t, tc.output, output, "output not as expected")
 		})
 	}

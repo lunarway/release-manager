@@ -27,7 +27,6 @@ import (
 var (
 	ErrNothingToCommit    = errors.New("nothing to commit")
 	ErrReleaseNotFound    = errors.New("release not found")
-	ErrArtifactNotFound   = errors.New("artifact not found")
 	ErrBranchBehindOrigin = errors.New("branch behind origin")
 	ErrUnknownGit         = errors.New("unknown git error")
 )
@@ -279,47 +278,6 @@ func locateServiceRollbackCondition(env, service string) conditionFunc {
 			return false
 		}
 		return r.MatchString(commitMsg)
-	}
-}
-
-// LocateArtifact traverses the git log to find an artifact commit with id
-// artifactID.
-//
-// It expects the commit to have a commit messages as the one returned by
-// ArtifactCommitMessage.
-func (s *Service) LocateArtifact(ctx context.Context, r *git.Repository, artifactID string) (plumbing.Hash, error) {
-	span, _ := s.Tracer.FromCtx(ctx, "git.LocateArtifact")
-	defer span.Finish()
-	return locate(r, locateArtifactCondition(artifactID), ErrArtifactNotFound)
-}
-
-func locateArtifactCondition(artifactID string) conditionFunc {
-	artifactRegex := regexp.MustCompile(fmt.Sprintf(`(?i)artifact %s `, regexp.QuoteMeta(artifactID)))
-	return func(commitMsg string) bool {
-		if artifactID == "" {
-			return false
-		}
-		return artifactRegex.MatchString(commitMsg)
-	}
-}
-
-// LocateArtifacts traverses the git log to find artifact commits for a service.
-//
-// It expects the commit to have a commit messages as the one returned by
-// ArtifactCommitMessage.
-func (s *Service) LocateArtifacts(ctx context.Context, r *git.Repository, service string, n int) ([]plumbing.Hash, error) {
-	span, _ := s.Tracer.FromCtx(ctx, "git.LocateArtifacts")
-	defer span.Finish()
-	return locateN(r, locateArtifactServiceCondition(service), ErrArtifactNotFound, n)
-}
-
-func locateArtifactServiceCondition(service string) conditionFunc {
-	artifactRegex := regexp.MustCompile(fmt.Sprintf(`(?i)\[%s] artifact `, regexp.QuoteMeta(service)))
-	return func(commitMsg string) bool {
-		if service == "" {
-			return false
-		}
-		return artifactRegex.MatchString(commitMsg)
 	}
 }
 
