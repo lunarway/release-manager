@@ -2,9 +2,9 @@ package commitinfo
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
+	"github.com/lunarway/release-manager/internal/regexp"
 	"github.com/pkg/errors"
 )
 
@@ -20,9 +20,9 @@ func ParseCommit(commitMessage string) (ConventionalCommitInfo, error) {
 		return ConventionalCommitInfo{}, errors.New("no match")
 	}
 
-	message := strings.Trim(matches[conventionalCommitRegexNamesLookup["message"]], "\n")
-	description := strings.Trim(matches[conventionalCommitRegexNamesLookup["description"]], "\n")
-	fieldsText := strings.Trim(matches[conventionalCommitRegexNamesLookup["fields"]], "\n")
+	message := strings.Trim(matches[conventionalCommitRegexLookup.Message], "\n")
+	description := strings.Trim(matches[conventionalCommitRegexLookup.Description], "\n")
+	fieldsText := strings.Trim(matches[conventionalCommitRegexLookup.Fields], "\n")
 
 	fields := make(map[string]string)
 	if fieldsText != "" {
@@ -43,13 +43,9 @@ func ParseCommit(commitMessage string) (ConventionalCommitInfo, error) {
 	}, nil
 }
 
-var conventionalCommitRegex = regexp.MustCompile(`(?s)^((?P<message>[^\n]+)(?P<description>.*?)((?P<fields>(\n[a-zA-Z\-]+:[^\n]+)(\n[a-zA-Z\-]+:[^\n]*)*))?)?\n*$`)
-var conventionalCommitRegexNamesLookup = make(map[string]int)
-
-func init() {
-	for index, name := range conventionalCommitRegex.SubexpNames() {
-		if name != "" {
-			conventionalCommitRegexNamesLookup[name] = index
-		}
-	}
-}
+var conventionalCommitRegexLookup = struct {
+	Message     int
+	Description int
+	Fields      int
+}{}
+var conventionalCommitRegex = regexp.MustCompile(`(?s)^((?P<Message>[^\n]+)(?P<Description>.*?)((?P<Fields>(\n[a-zA-Z\-]+:[^\n]+)(\n[a-zA-Z\-]+:[^\n]*)*))?)?\n*$`, &conventionalCommitRegexLookup)
