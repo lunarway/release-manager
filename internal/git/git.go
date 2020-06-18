@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
@@ -179,17 +180,7 @@ func (s *Service) Checkout(ctx context.Context, rootPath string, hash plumbing.H
 func (s *Service) LocateRelease(ctx context.Context, r *git.Repository, artifactID string) (plumbing.Hash, error) {
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateRelease")
 	defer span.Finish()
-	return locate(r, locateReleaseCondition(artifactID), ErrReleaseNotFound)
-}
-
-func locateReleaseCondition(artifactID string) conditionFunc {
-	r := regexp.MustCompile(fmt.Sprintf(`(?i)release %s($|\r\n|\r|\n|\sby\s\S+)`, regexp.QuoteMeta(artifactID)))
-	return func(commitMsg string) bool {
-		if artifactID == "" {
-			return false
-		}
-		return r.MatchString(commitMsg)
-	}
+	return locate(r, commitinfo.LocateReleaseCondition(artifactID), ErrReleaseNotFound)
 }
 
 // LocateServiceRelease traverses the git log to find a release
@@ -200,20 +191,7 @@ func locateReleaseCondition(artifactID string) conditionFunc {
 func (s *Service) LocateServiceRelease(ctx context.Context, r *git.Repository, env, service string) (plumbing.Hash, error) {
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateServiceRelease")
 	defer span.Finish()
-	return locate(r, locateServiceReleaseCondition(env, service), ErrReleaseNotFound)
-}
-
-func locateServiceReleaseCondition(env, service string) conditionFunc {
-	r := regexp.MustCompile(fmt.Sprintf(`(?i)\[%s/%s] release`, regexp.QuoteMeta(env), regexp.QuoteMeta(service)))
-	return func(commitMsg string) bool {
-		if env == "" {
-			return false
-		}
-		if service == "" {
-			return false
-		}
-		return r.MatchString(commitMsg)
-	}
+	return locate(r, commitinfo.LocateServiceReleaseCondition(env, service), ErrReleaseNotFound)
 }
 
 // LocateEnvRelease traverses the git log to find a release
@@ -225,20 +203,7 @@ func (s *Service) LocateEnvRelease(ctx context.Context, r *git.Repository, env, 
 	artifactID = strings.TrimSpace(artifactID)
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateEnvRelease")
 	defer span.Finish()
-	return locate(r, locateEnvReleaseCondition(env, artifactID), ErrReleaseNotFound)
-}
-
-func locateEnvReleaseCondition(env, artifactId string) conditionFunc {
-	r := regexp.MustCompile(fmt.Sprintf(`(?i)\[%s/.*] release %s($|\r\n|\r|\n|\sby\s\S+)`, regexp.QuoteMeta(env), regexp.QuoteMeta(artifactId)))
-	return func(commitMsg string) bool {
-		if env == "" {
-			return false
-		}
-		if artifactId == "" {
-			return false
-		}
-		return r.MatchString(commitMsg)
-	}
+	return locate(r, commitinfo.LocateEnvReleaseCondition(env, artifactID), ErrReleaseNotFound)
 }
 
 // LocateServiceReleaseRollbackSkip traverses the git log to find a release or
@@ -249,39 +214,10 @@ func locateEnvReleaseCondition(env, artifactId string) conditionFunc {
 func (s *Service) LocateServiceReleaseRollbackSkip(ctx context.Context, r *git.Repository, env, service string, n uint) (plumbing.Hash, error) {
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateServiceReleaseRollbackSkip")
 	defer span.Finish()
-	return locate(r, locateServiceReleaseRollbackSkipCondition(env, service, n), ErrReleaseNotFound)
+	return locate(r, commitinfo.LocateServiceReleaseRollbackSkipCondition(env, service, n), ErrReleaseNotFound)
 }
 
-func locateServiceReleaseRollbackSkipCondition(env, service string, n uint) conditionFunc {
-	return func(commitMsg string) bool {
-		releaseOK := locateServiceReleaseCondition(env, service)(commitMsg)
-		rollbackOK := locateServiceRollbackCondition(env, service)(commitMsg)
-		ok := releaseOK || rollbackOK
-		if !ok {
-			return false
-		}
-		if n == 0 {
-			return true
-		}
-		n--
-		return false
-	}
-}
-
-func locateServiceRollbackCondition(env, service string) conditionFunc {
-	r := regexp.MustCompile(fmt.Sprintf(`(?i)\[%s/%s] rollback `, regexp.QuoteMeta(env), regexp.QuoteMeta(service)))
-	return func(commitMsg string) bool {
-		if env == "" {
-			return false
-		}
-		if service == "" {
-			return false
-		}
-		return r.MatchString(commitMsg)
-	}
-}
-
-type conditionFunc func(commitMsg string) bool
+type conditionFunc = func(commitMsg string) bool
 
 func locate(r *git.Repository, condition conditionFunc, notFoundErr error) (plumbing.Hash, error) {
 	hashes, err := locateN(r, condition, notFoundErr, 1)

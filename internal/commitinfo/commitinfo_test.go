@@ -62,7 +62,7 @@ func TestExtractInfoFromCommit(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			info, err := ExtractInfoFromCommit()(tc.commitMessage)
+			info, err := ExtractInfoFromCommit(tc.commitMessage)
 			if tc.err != nil {
 				assert.EqualError(t, errors.Cause(err), tc.err.Error(), "output error not as expected")
 			} else {
