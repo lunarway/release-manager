@@ -33,9 +33,15 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				if err != nil {
 					return err
 				}
-				actions.ReleaseArtifactID(client, *service, environment, artifactID, intent.NewReleaseBranch(branch))
+				err = actions.ReleaseArtifactID(client, *service, environment, artifactID, intent.NewReleaseBranch(branch))
+				if err != nil {
+					return err
+				}
 			case artifact != "":
-				actions.ReleaseArtifactID(client, *service, environment, artifact, intent.NewReleaseArtifact())
+				err := actions.ReleaseArtifactID(client, *service, environment, artifact, intent.NewReleaseArtifact())
+				if err != nil {
+					return err
+				}
 			}
 
 			return nil

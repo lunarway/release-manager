@@ -375,7 +375,12 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 							log.With("s3event", s3event).Infof("Got s3 object creation event on %s which can't be parsed to service and artifact id", record.S3.Object.Key)
 							continue
 						}
-						flowSvc.NewArtifact(ctx, parts[0], parts[1])
+						service := parts[0]
+						artifactID := parts[1]
+						err = flowSvc.NewArtifact(ctx, service, artifactID)
+						if err != nil {
+							return errors.WithMessagef(err, "new artifact for service '%s' artifact id '%s'", service, artifactID)
+						}
 					}
 					return nil
 				}
