@@ -19,7 +19,7 @@ func TestCompile(t *testing.T) {
 	}{
 		{
 			desc:   "using no pointer to lookup",
-			regexp: `(?P<test>)`,
+			regexp: `(?P<Test>)`,
 			lookup: func(cb lookupCallback) {
 				l := struct{ Test int }{}
 				cb(l, nil)
@@ -27,7 +27,39 @@ func TestCompile(t *testing.T) {
 			err: fmt.Errorf("lookup must be a pointer"),
 		},
 		{
-			desc:   "simple",
+			desc:   "using private or lower case property gives error",
+			regexp: `(?P<test>)`,
+			lookup: func(cb lookupCallback) {
+				l := struct{ test int }{}
+				cb(&l, nil)
+			},
+			err: fmt.Errorf("field 'test' in regexp `(?P<test>)` is not capitalized"),
+		},
+		{
+			desc:   "gives error when regexp has named groups lookup don't have",
+			regexp: `(?P<Other>1337)(?P<Test>.*)`,
+			lookup: func(cb lookupCallback) {
+				l := struct {
+					Test int
+				}{}
+				cb(&l, nil)
+			},
+			err: fmt.Errorf("regexp `(?P<Other>1337)(?P<Test>.*)` has named groups not found in lookup: Other"),
+		},
+		{
+			desc:   "gives error when lookup has properties regexp don't have",
+			regexp: `(?P<Test>.*)`,
+			lookup: func(cb lookupCallback) {
+				l := struct {
+					Test  int
+					Other int
+				}{}
+				cb(&l, nil)
+			},
+			err: fmt.Errorf("field 'Other' is not in regexp `(?P<Test>.*)`"),
+		},
+		{
+			desc:   "lookup int properties should match",
 			regexp: `(?P<Other>1337)(?P<Test>.*)`,
 			lookup: func(cb lookupCallback) {
 				l := struct {
