@@ -1,8 +1,7 @@
 package commitinfo
 
 import (
-	"regexp"
-
+	"github.com/lunarway/release-manager/internal/regexp"
 	"github.com/pkg/errors"
 )
 
@@ -14,25 +13,36 @@ type CommitInfo struct {
 }
 
 func ExtractInfoFromCommit(commitMessage string) (CommitInfo, error) {
-	matches := extractInfoFromCommitRegex.FindStringSubmatch(commitMessage)
-	if matches == nil {
-		return CommitInfo{}, errors.New("no match")
+	convInfo, err := ParseCommit(commitMessage)
+	if err != nil {
+		return CommitInfo{}, err
 	}
+
+	matches := extractInfoFromCommitMessageRegex.FindStringSubmatch(convInfo.Message)
+	if matches == nil {
+		return CommitInfo{}, ErrNoMatch
+	}
+	author, err := ParsePerson(convInfo.Fields["Artifact-created-by"])
+	if err != nil && !errors.Is(err, ErrNoMatch) {
+		return CommitInfo{}, err
+	}
+
+	if matches[extractInfoFromCommitMessageRegexLookup.Type] != "artifact" {
+		return CommitInfo{}, ErrNoMatch
+	}
+
 	return CommitInfo{
-		Service:     matches[extractInfoFromCommitRegexNamesLookup["service"]],
-		ArtifactID:  matches[extractInfoFromCommitRegexNamesLookup["artifactID"]],
-		AuthorName:  matches[extractInfoFromCommitRegexNamesLookup["authorName"]],
-		AuthorEmail: matches[extractInfoFromCommitRegexNamesLookup["authorEmail"]],
+		//Type:        matches[extractInfoFromCommitMessageRegexLookup.Type],
+		Service:     matches[extractInfoFromCommitMessageRegexLookup.Service],
+		ArtifactID:  matches[extractInfoFromCommitMessageRegexLookup.ArtifactID],
+		AuthorName:  author.Name,
+		AuthorEmail: author.Email,
 	}, nil
 }
 
-var extractInfoFromCommitRegex = regexp.MustCompile(`^\[(?P<service>.*)\] artifact (?P<artifactID>[^ ]+) by .*\nArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>`)
-var extractInfoFromCommitRegexNamesLookup = make(map[string]int)
-
-func init() {
-	for index, name := range extractInfoFromCommitRegex.SubexpNames() {
-		if name != "" {
-			extractInfoFromCommitRegexNamesLookup[name] = index
-		}
-	}
-}
+var extractInfoFromCommitMessageRegexLookup = struct {
+	Service    int
+	ArtifactID int
+	Type       int
+}{}
+var extractInfoFromCommitMessageRegex = regexp.MustCompile(`^\[(?P<Service>.*)\] (?P<Type>[a-z]+) (?P<ArtifactID>[^ ]+) by .*$`, &extractInfoFromCommitMessageRegexLookup)
