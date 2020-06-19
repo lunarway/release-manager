@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
@@ -40,20 +39,6 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			commitInfo, err := commitinfo.ExtractInfoFromCommit(payload.HeadCommit.Message)
-			if err != nil {
-				logger.Infof("http: github webhook: extract author details from commit failed: message '%s'", payload.HeadCommit.Message)
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-
-			err = flowSvc.NewArtifact(ctx, commitInfo.Service, commitInfo.ArtifactID)
-			if err != nil {
-				logger.Infof("http: github webhook: service '%s': could not publish new artifact event for %s: %v", commitInfo.Service, commitInfo.ArtifactID, err)
-				unknownError(w)
-				return
-			}
-			logger.Infof("http: github webhook: handled successfully: service '%s' commit '%s'", commitInfo.Service, payload.HeadCommit.ID)
 			w.WriteHeader(http.StatusOK)
 			return
 		default:
