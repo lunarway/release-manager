@@ -1,15 +1,20 @@
 package commitinfo
 
 import (
+	"fmt"
+
+	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/regexp"
 	"github.com/pkg/errors"
 )
 
 type CommitInfo struct {
-	ArtifactID  string
-	AuthorName  string
-	AuthorEmail string
-	Service     string
+	ArtifactID        string
+	ArtifactCreatedBy PersonInfo
+	ReleasedBy        PersonInfo
+	Service           string
+	Environment       string
+	Intent            intent.Intent
 }
 
 func ExtractInfoFromCommit(commitMessage string) (CommitInfo, error) {
@@ -20,29 +25,36 @@ func ExtractInfoFromCommit(commitMessage string) (CommitInfo, error) {
 
 	matches := extractInfoFromCommitMessageRegex.FindStringSubmatch(convInfo.Message)
 	if matches == nil {
-		return CommitInfo{}, ErrNoMatch
+		return CommitInfo{}, errors.Wrap(ErrNoMatch, fmt.Sprintf("commit message '%s' does not match expected message structure", convInfo.Message))
 	}
-	author, err := ParsePerson(convInfo.Fields["Artifact-created-by"])
+	artifactCreatedBy, err := ParsePerson(convInfo.Fields["Artifact-created-by"])
 	if err != nil && !errors.Is(err, ErrNoMatch) {
-		return CommitInfo{}, err
+		return CommitInfo{}, errors.Wrap(err, fmt.Sprintf("commit got unknown parsing error of %s with content '%s'", "Artifact-created-by", convInfo.Fields["Artifact-created-by"]))
+	}
+	releasedBy, err := ParsePerson(convInfo.Fields["Artifact-released-by"])
+	if err != nil && !errors.Is(err, ErrNoMatch) {
+		return CommitInfo{}, errors.Wrap(err, fmt.Sprintf("commit got unknown parsing error of %s with content '%s'", "Artifact-released-by", convInfo.Fields["Artifact-released-by"]))
 	}
 
-	if matches[extractInfoFromCommitMessageRegexLookup.Type] != "artifact" {
-		return CommitInfo{}, ErrNoMatch
+	intentObj := ParseIntent(convInfo)
+	if matches[extractInfoFromCommitMessageRegexLookup.Type] == "artifact" {
+		return CommitInfo{}, errors.Wrap(ErrNoMatch, fmt.Sprintf("commit type '%s' is not considered a match", matches[extractInfoFromCommitMessageRegexLookup.Type]))
 	}
 
 	return CommitInfo{
-		//Type:        matches[extractInfoFromCommitMessageRegexLookup.Type],
-		Service:     matches[extractInfoFromCommitMessageRegexLookup.Service],
-		ArtifactID:  matches[extractInfoFromCommitMessageRegexLookup.ArtifactID],
-		AuthorName:  author.Name,
-		AuthorEmail: author.Email,
+		Intent:            intentObj,
+		Environment:       matches[extractInfoFromCommitMessageRegexLookup.Environment],
+		Service:           matches[extractInfoFromCommitMessageRegexLookup.Service],
+		ArtifactID:        matches[extractInfoFromCommitMessageRegexLookup.ArtifactID],
+		ArtifactCreatedBy: artifactCreatedBy,
+		ReleasedBy:        releasedBy,
 	}, nil
 }
 
 var extractInfoFromCommitMessageRegexLookup = struct {
-	Service    int
-	ArtifactID int
-	Type       int
+	Environment int
+	Service     int
+	ArtifactID  int
+	Type        int
 }{}
-var extractInfoFromCommitMessageRegex = regexp.MustCompile(`^\[(?P<Service>.*)\] (?P<Type>[a-z]+) (?P<ArtifactID>[^ ]+) by .*$`, &extractInfoFromCommitMessageRegexLookup)
+var extractInfoFromCommitMessageRegex = regexp.MustCompile(`^\[(?P<Environment>[^/]+)/(?P<Service>.*)\] (?P<Type>[a-z]+) (?P<ArtifactID>[^ ]+) by .*$`, &extractInfoFromCommitMessageRegexLookup)

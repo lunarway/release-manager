@@ -3,11 +3,11 @@ package intent
 import "fmt"
 
 const (
-	TypeReleaseArtifactID = "ReleaseArtifactID"
-	TypeReleaseBranch     = "ReleaseBranch"
-	TypePromote           = "Promote"
-	TypeRollback          = "Rollback"
-	TypeAutoRelease       = "AutoRelease"
+	TypeReleaseArtifact = "ReleaseArtifact"
+	TypeReleaseBranch   = "ReleaseBranch"
+	TypePromote         = "Promote"
+	TypeRollback        = "Rollback"
+	TypeAutoRelease     = "AutoRelease"
 )
 
 type Intent struct {
@@ -26,7 +26,7 @@ type PromoteIntent struct {
 
 func NewReleaseArtifact() Intent {
 	return Intent{
-		Type: TypeReleaseArtifactID,
+		Type: TypeReleaseArtifact,
 	}
 }
 
@@ -72,7 +72,7 @@ func (intent *Intent) AsArtifactWithIntent(artifactID string) string {
 	switch intent.Type {
 	case TypeReleaseBranch:
 		return fmt.Sprintf("branch '%s' with artifact '%s'", intent.ReleaseBranch.Branch, artifactID)
-	case TypeReleaseArtifactID:
+	case TypeReleaseArtifact:
 		return fmt.Sprintf("artifact '%s'", artifactID)
 	case TypePromote:
 		return fmt.Sprintf("promotion from '%s' with artifact '%s'", intent.Promote.FromEnvironment, artifactID)

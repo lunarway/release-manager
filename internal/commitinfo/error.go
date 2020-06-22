@@ -1,9 +1,9 @@
 package commitinfo
 
 import (
-	"errors"
+	"fmt"
 )
 
 var (
-	ErrNoMatch = errors.New("no match")
+	ErrNoMatch = fmt.Errorf("no match")
 )

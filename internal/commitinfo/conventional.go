@@ -14,10 +14,25 @@ type ConventionalCommitInfo struct {
 	Fields      map[string]string
 }
 
+func (i *ConventionalCommitInfo) String() string {
+	txt := i.Message
+	if txt != "" && i.Description != "" {
+		txt = fmt.Sprintf("%s\n\n%s", txt, i.Description)
+	}
+	var fieldLines []string
+	for field, value := range i.Fields {
+		fieldLines = append(fieldLines, fmt.Sprintf("%s: %s", field, value))
+	}
+	if txt != "" && len(fieldLines) > 0 {
+		txt = fmt.Sprintf("%s\n\n%s", txt, strings.Join(fieldLines, "\n"))
+	}
+	return txt
+}
+
 func ParseCommit(commitMessage string) (ConventionalCommitInfo, error) {
 	matches := conventionalCommitRegex.FindStringSubmatch(commitMessage)
 	if matches == nil {
-		return ConventionalCommitInfo{}, errors.New("no match")
+		return ConventionalCommitInfo{}, errors.Wrap(ErrNoMatch, "message does not match expected conventional commit structure")
 	}
 
 	message := strings.Trim(matches[conventionalCommitRegexLookup.Message], "\n")
