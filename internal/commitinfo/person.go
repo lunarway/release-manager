@@ -19,7 +19,7 @@ func NewPersonInfo(name, email string) PersonInfo {
 	}
 }
 
-func (i *PersonInfo) String() string {
+func (i PersonInfo) String() string {
 	return fmt.Sprintf("%s <%s>", i.Name, i.Email)
 }
 

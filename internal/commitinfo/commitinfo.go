@@ -17,8 +17,22 @@ type CommitInfo struct {
 	Intent            intent.Intent
 }
 
-func ExtractInfoFromCommit(commitMessage string) (CommitInfo, error) {
-	convInfo, err := ParseCommit(commitMessage)
+func (i CommitInfo) String() string {
+	cci := ConventionalCommitInfo{
+		Message: fmt.Sprintf("[%s/%s] %s %s by %s", i.Environment, i.Service, "release", i.ArtifactID, i.ReleasedBy.Email),
+		Fields: map[string]string{
+			"Artifact-released-by": i.ReleasedBy.String(),
+			"Artifact-created-by":  i.ArtifactCreatedBy.String(),
+		},
+	}
+
+	AddIntentToConventionalCommitInfo(i.Intent, &cci)
+
+	return cci.String()
+}
+
+func ParseCommitInfo(commitMessage string) (CommitInfo, error) {
+	convInfo, err := ParseConventionalCommit(commitMessage)
 	if err != nil {
 		return CommitInfo{}, err
 	}

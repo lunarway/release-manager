@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestExtractInfoFromCommit(t *testing.T) {
+func TestParseCommitInfo(t *testing.T) {
 	tt := []struct {
 		name          string
 		commitMessage []string
@@ -118,7 +118,7 @@ func TestExtractInfoFromCommit(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			info, err := ExtractInfoFromCommit(strings.Join(tc.commitMessage, "\n"))
+			info, err := ParseCommitInfo(strings.Join(tc.commitMessage, "\n"))
 			if tc.err != nil {
 				assert.EqualError(t, errors.Cause(err), tc.err.Error(), "output error not as expected")
 			} else {

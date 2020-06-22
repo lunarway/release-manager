@@ -14,7 +14,7 @@ type ConventionalCommitInfo struct {
 	Fields      map[string]string
 }
 
-func (i *ConventionalCommitInfo) String() string {
+func (i ConventionalCommitInfo) String() string {
 	txt := i.Message
 	if txt != "" && i.Description != "" {
 		txt = fmt.Sprintf("%s\n\n%s", txt, i.Description)
@@ -29,7 +29,7 @@ func (i *ConventionalCommitInfo) String() string {
 	return txt
 }
 
-func ParseCommit(commitMessage string) (ConventionalCommitInfo, error) {
+func ParseConventionalCommit(commitMessage string) (ConventionalCommitInfo, error) {
 	matches := conventionalCommitRegex.FindStringSubmatch(commitMessage)
 	if matches == nil {
 		return ConventionalCommitInfo{}, errors.Wrap(ErrNoMatch, "message does not match expected conventional commit structure")

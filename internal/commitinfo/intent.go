@@ -18,3 +18,17 @@ func ParseIntent(cci ConventionalCommitInfo) intent.Intent {
 		return intent.NewReleaseArtifact()
 	}
 }
+
+func AddIntentToConventionalCommitInfo(intentObj intent.Intent, cci *ConventionalCommitInfo) {
+	cci.Fields["Release-intent"] = intentObj.Type
+	switch intentObj.Type {
+	case intent.TypeReleaseBranch:
+		cci.Fields["Release-branch"] = intentObj.ReleaseBranch.Branch
+	case intent.TypePromote:
+		cci.Fields["Release-environment"] = intentObj.Promote.FromEnvironment
+	case intent.TypeRollback:
+		// nothing yet
+	case intent.TypeAutoRelease:
+		// nothing yet
+	}
+}

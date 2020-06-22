@@ -1,10 +1,21 @@
 package commitinfo
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/lunarway/release-manager/internal/intent"
+)
 
 // ReleaseCommitMessage returns an artifact release commit message.
-func ReleaseCommitMessage(env, service, artifactID, authorEmail string) string {
-	return fmt.Sprintf("[%s/%s] release %s by %s", env, service, artifactID, authorEmail)
+func ReleaseCommitMessage(env, service, artifactID string, intent intent.Intent, artifactAuthor, releaseAuthor PersonInfo) string {
+	return CommitInfo{
+		Environment:       env,
+		Service:           service,
+		ArtifactID:        artifactID,
+		Intent:            intent,
+		ArtifactCreatedBy: artifactAuthor,
+		ReleasedBy:        releaseAuthor,
+	}.String()
 }
 
 // RollbackCommitMessage returns an artifact rollback commit message.

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseCommit(t *testing.T) {
+func TestParseConventionalCommit(t *testing.T) {
 	tt := []struct {
 		name          string
 		commitMessage string
@@ -104,7 +104,7 @@ func TestParseCommit(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			info, err := ParseCommit(tc.commitMessage)
+			info, err := ParseConventionalCommit(tc.commitMessage)
 			if tc.err != nil {
 				assert.EqualError(t, errors.Cause(err), tc.err.Error(), "output error not as expected")
 			} else {
