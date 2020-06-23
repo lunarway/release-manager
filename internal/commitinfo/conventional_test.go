@@ -101,14 +101,30 @@ func TestParseConventionalCommit(t *testing.T) {
 			},
 			err: nil,
 		},
+		{
+			name:          "empty fields should parse just fine",
+			commitMessage: "[product] artifact test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app\n\nArtifact-created-by:\nArtifact-released-by: Bjørn Hald Sørensen <bso@lunar.app>",
+			commitInfo: ConventionalCommitInfo{
+				Message:     "[product] artifact test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app",
+				Description: "",
+				Fields: map[string]string{
+					"Artifact-created-by":  "",
+					"Artifact-released-by": "Bjørn Hald Sørensen <bso@lunar.app>",
+				},
+			},
+			err: nil,
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			info, err := ParseConventionalCommit(tc.commitMessage)
 			if tc.err != nil {
 				assert.EqualError(t, errors.Cause(err), tc.err.Error(), "output error not as expected")
+				return
 			} else {
-				assert.NoError(t, err, "no output error expected")
+				if !assert.NoError(t, err, "no output error expected") {
+					return
+				}
 			}
 			assert.Equal(t, tc.commitInfo, info, "commitInfo not as expected")
 		})

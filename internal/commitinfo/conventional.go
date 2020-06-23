@@ -43,11 +43,11 @@ func ParseConventionalCommit(commitMessage string) (ConventionalCommitInfo, erro
 	if fieldsText != "" {
 		fieldLines := strings.Split(fieldsText, "\n")
 		for _, fieldLine := range fieldLines {
-			fieldParts := strings.SplitN(fieldLine, ": ", 2)
+			fieldParts := strings.SplitN(fieldLine, ":", 2)
 			if len(fieldParts) != 2 {
-				return ConventionalCommitInfo{}, fmt.Errorf("field line '%s' in commmit could not be parsed", fieldLine)
+				return ConventionalCommitInfo{}, fmt.Errorf("field line '%s' in commit could not be parsed", fieldLine)
 			}
-			fields[fieldParts[0]] = fieldParts[1]
+			fields[fieldParts[0]] = strings.Trim(fieldParts[1], " ")
 		}
 	}
 
@@ -63,4 +63,4 @@ var conventionalCommitRegexLookup = struct {
 	Description int
 	Fields      int
 }{}
-var conventionalCommitRegex = regexp.MustCompile(`(?s)^((?P<Message>[^\n]+)(?P<Description>.*?)((?P<Fields>(\n[a-zA-Z\-]+:[^\n]+)(\n[a-zA-Z\-]+:[^\n]*)*))?)?\n*$`, &conventionalCommitRegexLookup)
+var conventionalCommitRegex = regexp.MustCompile(`(?s)^((?P<Message>[^\n]+)(?P<Description>.*?)((?P<Fields>(\n[a-zA-Z\-]+:[^\n]*)(\n[a-zA-Z\-]+:[^\n]*)*))?)?\n*$`, &conventionalCommitRegexLookup)

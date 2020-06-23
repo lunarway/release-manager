@@ -14,6 +14,7 @@ type Intent struct {
 	Type          string              `json:"type,omitempty"`
 	ReleaseBranch ReleaseBranchIntent `json:"releaseBranch,omitempty"`
 	Promote       PromoteIntent       `json:"promote,omitempty"`
+	Rollback      RollbackIntent      `json:"rollback,omitempty"`
 }
 
 type ReleaseBranchIntent struct {
@@ -22,6 +23,10 @@ type ReleaseBranchIntent struct {
 
 type PromoteIntent struct {
 	FromEnvironment string `json:"fromEnvironment,omitempty"`
+}
+
+type RollbackIntent struct {
+	PreviousArtifactID string `json:"previousArtifactId,omitempty"`
 }
 
 func NewReleaseArtifact() Intent {
@@ -54,9 +59,12 @@ func NewAutoRelease() Intent {
 	}
 }
 
-func NewRollback() Intent {
+func NewRollback(previousArtifactID string) Intent {
 	return Intent{
 		Type: TypeRollback,
+		Rollback: RollbackIntent{
+			PreviousArtifactID: previousArtifactID,
+		},
 	}
 }
 
@@ -77,7 +85,7 @@ func (intent *Intent) AsArtifactWithIntent(artifactID string) string {
 	case TypePromote:
 		return fmt.Sprintf("promotion from '%s' with artifact '%s'", intent.Promote.FromEnvironment, artifactID)
 	case TypeRollback:
-		return fmt.Sprintf("rollback to artifact '%s'", artifactID)
+		return fmt.Sprintf("rollback to artifact '%s' from artifact '%s'", artifactID, intent.Rollback.PreviousArtifactID)
 	case TypeAutoRelease:
 		return fmt.Sprintf("autorelease artifact '%s'", artifactID)
 	default:

@@ -11,7 +11,7 @@ func ParseIntent(cci ConventionalCommitInfo) intent.Intent {
 	case intent.TypePromote:
 		return intent.NewPromoteEnvironment(cci.Fields["Release-environment"])
 	case intent.TypeRollback:
-		return intent.NewRollback()
+		return intent.NewRollback(cci.Fields["Release-rollback-of-artifact-id"])
 	case intent.TypeAutoRelease:
 		return intent.NewAutoRelease()
 	default:
@@ -27,7 +27,7 @@ func AddIntentToConventionalCommitInfo(intentObj intent.Intent, cci *Conventiona
 	case intent.TypePromote:
 		cci.Fields["Release-environment"] = intentObj.Promote.FromEnvironment
 	case intent.TypeRollback:
-		// nothing yet
+		cci.Fields["Release-rollback-of-artifact-id"] = intentObj.Rollback.PreviousArtifactID
 	case intent.TypeAutoRelease:
 		// nothing yet
 	}

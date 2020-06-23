@@ -115,14 +115,40 @@ func TestParseCommitInfo(t *testing.T) {
 				Intent:            intent.NewReleaseBranch("test-s3-push"),
 			},
 		},
+		{
+			name: "release with rollback release intent with should match",
+			commitMessage: []string{
+				"[prod/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app",
+				"",
+				"Artifact-ID: test-s3-push-f4440b4ccb-1ba3085aa7",
+				"Service: product",
+				"Environment: prod",
+				"Release-rollback-of-artifact-id:",
+				"Artifact-created-by: Emil Ingerslev <eki@lunar.app>",
+				"Artifact-released-by: Bjørn Hald Sørensen <bso@lunar.app>",
+				"Release-intent: ReleaseBranch",
+				"Release-branch: test-s3-push",
+			},
+			commitInfo: CommitInfo{
+				ArtifactID:        "test-s3-push-f4440b4ccb-1ba3085aa7",
+				Environment:       "prod",
+				Service:           "product",
+				ArtifactCreatedBy: NewPersonInfo("Emil Ingerslev", "eki@lunar.app"),
+				ReleasedBy:        NewPersonInfo("Bjørn Hald Sørensen", "bso@lunar.app"),
+				Intent:            intent.NewReleaseBranch("test-s3-push"),
+			},
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			info, err := ParseCommitInfo(strings.Join(tc.commitMessage, "\n"))
 			if tc.err != nil {
 				assert.EqualError(t, errors.Cause(err), tc.err.Error(), "output error not as expected")
+				return
 			} else {
-				assert.NoError(t, err, "no output error expected")
+				if !assert.NoError(t, err, "no output error expected") {
+					return
+				}
 			}
 			assert.Equal(t, tc.commitInfo, info, "commitInfo not as expected")
 		})
