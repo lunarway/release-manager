@@ -236,39 +236,6 @@ type DeletePolicyResponse struct {
 	Count   int    `json:"count,omitempty"`
 }
 
-type RollbackRequest struct {
-	Service        string `json:"service,omitempty"`
-	Namespace      string `json:"namespace,omitempty"`
-	Environment    string `json:"environment,omitempty"`
-	CommitterName  string `json:"committerName,omitempty"`
-	CommitterEmail string `json:"committerEmail,omitempty"`
-}
-
-func (r RollbackRequest) Validate(w http.ResponseWriter) bool {
-	var errs validationErrors
-	if emptyString(r.Service) {
-		errs.Append("service")
-	}
-	if emptyString(r.Environment) {
-		errs.Append("environment")
-	}
-	if emptyString(r.CommitterName) {
-		errs.Append("committerName")
-	}
-	if emptyString(r.CommitterEmail) {
-		errs.Append("committerEmail")
-	}
-	return errs.Evaluate(w)
-}
-
-type RollbackResponse struct {
-	Service            string `json:"service,omitempty"`
-	Status             string `json:"status,omitempty"`
-	Environment        string `json:"environment,omitempty"`
-	PreviousArtifactID string `json:"previousArtifactId,omitempty"`
-	NewArtifactID      string `json:"newArtifactId,omitempty"`
-}
-
 type DescribeReleaseResponse struct {
 	Service     string                           `json:"service,omitempty"`
 	Environment string                           `json:"environment,omitempty"`
