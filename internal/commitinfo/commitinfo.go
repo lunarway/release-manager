@@ -8,6 +8,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	FieldService            = "Service"
+	FieldEnvironment        = "Environment"
+	FieldArtifactID         = "Artifact-ID"
+	FieldArtifactReleasedBy = "Artifact-released-by"
+	FieldArtifactCreatedBy  = "Artifact-created-by"
+)
+
 type CommitInfo struct {
 	ArtifactID        string
 	ArtifactCreatedBy PersonInfo
@@ -21,8 +29,11 @@ func (i CommitInfo) String() string {
 	cci := ConventionalCommitInfo{
 		Message: fmt.Sprintf("[%s/%s] %s %s by %s", i.Environment, i.Service, "release", i.ArtifactID, i.ReleasedBy.Email),
 		Fields: map[string]string{
-			"Artifact-released-by": i.ReleasedBy.String(),
-			"Artifact-created-by":  i.ArtifactCreatedBy.String(),
+			FieldService:            i.Service,
+			FieldEnvironment:        i.Environment,
+			FieldArtifactID:         i.ArtifactID,
+			FieldArtifactReleasedBy: i.ReleasedBy.String(),
+			FieldArtifactCreatedBy:  i.ArtifactCreatedBy.String(),
 		},
 	}
 
@@ -55,11 +66,24 @@ func ParseCommitInfo(commitMessage string) (CommitInfo, error) {
 		return CommitInfo{}, errors.Wrap(ErrNoMatch, fmt.Sprintf("commit type '%s' is not considered a match", matches[extractInfoFromCommitMessageRegexLookup.Type]))
 	}
 
+	service := convInfo.Fields[FieldService]
+	if service == "" {
+		service = matches[extractInfoFromCommitMessageRegexLookup.Service]
+	}
+	environment := convInfo.Fields[FieldEnvironment]
+	if environment == "" {
+		environment = matches[extractInfoFromCommitMessageRegexLookup.Environment]
+	}
+	artifactID := convInfo.Fields[FieldArtifactID]
+	if artifactID == "" {
+		artifactID = matches[extractInfoFromCommitMessageRegexLookup.ArtifactID]
+	}
+
 	return CommitInfo{
 		Intent:            intentObj,
-		Environment:       matches[extractInfoFromCommitMessageRegexLookup.Environment],
-		Service:           matches[extractInfoFromCommitMessageRegexLookup.Service],
-		ArtifactID:        matches[extractInfoFromCommitMessageRegexLookup.ArtifactID],
+		Service:           service,
+		Environment:       environment,
+		ArtifactID:        artifactID,
 		ArtifactCreatedBy: artifactCreatedBy,
 		ReleasedBy:        releasedBy,
 	}, nil
