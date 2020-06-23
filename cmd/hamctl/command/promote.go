@@ -1,6 +1,8 @@
 package command
 
 import (
+	"fmt"
+
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
@@ -40,6 +42,7 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 				return err
 			}
 
+			fmt.Printf("Promote of service: %s\n", *service)
 			return actions.ReleaseArtifactID(client, *service, toEnvironment, artifactID, intent.NewPromoteEnvironment(fromEnvironment))
 		},
 	}

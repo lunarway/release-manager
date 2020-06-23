@@ -30,7 +30,6 @@ func ReleaseArtifactID(client *httpinternal.Client, service, environment, artifa
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Release of service: %s\n", service)
 	if resp.Status != "" {
 		fmt.Printf("%s\n", resp.Status)
 	} else {

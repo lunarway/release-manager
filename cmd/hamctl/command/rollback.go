@@ -2,16 +2,16 @@ package command
 
 import (
 	"fmt"
-	"net/http"
 
+	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
-	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/spf13/cobra"
 )
 
 func NewRollback(client *httpinternal.Client, service *string) *cobra.Command {
-	var environment, namespace string
+	var environment, namespace, artifactID string
 	var command = &cobra.Command{
 		Use:   "rollback",
 		Short: `Rollback to the previous artifact in an environment.`,
@@ -32,31 +32,50 @@ has no effect.`,
 			})
 		},
 		RunE: func(c *cobra.Command, args []string) error {
-			committerName, committerEmail, err := git.CommitterDetails()
-			if err != nil {
-				return err
-			}
-			var resp httpinternal.RollbackResponse
-			path, err := client.URL("rollback")
-			if err != nil {
-				return err
-			}
-			err = client.Do(http.MethodPost, path, httpinternal.RollbackRequest{
-				Service:        *service,
-				Namespace:      namespace,
-				Environment:    environment,
-				CommitterName:  committerName,
-				CommitterEmail: committerEmail,
-			}, &resp)
-			if err != nil {
-				return err
+			var currentRelease httpinternal.DescribeReleaseResponseRelease
+			var rollbackTo *httpinternal.DescribeReleaseResponseRelease
+
+			if artifactID == "" {
+				releases, err := actions.ReleasesFromEnvironment(client, *service, environment, 2)
+				if err != nil {
+					return err
+				}
+
+				if len(releases) < 2 {
+					return fmt.Errorf("can't do rollback, because there isn't a release to rollback to")
+				}
+				currentRelease = releases[0]
+				rollbackTo = &releases[1]
+			} else {
+				releases, err := actions.ReleasesFromEnvironment(client, *service, environment, 10)
+				if err != nil {
+					return err
+				}
+
+				for _, release := range releases {
+					if release.Artifact.ID != artifactID {
+						continue
+					}
+					rollbackTo = &release
+					break
+				}
+
+				if rollbackTo == nil {
+					return fmt.Errorf("can't do rollback, because the artifact '%s' ins't found in the last 10 releases", artifactID)
+				}
+				currentRelease = releases[0]
 			}
 			fmt.Printf("Rollback of service: %s\n", *service)
-			if resp.Status != "" {
-				fmt.Printf("%s\n", resp.Status)
+
+			err := actions.ReleaseArtifactID(client, *service, environment, rollbackTo.Artifact.ID, intent.NewRollback(currentRelease.Artifact.ID))
+			if err != nil {
+				fmt.Printf("[X] Rollback of artifact '%s' failed\n", currentRelease.Artifact.ID)
+				fmt.Printf("    Error:\n")
+				fmt.Printf("    %s\n", err)
+				return err
 			}
-			fmt.Printf("[✓] Rollback of artifact '%s' initiated\n", resp.PreviousArtifactID)
-			fmt.Printf("    Release of '%s' to '%s'\n", resp.NewArtifactID, resp.Environment)
+			fmt.Printf("[✓] Rollback of artifact '%s' initiated\n", currentRelease.Artifact.ID)
+			fmt.Printf("    Release of '%s' to '%s'\n", rollbackTo.Artifact.ID, environment)
 
 			return nil
 		},
@@ -69,5 +88,6 @@ has no effect.`,
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	command.Flags().StringVarP(&namespace, "namespace", "n", "", "namespace the service is deployed to (defaults to env)")
 	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")
+	command.Flags().StringVarP(&artifactID, "artifact-id", "", "", "artifact to roll back to. Defaults to previous artifact")
 	return command
 }

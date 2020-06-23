@@ -1,6 +1,8 @@
 package command
 
 import (
+	"fmt"
+
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
@@ -33,11 +35,13 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				if err != nil {
 					return err
 				}
+				fmt.Printf("Release of service %s using branch %s\n", *service, branch)
 				err = actions.ReleaseArtifactID(client, *service, environment, artifactID, intent.NewReleaseBranch(branch))
 				if err != nil {
 					return err
 				}
 			case artifact != "":
+				fmt.Printf("Release of service: %s\n", *service)
 				err := actions.ReleaseArtifactID(client, *service, environment, artifact, intent.NewReleaseArtifact())
 				if err != nil {
 					return err
