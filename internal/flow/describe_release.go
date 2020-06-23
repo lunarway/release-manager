@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
@@ -60,6 +61,11 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 			return DescribeReleaseResponse{}, errors.WithMessagef(err, "get commit at hash '%s'", hash)
 		}
 
+		commitInfo, err := commitinfo.ParseCommitInfo(commitObj.Message)
+		if err != nil {
+			return DescribeReleaseResponse{}, errors.WithMessagef(err, "parse commit info at hash '%s'", hash)
+		}
+
 		currentNamespace := ""
 
 		r := regexp.MustCompile(fmt.Sprintf(`^(?P<environment>[^/]+)/releases/(?P<namespace>[^/]+)/(?P<service>[^/]+)/%s$`, regexp.QuoteMeta(s.ArtifactFileName)))
@@ -97,8 +103,8 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 			DefaultNamespaces: currentNamespace == environment,
 			ReleaseIndex:      int(currentOffset),
 			ReleasedAt:        commitObj.Committer.When,
-			ReleasedByEmail:   commitObj.Committer.Email,
-			ReleasedByName:    commitObj.Committer.Name,
+			ReleasedByEmail:   commitInfo.ReleasedBy.Email,
+			ReleasedByName:    commitInfo.ReleasedBy.Name,
 		})
 
 		currentOffset++
