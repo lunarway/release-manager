@@ -36,9 +36,12 @@ Environment: {{ .Environment }}
    {{ if ne (len .Artifact.Namespace) 0 -}}
    Namespace:  {{ .Artifact.Namespace }}
    {{ end -}}
+   Artifact from: {{ .Artifact.CI.End.Format "2006-01-02 15:04:03" }}
+   Artifact by: {{ .Artifact.Application.CommitterName }} ({{ .Artifact.Application.CommitterEmail }})
    Released at: {{ .ReleasedAt.Format "2006-01-02 15:04:03" }}
    Released by: {{ .ReleasedByName }} ({{ .ReleasedByEmail }})
    Commit: {{ .Artifact.Application.URL }}
+   Message: {{ .Artifact.Application.Message }}
 {{ end }}
 `
 
