@@ -58,10 +58,15 @@ func ParseCommitInfo(commitMessage string) (CommitInfo, error) {
 		return CommitInfo{}, err
 	}
 
-	matches := extractInfoFromCommitMessageRegex.FindStringSubmatch(convInfo.Message)
+	matches := parseCommitInfoFromCommitMessageRegex.FindStringSubmatch(convInfo.Message)
 	if matches == nil {
 		return CommitInfo{}, errors.Wrap(ErrNoMatch, fmt.Sprintf("commit message '%s' does not match expected message structure", convInfo.Message))
 	}
+
+	if matches[parseCommitInfoFromCommitMessageRegexLookup.Type] == "artifact" {
+		return CommitInfo{}, errors.Wrap(ErrNoMatch, fmt.Sprintf("commit type '%s' is not considered a match", matches[parseCommitInfoFromCommitMessageRegexLookup.Type]))
+	}
+
 	artifactCreatedBy, err := ParsePerson(convInfo.Field("Artifact-created-by"))
 	if err != nil && !errors.Is(err, ErrNoMatch) {
 		return CommitInfo{}, errors.Wrap(err, fmt.Sprintf("commit got unknown parsing error of %s with content '%s'", "Artifact-created-by", convInfo.Field("Artifact-created-by")))
@@ -70,26 +75,22 @@ func ParseCommitInfo(commitMessage string) (CommitInfo, error) {
 	if err != nil && !errors.Is(err, ErrNoMatch) {
 		return CommitInfo{}, errors.Wrap(err, fmt.Sprintf("commit got unknown parsing error of %s with content '%s'", "Artifact-released-by", convInfo.Field("Artifact-released-by")))
 	}
-
 	intentObj := ParseIntent(convInfo)
-	if matches[extractInfoFromCommitMessageRegexLookup.Type] == "artifact" {
-		return CommitInfo{}, errors.Wrap(ErrNoMatch, fmt.Sprintf("commit type '%s' is not considered a match", matches[extractInfoFromCommitMessageRegexLookup.Type]))
-	}
 
 	service := convInfo.Field(FieldService)
 	if service == "" {
-		service = matches[extractInfoFromCommitMessageRegexLookup.Service]
+		service = matches[parseCommitInfoFromCommitMessageRegexLookup.Service]
 	}
 	environment := convInfo.Field(FieldEnvironment)
 	if environment == "" {
-		environment = matches[extractInfoFromCommitMessageRegexLookup.Environment]
+		environment = matches[parseCommitInfoFromCommitMessageRegexLookup.Environment]
 	}
 	artifactID := convInfo.Field(FieldArtifactID)
 	if artifactID == "" {
-		artifactID = matches[extractInfoFromCommitMessageRegexLookup.ArtifactID]
+		artifactID = matches[parseCommitInfoFromCommitMessageRegexLookup.ArtifactID]
 	}
 	if releasedBy.Email == "" {
-		releasedBy = NewPersonInfo("", matches[extractInfoFromCommitMessageRegexLookup.ReleaseByEmail])
+		releasedBy = NewPersonInfo("", matches[parseCommitInfoFromCommitMessageRegexLookup.ReleaseByEmail])
 	}
 
 	return CommitInfo{
@@ -102,11 +103,11 @@ func ParseCommitInfo(commitMessage string) (CommitInfo, error) {
 	}, nil
 }
 
-var extractInfoFromCommitMessageRegexLookup = struct {
+var parseCommitInfoFromCommitMessageRegexLookup = struct {
 	Environment    int
 	Service        int
 	ArtifactID     int
 	Type           int
 	ReleaseByEmail int
 }{}
-var extractInfoFromCommitMessageRegex = regexp.MustCompile(`^\[(?P<Environment>[^/]+)/(?P<Service>.*)\] (?P<Type>[a-z]+) (?P<ArtifactID>[^ ]+) by (?P<ReleaseByEmail>.*)$`, &extractInfoFromCommitMessageRegexLookup)
+var parseCommitInfoFromCommitMessageRegex = regexp.MustCompile(`^\[(?P<Environment>[^/]+)/(?P<Service>.*)\] (?P<Type>[a-z]+) (?P<ArtifactID>[^ ]+) by (?P<ReleaseByEmail>.*)$`, &parseCommitInfoFromCommitMessageRegexLookup)
