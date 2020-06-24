@@ -42,10 +42,9 @@ Environment: {{ .Environment }}
    Released by: {{ .ReleasedByName }} ({{ .ReleasedByEmail }})
    Commit: {{ .Artifact.Application.URL }}
    Message: {{ .Artifact.Application.Message }}
+   Intent: {{ .Intent | printIntent }}
 {{ end }}
 `
-
-// TODO: Add intent 👆 Intent: {{ .Intent.String() }}
 
 func newDescribeRelease(client *httpinternal.Client, service *string) *cobra.Command {
 	var environment, namespace, template string

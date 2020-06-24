@@ -9,6 +9,7 @@ import (
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/git"
+	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 )
@@ -24,6 +25,7 @@ type DescribeReleaseResponseRelease struct {
 	ReleasedAt        time.Time
 	ReleasedByEmail   string
 	ReleasedByName    string
+	Intent            intent.Intent
 }
 
 // DescribeRelease returns information about a specific release in an environment.
@@ -105,6 +107,7 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 			ReleasedAt:        commitObj.Committer.When,
 			ReleasedByEmail:   commitInfo.ReleasedBy.Email,
 			ReleasedByName:    commitInfo.ReleasedBy.Name,
+			Intent:            commitInfo.Intent,
 		})
 
 		currentOffset++

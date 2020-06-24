@@ -123,7 +123,7 @@ func describeRelease(ctx context.Context, payload *payload, flowSvc *flow.Servic
 				ReleasedAt:      release.ReleasedAt,
 				ReleasedByName:  release.ReleasedByName,
 				ReleasedByEmail: release.ReleasedByEmail,
-				// TODO: Add Intent:,
+				Intent:          release.Intent,
 			})
 		}
 

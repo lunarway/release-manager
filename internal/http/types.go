@@ -247,7 +247,7 @@ type DescribeReleaseResponseRelease struct {
 	ReleasedAt      time.Time     `json:"releasedAt,omitempty"`
 	ReleasedByEmail string        `json:"releasedByEmail,omitempty"`
 	ReleasedByName  string        `json:"releasedByName,omitempty"`
-	Intent          string        `json:"intent,omitempty"`
+	Intent          intent.Intent `json:"intent,omitempty"`
 }
 
 type DescribeArtifactResponse struct {
