@@ -180,7 +180,13 @@ func (s *Service) Checkout(ctx context.Context, rootPath string, hash plumbing.H
 func (s *Service) LocateRelease(ctx context.Context, r *git.Repository, artifactID string) (plumbing.Hash, error) {
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateRelease")
 	defer span.Finish()
-	return locate(r, commitinfo.LocateReleaseCondition(artifactID), ErrReleaseNotFound)
+	return locate(r, locateReleaseCondition(artifactID), ErrReleaseNotFound)
+}
+
+func locateReleaseCondition(artifactID string) conditionFunc {
+	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
+		return c.ArtifactID == artifactID
+	})
 }
 
 // LocateServiceRelease traverses the git log to find a release
@@ -191,7 +197,13 @@ func (s *Service) LocateRelease(ctx context.Context, r *git.Repository, artifact
 func (s *Service) LocateServiceRelease(ctx context.Context, r *git.Repository, env, service string) (plumbing.Hash, error) {
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateServiceRelease")
 	defer span.Finish()
-	return locate(r, commitinfo.LocateServiceReleaseCondition(env, service), ErrReleaseNotFound)
+	return locate(r, locateServiceReleaseCondition(env, service), ErrReleaseNotFound)
+}
+
+func locateServiceReleaseCondition(env, service string) conditionFunc {
+	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
+		return c.Service == service && c.Environment == env
+	})
 }
 
 // LocateEnvRelease traverses the git log to find a release
@@ -203,7 +215,13 @@ func (s *Service) LocateEnvRelease(ctx context.Context, r *git.Repository, env, 
 	artifactID = strings.TrimSpace(artifactID)
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateEnvRelease")
 	defer span.Finish()
-	return locate(r, commitinfo.LocateEnvReleaseCondition(env, artifactID), ErrReleaseNotFound)
+	return locate(r, locateEnvReleaseCondition(env, artifactID), ErrReleaseNotFound)
+}
+
+func locateEnvReleaseCondition(env, artifactID string) conditionFunc {
+	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
+		return c.ArtifactID == artifactID && c.Environment == env
+	})
 }
 
 // LocateServiceReleaseRollbackSkip traverses the git log to find a release or
@@ -214,7 +232,21 @@ func (s *Service) LocateEnvRelease(ctx context.Context, r *git.Repository, env, 
 func (s *Service) LocateServiceReleaseRollbackSkip(ctx context.Context, r *git.Repository, env, service string, n uint) (plumbing.Hash, error) {
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateServiceReleaseRollbackSkip")
 	defer span.Finish()
-	return locate(r, commitinfo.LocateServiceReleaseRollbackSkipCondition(env, service, n), ErrReleaseNotFound)
+	return locate(r, locateServiceReleaseRollbackSkipCondition(env, service, n), ErrReleaseNotFound)
+}
+
+func locateServiceReleaseRollbackSkipCondition(env, service string, n uint) conditionFunc {
+	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
+		ok := c.Environment == env && c.Service == service
+		if !ok {
+			return false
+		}
+		if n == 0 {
+			return true
+		}
+		n--
+		return false
+	})
 }
 
 type conditionFunc = func(commitMsg string) bool
