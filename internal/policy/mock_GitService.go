@@ -37,13 +37,13 @@ func (_m *MockGitService) Clone(_a0 context.Context, _a1 string) (*git.Repositor
 	return r0, r1
 }
 
-// Commit provides a mock function with given fields: ctx, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg
-func (_m *MockGitService) Commit(ctx context.Context, rootPath string, changesPath string, authorName string, authorEmail string, committerName string, committerEmail string, msg string) error {
-	ret := _m.Called(ctx, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg)
+// Commit provides a mock function with given fields: ctx, rootPath, changesPath, msg
+func (_m *MockGitService) Commit(ctx context.Context, rootPath string, changesPath string, msg string) error {
+	ret := _m.Called(ctx, rootPath, changesPath, msg)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, string, string, string) error); ok {
-		r0 = rf(ctx, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
+		r0 = rf(ctx, rootPath, changesPath, msg)
 	} else {
 		r0 = ret.Error(0)
 	}

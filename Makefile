@@ -45,6 +45,9 @@ endif
 test:
 	go test -v ./...
 
+generate_mock:
+	mockery -dir ./internal/policy -inpkg -name GitService
+
 integration-test: rabbitmq-background
 	@echo "Running integration tests against RabbitMQ on localhost"
 ifneq ($(VERBOSE),)
