@@ -75,7 +75,7 @@ func ParseCommitInfo(commitMessage string) (CommitInfo, error) {
 	if err != nil && !errors.Is(err, ErrNoMatch) {
 		return CommitInfo{}, errors.Wrap(err, fmt.Sprintf("commit got unknown parsing error of %s with content '%s'", "Artifact-released-by", convInfo.Field("Artifact-released-by")))
 	}
-	intentObj := ParseIntent(convInfo)
+	intentObj := ParseIntent(convInfo, matches)
 
 	service := convInfo.Field(FieldService)
 	if service == "" {
@@ -104,10 +104,11 @@ func ParseCommitInfo(commitMessage string) (CommitInfo, error) {
 }
 
 var parseCommitInfoFromCommitMessageRegexLookup = struct {
-	Environment    int
-	Service        int
-	ArtifactID     int
-	Type           int
-	ReleaseByEmail int
+	Environment        int
+	Service            int
+	ArtifactID         int
+	PreviousArtifactID int
+	Type               int
+	ReleaseByEmail     int
 }{}
-var parseCommitInfoFromCommitMessageRegex = regexp.MustCompile(`^\[(?P<Environment>[^/]+)/(?P<Service>.*)\] (?P<Type>[a-z]+) (?P<ArtifactID>[^ ]+) by (?P<ReleaseByEmail>.*)$`, &parseCommitInfoFromCommitMessageRegexLookup)
+var parseCommitInfoFromCommitMessageRegex = regexp.MustCompile(`^\[(?P<Environment>[^/]+)/(?P<Service>.*)\] (?P<Type>[a-z]+)( (?P<PreviousArtifactID>[^ ]+) to)? (?P<ArtifactID>[^ ]+)( by (?P<ReleaseByEmail>.*))?$`, &parseCommitInfoFromCommitMessageRegexLookup)

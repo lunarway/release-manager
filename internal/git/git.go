@@ -184,8 +184,11 @@ func (s *Service) LocateRelease(ctx context.Context, r *git.Repository, artifact
 }
 
 func locateReleaseCondition(artifactID string) conditionFunc {
+	if artifactID == "" {
+		return falseConditionFunc
+	}
 	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
-		return c.ArtifactID == artifactID
+		return strings.ToLower(c.ArtifactID) == strings.ToLower(artifactID)
 	})
 }
 
@@ -201,8 +204,11 @@ func (s *Service) LocateServiceRelease(ctx context.Context, r *git.Repository, e
 }
 
 func locateServiceReleaseCondition(env, service string) conditionFunc {
+	if env == "" || service == "" {
+		return falseConditionFunc
+	}
 	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
-		return c.Service == service && c.Environment == env
+		return strings.ToLower(c.Service) == strings.ToLower(service) && strings.ToLower(c.Environment) == strings.ToLower(env)
 	})
 }
 
@@ -219,8 +225,11 @@ func (s *Service) LocateEnvRelease(ctx context.Context, r *git.Repository, env, 
 }
 
 func locateEnvReleaseCondition(env, artifactID string) conditionFunc {
+	if env == "" || artifactID == "" {
+		return falseConditionFunc
+	}
 	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
-		return c.ArtifactID == artifactID && c.Environment == env
+		return strings.ToLower(c.ArtifactID) == strings.ToLower(artifactID) && strings.ToLower(c.Environment) == strings.ToLower(env)
 	})
 }
 
@@ -236,8 +245,11 @@ func (s *Service) LocateServiceReleaseRollbackSkip(ctx context.Context, r *git.R
 }
 
 func locateServiceReleaseRollbackSkipCondition(env, service string, n uint) conditionFunc {
+	if env == "" || service == "" {
+		return falseConditionFunc
+	}
 	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
-		ok := c.Environment == env && c.Service == service
+		ok := strings.ToLower(c.Environment) == strings.ToLower(env) && strings.ToLower(c.Service) == strings.ToLower(service)
 		if !ok {
 			return false
 		}
@@ -583,3 +595,5 @@ func parseConfig(path string) (config.Config, error) {
 	}
 	return c, nil
 }
+
+func falseConditionFunc(commitMsg string) bool { return false }
