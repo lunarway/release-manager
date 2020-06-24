@@ -20,8 +20,8 @@ func TestParseConventionalCommit(t *testing.T) {
 			commitInfo: ConventionalCommitInfo{
 				Message:     "[test-service] artifact master-1234ds13g3-12s46g356g by Foo Bar",
 				Description: "",
-				Fields: map[string]string{
-					"Artifact-created-by": "Foo Bar <test@lunar.app>",
+				Fields: []Field{
+					NewField("Artifact-created-by", "Foo Bar <test@lunar.app>"),
 				},
 			},
 
@@ -33,8 +33,8 @@ func TestParseConventionalCommit(t *testing.T) {
 			commitInfo: ConventionalCommitInfo{
 				Message:     "[test-service] artifact master-1234ds13g3-12s46g356g by test@lunar.app",
 				Description: "",
-				Fields: map[string]string{
-					"Artifact-created-by": "Foo Bar <test@lunar.app>",
+				Fields: []Field{
+					NewField("Artifact-created-by", "Foo Bar <test@lunar.app>"),
 				},
 			},
 			err: nil,
@@ -45,7 +45,7 @@ func TestParseConventionalCommit(t *testing.T) {
 			commitInfo: ConventionalCommitInfo{
 				Message:     "[product] build something",
 				Description: "",
-				Fields:      map[string]string{},
+				Fields:      nil,
 			},
 			err: nil,
 		},
@@ -55,9 +55,9 @@ func TestParseConventionalCommit(t *testing.T) {
 			commitInfo: ConventionalCommitInfo{
 				Message:     "[dev/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app",
 				Description: "",
-				Fields: map[string]string{
-					"Artifact-created-by":  "Emil Ingerslev <eki@lunar.app>",
-					"Artifact-released-by": "Bjørn Hald Sørensen <bso@lunar.app>",
+				Fields: []Field{
+					NewField("Artifact-created-by", "Emil Ingerslev <eki@lunar.app>"),
+					NewField("Artifact-released-by", "Bjørn Hald Sørensen <bso@lunar.app>"),
 				},
 			},
 			err: nil,
@@ -68,9 +68,9 @@ func TestParseConventionalCommit(t *testing.T) {
 			commitInfo: ConventionalCommitInfo{
 				Message:     "[product] artifact test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app",
 				Description: "",
-				Fields: map[string]string{
-					"Artifact-created-by":  "Emil Ingerslev <eki@lunar.app>",
-					"Artifact-released-by": "Bjørn Hald Sørensen <bso@lunar.app>",
+				Fields: []Field{
+					NewField("Artifact-created-by", "Emil Ingerslev <eki@lunar.app>"),
+					NewField("Artifact-released-by", "Bjørn Hald Sørensen <bso@lunar.app>"),
 				},
 			},
 			err: nil,
@@ -82,9 +82,9 @@ func TestParseConventionalCommit(t *testing.T) {
 			commitInfo: ConventionalCommitInfo{
 				Message:     "[product] artifact test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app",
 				Description: "Some description",
-				Fields: map[string]string{
-					"Artifact-created-by":  "Emil Ingerslev <eki@lunar.app>",
-					"Artifact-released-by": "Bjørn Hald Sørensen <bso@lunar.app>",
+				Fields: []Field{
+					NewField("Artifact-created-by", "Emil Ingerslev <eki@lunar.app>"),
+					NewField("Artifact-released-by", "Bjørn Hald Sørensen <bso@lunar.app>"),
 				},
 			},
 		},
@@ -94,9 +94,9 @@ func TestParseConventionalCommit(t *testing.T) {
 			commitInfo: ConventionalCommitInfo{
 				Message:     "[product] artifact test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app",
 				Description: "Some description",
-				Fields: map[string]string{
-					"Artifact-created-by":  "Emil Ingerslev <eki@lunar.app>",
-					"Artifact-released-by": "Bjørn Hald Sørensen <bso@lunar.app>",
+				Fields: []Field{
+					NewField("Artifact-created-by", "Emil Ingerslev <eki@lunar.app>"),
+					NewField("Artifact-released-by", "Bjørn Hald Sørensen <bso@lunar.app>"),
 				},
 			},
 			err: nil,
@@ -107,9 +107,9 @@ func TestParseConventionalCommit(t *testing.T) {
 			commitInfo: ConventionalCommitInfo{
 				Message:     "[product] artifact test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app",
 				Description: "",
-				Fields: map[string]string{
-					"Artifact-created-by":  "",
-					"Artifact-released-by": "Bjørn Hald Sørensen <bso@lunar.app>",
+				Fields: []Field{
+					NewField("Artifact-created-by", ""),
+					NewField("Artifact-released-by", "Bjørn Hald Sørensen <bso@lunar.app>"),
 				},
 			},
 			err: nil,

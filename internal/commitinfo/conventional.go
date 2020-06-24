@@ -11,7 +11,33 @@ import (
 type ConventionalCommitInfo struct {
 	Message     string
 	Description string
-	Fields      map[string]string
+	Fields      []Field
+}
+
+type Field struct {
+	Name  string
+	Value string
+}
+
+func NewField(name, value string) Field {
+	return Field{Name: name, Value: value}
+}
+
+func (i ConventionalCommitInfo) Field(name string) string {
+	for _, field := range i.Fields {
+		if field.Name == name {
+			return field.Value
+		}
+	}
+	return ""
+}
+func (i *ConventionalCommitInfo) SetField(name string, value string) {
+	for _, field := range i.Fields {
+		if field.Name == name {
+			field.Value = value
+		}
+	}
+	i.Fields = append(i.Fields, NewField(name, value))
 }
 
 func (i ConventionalCommitInfo) String() string {
@@ -20,8 +46,8 @@ func (i ConventionalCommitInfo) String() string {
 		txt = fmt.Sprintf("%s\n\n%s", txt, i.Description)
 	}
 	var fieldLines []string
-	for field, value := range i.Fields {
-		fieldLines = append(fieldLines, fmt.Sprintf("%s: %s", field, value))
+	for _, field := range i.Fields {
+		fieldLines = append(fieldLines, fmt.Sprintf("%s: %s", field.Name, field.Value))
 	}
 	if txt != "" && len(fieldLines) > 0 {
 		txt = fmt.Sprintf("%s\n\n%s", txt, strings.Join(fieldLines, "\n"))
@@ -39,7 +65,7 @@ func ParseConventionalCommit(commitMessage string) (ConventionalCommitInfo, erro
 	description := strings.Trim(matches[conventionalCommitRegexLookup.Description], "\n")
 	fieldsText := strings.Trim(matches[conventionalCommitRegexLookup.Fields], "\n")
 
-	fields := make(map[string]string)
+	var fields []Field
 	if fieldsText != "" {
 		fieldLines := strings.Split(fieldsText, "\n")
 		for _, fieldLine := range fieldLines {
@@ -47,7 +73,7 @@ func ParseConventionalCommit(commitMessage string) (ConventionalCommitInfo, erro
 			if len(fieldParts) != 2 {
 				return ConventionalCommitInfo{}, fmt.Errorf("field line '%s' in commit could not be parsed", fieldLine)
 			}
-			fields[fieldParts[0]] = strings.Trim(fieldParts[1], " ")
+			fields = append(fields, NewField(fieldParts[0], strings.Trim(fieldParts[1], " ")))
 		}
 	}
 

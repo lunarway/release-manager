@@ -11,10 +11,11 @@ import (
 
 func TestParseCommitInfo(t *testing.T) {
 	tt := []struct {
-		name          string
-		commitMessage []string
-		commitInfo    CommitInfo
-		err           error
+		name                 string
+		commitMessage        []string
+		commitInfo           CommitInfo
+		err                  error
+		correctCommitMessage []string
 	}{
 		{
 			name: "artifact commit should not match",
@@ -27,15 +28,26 @@ func TestParseCommitInfo(t *testing.T) {
 		{
 			name: "release commit with no spacing should match",
 			commitMessage: []string{
-				"[staging/test-service] release master-1234ds13g3-12s46g356g by test@lunar.app",
+				"[staging/test-service] release master-1234ds13g3-12s46g356g by hest@lunar.app",
 				"Artifact-created-by: Foo Bar <test@lunar.app>",
 			},
 			commitInfo: CommitInfo{
 				ArtifactID:        "master-1234ds13g3-12s46g356g",
 				ArtifactCreatedBy: NewPersonInfo("Foo Bar", "test@lunar.app"),
+				ReleasedBy:        NewPersonInfo("", "hest@lunar.app"),
 				Service:           "test-service",
 				Environment:       "staging",
 				Intent:            intent.NewReleaseArtifact(),
+			},
+			correctCommitMessage: []string{
+				"[staging/test-service] release master-1234ds13g3-12s46g356g by hest@lunar.app",
+				"",
+				"Service: test-service",
+				"Environment: staging",
+				"Artifact-ID: master-1234ds13g3-12s46g356g",
+				"Artifact-released-by:  <hest@lunar.app>",
+				"Artifact-created-by: Foo Bar <test@lunar.app>",
+				"Release-intent: ReleaseArtifact",
 			},
 		},
 		{
@@ -46,11 +58,16 @@ func TestParseCommitInfo(t *testing.T) {
 			err: errors.New("no match"),
 		},
 		{
-			name: "release commit from product should match",
+			name: "release commit from product with intent should match",
 			commitMessage: []string{
-				"[dev/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app",
-				"Artifact-created-by: Emil Ingerslev <eki@lunar.app>",
+				"[dev/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by bso@lunar.app",
+				"",
+				"Service: product",
+				"Environment: dev",
+				"Artifact-ID: test-s3-push-f4440b4ccb-1ba3085aa7",
 				"Artifact-released-by: Bjørn Hald Sørensen <bso@lunar.app>",
+				"Artifact-created-by: Emil Ingerslev <eki@lunar.app>",
+				"Release-intent: ReleaseArtifact",
 			},
 			commitInfo: CommitInfo{
 				ArtifactID:        "test-s3-push-f4440b4ccb-1ba3085aa7",
@@ -62,9 +79,9 @@ func TestParseCommitInfo(t *testing.T) {
 			},
 		},
 		{
-			name: "release commit with spacing should match",
+			name: "release with artifact release intent should match",
 			commitMessage: []string{
-				"[prod/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app",
+				"[prod/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by bso@lunar.app",
 				"",
 				"Artifact-created-by: Emil Ingerslev <eki@lunar.app>",
 				"Artifact-released-by: Bjørn Hald Sørensen <bso@lunar.app>",
@@ -77,32 +94,27 @@ func TestParseCommitInfo(t *testing.T) {
 				ReleasedBy:        NewPersonInfo("Bjørn Hald Sørensen", "bso@lunar.app"),
 				Intent:            intent.NewReleaseArtifact(),
 			},
-		},
-		{
-			name: "release with artifact release intent with should match",
-			commitMessage: []string{
-				"[prod/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app",
+			correctCommitMessage: []string{
+				"[prod/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by bso@lunar.app",
 				"",
-				"Artifact-created-by: Emil Ingerslev <eki@lunar.app>",
+				"Service: product",
+				"Environment: prod",
+				"Artifact-ID: test-s3-push-f4440b4ccb-1ba3085aa7",
 				"Artifact-released-by: Bjørn Hald Sørensen <bso@lunar.app>",
+				"Artifact-created-by: Emil Ingerslev <eki@lunar.app>",
 				"Release-intent: ReleaseArtifact",
-			},
-			commitInfo: CommitInfo{
-				ArtifactID:        "test-s3-push-f4440b4ccb-1ba3085aa7",
-				Environment:       "prod",
-				Service:           "product",
-				ArtifactCreatedBy: NewPersonInfo("Emil Ingerslev", "eki@lunar.app"),
-				ReleasedBy:        NewPersonInfo("Bjørn Hald Sørensen", "bso@lunar.app"),
-				Intent:            intent.NewReleaseArtifact(),
 			},
 		},
 		{
 			name: "release with branch release intent with should match",
 			commitMessage: []string{
-				"[prod/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app",
+				"[prod/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by bso@lunar.app",
 				"",
-				"Artifact-created-by: Emil Ingerslev <eki@lunar.app>",
+				"Service: product",
+				"Environment: prod",
+				"Artifact-ID: test-s3-push-f4440b4ccb-1ba3085aa7",
 				"Artifact-released-by: Bjørn Hald Sørensen <bso@lunar.app>",
+				"Artifact-created-by: Emil Ingerslev <eki@lunar.app>",
 				"Release-intent: ReleaseBranch",
 				"Release-branch: test-s3-push",
 			},
@@ -118,16 +130,15 @@ func TestParseCommitInfo(t *testing.T) {
 		{
 			name: "release with rollback release intent with should match",
 			commitMessage: []string{
-				"[prod/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by eki@lunar.app",
+				"[prod/product] rollback test-s3-push-f4440b4ccb-1ba3085aa7 by bso@lunar.app",
 				"",
-				"Artifact-ID: test-s3-push-f4440b4ccb-1ba3085aa7",
 				"Service: product",
 				"Environment: prod",
-				"Release-rollback-of-artifact-id:",
-				"Artifact-created-by: Emil Ingerslev <eki@lunar.app>",
+				"Artifact-ID: test-s3-push-f4440b4ccb-1ba3085aa7",
 				"Artifact-released-by: Bjørn Hald Sørensen <bso@lunar.app>",
-				"Release-intent: ReleaseBranch",
-				"Release-branch: test-s3-push",
+				"Artifact-created-by: Emil Ingerslev <eki@lunar.app>",
+				"Release-intent: Rollback",
+				"Release-rollback-of-artifact-id: test-s3-push-1337-1337",
 			},
 			commitInfo: CommitInfo{
 				ArtifactID:        "test-s3-push-f4440b4ccb-1ba3085aa7",
@@ -135,7 +146,7 @@ func TestParseCommitInfo(t *testing.T) {
 				Service:           "product",
 				ArtifactCreatedBy: NewPersonInfo("Emil Ingerslev", "eki@lunar.app"),
 				ReleasedBy:        NewPersonInfo("Bjørn Hald Sørensen", "bso@lunar.app"),
-				Intent:            intent.NewReleaseBranch("test-s3-push"),
+				Intent:            intent.NewRollback("test-s3-push-1337-1337"),
 			},
 		},
 	}
@@ -150,7 +161,20 @@ func TestParseCommitInfo(t *testing.T) {
 					return
 				}
 			}
-			assert.Equal(t, tc.commitInfo, info, "commitInfo not as expected")
+			if !assert.Equal(t, tc.commitInfo, info, "commitInfo not as expected") {
+				return
+			}
+		})
+		if tc.err != nil {
+			continue
+		}
+		t.Run(tc.name+" and back", func(t *testing.T) {
+			actualMessage := tc.commitInfo.String()
+			if tc.correctCommitMessage != nil {
+				assert.Equal(t, strings.Join(tc.correctCommitMessage, "\n"), actualMessage, "commitInfo.String() does not match test.correctCommitMessage")
+				return
+			}
+			assert.Equal(t, strings.Join(tc.commitMessage, "\n"), actualMessage, "commitInfo.String() does not match test.commitMessage")
 		})
 	}
 }
