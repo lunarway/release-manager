@@ -116,7 +116,7 @@ func TestParseCommitInfo(t *testing.T) {
 				"Artifact-released-by: Bjørn Hald Sørensen <bso@lunar.app>",
 				"Artifact-created-by: Emil Ingerslev <eki@lunar.app>",
 				"Release-intent: ReleaseBranch",
-				"Release-branch: test-s3-push",
+				"Release-of-branch: test-s3-push",
 			},
 			commitInfo: CommitInfo{
 				ArtifactID:        "test-s3-push-f4440b4ccb-1ba3085aa7",
@@ -138,7 +138,7 @@ func TestParseCommitInfo(t *testing.T) {
 				"Artifact-released-by: Bjørn Hald Sørensen <bso@lunar.app>",
 				"Artifact-created-by: Emil Ingerslev <eki@lunar.app>",
 				"Release-intent: Rollback",
-				"Release-rollback-of-artifact-id: test-s3-push-1337-1337",
+				"Rollback-of-artifact-id: test-s3-push-1337-1337",
 			},
 			commitInfo: CommitInfo{
 				ArtifactID:        "test-s3-push-f4440b4ccb-1ba3085aa7",
