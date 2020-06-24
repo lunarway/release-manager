@@ -132,7 +132,7 @@ func TestService_LatestArtifactSpecification(t *testing.T) {
 				BucketName: "release-manager-test-latest-artifact-specification",
 				Objects:    map[string]S3BucketSetupObject{},
 			},
-			expectedError: "get latest object key: service test-service on branch master has no objects, thus latest can't be found",
+			expectedError: "get latest object key: artifact not found",
 		},
 		{
 			name:    "no artifacts",
