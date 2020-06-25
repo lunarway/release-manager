@@ -10,7 +10,7 @@ import (
 // Compile takes a regular expression and a custom lookup struct that should match the named groups
 // in the regexp.
 //
-// `lookup` should always be a pointer to a struct with only public `int` properties.
+// `lookup` should always be a pointer to a struct with only exported `int` properties.
 //
 // Example:
 // var lookup = struct {
