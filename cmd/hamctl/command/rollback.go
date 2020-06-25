@@ -91,6 +91,6 @@ has no effect.`,
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	command.Flags().StringVarP(&namespace, "namespace", "n", "", "namespace the service is deployed to (defaults to env)")
 	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")
-	command.Flags().StringVarP(&artifactID, "artifact-id", "", "", "artifact to roll back to. Defaults to previous artifact")
+	command.Flags().StringVarP(&artifactID, "artifact", "", "", "artifact to roll back to. Defaults to previously released artifact for the environment")
 	return command
 }
