@@ -42,18 +42,23 @@ func (i *ConventionalCommitInfo) SetField(name string, value string) {
 }
 
 func (i ConventionalCommitInfo) String() string {
-	txt := i.Message
-	if txt != "" && i.Description != "" {
-		txt = fmt.Sprintf("%s\n\n%s", txt, i.Description)
+	var txts []string
+	if i.Message != "" {
+		txts = append(txts, i.Message)
+	}
+	if i.Description != "" {
+		if i.Message != "" {
+			txts = append(txts, i.Description)
+		}
 	}
 	var fieldLines []string
 	for _, field := range i.Fields {
 		fieldLines = append(fieldLines, fmt.Sprintf("%s: %s", field.Name, field.Value))
 	}
-	if txt != "" && len(fieldLines) > 0 {
-		txt = fmt.Sprintf("%s\n\n%s", txt, strings.Join(fieldLines, "\n"))
+	if len(fieldLines) > 0 {
+		txts = append(txts, strings.Join(fieldLines, "\n"))
 	}
-	return txt
+	return strings.Join(txts, "\n\n")
 }
 
 func ParseConventionalCommit(commitMessage string) (ConventionalCommitInfo, error) {
@@ -90,4 +95,4 @@ var conventionalCommitRegexLookup = struct {
 	Description int
 	Fields      int
 }{}
-var conventionalCommitRegex = regexp.MustCompile(`(?s)^((?P<Message>[^\n]+)(?P<Description>.*?)((?P<Fields>(\n[a-zA-Z\-]+:[^\n]*)(\n[a-zA-Z\-]+:[^\n]*)*))?)?\n*$`, &conventionalCommitRegexLookup)
+var conventionalCommitRegex = regexp.MustCompile(`(?s)^((?P<Message>[^\n]*)(?P<Description>.*?)((?P<Fields>(\n[a-zA-Z\-]+:[^\n]*)(\n[a-zA-Z\-]+:[^\n]*)*))?)?\n*$`, &conventionalCommitRegexLookup)
