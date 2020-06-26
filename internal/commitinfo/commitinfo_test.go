@@ -55,7 +55,7 @@ func TestParseCommitInfo(t *testing.T) {
 			commitMessage: []string{
 				"[product] build something",
 			},
-			err: errors.New("no match"),
+			err: ErrNoMatch,
 		},
 		{
 			name: "release commit from product with intent should match",
