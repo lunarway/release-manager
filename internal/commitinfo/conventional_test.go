@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,7 +13,6 @@ func TestParseConventionalCommit(t *testing.T) {
 		commitMessage         []string
 		commitInfo            ConventionalCommitInfo
 		expectedCommitMessage []string
-		err                   error
 	}{
 		{
 			name: "message with no description and field + no space",
@@ -29,8 +27,6 @@ func TestParseConventionalCommit(t *testing.T) {
 					NewField("Artifact-created-by", "Foo Bar <test@lunar.app>"),
 				},
 			},
-
-			err: nil,
 		},
 		{
 			name: "message with no description and field + space",
@@ -46,7 +42,6 @@ func TestParseConventionalCommit(t *testing.T) {
 					NewField("Artifact-created-by", "Foo Bar <test@lunar.app>"),
 				},
 			},
-			err: nil,
 		},
 		{
 			name: "only message",
@@ -58,7 +53,6 @@ func TestParseConventionalCommit(t *testing.T) {
 				Description: "",
 				Fields:      nil,
 			},
-			err: nil,
 		},
 		{
 			name: "message and multiple fields + no space",
@@ -75,7 +69,6 @@ func TestParseConventionalCommit(t *testing.T) {
 					NewField("Artifact-released-by", "Bjørn Hald Sørensen <bso@lunar.app>"),
 				},
 			},
-			err: nil,
 		},
 		{
 			name: "message and multiple fields + space",
@@ -93,7 +86,6 @@ func TestParseConventionalCommit(t *testing.T) {
 					NewField("Artifact-released-by", "Bjørn Hald Sørensen <bso@lunar.app>"),
 				},
 			},
-			err: nil,
 		},
 
 		{
@@ -131,7 +123,6 @@ func TestParseConventionalCommit(t *testing.T) {
 					NewField("Artifact-released-by", "Bjørn Hald Sørensen <bso@lunar.app>"),
 				},
 			},
-			err: nil,
 		},
 		{
 			name: "empty fields should parse just fine",
@@ -149,7 +140,6 @@ func TestParseConventionalCommit(t *testing.T) {
 					NewField("Artifact-released-by", "Bjørn Hald Sørensen <bso@lunar.app>"),
 				},
 			},
-			err: nil,
 		},
 		{
 			name: "no message but description should parse just fine",
@@ -167,7 +157,6 @@ func TestParseConventionalCommit(t *testing.T) {
 					NewField("Artifact-released-by", "Bjørn Hald Sørensen <bso@lunar.app>"),
 				},
 			},
-			err: nil,
 		},
 		{
 			name: "only fields should parse just fine",
@@ -183,33 +172,23 @@ func TestParseConventionalCommit(t *testing.T) {
 					NewField("Artifact-released-by", "Bjørn Hald Sørensen <bso@lunar.app>"),
 				},
 			},
-			err: nil,
 		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			info, err := ParseConventionalCommit(strings.Join(tc.commitMessage, "\n"))
-			if tc.err != nil {
-				assert.EqualError(t, errors.Cause(err), tc.err.Error(), "output error not as expected")
-				return
-			} else {
-				if !assert.NoError(t, err, "no output error expected") {
-					return
-				}
-			}
+			assert.NoError(t, err, "no output error expected")
 			assert.Equal(t, tc.commitInfo, info, "commitInfo not as expected")
 		})
 
-		if tc.err == nil {
-			t.Run(tc.name+" and back", func(t *testing.T) {
-				expectedCommitMessage := tc.commitMessage
-				if tc.expectedCommitMessage == nil {
-					expectedCommitMessage = tc.expectedCommitMessage
-					return
-				}
-				assert.Equal(t, strings.Join(expectedCommitMessage, "\n"), tc.commitInfo.String())
-			})
-		}
+		t.Run(tc.name+" and back", func(t *testing.T) {
+			expectedCommitMessage := tc.commitMessage
+			if tc.expectedCommitMessage == nil {
+				expectedCommitMessage = tc.expectedCommitMessage
+				return
+			}
+			assert.Equal(t, strings.Join(expectedCommitMessage, "\n"), tc.commitInfo.String())
+		})
 	}
 }
 
