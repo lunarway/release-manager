@@ -36,7 +36,8 @@ has no effect.`,
 			var rollbackTo *httpinternal.DescribeReleaseResponseRelease
 
 			if artifactID == "" {
-				releases, err := actions.ReleasesFromEnvironment(client, *service, environment, 2)
+
+				releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, 10)
 				if err != nil {
 					return err
 				}
@@ -44,15 +45,15 @@ has no effect.`,
 				if len(releases) < 2 {
 					return fmt.Errorf("can't do rollback, because there isn't a release to rollback to")
 				}
-				currentRelease = releases[0]
-				rollbackTo = &releases[1]
+				currentRelease = releasesResponse.Releases[0]
+				rollbackTo = &releasesResponse.Releases[1]
 			} else {
-				releases, err := actions.ReleasesFromEnvironment(client, *service, environment, 10)
+				releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, 10)
 				if err != nil {
 					return err
 				}
 
-				for _, release := range releases {
+				for _, release := range releasesResponse.Releases {
 					if release.Artifact.ID != artifactID {
 						continue
 					}
@@ -63,20 +64,22 @@ has no effect.`,
 				if rollbackTo == nil {
 					return fmt.Errorf("can't do rollback, because the artifact '%s' ins't found in the last 10 releases", artifactID)
 				}
-				currentRelease = releases[0]
+				currentRelease = releasesResponse.Releases[0]
 			}
-			fmt.Printf("Rollback of service: %s\n", *service)
+			fmt.Printf("[✓] Starting rollback of service %s to %s\n", *service, rollbackTo.Artifact.ID)
 
-			err := actions.ReleaseArtifactID(client, *service, environment, rollbackTo.Artifact.ID, intent.NewRollback(currentRelease.Artifact.ID))
+			resp, err := actions.ReleaseArtifactID(client, *service, environment, rollbackTo.Artifact.ID, intent.NewRollback(currentRelease.Artifact.ID))
 			if err != nil {
 				fmt.Printf("[X] Rollback of artifact '%s' failed\n", currentRelease.Artifact.ID)
 				fmt.Printf("    Error:\n")
 				fmt.Printf("    %s\n", err)
 				return err
 			}
-			fmt.Printf("[✓] Rollback of artifact '%s' initiated\n", currentRelease.Artifact.ID)
-			fmt.Printf("    Release of '%s' to '%s'\n", rollbackTo.Artifact.ID, environment)
-
+			if resp.Status != "" {
+				fmt.Printf("%s\n", resp.Status)
+			} else {
+				fmt.Printf("[✓] Rollback of %s to %s initialized\n", resp.Tag, resp.ToEnvironment)
+			}
 			return nil
 		},
 	}

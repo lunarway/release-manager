@@ -1,7 +1,6 @@
 package actions
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/lunarway/release-manager/internal/git"
@@ -9,15 +8,15 @@ import (
 	"github.com/lunarway/release-manager/internal/intent"
 )
 
-func ReleaseArtifactID(client *httpinternal.Client, service, environment, artifactID string, intent intent.Intent) error {
+func ReleaseArtifactID(client *httpinternal.Client, service, environment, artifactID string, intent intent.Intent) (httpinternal.ReleaseResponse, error) {
+	var resp httpinternal.ReleaseResponse
 	committerName, committerEmail, err := git.CommitterDetails()
 	if err != nil {
-		return err
+		return resp, err
 	}
-	var resp httpinternal.ReleaseResponse
 	path, err := client.URL("release")
 	if err != nil {
-		return err
+		return resp, err
 	}
 	err = client.Do(http.MethodPost, path, httpinternal.ReleaseRequest{
 		Service:        service,
@@ -28,12 +27,7 @@ func ReleaseArtifactID(client *httpinternal.Client, service, environment, artifa
 		Intent:         intent,
 	}, &resp)
 	if err != nil {
-		return err
+		return resp, err
 	}
-	if resp.Status != "" {
-		fmt.Printf("%s\n", resp.Status)
-	} else {
-		fmt.Printf("[✓] Release of %s to %s initialized\n", resp.Tag, resp.ToEnvironment)
-	}
-	return nil
+	return resp, nil
 }

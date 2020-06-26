@@ -43,7 +43,14 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 			}
 
 			fmt.Printf("Promote of service: %s\n", *service)
-			return actions.ReleaseArtifactID(client, *service, toEnvironment, artifactID, intent.NewPromoteEnvironment(fromEnvironment))
+			resp, err := actions.ReleaseArtifactID(client, *service, toEnvironment, artifactID, intent.NewPromoteEnvironment(fromEnvironment))
+
+			if resp.Status != "" {
+				fmt.Printf("%s\n", resp.Status)
+			} else {
+				fmt.Printf("[✓] Release of %s to %s initialized\n", resp.Tag, resp.ToEnvironment)
+			}
+			return nil
 		},
 	}
 	command.Flags().StringVarP(&toEnvironment, "env", "e", "", "Environment to promote to (required)")

@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 
+	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
@@ -65,24 +65,11 @@ Format the output with a custom template:
 			})
 		},
 		RunE: func(c *cobra.Command, args []string) error {
-			var resp httpinternal.DescribeReleaseResponse
-			params := url.Values{}
-			params.Add("count", strconv.Itoa(count))
-			if namespace != "" {
-				params.Add("namespace", namespace)
-			}
-			path, err := client.URLWithQuery(fmt.Sprintf("describe/release/%s/%s", *service, environment), params)
-			if err != nil {
-				return err
-			}
-			err = client.Do(http.MethodGet, path, nil, &resp)
-			if err != nil {
-				return err
-			}
+			releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, count)
 			if len(template) == 0 {
 				template = describeReleaseDefaultTemplate
 			}
-			err = templateOutput(os.Stdout, "describeRelease", template, resp)
+			err = templateOutput(os.Stdout, "describeRelease", template, releasesResponse)
 			if err != nil {
 				return err
 			}

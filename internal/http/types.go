@@ -243,6 +243,7 @@ type DescribeReleaseResponse struct {
 }
 
 type DescribeReleaseResponseRelease struct {
+	ReleaseIndex    int           `json:"releaseIndex,omitempty"`
 	Artifact        artifact.Spec `json:"artifact,omitempty"`
 	ReleasedAt      time.Time     `json:"releasedAt,omitempty"`
 	ReleasedByEmail string        `json:"releasedByEmail,omitempty"`

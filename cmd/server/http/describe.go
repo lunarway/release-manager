@@ -119,6 +119,7 @@ func describeRelease(ctx context.Context, payload *payload, flowSvc *flow.Servic
 		var releases []httpinternal.DescribeReleaseResponseRelease
 		for _, release := range resp.Releases {
 			releases = append(releases, httpinternal.DescribeReleaseResponseRelease{
+				ReleaseIndex:    release.ReleaseIndex,
 				Artifact:        release.Artifact,
 				ReleasedAt:      release.ReleasedAt,
 				ReleasedByName:  release.ReleasedByName,
