@@ -50,8 +50,9 @@ func newDescribeRelease(client *httpinternal.Client, service *string) *cobra.Com
 	var environment, namespace, template string
 	var count int
 	var command = &cobra.Command{
-		Use:   "release",
-		Short: "Show details about a release.",
+		Use:     "release",
+		Aliases: []string{"releases"},
+		Short:   "Show details about a release.",
 		Example: `Get details about the current release of product in the dev environment:
 
 	hamctl describe release --service product --env dev
@@ -76,7 +77,6 @@ Format the output with a custom template:
 			return nil
 		},
 	}
-	command.Aliases = append(command.Aliases, "releases")
 	command.Flags().StringVarP(&environment, "env", "e", "", "environment to promote to (required)")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	// errors are skipped here as the only case they can occour are if thee flag
@@ -102,8 +102,9 @@ func newDescribeArtifact(client *httpinternal.Client, service *string) *cobra.Co
 	var count int
 	var template string
 	var command = &cobra.Command{
-		Use:   "artifact",
-		Short: "Show details about an artifact.",
+		Use:     "artifact",
+		Aliases: []string{"artifacts"},
+		Short:   "Show details about an artifact.",
 		Example: `Get details about available artifacts for a service:
 
 	hamctl describe artifact --service product
