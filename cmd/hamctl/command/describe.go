@@ -138,7 +138,7 @@ Format the output with a custom template:
 			return nil
 		},
 	}
-	command.Flags().IntVar(&count, "count", 1, "Number of artifacts to return sorted by latest")
+	command.Flags().IntVar(&count, "count", 5, "Number of artifacts to return sorted by latest")
 	command.Flags().StringVarP(&template, "template", "", "", "template string to format the output. The format is Go templates (http://golang.org/pkg/text/template/#pkg-overview). Available data structure is an 'http.DescribeArtifactResponse' struct.")
 	return command
 }
