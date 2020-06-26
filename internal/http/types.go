@@ -236,6 +236,8 @@ type DeletePolicyResponse struct {
 	Count   int    `json:"count,omitempty"`
 }
 
+// DescribeReleaseResponse returns releases for a service. The Releases returned are in
+// chronically order with the latest and current release first
 type DescribeReleaseResponse struct {
 	Service     string                           `json:"service,omitempty"`
 	Environment string                           `json:"environment,omitempty"`
