@@ -130,3 +130,68 @@ func TestParseConventionalCommit(t *testing.T) {
 		})
 	}
 }
+
+func TestSetField(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		setup    []Field
+		name     string
+		value    string
+		expected []Field
+	}{
+		{
+			desc:  "set field with no current fields add field",
+			setup: nil,
+			name:  "Some",
+			value: "value",
+			expected: []Field{
+				NewField("Some", "value"),
+			},
+		},
+		{
+			desc: "set field with matching current fields sets field",
+			setup: []Field{
+				NewField("Some", "old"),
+			},
+			name:  "Some",
+			value: "new",
+			expected: []Field{
+				NewField("Some", "new"),
+			},
+		},
+		{
+			desc: "set field with not matching current fields adds field",
+			setup: []Field{
+				NewField("Some", "value"),
+			},
+			name:  "Another",
+			value: "1337",
+			expected: []Field{
+				NewField("Some", "value"),
+				NewField("Another", "1337"),
+			},
+		},
+		{
+			desc: "set field with matching current field sets value and keeps order",
+			setup: []Field{
+				NewField("Some", "old"),
+				NewField("Another", "1337"),
+			},
+			name:  "Some",
+			value: "new",
+			expected: []Field{
+				NewField("Some", "new"),
+				NewField("Another", "1337"),
+			},
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			cci := ConventionalCommitInfo{
+				Fields: tC.setup,
+			}
+			cci.SetField(tC.name, tC.value)
+			assert.Equal(t, tC.expected, cci.Fields, "expected fields does not match actual")
+		})
+	}
+}

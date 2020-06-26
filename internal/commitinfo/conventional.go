@@ -32,9 +32,10 @@ func (i ConventionalCommitInfo) Field(name string) string {
 	return ""
 }
 func (i *ConventionalCommitInfo) SetField(name string, value string) {
-	for _, field := range i.Fields {
+	for index, field := range i.Fields {
 		if field.Name == name {
-			field.Value = value
+			i.Fields[index].Value = value
+			return
 		}
 	}
 	i.Fields = append(i.Fields, NewField(name, value))
