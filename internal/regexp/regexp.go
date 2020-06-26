@@ -11,19 +11,6 @@ import (
 // in the regexp.
 //
 // `lookup` should always be a pointer to a struct with only exported `int` properties.
-//
-// Example:
-// var lookup = struct {
-//   FirstPart int
-//   SecondPart int
-// }{}
-// var re, err = regexp.Compile(``, &lookup) // Handle err or use MustCompile
-// matches := conventionalCommitRegex.FindStringSubmatch(commitMessage)
-// if matches == nil {
-//   // no match
-// }
-// firstPart := matches[lookup.FirstPart]
-//
 func Compile(re string, lookup interface{}) (*regexp.Regexp, error) {
 	var regexpCompiled = regexp.MustCompile(re)
 

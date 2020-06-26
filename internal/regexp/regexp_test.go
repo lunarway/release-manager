@@ -1,9 +1,10 @@
-package regexp
+package regexp_test
 
 import (
 	"fmt"
 	"testing"
 
+	"github.com/lunarway/release-manager/internal/regexp"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -83,7 +84,7 @@ func TestCompile(t *testing.T) {
 				lookup = l
 				assertCallback = acb
 			})
-			_, err := Compile(tC.regexp, lookup)
+			_, err := regexp.Compile(tC.regexp, lookup)
 			if tC.err != nil {
 				assert.EqualError(t, errors.Cause(err), tC.err.Error(), "output error not as expected")
 			} else {
