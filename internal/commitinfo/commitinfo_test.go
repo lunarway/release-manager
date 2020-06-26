@@ -51,14 +51,14 @@ func TestParseCommitInfo(t *testing.T) {
 			},
 		},
 		{
-			name: "not valid message",
+			name: "invalid message should not match",
 			commitMessage: []string{
 				"[product] build something",
 			},
 			err: ErrNoMatch,
 		},
 		{
-			name: "release commit from product with intent should match",
+			name: "ReleaseArtifact intent should match",
 			commitMessage: []string{
 				"[dev/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by bso@lunar.app",
 				"",
@@ -79,7 +79,7 @@ func TestParseCommitInfo(t *testing.T) {
 			},
 		},
 		{
-			name: "release with artifact release intent should match",
+			name: "limited info should match and have ReleaseArtifact intent",
 			commitMessage: []string{
 				"[prod/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by bso@lunar.app",
 				"",
@@ -106,7 +106,7 @@ func TestParseCommitInfo(t *testing.T) {
 			},
 		},
 		{
-			name: "release with branch release intent with should match",
+			name: "ReleaseBranch intent should match",
 			commitMessage: []string{
 				"[prod/product] release test-s3-push-f4440b4ccb-1ba3085aa7 by bso@lunar.app",
 				"",
@@ -128,7 +128,7 @@ func TestParseCommitInfo(t *testing.T) {
 			},
 		},
 		{
-			name: "release with rollback release intent with should match",
+			name: "Rollback intent should match",
 			commitMessage: []string{
 				"[prod/product] rollback test-s3-push-f4440b4ccb-1ba3085aa7 by bso@lunar.app",
 				"",
