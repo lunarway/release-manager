@@ -11,7 +11,7 @@ func ExampleCompile() {
 		FirstPart  int
 		SecondPart int
 	}{}
-	var re, err = regexp.Compile(`(?P<FirstPart>.+)-(?P<SecondPart>.+)`, &lookup) // Handle err or use MustCompile
+	re, err := regexp.Compile(`(?P<FirstPart>.+)-(?P<SecondPart>.+)`, &lookup) // Handle err or use MustCompile
 	if err != nil {
 		panic(err)
 	}
