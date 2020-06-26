@@ -42,7 +42,7 @@ has no effect.`,
 					return err
 				}
 
-				if len(releases) < 2 {
+				if len(releasesResponse.Releases) < 2 {
 					return fmt.Errorf("can't do rollback, because there isn't a release to rollback to")
 				}
 				currentRelease = releasesResponse.Releases[0]
