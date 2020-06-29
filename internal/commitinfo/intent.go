@@ -10,7 +10,7 @@ const (
 	FieldPromotedFromEnvironment = "Promoted-from-environment"
 )
 
-func ParseIntent(cci ConventionalCommitInfo, commitMessageMatches []string) intent.Intent {
+func parseIntent(cci ConventionalCommitInfo, commitMessageMatches []string) intent.Intent {
 	switch cci.Field("Release-intent") {
 	case intent.TypeReleaseBranch:
 		return intent.NewReleaseBranch(cci.Field(FieldReleaseOfBranch))
@@ -21,6 +21,7 @@ func ParseIntent(cci ConventionalCommitInfo, commitMessageMatches []string) inte
 	case intent.TypeAutoRelease:
 		return intent.NewAutoRelease()
 	default:
+		// A check for compatability reasons, for back when only the message was saying it was a rollback.
 		if commitMessageMatches[parseCommitInfoFromCommitMessageRegexLookup.Type] == "rollback" {
 			return intent.NewRollback(commitMessageMatches[parseCommitInfoFromCommitMessageRegexLookup.PreviousArtifactID])
 		}
@@ -28,7 +29,7 @@ func ParseIntent(cci ConventionalCommitInfo, commitMessageMatches []string) inte
 	}
 }
 
-func AddIntentToConventionalCommitInfo(intentObj intent.Intent, cci *ConventionalCommitInfo) {
+func addIntentToConventionalCommitInfo(intentObj intent.Intent, cci *ConventionalCommitInfo) {
 	cci.SetField("Release-intent", intentObj.Type)
 	switch intentObj.Type {
 	case intent.TypeReleaseBranch:

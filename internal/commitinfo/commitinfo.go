@@ -47,11 +47,20 @@ func (i CommitInfo) String() string {
 		},
 	}
 
-	AddIntentToConventionalCommitInfo(i.Intent, &cci)
+	addIntentToConventionalCommitInfo(i.Intent, &cci)
 
 	return cci.String()
 }
 
+// ParseCommitInfo takes a full git commit message in the ConventionalCommit format and tries to extract release information from it
+// It will extract it using conventional commit fields first, but if the correct fields isn't there it will fallback to parsing message
+// for backward compatability reasons.
+// The following backward-compatibility actions are done in the parsing (if not found in the fields!):
+// * If `artifact` is written in title, the commit info is considered a "no match"
+// * If `rollback` is written in title, the Intent is considered to be rollback intent, as well as the PreviousArtifactID is attempted
+//   to be extracted
+// * Environment and Service name is extracted from the `[<env>/<service>]`-brackets in the title
+// * User email in title is interpreted as releaser
 func ParseCommitInfo(commitMessage string) (CommitInfo, error) {
 	convInfo, err := ParseConventionalCommit(commitMessage)
 	if err != nil {
@@ -75,7 +84,7 @@ func ParseCommitInfo(commitMessage string) (CommitInfo, error) {
 	if err != nil && !errors.Is(err, ErrNoMatch) {
 		return CommitInfo{}, errors.Wrap(err, fmt.Sprintf("commit got unknown parsing error of %s with content '%s'", "Artifact-released-by", convInfo.Field("Artifact-released-by")))
 	}
-	intentObj := ParseIntent(convInfo, matches)
+	intentObj := parseIntent(convInfo, matches)
 
 	service := convInfo.Field(FieldService)
 	if service == "" {
