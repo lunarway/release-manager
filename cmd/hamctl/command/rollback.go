@@ -2,11 +2,17 @@ package command
 
 import (
 	"fmt"
+	"os"
+	"strings"
+	"text/template"
+	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/intent"
+	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
@@ -45,8 +51,71 @@ has no effect.`,
 				if len(releasesResponse.Releases) < 2 {
 					return fmt.Errorf("can't do rollback, because there isn't a release to rollback to")
 				}
+
+				funcMap := template.FuncMap{
+					"rightPad":    tmplRightPad,
+					"printIntent": tmplPrintIntent,
+					"humanizeTime": func(input time.Time) string {
+						return humanize.Time(input)
+					},
+				}
+
+				for name, f := range promptui.FuncMap {
+					funcMap[name] = f
+				}
+
+				primaryPart := "#{{ .ReleaseIndex }} {{ .Artifact.ID | cyan }}{{ if eq .ReleaseIndex 0 }} current release{{ end }} {{ .ReleasedAt | humanizeTime }} by {{ .ReleasedByEmail | blue }}"
+
+				templates := &promptui.SelectTemplates{
+					Label:    "{{ . }}",
+					Active:   "-> " + primaryPart,
+					Inactive: "   " + primaryPart,
+					Selected: "-> " + primaryPart,
+					Details: `
+     {{ print "Release Details          " | bold | underline }}
+     Release Number: {{ .ReleaseIndex }}
+     Released at: {{ .ReleasedAt.Format "2006-01-02 15:04:03" }}
+     Released by: {{ .ReleasedByName }} ({{ .ReleasedByEmail }})
+     Intent: {{ .Intent | printIntent }}
+
+     {{ print "Artifact Details          " | bold | underline }}
+     Artifact: {{ .Artifact.ID | cyan }}
+     {{ if ne (len .Artifact.Namespace) 0 -}}
+     Namespace:  {{ .Artifact.Namespace }}
+     {{ end -}}
+     Artifact from: {{ .Artifact.CI.End.Format "2006-01-02 15:04:03" }}
+     Artifact by: {{ .Artifact.Application.CommitterName }} ({{ .Artifact.Application.CommitterEmail }})
+     Commit: {{ .Artifact.Application.URL }}
+     Message: {{ .Artifact.Application.Message }}`,
+					FuncMap: funcMap,
+				}
+
+				searcher := func(input string, index int) bool {
+					release := releasesResponse.Releases[index]
+					name := strings.ToLower(fmt.Sprintf("#%v %s", release.ReleaseIndex, release.Artifact.ID))
+					input = strings.ToLower(input)
+
+					return strings.Contains(name, input)
+				}
+
+				prompt := promptui.Select{
+					Label:             fmt.Sprintf("Which release to rollback '%s' to?", environment),
+					Items:             releasesResponse.Releases,
+					Templates:         templates,
+					Size:              10,
+					Searcher:          searcher,
+					StartInSearchMode: true,
+				}
+
+				index, _, err := prompt.Run()
+
+				if err != nil {
+					fmt.Println("Rollback cancelled")
+					os.Exit(1)
+				}
+
 				currentRelease = releasesResponse.Releases[0]
-				rollbackTo = &releasesResponse.Releases[1]
+				rollbackTo = &releasesResponse.Releases[index]
 			} else {
 				releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, 10)
 				if err != nil {
