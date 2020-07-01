@@ -15,10 +15,10 @@ import (
 )
 
 type DescribeReleaseResponse struct {
-	Releases []DescribeReleaseResponseRelease
+	Releases []Release
 }
 
-type DescribeReleaseResponseRelease struct {
+type Release struct {
 	DefaultNamespaces bool
 	ReleaseIndex      int
 	Artifact          artifact.Spec
@@ -46,7 +46,7 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 		return DescribeReleaseResponse{}, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 
-	var releases []DescribeReleaseResponseRelease
+	var releases []Release
 
 	var currentOffset uint = 0
 	for count-int(currentOffset) > 0 {
@@ -100,7 +100,7 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 			return DescribeReleaseResponse{}, errors.WithMessagef(err, "reading artifact for commit %s", hash)
 		}
 
-		releases = append(releases, DescribeReleaseResponseRelease{
+		releases = append(releases, Release{
 			Artifact:          spec,
 			DefaultNamespaces: currentNamespace == environment,
 			ReleaseIndex:      int(currentOffset),
