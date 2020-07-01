@@ -18,11 +18,6 @@ func ReleaseCommitMessage(env, service, artifactID string, intent intent.Intent,
 	}.String()
 }
 
-// RollbackCommitMessage returns an artifact rollback commit message.
-func RollbackCommitMessage(env, service, oldArtifactID, newArtifactID, authorEmail string) string {
-	return fmt.Sprintf("[%s/%s] rollback %s to %s by %s", env, service, oldArtifactID, newArtifactID, authorEmail)
-}
-
 // PolicyUpdateApplyCommitMessage returns an apply policy commit message.
 func PolicyUpdateApplyCommitMessage(env, service, policy string) string {
 	return fmt.Sprintf("[%s] policy update: apply %s in '%s'", service, policy, env)
