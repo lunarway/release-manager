@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/lunarway/release-manager/internal/git"
+	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 )
@@ -47,7 +47,7 @@ func (s *Service) ApplyBranchRestriction(ctx context.Context, actor Actor, svc, 
 		return "", errors.WithMessagef(ErrConflict, "conflicts with global policy")
 	}
 
-	commitMsg := git.PolicyUpdateApplyCommitMessage(env, svc, "branch-restriction")
+	commitMsg := commitinfo.PolicyUpdateApplyCommitMessage(env, svc, "branch-restriction")
 	var policyID string
 	err = s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
 		policyID = p.SetBranchRestriction(branchRegex, env)

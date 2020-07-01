@@ -9,7 +9,6 @@ import (
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
-	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/log"
 )
 
@@ -36,7 +35,7 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 		releaseID, err := flowSvc.ReleaseArtifactID(ctx, flow.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
-		}, req.Environment, req.Service, req.ArtifactID, intent.NewReleaseArtifact())
+		}, req.Environment, req.Service, req.ArtifactID, req.Intent)
 
 		var statusString string
 		if err != nil {

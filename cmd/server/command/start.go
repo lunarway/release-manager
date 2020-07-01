@@ -204,7 +204,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				// consumer is started later on and this we are sure this gets set, it
 				// just complicates the flow of the code.
 				PublishReleaseArtifactID: nil,
-				PublishRollback:          nil,
 				PublishNewArtifact:       nil,
 				// retries for comitting changes into config repo
 				// can be required for racing writes
@@ -287,14 +286,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					}
 					return flowSvc.ExecReleaseArtifactID(context.Background(), event)
 				},
-				flow.RollbackEvent{}.Type(): func(d []byte) error {
-					var event flow.RollbackEvent
-					err := event.Unmarshal(d)
-					if err != nil {
-						return errors.WithMessage(err, "unmarshal event")
-					}
-					return flowSvc.ExecRollback(context.Background(), event)
-				},
 				flow.NewArtifactEvent{}.Type(): func(d []byte) error {
 					var event flow.NewArtifactEvent
 					err := event.Unmarshal(d)
@@ -324,9 +315,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			}
 
 			flowSvc.PublishReleaseArtifactID = func(ctx context.Context, event flow.ReleaseArtifactIDEvent) error {
-				return brokerImpl.Publish(ctx, &event)
-			}
-			flowSvc.PublishRollback = func(ctx context.Context, event flow.RollbackEvent) error {
 				return brokerImpl.Publish(ctx, &event)
 			}
 			flowSvc.PublishNewArtifact = func(ctx context.Context, event flow.NewArtifactEvent) error {

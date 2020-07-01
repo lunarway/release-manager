@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"text/template"
+
+	"github.com/lunarway/release-manager/internal/intent"
 )
 
 // templateOutput parses the template text as a Go template. The empty interface
@@ -13,7 +15,8 @@ import (
 func templateOutput(destination io.Writer, name, text string, data interface{}) error {
 	t := template.New(name)
 	t.Funcs(template.FuncMap{
-		"rightPad": tmplRightPad,
+		"rightPad":    tmplRightPad,
+		"printIntent": tmplPrintIntent,
 	})
 	t, err := t.Parse(text)
 	if err != nil {
@@ -25,4 +28,21 @@ func templateOutput(destination io.Writer, name, text string, data interface{}) 
 func tmplRightPad(s string, padding int) string {
 	template := fmt.Sprintf("%%-%ds", padding)
 	return fmt.Sprintf(template, s)
+}
+
+func tmplPrintIntent(i intent.Intent) string {
+	switch i.Type {
+	case intent.TypeAutoRelease:
+		return "autorelease"
+	case intent.TypePromote:
+		return fmt.Sprintf("promotion from %s", i.Promote.FromEnvironment)
+	case intent.TypeReleaseArtifact:
+		return "artifact release"
+	case intent.TypeReleaseBranch:
+		return fmt.Sprintf("%s branch release", i.ReleaseBranch.Branch)
+	case intent.TypeRollback:
+		return fmt.Sprintf("rollback of %s", i.Rollback.PreviousArtifactID)
+	default:
+		return fmt.Sprintf("unknown intent type '%s'", i.Type)
+	}
 }

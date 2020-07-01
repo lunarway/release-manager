@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
@@ -183,13 +184,12 @@ func (s *Service) LocateRelease(ctx context.Context, r *git.Repository, artifact
 }
 
 func locateReleaseCondition(artifactID string) conditionFunc {
-	r := regexp.MustCompile(fmt.Sprintf(`(?i)release %s($|\r\n|\r|\n|\sby\s\S+)`, regexp.QuoteMeta(artifactID)))
-	return func(commitMsg string) bool {
-		if artifactID == "" {
-			return false
-		}
-		return r.MatchString(commitMsg)
+	if artifactID == "" {
+		return falseConditionFunc
 	}
+	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
+		return strings.EqualFold(c.ArtifactID, artifactID)
+	})
 }
 
 // LocateServiceRelease traverses the git log to find a release
@@ -204,16 +204,12 @@ func (s *Service) LocateServiceRelease(ctx context.Context, r *git.Repository, e
 }
 
 func locateServiceReleaseCondition(env, service string) conditionFunc {
-	r := regexp.MustCompile(fmt.Sprintf(`(?i)\[%s/%s] release`, regexp.QuoteMeta(env), regexp.QuoteMeta(service)))
-	return func(commitMsg string) bool {
-		if env == "" {
-			return false
-		}
-		if service == "" {
-			return false
-		}
-		return r.MatchString(commitMsg)
+	if env == "" || service == "" {
+		return falseConditionFunc
 	}
+	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
+		return strings.EqualFold(c.Service, service) && strings.EqualFold(c.Environment, env)
+	})
 }
 
 // LocateEnvRelease traverses the git log to find a release
@@ -228,17 +224,13 @@ func (s *Service) LocateEnvRelease(ctx context.Context, r *git.Repository, env, 
 	return locate(r, locateEnvReleaseCondition(env, artifactID), ErrReleaseNotFound)
 }
 
-func locateEnvReleaseCondition(env, artifactId string) conditionFunc {
-	r := regexp.MustCompile(fmt.Sprintf(`(?i)\[%s/.*] release %s($|\r\n|\r|\n|\sby\s\S+)`, regexp.QuoteMeta(env), regexp.QuoteMeta(artifactId)))
-	return func(commitMsg string) bool {
-		if env == "" {
-			return false
-		}
-		if artifactId == "" {
-			return false
-		}
-		return r.MatchString(commitMsg)
+func locateEnvReleaseCondition(env, artifactID string) conditionFunc {
+	if env == "" || artifactID == "" {
+		return falseConditionFunc
 	}
+	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
+		return strings.EqualFold(c.ArtifactID, artifactID) && strings.EqualFold(c.Environment, env)
+	})
 }
 
 // LocateServiceReleaseRollbackSkip traverses the git log to find a release or
@@ -253,10 +245,11 @@ func (s *Service) LocateServiceReleaseRollbackSkip(ctx context.Context, r *git.R
 }
 
 func locateServiceReleaseRollbackSkipCondition(env, service string, n uint) conditionFunc {
-	return func(commitMsg string) bool {
-		releaseOK := locateServiceReleaseCondition(env, service)(commitMsg)
-		rollbackOK := locateServiceRollbackCondition(env, service)(commitMsg)
-		ok := releaseOK || rollbackOK
+	if env == "" || service == "" {
+		return falseConditionFunc
+	}
+	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
+		ok := strings.EqualFold(c.Environment, env) && strings.EqualFold(c.Service, service)
 		if !ok {
 			return false
 		}
@@ -265,20 +258,7 @@ func locateServiceReleaseRollbackSkipCondition(env, service string, n uint) cond
 		}
 		n--
 		return false
-	}
-}
-
-func locateServiceRollbackCondition(env, service string) conditionFunc {
-	r := regexp.MustCompile(fmt.Sprintf(`(?i)\[%s/%s] rollback `, regexp.QuoteMeta(env), regexp.QuoteMeta(service)))
-	return func(commitMsg string) bool {
-		if env == "" {
-			return false
-		}
-		if service == "" {
-			return false
-		}
-		return r.MatchString(commitMsg)
-	}
+	})
 }
 
 type conditionFunc func(commitMsg string) bool
@@ -322,7 +302,7 @@ func locateN(r *git.Repository, condition conditionFunc, notFoundErr error, n in
 	}
 }
 
-func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, committerName, committerEmail, msg string) error {
+func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
 	defer span.Finish()
 
@@ -339,7 +319,6 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName,
 	if err != nil {
 		return errors.WithMessage(err, "check for changes")
 	}
-	commitMessage := fmt.Sprintf("%s\nArtifact-created-by: %s <%s>\nArtifact-released-by: %s <%s>", msg, authorName, authorEmail, committerName, committerEmail)
 	args := []string{
 		"-c", fmt.Sprintf(`user.name="%s"`, s.Config.User),
 		"-c", fmt.Sprintf(`user.email="%s"`, s.Config.Email),
@@ -349,7 +328,7 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, authorName,
 	if s.Config.SigningKey != "" {
 		args = append(args, fmt.Sprintf("--gpg-sign=%s", s.Config.SigningKey))
 	}
-	args = append(args, fmt.Sprintf(`-m%s`, commitMessage))
+	args = append(args, fmt.Sprintf(`-m%s`, msg))
 
 	span, _ = s.Tracer.FromCtx(ctx, "commit")
 	err = execCommand(ctx, rootPath, "git", args...)
@@ -616,3 +595,5 @@ func parseConfig(path string) (config.Config, error) {
 	}
 	return c, nil
 }
+
+func falseConditionFunc(commitMsg string) bool { return false }

@@ -44,7 +44,6 @@ type Service struct {
 	Storage          ArtifactReadStorage
 	Policy           *policy.Service
 
-	PublishRollback          func(context.Context, RollbackEvent) error
 	PublishReleaseArtifactID func(context.Context, ReleaseArtifactIDEvent) error
 	PublishNewArtifact       func(context.Context, NewArtifactEvent) error
 

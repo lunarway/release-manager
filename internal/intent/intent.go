@@ -3,17 +3,18 @@ package intent
 import "fmt"
 
 const (
-	TypeReleaseArtifactID = "ReleaseArtifactID"
-	TypeReleaseBranch     = "ReleaseBranch"
-	TypePromote           = "Promote"
-	TypeRollback          = "Rollback"
-	TypeAutoRelease       = "AutoRelease"
+	TypeReleaseArtifact = "ReleaseArtifact"
+	TypeReleaseBranch   = "ReleaseBranch"
+	TypePromote         = "Promote"
+	TypeRollback        = "Rollback"
+	TypeAutoRelease     = "AutoRelease"
 )
 
 type Intent struct {
 	Type          string              `json:"type,omitempty"`
 	ReleaseBranch ReleaseBranchIntent `json:"releaseBranch,omitempty"`
 	Promote       PromoteIntent       `json:"promote,omitempty"`
+	Rollback      RollbackIntent      `json:"rollback,omitempty"`
 }
 
 type ReleaseBranchIntent struct {
@@ -24,9 +25,13 @@ type PromoteIntent struct {
 	FromEnvironment string `json:"fromEnvironment,omitempty"`
 }
 
+type RollbackIntent struct {
+	PreviousArtifactID string `json:"previousArtifactId,omitempty"`
+}
+
 func NewReleaseArtifact() Intent {
 	return Intent{
-		Type: TypeReleaseArtifactID,
+		Type: TypeReleaseArtifact,
 	}
 }
 
@@ -54,9 +59,12 @@ func NewAutoRelease() Intent {
 	}
 }
 
-func NewRollback() Intent {
+func NewRollback(previousArtifactID string) Intent {
 	return Intent{
 		Type: TypeRollback,
+		Rollback: RollbackIntent{
+			PreviousArtifactID: previousArtifactID,
+		},
 	}
 }
 
@@ -72,12 +80,12 @@ func (intent *Intent) AsArtifactWithIntent(artifactID string) string {
 	switch intent.Type {
 	case TypeReleaseBranch:
 		return fmt.Sprintf("branch '%s' with artifact '%s'", intent.ReleaseBranch.Branch, artifactID)
-	case TypeReleaseArtifactID:
+	case TypeReleaseArtifact:
 		return fmt.Sprintf("artifact '%s'", artifactID)
 	case TypePromote:
 		return fmt.Sprintf("promotion from '%s' with artifact '%s'", intent.Promote.FromEnvironment, artifactID)
 	case TypeRollback:
-		return fmt.Sprintf("rollback to artifact '%s'", artifactID)
+		return fmt.Sprintf("rollback to artifact '%s' from artifact '%s'", artifactID, intent.Rollback.PreviousArtifactID)
 	case TypeAutoRelease:
 		return fmt.Sprintf("autorelease artifact '%s'", artifactID)
 	default:

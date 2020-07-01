@@ -15,7 +15,6 @@ import (
 )
 
 func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
-	commitMessageExtractorFunc := extractInfoFromCommit()
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
 		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
@@ -40,20 +39,6 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			commitInfo, err := commitMessageExtractorFunc(payload.HeadCommit.Message)
-			if err != nil {
-				logger.Infof("http: github webhook: extract author details from commit failed: message '%s'", payload.HeadCommit.Message)
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-
-			err = flowSvc.NewArtifact(ctx, commitInfo.Service, commitInfo.ArtifactID)
-			if err != nil {
-				logger.Infof("http: github webhook: service '%s': could not publish new artifact event for %s: %v", commitInfo.Service, commitInfo.ArtifactID, err)
-				unknownError(w)
-				return
-			}
-			logger.Infof("http: github webhook: handled successfully: service '%s' commit '%s'", commitInfo.Service, payload.HeadCommit.ID)
 			w.WriteHeader(http.StatusOK)
 			return
 		default:

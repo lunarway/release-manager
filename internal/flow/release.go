@@ -8,6 +8,7 @@ import (
 	"path"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/intent"
@@ -185,10 +186,10 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
 		}
-		authorName := sourceSpec.Application.AuthorName
-		authorEmail := sourceSpec.Application.AuthorEmail
-		releaseMessage := git.ReleaseCommitMessage(environment, service, artifactID, authorEmail)
-		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), authorName, authorEmail, actor.Name, actor.Email, releaseMessage)
+		artifactAuthor := commitinfo.NewPersonInfo(sourceSpec.Application.AuthorName, sourceSpec.Application.AuthorEmail)
+		releaseAuthor := commitinfo.NewPersonInfo(actor.Name, actor.Email)
+		releaseMessage := commitinfo.ReleaseCommitMessage(environment, service, artifactID, event.Intent, artifactAuthor, releaseAuthor)
+		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), releaseMessage)
 		if err != nil {
 			if errors.Cause(err) == git.ErrNothingToCommit {
 				logger.Infof("Environment is up to date: dropping event: %v", err)
@@ -206,7 +207,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 			Spec:        sourceSpec,
 			Releaser:    actor.Name,
 		})
-		logger.Infof("flow: ReleaseArtifactID: release committed: %s, Author: %s <%s>, Committer: %s <%s>", releaseMessage, authorName, authorEmail, actor.Name, actor.Email)
+		logger.Infof("flow: ReleaseArtifactID: release committed: %s, ArtifactAuthor: %s, ReleaseAuthor: %s", releaseMessage, artifactAuthor, releaseAuthor)
 		return true, nil
 	})
 	if err != nil {
