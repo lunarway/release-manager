@@ -92,8 +92,6 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 			ReleasedByName:    commitInfo.ReleasedBy.Name,
 			Intent:            commitInfo.Intent,
 		})
-
-		currentOffset++
 	}
 
 	return DescribeReleaseResponse{
