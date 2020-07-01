@@ -188,7 +188,7 @@ func locateReleaseCondition(artifactID string) conditionFunc {
 		return falseConditionFunc
 	}
 	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
-		return strings.ToLower(c.ArtifactID) == strings.ToLower(artifactID)
+		return strings.EqualFold(c.ArtifactID, artifactID)
 	})
 }
 
@@ -208,7 +208,7 @@ func locateServiceReleaseCondition(env, service string) conditionFunc {
 		return falseConditionFunc
 	}
 	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
-		return strings.ToLower(c.Service) == strings.ToLower(service) && strings.ToLower(c.Environment) == strings.ToLower(env)
+		return strings.EqualFold(c.Service, service) && strings.EqualFold(c.Environment, env)
 	})
 }
 
@@ -229,7 +229,7 @@ func locateEnvReleaseCondition(env, artifactID string) conditionFunc {
 		return falseConditionFunc
 	}
 	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
-		return strings.ToLower(c.ArtifactID) == strings.ToLower(artifactID) && strings.ToLower(c.Environment) == strings.ToLower(env)
+		return strings.EqualFold(c.ArtifactID, artifactID) && strings.EqualFold(c.Environment, env)
 	})
 }
 
@@ -249,7 +249,7 @@ func locateServiceReleaseRollbackSkipCondition(env, service string, n uint) cond
 		return falseConditionFunc
 	}
 	return commitinfo.LocateRelease(func(c commitinfo.CommitInfo) bool {
-		ok := strings.ToLower(c.Environment) == strings.ToLower(env) && strings.ToLower(c.Service) == strings.ToLower(service)
+		ok := strings.EqualFold(c.Environment, env) && strings.EqualFold(c.Service, service)
 		if !ok {
 			return false
 		}
@@ -261,7 +261,7 @@ func locateServiceReleaseRollbackSkipCondition(env, service string, n uint) cond
 	})
 }
 
-type conditionFunc = func(commitMsg string) bool
+type conditionFunc func(commitMsg string) bool
 
 func locate(r *git.Repository, condition conditionFunc, notFoundErr error) (plumbing.Hash, error) {
 	hashes, err := locateN(r, condition, notFoundErr, 1)
