@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"text/template"
@@ -23,6 +24,15 @@ func templateOutput(destination io.Writer, name, text string, data interface{}) 
 		return fmt.Errorf("invalid template: %v", err)
 	}
 	return t.Execute(destination, data)
+}
+
+func templateToString(name, text string, data interface{}) (string, error) {
+	buf := bytes.NewBuffer(nil)
+	err := templateOutput(buf, name, text, data)
+	if err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 func tmplRightPad(s string, padding int) string {
