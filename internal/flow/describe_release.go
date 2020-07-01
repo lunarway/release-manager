@@ -11,7 +11,9 @@ import (
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 type DescribeReleaseResponse struct {
@@ -48,9 +50,8 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 
 	var releases []Release
 
-	var currentOffset uint = 0
-	for count-int(currentOffset) > 0 {
-		hash, err := s.Git.LocateServiceReleaseRollbackSkip(ctx, sourceRepo, environment, service, currentOffset)
+	for currentOffset := 0; currentOffset < count; currentOffset++ {
+		hash, err := s.Git.LocateServiceReleaseRollbackSkip(ctx, sourceRepo, environment, service, uint(currentOffset))
 		if err != nil {
 			if errors.Is(err, git.ErrReleaseNotFound) {
 				break
@@ -68,41 +69,23 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 			return DescribeReleaseResponse{}, errors.WithMessagef(err, "parse commit info at hash '%s'", hash)
 		}
 
-		currentNamespace := ""
-
-		r := regexp.MustCompile(fmt.Sprintf(`^(?P<environment>[^/]+)/releases/(?P<namespace>[^/]+)/(?P<service>[^/]+)/%s$`, regexp.QuoteMeta(s.ArtifactFileName)))
-
-		gitFilesSpan, _ := s.Tracer.FromCtx(ctx, "finding namespace in git commit stats")
-		gitFilesSpan.SetTag("gitcommit", commitObj.Hash.String())
-		stats, err := commitObj.Stats()
+		namespace, err := findNamespaceFromCommit(ctx, commitObj, s.ArtifactFileName)
 		if err != nil {
-			return DescribeReleaseResponse{}, errors.WithMessagef(err, "could not find commit stats for %s", commitObj.Hash.String())
-		}
-		for _, stat := range stats {
-			match := r.FindStringSubmatch(stat.Name)
-			if match != nil {
-				currentNamespace = match[2]
-				break
-			}
-		}
-		gitFilesSpan.Finish()
-
-		if currentNamespace == "" {
-			return DescribeReleaseResponse{}, errors.Errorf("could not find namespace in commit '%s'", commitObj.Hash.String())
+			return DescribeReleaseResponse{}, errors.WithMessagef(err, "could not find namespace for %s", commitObj.Hash.String())
 		}
 
 		err = s.Git.Checkout(ctx, sourceConfigRepoPath, hash)
 		if err != nil {
 			return DescribeReleaseResponse{}, errors.WithMessagef(err, "checkout of commit %s", hash)
 		}
-		spec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, currentNamespace)
+		spec, err := envSpec(sourceConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
 		if err != nil {
 			return DescribeReleaseResponse{}, errors.WithMessagef(err, "reading artifact for commit %s", hash)
 		}
 
 		releases = append(releases, Release{
 			Artifact:          spec,
-			DefaultNamespaces: currentNamespace == environment,
+			DefaultNamespaces: namespace == environment,
 			ReleaseIndex:      int(currentOffset),
 			ReleasedAt:        commitObj.Committer.When,
 			ReleasedByEmail:   commitInfo.ReleasedBy.Email,
@@ -116,4 +99,24 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 	return DescribeReleaseResponse{
 		Releases: releases,
 	}, nil
+}
+
+func findNamespaceFromCommit(ctx context.Context, commitObj *object.Commit, artifactFileName string) (string, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "flow.findNamespace")
+	defer span.Finish()
+	span.SetTag("gitcommit", commitObj.Hash.String())
+
+	r := regexp.MustCompile(fmt.Sprintf(`^(?P<environment>[^/]+)/releases/(?P<namespace>[^/]+)/(?P<service>[^/]+)/%s$`, regexp.QuoteMeta(artifactFileName)))
+	stats, err := commitObj.Stats()
+	if err != nil {
+		return "", errors.WithMessagef(err, "could not find commit stats")
+	}
+	for _, stat := range stats {
+		match := r.FindStringSubmatch(stat.Name)
+		if match != nil {
+			return match[2], nil
+		}
+	}
+
+	return "", errors.Errorf("could not find namespace")
 }
