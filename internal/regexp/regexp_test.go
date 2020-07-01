@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type lookupCallback = func(lookup interface{}, test func(a *assert.Assertions))
+type lookupCallback func(lookup interface{}, test func(a *assert.Assertions))
 
 func TestCompile(t *testing.T) {
 	testCases := []struct {
