@@ -116,7 +116,6 @@ has no effect.`,
 
 				currentRelease = releasesResponse.Releases[0]
 				rollbackTo = &releasesResponse.Releases[index]
-				rollbackTo = &releasesResponse.Releases[1]
 			} else {
 				releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, 10)
 				if err != nil {
