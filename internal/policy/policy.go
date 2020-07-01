@@ -176,7 +176,7 @@ func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch
 		return "", ErrConflict
 	}
 
-	commitMsg := commitinfo.FullMessage(commitinfo.PolicyUpdateApplyCommitMessage(env, svc, "auto-release"), actor.Name, actor.Email, actor.Name, actor.Email)
+	commitMsg := commitinfo.PolicyUpdateApplyCommitMessage(env, svc, "auto-release")
 	var policyID string
 	err = s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
 		policyID = p.SetAutoRelease(branch, env)
