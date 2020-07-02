@@ -2,8 +2,8 @@ package flow
 
 import (
 	"context"
-	"regexp"
 
+	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/flux"
 	"github.com/lunarway/release-manager/internal/http"
 
@@ -47,17 +47,16 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 	}
 
 	for _, commit := range fluxCommits {
-		commitMessage, err := parseCommitMessage(commit.Message)
+		commitMessage, err := commitinfo.ParseCommitInfo(commit.Message)
 		if err != nil {
 			return errors.WithMessagef(err, "parse commit message '%s'", commit.Message)
 		}
-		email := commitMessage.GitAuthor
 
 		// event contains errors, extract and post specific error message
 		if len(fluxErrors) > 0 {
 			for _, err := range fluxErrors {
 				span, ctx := s.Tracer.FromCtx(ctx, "post flux error event slack message")
-				err := s.Slack.NotifyFluxErrorEvent(ctx, commitMessage.ArtifactID, commitMessage.Environment, email, commitMessage.Service, err.Error, err.Path)
+				err := s.Slack.NotifyFluxErrorEvent(ctx, commitMessage.ArtifactID, commitMessage.Environment, commitMessage.ReleasedBy.Email, commitMessage.Service, err.Error, err.Path)
 				span.Finish()
 				if err != nil {
 					return errors.WithMessage(err, "post flux event processed private message")
@@ -68,38 +67,11 @@ func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyReq
 
 		// if no errors
 		span, ctx = s.Tracer.FromCtx(ctx, "post flux event processed slack message")
-		err = s.Slack.NotifyFluxEventProcessed(ctx, commitMessage.ArtifactID, commitMessage.Environment, email, commitMessage.Service)
+		err = s.Slack.NotifyFluxEventProcessed(ctx, commitMessage.ArtifactID, commitMessage.Environment, commitMessage.ReleasedBy.Email, commitMessage.Service)
 		span.Finish()
 		if err != nil {
-			return errors.WithMessagef(err, "post flux event processed private message; artifact: %s, env: %s, email: %s, service: %s", commitMessage.ArtifactID, commitMessage.Environment, email, commitMessage.Service)
+			return errors.WithMessagef(err, "post flux event processed private message; artifact: %s, env: %s, email: %s, service: %s", commitMessage.ArtifactID, commitMessage.Environment, commitMessage.ReleasedBy.Email, commitMessage.Service)
 		}
 	}
 	return nil
-}
-
-type FluxReleaseMessage struct {
-	Environment  string
-	Service      string
-	ArtifactID   string
-	GitAuthor    string
-	GitCommitter string
-}
-
-func parseCommitMessage(commitMessage string) (FluxReleaseMessage, error) {
-	pattern := `^\[(?P<env>.*)/(?P<service>.*)\]\s+release\s+(?P<artifact>.*)\s+by\s+(?P<author>.*)\sArtifact-created-by:\s(?P<authorName>.*)\s<(?P<authorEmail>.*)>\sArtifact-released-by:\s(?P<committerName>.*)\s<(?P<committerEmail>.*)>`
-	r, err := regexp.Compile(pattern)
-	if err != nil {
-		return FluxReleaseMessage{}, errors.WithMessage(err, "regex didn't match")
-	}
-	matches := r.FindStringSubmatch(commitMessage)
-	if len(matches) < 1 {
-		return FluxReleaseMessage{}, errors.New("not enough matches")
-	}
-	return FluxReleaseMessage{
-		Environment:  matches[1],
-		Service:      matches[2],
-		ArtifactID:   matches[3],
-		GitAuthor:    matches[6],
-		GitCommitter: matches[8],
-	}, nil
 }
