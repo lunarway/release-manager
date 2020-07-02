@@ -69,7 +69,7 @@ func ParseCommitInfo(commitMessage string) (CommitInfo, error) {
 
 	matches := parseCommitInfoFromCommitMessageRegex.FindStringSubmatch(convInfo.Message)
 	if matches == nil && !convInfo.HasField(FieldReleaseIntent) {
-		return CommitInfo{}, errors.Wrap(ErrNoMatch, fmt.Sprintf("commit message '%s' does have a Release-intent field and did not match expected message structure", convInfo.Message))
+		return CommitInfo{}, errors.Wrap(ErrNoMatch, fmt.Sprintf("commit message '%s' do not have a Release-intent field and did not match expected message structure", convInfo.Message))
 	}
 
 	if matches != nil && matches[parseCommitInfoFromCommitMessageRegexLookup.Type] == "artifact" {
