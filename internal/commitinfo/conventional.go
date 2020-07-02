@@ -41,6 +41,15 @@ func (i *ConventionalCommitInfo) SetField(name string, value string) {
 	i.Fields = append(i.Fields, NewField(name, value))
 }
 
+func (i ConventionalCommitInfo) HasField(name string) bool {
+	for _, field := range i.Fields {
+		if field.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 func (i ConventionalCommitInfo) String() string {
 	var txts []string
 	if i.Message != "" {
