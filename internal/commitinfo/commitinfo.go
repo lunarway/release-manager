@@ -68,11 +68,11 @@ func ParseCommitInfo(commitMessage string) (CommitInfo, error) {
 	}
 
 	matches := parseCommitInfoFromCommitMessageRegex.FindStringSubmatch(convInfo.Message)
-	if matches == nil {
-		return CommitInfo{}, errors.Wrap(ErrNoMatch, fmt.Sprintf("commit message '%s' does not match expected message structure", convInfo.Message))
+	if matches == nil && !convInfo.HasField(FieldReleaseIntent) {
+		return CommitInfo{}, errors.Wrap(ErrNoMatch, fmt.Sprintf("commit message '%s' do not have a Release-intent field and did not match expected message structure", convInfo.Message))
 	}
 
-	if matches[parseCommitInfoFromCommitMessageRegexLookup.Type] == "artifact" {
+	if matches != nil && matches[parseCommitInfoFromCommitMessageRegexLookup.Type] == "artifact" {
 		return CommitInfo{}, errors.Wrap(ErrNoMatch, fmt.Sprintf("commit type '%s' is not considered a match", matches[parseCommitInfoFromCommitMessageRegexLookup.Type]))
 	}
 
@@ -87,18 +87,18 @@ func ParseCommitInfo(commitMessage string) (CommitInfo, error) {
 	intentObj := parseIntent(convInfo, matches)
 
 	service := convInfo.Field(FieldService)
-	if service == "" {
+	if matches != nil && service == "" {
 		service = matches[parseCommitInfoFromCommitMessageRegexLookup.Service]
 	}
 	environment := convInfo.Field(FieldEnvironment)
-	if environment == "" {
+	if matches != nil && environment == "" {
 		environment = matches[parseCommitInfoFromCommitMessageRegexLookup.Environment]
 	}
 	artifactID := convInfo.Field(FieldArtifactID)
-	if artifactID == "" {
+	if matches != nil && artifactID == "" {
 		artifactID = matches[parseCommitInfoFromCommitMessageRegexLookup.ArtifactID]
 	}
-	if releasedBy.Email == "" {
+	if matches != nil && releasedBy.Email == "" {
 		releasedBy = NewPersonInfo("", matches[parseCommitInfoFromCommitMessageRegexLookup.ReleaseByEmail])
 	}
 

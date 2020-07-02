@@ -149,6 +149,27 @@ func TestParseCommitInfo(t *testing.T) {
 				Intent:            intent.NewRollback("test-s3-push-1337-1337"),
 			},
 		},
+		{
+			name: "Auto release intent should match",
+			commitMessage: []string{
+				"[prod/houston-web] auto release master-937e50b532-c27bd51ad3 by chb@lunar.app",
+				"",
+				"Service: houston-web",
+				"Environment: prod",
+				"Artifact-ID: master-937e50b532-c27bd51ad3",
+				"Artifact-released-by: Casper Bornebusch <chb@lunar.app>",
+				"Artifact-created-by: Casper Bornebusch <chb@lunar.app>",
+				"Release-intent: AutoRelease",
+			},
+			commitInfo: CommitInfo{
+				ArtifactID:        "master-937e50b532-c27bd51ad3",
+				Environment:       "prod",
+				Service:           "houston-web",
+				ArtifactCreatedBy: NewPersonInfo("Casper Bornebusch", "chb@lunar.app"),
+				ReleasedBy:        NewPersonInfo("Casper Bornebusch", "chb@lunar.app"),
+				Intent:            intent.NewAutoRelease(),
+			},
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
