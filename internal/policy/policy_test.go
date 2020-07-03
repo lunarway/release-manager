@@ -383,6 +383,25 @@ func TestService_Get(t *testing.T) {
 	}
 }
 
+func TestNoPoliciesDirectoryReturnsNotFound(t *testing.T) {
+	log.Init(&log.Configuration{
+		Level: log.Level{
+			Level: zapcore.DebugLevel,
+		},
+		Development: true,
+	})
+	gitService := MockGitService{}
+	gitService.On("MasterPath").Return("no-testdata")
+	s := Service{
+		Tracer:     tracing.NewNoop(),
+		Git:        &gitService,
+		MaxRetries: 1,
+	}
+
+	_, err := s.Get(context.Background(), "some-service")
+	assert.EqualError(t, errors.Cause(err), ErrNotFound.Error(), "error not as expected")
+}
+
 func TestMergeBranchRestrictions(t *testing.T) {
 	tt := []struct {
 		name   string

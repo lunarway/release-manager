@@ -77,13 +77,6 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.Get")
 	defer span.Finish()
 
-	// make sure policy directory exists
-	policiesDir := path.Join(s.Git.MasterPath(), "policies")
-	err := os.MkdirAll(policiesDir, os.ModePerm)
-	if err != nil {
-		return Policies{}, errors.WithMessagef(err, "make policies directory '%s'", policiesDir)
-	}
-
 	policies, err := s.servicePolicies(svc)
 	if err != nil {
 		// we will only return if an unknown error occoured and no global policies
@@ -113,11 +106,6 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 func (s *Service) servicePolicies(svc string) (Policies, error) {
 	// make sure policy directory exists
 	policiesDir := path.Join(s.Git.MasterPath(), "policies")
-	err := os.MkdirAll(policiesDir, os.ModePerm)
-	if err != nil {
-		return Policies{}, errors.WithMessagef(err, "make policies directory '%s'", policiesDir)
-	}
-
 	policiesPath := path.Join(policiesDir, fmt.Sprintf("%s.json", svc))
 	policiesFile, err := os.OpenFile(policiesPath, os.O_RDONLY, os.ModePerm)
 	if err != nil {
