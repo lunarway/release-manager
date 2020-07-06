@@ -277,6 +277,7 @@ func TestService_ApplyBranchRestriction(t *testing.T) {
 
 			if tc.err != nil {
 				assert.EqualError(t, err, tc.err.Error(), "error not as expected")
+				return
 			} else {
 				assert.NoError(t, err, "unexpected error")
 			}
@@ -284,10 +285,9 @@ func TestService_ApplyBranchRestriction(t *testing.T) {
 
 			// read the stored policies from the destination path
 			policies, err := s.Get(context.Background(), tc.svc)
-			if err != nil {
-				t.Logf("Get stored policy failed: %v", err)
+			if !assert.NoError(t, err, "get stored policy failed") {
+				assert.Equal(t, tc.polcies, policies, "updated policies not as expected")
 			}
-			assert.Equal(t, tc.polcies, policies, "updated policies not as expected")
 		})
 	}
 }
