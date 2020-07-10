@@ -120,4 +120,4 @@ var parseCommitInfoFromCommitMessageRegexLookup = struct {
 	Type               int
 	ReleaseByEmail     int
 }{}
-var parseCommitInfoFromCommitMessageRegex = regexp.MustCompile(`^\[(?P<Environment>[^/]+)/(?P<Service>.*)\] (?P<Type>[a-z]+)( (?P<PreviousArtifactID>[^ ]+) to)? (?P<ArtifactID>[^ ]+)( by (?P<ReleaseByEmail>.*))?$`, &parseCommitInfoFromCommitMessageRegexLookup)
+var parseCommitInfoFromCommitMessageRegex = regexp.MustCompile(`^\[(?P<Environment>[^/]+)/(?P<Service>.*)\] (?P<Type>[a-z ]+)( (?P<PreviousArtifactID>[^ ]+) to)? (?P<ArtifactID>[^ ]+)( by (?P<ReleaseByEmail>.*))?$`, &parseCommitInfoFromCommitMessageRegexLookup)
