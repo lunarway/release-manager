@@ -2,6 +2,7 @@ package flux
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	httpinternal "github.com/lunarway/release-manager/internal/http"
@@ -26,7 +27,7 @@ type ReleaseManagerExporter struct {
 }
 
 func (f *ReleaseManagerExporter) Send(_ context.Context, event event.Event) error {
-	f.Log.With("event", event).Infof("flux event logged")
+	f.Log.With("event", fmt.Sprintf("%#v", event)).Infof("flux event logged")
 	var resp httpinternal.FluxNotifyResponse
 	url, err := f.Client.URL("webhook/daemon/flux")
 	if err != nil {

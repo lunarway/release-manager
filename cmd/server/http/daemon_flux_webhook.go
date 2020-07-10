@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/lunarway/release-manager/internal/flow"
@@ -29,7 +30,7 @@ func daemonFluxWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc
 		}
 		logger = logger.WithFields(
 			"environment", fluxNotifyEvent.Environment,
-			"event", fluxNotifyEvent.FluxEvent)
+			"event", fmt.Sprintf("%#v", fluxNotifyEvent.FluxEvent))
 
 		err = flowSvc.NotifyFluxEvent(ctx, &fluxNotifyEvent)
 		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
