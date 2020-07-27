@@ -15,17 +15,12 @@ import (
 
 // NewCommand returns a new instance of a hamctl command.
 func NewCommand(version *string) (*cobra.Command, error) {
-	_, email, err := git.CommitterDetails()
-	if err != nil {
-		return nil, errors.WithMessage(err, "failed to lookup git credentials")
-	}
+	var service, email string
 	client := http.Client{
 		Metadata: http.Metadata{
-			CLIVersion:  *version,
-			CallerEmail: email,
+			CLIVersion: *version,
 		},
 	}
-	var service string
 	var command = &cobra.Command{
 		Use:                    "hamctl",
 		Short:                  "hamctl controls a release manager server",
@@ -39,8 +34,19 @@ func NewCommand(version *string) (*cobra.Command, error) {
 			defaultShuttleString(shuttleSpecFromFile, &service, func(s *shuttleSpec) string {
 				return s.Vars.Service
 			})
+			var missingFlags []string
 			if service == "" {
-				return errors.New("required flag(s) \"service\" not set")
+				missingFlags = append(missingFlags, "service")
+			}
+			if email == "" {
+				_, email, _ = git.CommitterDetails()
+				if email == "" {
+					missingFlags = append(missingFlags, "user-email")
+				}
+			}
+			client.Metadata.CallerEmail = email
+			if len(missingFlags) != 0 {
+				return errors.Errorf(`required flag(s) "%s" not set`, strings.Join(missingFlags, `", "`))
 			}
 			return nil
 		},
@@ -59,6 +65,7 @@ func NewCommand(version *string) (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&client.BaseURL, "http-base-url", "https://release-manager.dev.lunarway.com", "address of the http release manager server")
 	command.PersistentFlags().StringVar(&client.Metadata.AuthToken, "http-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "auth token for the http service")
 	command.PersistentFlags().StringVar(&service, "service", "", "service name to execute commands for")
+	command.PersistentFlags().StringVar(&email, "user-email", "", "email of user performing the command (defaults to Git configurated user.email)")
 	return command, nil
 }
 
