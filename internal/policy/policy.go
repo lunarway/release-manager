@@ -9,6 +9,7 @@ import (
 	"path"
 	"strings"
 
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/lunarway/release-manager/internal/commitinfo"
 	internalgit "github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
@@ -106,7 +107,10 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 func (s *Service) servicePolicies(svc string) (Policies, error) {
 	// make sure policy directory exists
 	policiesDir := path.Join(s.Git.MasterPath(), "policies")
-	policiesPath := path.Join(policiesDir, fmt.Sprintf("%s.json", svc))
+	policiesPath, err := securejoin.SecureJoin(policiesDir, fmt.Sprintf("%s.json", svc))
+	if err != nil {
+		return Policies{}, errors.WithMessage(err, "join policy path")
+	}
 	policiesFile, err := os.OpenFile(policiesPath, os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		if os.IsNotExist(err) {

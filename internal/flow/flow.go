@@ -14,9 +14,10 @@ import (
 	"path/filepath"
 	"time"
 
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
-	"github.com/lunarway/release-manager/internal/git"
+	internalgit "github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
@@ -24,6 +25,8 @@ import (
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/lunarway/release-manager/internal/try"
 	"github.com/pkg/errors"
+	git "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 var (
@@ -38,7 +41,7 @@ type Service struct {
 	ArtifactFileName string
 	UserMappings     map[string]string
 	Slack            *slack.Client
-	Git              *git.Service
+	Git              GitService
 	Tracer           tracing.Tracer
 	CanRelease       func(ctx context.Context, svc, branch, env string) (bool, error)
 	Storage          ArtifactReadStorage
@@ -62,6 +65,15 @@ type NotifyReleaseOptions struct {
 	Spec        artifact.Spec
 }
 
+type GitService interface {
+	SyncMaster(context.Context) error
+	Clone(context.Context, string) (*git.Repository, error)
+	MasterPath() string
+	Commit(ctx context.Context, rootPath, changesPath, msg string) error
+	LocateServiceReleaseRollbackSkip(ctx context.Context, r *git.Repository, env, service string, n uint) (plumbing.Hash, error)
+	Checkout(ctx context.Context, rootPath string, hash plumbing.Hash) error
+}
+
 // retry tries the function f until max attempts is reached
 // If f returns a true bool or a nil error retries are stopped and the error is
 // returned.
@@ -69,7 +81,7 @@ func (s *Service) retry(ctx context.Context, f func(context.Context, int) (bool,
 	return try.Do(ctx, s.Tracer, s.MaxRetries, func(ctx context.Context, attempt int) (bool, error) {
 		stop, err := f(ctx, attempt)
 		if err != nil {
-			if errors.Cause(err) == git.ErrBranchBehindOrigin {
+			if errors.Cause(err) == internalgit.ErrBranchBehindOrigin {
 				log.WithContext(ctx).Infof("flow/retry: master repo not aligned with origin. Syncing and retrying")
 				err := s.Git.SyncMaster(ctx)
 				if err != nil {
@@ -223,15 +235,43 @@ type releaseLocation struct {
 }
 
 func (s *Service) releaseSpecification(ctx context.Context, location releaseLocation) (artifact.Spec, error) {
-	return artifact.Get(path.Join(releasePath(s.Git.MasterPath(), location.Service, location.Environment, location.Namespace), s.ArtifactFileName))
+	releasePath, err := releasePath(s.Git.MasterPath(), location.Service, location.Environment, location.Namespace)
+	if err != nil {
+		return artifact.Spec{}, errors.WithMessage(err, "get release path")
+	}
+	artifactPath := path.Join(releasePath, s.ArtifactFileName)
+	spec, err := artifact.Get(artifactPath)
+	if err != nil {
+		return artifact.Spec{}, errors.WithMessagef(err, "artifact path '%s'", artifactPath)
+	}
+	return spec, nil
 }
 
 func envSpec(root, artifactFileName, service, env, namespace string) (artifact.Spec, error) {
-	return artifact.Get(path.Join(releasePath(root, service, env, namespace), artifactFileName))
+	releasePath, err := releasePath(root, service, env, namespace)
+	if err != nil {
+		return artifact.Spec{}, errors.WithMessage(err, "get release path")
+	}
+	return artifact.Get(path.Join(releasePath, artifactFileName))
 }
 
-func releasePath(root, service, env, namespace string) string {
-	return path.Join(root, env, "releases", namespace, service)
+// releasePath returns the path of a specific release.
+func releasePath(root, service, env, namespace string) (string, error) {
+	releasePath := root // start with root
+	pathsToJoin := []string{
+		env,
+		"releases",
+		namespace,
+		service,
+	}
+	var err error
+	for _, p := range pathsToJoin {
+		releasePath, err = securejoin.SecureJoin(releasePath, p)
+		if err != nil {
+			return "", errors.WithMessagef(err, "join '%s' to path", p)
+		}
+	}
+	return releasePath, nil
 }
 
 // PushArtifactToReleaseManager pushes an artifact to the release manager

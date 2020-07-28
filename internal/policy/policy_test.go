@@ -352,6 +352,13 @@ func TestService_Get(t *testing.T) {
 			},
 			err: nil,
 		},
+		{
+			name:           "path traversal vulnerability on service input",
+			service:        "../other",
+			globalPolicies: nil,
+			policies:       Policies{},
+			err:            ErrNotFound,
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
