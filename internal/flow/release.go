@@ -168,7 +168,10 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		}
 
 		// release service to env from original release
-		destinationPath := releasePath(destinationConfigRepoPath, service, environment, namespace)
+		destinationPath, err := releasePath(destinationConfigRepoPath, service, environment, namespace)
+		if err != nil {
+			return true, errors.WithMessage(err, "get release path")
+		}
 		logger.Infof("flow: ReleaseArtifactID: copy resources from %s to %s", sourcePath, destinationPath)
 
 		err = s.cleanCopy(ctx, sourcePath, destinationPath)
@@ -176,7 +179,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 			return true, errors.WithMessagef(err, "copy resources from '%s' to '%s'", sourcePath, destinationPath)
 		}
 		// copy artifact spec
-		artifactDestinationPath := path.Join(releasePath(destinationConfigRepoPath, service, environment, namespace), s.ArtifactFileName)
+		artifactDestinationPath := path.Join(destinationPath, s.ArtifactFileName)
 		logger.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
 		err = copy.CopyFile(ctx, artifactSourcePath, artifactDestinationPath)
 		if err != nil {
@@ -189,7 +192,11 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		artifactAuthor := commitinfo.NewPersonInfo(sourceSpec.Application.AuthorName, sourceSpec.Application.AuthorEmail)
 		releaseAuthor := commitinfo.NewPersonInfo(actor.Name, actor.Email)
 		releaseMessage := commitinfo.ReleaseCommitMessage(environment, service, artifactID, event.Intent, artifactAuthor, releaseAuthor)
-		err = s.Git.Commit(ctx, destinationConfigRepoPath, releasePath(".", service, environment, namespace), releaseMessage)
+		commitPath, err := releasePath(".", service, environment, namespace)
+		if err != nil {
+			return true, errors.WithMessage(err, "get commit path")
+		}
+		err = s.Git.Commit(ctx, destinationConfigRepoPath, commitPath, releaseMessage)
 		if err != nil {
 			if errors.Cause(err) == git.ErrNothingToCommit {
 				logger.Infof("Environment is up to date: dropping event: %v", err)

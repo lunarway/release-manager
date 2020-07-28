@@ -42,7 +42,7 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 	}
 	defer close(ctx)
 
-	log.WithContext(ctx).Debugf("Cloning source config repo %s into %s", s.Git.ConfigRepoURL, sourceConfigRepoPath)
+	log.WithContext(ctx).Debugf("Cloning source config repo into %s", sourceConfigRepoPath)
 	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		return DescribeReleaseResponse{}, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)

@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.31.0
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
+	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/docker/go-metrics v0.0.0-20180209012529-399ea8c73916 // indirect
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/dustin/go-humanize v1.0.0

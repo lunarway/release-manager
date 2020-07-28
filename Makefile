@@ -46,7 +46,8 @@ test:
 	go test -v ./...
 
 generate_mock:
-	mockery -dir ./internal/policy -inpkg -name GitService
+	mockery --dir ./internal/policy --inpackage --name GitService
+	mockery --dir ./internal/flow --inpackage --name GitService
 
 integration-test: rabbitmq-background
 	@echo "Running integration tests against RabbitMQ on localhost"
