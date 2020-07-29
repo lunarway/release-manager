@@ -6,13 +6,13 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
@@ -107,7 +107,12 @@ func unzipFile(src, destination string) (filenames []string, err error) {
 		}
 		defer checkClose(rc, &err, "source file")
 
-		fpath := filepath.Join(destination, f.Name)
+		var fpath string
+		fpath, err = securejoin.SecureJoin(destination, f.Name)
+		if err != nil {
+			err = errors.WithMessagef(err, "join destination path for file '%s'", f.Name)
+			return
+		}
 		if f.FileInfo().IsDir() {
 			err = os.MkdirAll(fpath, os.ModePerm)
 			if err != nil {
