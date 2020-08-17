@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/log"
@@ -75,7 +76,7 @@ func (s *Service) ExecNewArtifact(ctx context.Context, e NewArtifactEvent) error
 			Email: artifactSpec.Application.AuthorEmail,
 		}, autoRelease.Environment, artifactSpec.Service, artifactSpec.ID, intent.NewAutoRelease())
 		if err != nil {
-			if errorCause(err) != git.ErrNothingToCommit {
+			if errorCause(err) != git.ErrNothingToCommit && errorCause(err) != flow.ErrNothingToRelease {
 				errs = multierr.Append(errs, err)
 				err := s.Slack.NotifySlackPolicyFailed(ctx, artifactSpec.Application.AuthorEmail, ":rocket: Release Manager :no_entry:", fmt.Sprintf("Service %s was not released into %s from branch %s.\nYou can deploy manually using `hamctl`:\nhamctl release --service %[1]s --branch %[3]s --env %[2]s", artifactSpec.Service, autoRelease.Environment, autoRelease.Branch))
 				if err != nil {
