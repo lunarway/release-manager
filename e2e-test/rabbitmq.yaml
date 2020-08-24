@@ -15,6 +15,18 @@ spec:
       port: 15672
       targetPort: 15672
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: rabbitmq
+data:
+  rabbitmq.conf: |
+    default_user = lunar
+    default_pass = lunar
+    # watermark is set above k8s limits to simulate OOMKilled under heavy load
+    vm_memory_high_watermark.absolute = 1000MB
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -39,14 +51,18 @@ spec:
         app: rabbitmq
         type: deployment
     spec:
+      volumes:
+        - name: config
+          configMap:
+            name: rabbitmq
+        - name: data
+          emptyDir: {}
       containers:
         - name: rabbitmq
           image: rabbitmq:3-management
           env:
-            - name: RABBITMQ_DEFAULT_USER
-              value: lunar
-            - name: RABBITMQ_DEFAULT_PASS
-              value: lunar
+            - name: RABBITMQ_CONFIG_FILE
+              value: /etc/rabbitmq-config/rabbitmq
           ports:
             - name: amqp
               containerPort: 5672
@@ -54,3 +70,14 @@ spec:
             - name: admin
               containerPort: 15672
               hostPort: 15672
+          resources:
+            requests:
+              memory: "384Mi"
+            limits:
+              memory: "384Mi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/rabbitmq-config
+            # support durable queues across restarts
+            - name: data
+              mountPath: /var/lib/rabbitmq

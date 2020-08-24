@@ -12,7 +12,7 @@ import (
 	"github.com/lunarway/release-manager/cmd/server/gpg"
 	"github.com/lunarway/release-manager/cmd/server/http"
 	"github.com/lunarway/release-manager/internal/broker"
-	"github.com/lunarway/release-manager/internal/broker/amqp"
+	"github.com/lunarway/release-manager/internal/broker/amqpextra"
 	"github.com/lunarway/release-manager/internal/broker/memory"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
@@ -74,7 +74,6 @@ type amqpOptions struct {
 	Port                int
 	VirtualHost         string
 	ReconnectionTimeout time.Duration
-	RepublishTimeout    time.Duration
 	Prefetch            int
 	Exchange            string
 	Queue               string
@@ -408,8 +407,8 @@ func getBroker(c *brokerOptions) (broker.Broker, error) {
 	case BrokerTypeAMQP:
 		amqpOptions := c.AMQP
 		log.Info("Using an AMQP broker")
-		return amqp.NewWorker(amqp.Config{
-			Connection: amqp.ConnectionConfig{
+		return amqpextra.New(amqpextra.Config{
+			Connection: amqpextra.ConnectionConfig{
 				Host:        amqpOptions.Host,
 				User:        amqpOptions.User,
 				Password:    amqpOptions.Password,
@@ -417,7 +416,6 @@ func getBroker(c *brokerOptions) (broker.Broker, error) {
 				Port:        amqpOptions.Port,
 			},
 			ReconnectionTimeout: amqpOptions.ReconnectionTimeout,
-			RepublishTimeout:    amqpOptions.RepublishTimeout,
 			Exchange:            amqpOptions.Exchange,
 			Queue:               amqpOptions.Queue,
 			RoutingKey:          "#",
