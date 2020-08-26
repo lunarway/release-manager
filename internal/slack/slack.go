@@ -88,7 +88,7 @@ func NewMuteableClient(token string, emailMappings map[string]string, muteOption
 }
 
 func (c *Client) getIdByEmail(ctx context.Context, email string) (string, error) {
-	if !strings.Contains(email, c.emailSuffix) {
+	if !strings.HasSuffix(email, c.emailSuffix) {
 		// check for fallback emails
 		companyEmail, ok := c.emailMappings[email]
 		if !ok {

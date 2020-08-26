@@ -33,7 +33,7 @@ func initCommand(options *Options) *cobra.Command {
 				return err
 			}
 			isCompanyEmail := func(email string) bool {
-				return strings.Contains(email, options.EmailSuffix)
+				return strings.HasSuffix(email, options.EmailSuffix)
 			}
 			if !isCompanyEmail(s.Application.AuthorEmail) {
 				companyEmail, ok := options.UserMappings[s.Application.AuthorEmail]
