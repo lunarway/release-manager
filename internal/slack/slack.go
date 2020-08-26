@@ -29,9 +29,9 @@ type MuteOptions struct {
 }
 
 var (
-	// ErrUnknownEmail indicates that an email not from the lunar.app domain
-	// is used and no email mapping exists.
-	ErrUnknownEmail = errors.New("not a lunarway email")
+	// ErrUnknownEmail indicates that an email is not from the specified domain
+	// and no email mapping exists
+	ErrUnknownEmail = errors.New("not an accepted email domain")
 )
 
 func NewClient(token string, emailMappings map[string]string, emailSuffix string) (*Client, error) {
@@ -92,7 +92,7 @@ func (c *Client) getIdByEmail(ctx context.Context, email string) (string, error)
 		// check for fallback emails
 		companyEmail, ok := c.emailMappings[email]
 		if !ok {
-			log.WithContext(ctx).Errorf("%s is not a Lunar Way email and no mapping exist", email)
+			log.WithContext(ctx).Errorf("%s is not a %s email and no mapping exist", email, c.emailSuffix) // todo: what is this and why log + return err
 			return "", ErrUnknownEmail
 		}
 		email = companyEmail
@@ -380,7 +380,7 @@ func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service
 	}
 	userID, err := c.getIdByEmail(ctx, actorEmail)
 	if err != nil {
-		// If user id somehow couldn't be found, post the message to #squad-nasa
+		// If user id somehow couldn't be found, post the message to fallback channel
 		log.With("actorEmail", actorEmail).Infof("slack: skipping: no user id found, so no slack notification")
 		return nil
 	}
