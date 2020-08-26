@@ -28,12 +28,13 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&options.FileName, "file", "artifact.json", "")
 	command.PersistentFlags().StringVar(&options.SlackToken, "slack-token", "", "slack token to be used for notifications")
 	command.PersistentFlags().StringVar(&options.MessageFileName, "message-file", "message.json", "file to store intermediate slack messages")
-	command.PersistentFlags().StringVar(&options.EmailSuffix, "email-suffix", "@lunar.app", "company email suffix to expect")
+	command.PersistentFlags().StringVar(&options.EmailSuffix, "email-suffix", "", "company email suffix to expect. E.g.: '@example.com'")
 	command.AddCommand(initCommand(&options))
 	command.AddCommand(endCommand(&options))
 	command.AddCommand(addCommand(&options))
 	command.AddCommand(pushCommand(&options))
 	command.AddCommand(failureCommand(&options))
 	command.AddCommand(successfulCommand(&options))
+	command.MarkFlagRequired("email-suffix")
 	return command, nil
 }
