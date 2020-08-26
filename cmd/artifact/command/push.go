@@ -31,7 +31,7 @@ func pushCommand(options *Options) *cobra.Command {
 					return err
 				}
 			}
-			client, err := slack.NewClient(options.SlackToken, options.UserMappings)
+			client, err := slack.NewClient(options.SlackToken, options.UserMappings, options.EmailSuffix)
 			if err != nil {
 				fmt.Printf("Error, not able to create Slack client in successful command: %v", err)
 				return nil

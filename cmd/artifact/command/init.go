@@ -71,7 +71,7 @@ func initCommand(options *Options) *cobra.Command {
 			// If we have an email to use for slack, lets inform
 			if s.Application.AuthorEmail != "" {
 				// Setup Slack client
-				client, err := slack.NewClient(options.SlackToken, options.UserMappings)
+				client, err := slack.NewClient(options.SlackToken, options.UserMappings, options.EmailSuffix)
 				if err != nil {
 					fmt.Printf("Error creating Slack client")
 					return nil

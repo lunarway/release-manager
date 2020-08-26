@@ -240,7 +240,7 @@ func setStage(s artifact.Spec, stage artifact.Stage) artifact.Spec {
 }
 
 func notifySlack(options *Options, text, color string) error {
-	client, err := slack.NewClient(options.SlackToken, options.UserMappings)
+	client, err := slack.NewClient(options.SlackToken, options.UserMappings, options.EmailSuffix)
 	if err != nil {
 		return err
 	}

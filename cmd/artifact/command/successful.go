@@ -14,7 +14,7 @@ func successfulCommand(options *Options) *cobra.Command {
 		Use:   "successful",
 		Short: "report successful in the pipeline",
 		RunE: func(c *cobra.Command, args []string) error {
-			client, err := slack.NewClient(options.SlackToken, options.UserMappings)
+			client, err := slack.NewClient(options.SlackToken, options.UserMappings, options.EmailSuffix)
 			if err != nil {
 				fmt.Printf("Error, not able to create Slack client in successful command: %v", err)
 				return nil
