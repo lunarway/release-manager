@@ -10,6 +10,7 @@ type Options struct {
 	SlackToken      string
 	MessageFileName string
 	UserMappings    map[string]string
+	EmailSuffix     string
 }
 
 // NewCommand returns a new instance of a rm-gen-spec command.
@@ -27,6 +28,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&options.FileName, "file", "artifact.json", "")
 	command.PersistentFlags().StringVar(&options.SlackToken, "slack-token", "", "slack token to be used for notifications")
 	command.PersistentFlags().StringVar(&options.MessageFileName, "message-file", "message.json", "file to store intermediate slack messages")
+	command.PersistentFlags().StringVar(&options.EmailSuffix, "email-suffix", "@lunar.app", "company email suffix to expect")
 	command.AddCommand(initCommand(&options))
 	command.AddCommand(endCommand(&options))
 	command.AddCommand(addCommand(&options))
