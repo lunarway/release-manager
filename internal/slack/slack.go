@@ -15,6 +15,7 @@ type Client struct {
 	client        *slack.Client
 	emailMappings map[string]string
 	muteOptions   MuteOptions
+	emailSuffix   string
 }
 
 type MuteOptions struct {
@@ -28,12 +29,12 @@ type MuteOptions struct {
 }
 
 var (
-	// ErrUnknownEmail indicates that an email not from the lunar.app domain
-	// is used and no email mapping exists.
-	ErrUnknownEmail = errors.New("not a lunarway email")
+	// ErrUnknownEmail indicates that an email is not from the specified domain
+	// and no email mapping exists
+	ErrUnknownEmail = errors.New("not an accepted email domain")
 )
 
-func NewClient(token string, emailMappings map[string]string) (*Client, error) {
+func NewClient(token string, emailMappings map[string]string, emailSuffix string) (*Client, error) {
 	if token == "" {
 		log.Infof("slack: skipping: no token, so no slack notification")
 		return &Client{
@@ -56,6 +57,7 @@ func NewClient(token string, emailMappings map[string]string) (*Client, error) {
 		emailMappings: emailMappings,
 		muteOptions:   MuteOptions{},
 	}
+	client.emailSuffix = emailSuffix
 	return &client, nil
 }
 
@@ -86,14 +88,14 @@ func NewMuteableClient(token string, emailMappings map[string]string, muteOption
 }
 
 func (c *Client) getIdByEmail(ctx context.Context, email string) (string, error) {
-	if !strings.Contains(email, "@lunar.app") {
+	if !strings.HasSuffix(email, c.emailSuffix) {
 		// check for fallback emails
-		lwEmail, ok := c.emailMappings[email]
+		companyEmail, ok := c.emailMappings[email]
 		if !ok {
-			log.WithContext(ctx).Errorf("%s is not a Lunar Way email and no mapping exist", email)
+			log.WithContext(ctx).Errorf("%s is not a %s email and no mapping exist", email, c.emailSuffix) // todo: what is this and why log + return err
 			return "", ErrUnknownEmail
 		}
-		email = lwEmail
+		email = companyEmail
 	}
 	user, err := c.client.GetUserByEmailContext(ctx, email)
 	if err != nil {
@@ -378,7 +380,7 @@ func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service
 	}
 	userID, err := c.getIdByEmail(ctx, actorEmail)
 	if err != nil {
-		// If user id somehow couldn't be found, post the message to #squad-nasa
+		// If user id somehow couldn't be found, post the message to fallback channel
 		log.With("actorEmail", actorEmail).Infof("slack: skipping: no user id found, so no slack notification")
 		return nil
 	}

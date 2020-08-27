@@ -97,7 +97,7 @@ func (s *Service) updateTag(ctx context.Context, repository, tag, sha string) er
 	if resp.StatusCode != http.StatusOK {
 		errorBody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			log.WithContext(ctx).Errorf("internal/github: failed too read error body of request")
+			log.WithContext(ctx).Errorf("internal/github: failed to read error body of request")
 		}
 		return fmt.Errorf("internal/github: http request failed: %s %s: status %v: body: %s", req.Method, req.URL, resp.Status, errorBody)
 	}

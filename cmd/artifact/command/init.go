@@ -32,26 +32,26 @@ func initCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			isLunarWayEmail := func(email string) bool {
-				return strings.Contains(email, "@lunar.app")
+			isCompanyEmail := func(email string) bool {
+				return strings.HasSuffix(email, options.EmailSuffix)
 			}
-			if !isLunarWayEmail(s.Application.AuthorEmail) {
-				lwEmail, ok := options.UserMappings[s.Application.AuthorEmail]
+			if !isCompanyEmail(s.Application.AuthorEmail) {
+				companyEmail, ok := options.UserMappings[s.Application.AuthorEmail]
 				if !ok {
 					// Don't break, just continue and use the provided email
 					fmt.Printf("user mappings for %s not found", s.Application.AuthorEmail)
 				} else {
-					s.Application.AuthorEmail = lwEmail
+					s.Application.AuthorEmail = companyEmail
 				}
 			}
 
-			if !isLunarWayEmail(s.Application.CommitterEmail) {
-				lwEmail, ok := options.UserMappings[s.Application.CommitterEmail]
+			if !isCompanyEmail(s.Application.CommitterEmail) {
+				companyEmail, ok := options.UserMappings[s.Application.CommitterEmail]
 				if !ok {
 					// Don't break, just continue and use the provided email
 					fmt.Printf("user mappings for %s not found", s.Application.CommitterEmail)
 				} else {
-					s.Application.CommitterEmail = lwEmail
+					s.Application.CommitterEmail = companyEmail
 				}
 			}
 
@@ -71,7 +71,7 @@ func initCommand(options *Options) *cobra.Command {
 			// If we have an email to use for slack, lets inform
 			if s.Application.AuthorEmail != "" {
 				// Setup Slack client
-				client, err := slack.NewClient(options.SlackToken, options.UserMappings)
+				client, err := slack.NewClient(options.SlackToken, options.UserMappings, options.EmailSuffix)
 				if err != nil {
 					fmt.Printf("Error creating Slack client")
 					return nil
