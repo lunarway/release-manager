@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 
 	"github.com/lunarway/release-manager/internal/flow"
@@ -47,8 +48,8 @@ func pushCommand(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&releaseManagerClient.BaseURL, "http-base-url", "https://release-manager.dev.lunarway.com", "address of the http release manager server")
-	command.Flags().StringVar(&releaseManagerClient.Metadata.AuthToken, "http-auth-token", "", "auth token for the http service")
+	command.Flags().StringVar(&releaseManagerClient.BaseURL, "http-base-url", os.Getenv("HAMCTL_URL"), "address of the http release manager server")
+	command.Flags().StringVar(&releaseManagerClient.Metadata.AuthToken, "http-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "auth token for the http service")
 
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
