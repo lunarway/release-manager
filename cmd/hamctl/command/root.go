@@ -53,12 +53,10 @@ func NewCommand(version *string) (*cobra.Command, error) {
 					missingFlags = append(missingFlags, "user-email")
 				}
 			}
-
 			client.Metadata.CallerEmail = email
 			if len(missingFlags) != 0 {
 				return errors.Errorf(`required flag(s) "%s" not set`, strings.Join(missingFlags, `", "`))
 			}
-
 			return nil
 		},
 		Run: func(c *cobra.Command, args []string) {
