@@ -3,7 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
-	"golang.org/x/tools/go/ssa/interp/testdata/src/os"
+	"os"
 	"path"
 
 	"github.com/lunarway/release-manager/internal/flow"
