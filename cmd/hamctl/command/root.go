@@ -34,6 +34,15 @@ func NewCommand(version *string) (*cobra.Command, error) {
 			defaultShuttleString(shuttleSpecFromFile, &service, func(s *shuttleSpec) string {
 				return s.Vars.Service
 			})
+
+			if client.BaseURL == "" {
+				client.BaseURL = os.Getenv("HAMCTL_URL")
+			}
+
+			if client.Metadata.AuthToken == "" {
+				client.Metadata.AuthToken = os.Getenv("HAMCTL_AUTH_TOKEN")
+			}
+
 			var missingFlags []string
 			if service == "" {
 				missingFlags = append(missingFlags, "service")
@@ -44,10 +53,12 @@ func NewCommand(version *string) (*cobra.Command, error) {
 					missingFlags = append(missingFlags, "user-email")
 				}
 			}
+
 			client.Metadata.CallerEmail = email
 			if len(missingFlags) != 0 {
 				return errors.Errorf(`required flag(s) "%s" not set`, strings.Join(missingFlags, `", "`))
 			}
+
 			return nil
 		},
 		Run: func(c *cobra.Command, args []string) {
@@ -62,10 +73,12 @@ func NewCommand(version *string) (*cobra.Command, error) {
 	command.AddCommand(NewDescribe(&client, &service))
 	command.AddCommand(NewCompletion(command))
 	command.PersistentFlags().DurationVar(&client.Timeout, "http-timeout", 120*time.Second, "HTTP request timeout")
-	command.PersistentFlags().StringVar(&client.BaseURL, "http-base-url", os.Getenv("HAMCTL_URL"), "address of the http release manager server")
-	command.PersistentFlags().StringVar(&client.Metadata.AuthToken, "http-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "auth token for the http service")
+	command.PersistentFlags().StringVar(&client.BaseURL, "http-base-url", "", "address of the http release manager server")
+	command.PersistentFlags().StringVar(&client.Metadata.AuthToken, "http-auth-token", "", "auth token for the http service")
 	command.PersistentFlags().StringVar(&service, "service", "", "service name to execute commands for")
 	command.PersistentFlags().StringVar(&email, "user-email", "", "email of user performing the command (defaults to Git configurated user.email)")
+
+
 	return command, nil
 }
 
