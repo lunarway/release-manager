@@ -8,9 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -21,7 +19,6 @@ import (
 	"github.com/pkg/errors"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/format/config"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
@@ -522,78 +519,6 @@ func gitPush(ctx context.Context, rootPath string) error {
 		return errors.WithMessage(err, "execute command failed")
 	}
 	return nil
-}
-
-// userHomeDir returns the home directory of the current user.
-//
-// It handles windows, linux and darwin operating systems by inspecting
-// runtime.GOOS.
-func userHomeDir() string {
-	switch runtime.GOOS {
-	case "windows":
-		home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
-		if home == "" {
-			home = os.Getenv("USERPROFILE")
-		}
-		return home
-	case "linux":
-		home := os.Getenv("XDG_CONFIG_HOME")
-		if home != "" {
-			return home
-		}
-		fallthrough
-	default:
-		return os.Getenv("HOME")
-	}
-}
-
-// CommitterDetails returns name and email read for a Git configuration file.
-//
-// Configuration files are read first in the local git repository (if available)
-// and then read the global Git configuration.
-func CommitterDetails() (string, string, error) {
-	var paths []string
-	pwd, err := os.Getwd()
-	if err == nil {
-		paths = append(paths, path.Join(pwd, ".git", "config"))
-	}
-	paths = append(paths, path.Join(userHomeDir(), ".gitconfig"))
-	return credentials(paths...)
-}
-
-// credentials will try to read user name and email from provided paths.
-func credentials(paths ...string) (string, string, error) {
-	for _, path := range paths {
-		c, err := parseConfig(path)
-		if err != nil {
-			continue
-		}
-		committerName := c.Section("user").Option("name")
-		committerEmail := c.Section("user").Option("email")
-		if committerEmail == "" {
-			continue
-		}
-		if committerName == "" {
-			continue
-		}
-		return committerName, committerEmail, nil
-	}
-	return "", "", errors.Errorf("failed to read Git credentials from paths: %v", paths)
-}
-
-// parseConfig returns the Git configuration parsed from provided path.
-func parseConfig(path string) (config.Config, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return config.Config{}, err
-	}
-	decoder := config.NewDecoder(file)
-	var c config.Config
-	err = decoder.Decode(&c)
-	if err != nil {
-		return config.Config{}, err
-	}
-	return c, nil
 }
 
 func falseConditionFunc(commitMsg string) bool { return false }
