@@ -10,13 +10,13 @@ import (
 	"strings"
 
 	securejoin "github.com/cyphar/filepath-securejoin"
+	git "github.com/go-git/go-git/v5"
 	"github.com/lunarway/release-manager/internal/commitinfo"
 	internalgit "github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/lunarway/release-manager/internal/try"
 	"github.com/pkg/errors"
-	git "gopkg.in/src-d/go-git.v4"
 )
 
 var (
