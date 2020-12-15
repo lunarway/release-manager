@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/flux"
 	"github.com/lunarway/release-manager/internal/intent"
-	"github.com/weaveworks/flux/event"
 )
 
 type StatusRequest struct {
@@ -80,7 +80,7 @@ type FluxNotifyResponse struct {
 
 type FluxNotifyRequest struct {
 	Environment string `json:"environment,omitempty"`
-	FluxEvent   event.Event
+	FluxEvent   flux.Event
 }
 
 func (r FluxNotifyRequest) Validate(w http.ResponseWriter) bool {

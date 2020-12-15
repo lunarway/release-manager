@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/lunarway/release-manager/cmd/daemon/flux"
+	intflux "github.com/lunarway/release-manager/internal/flux"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/stretchr/testify/assert"
-	"github.com/weaveworks/flux/event"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -54,7 +54,7 @@ func TestFluxEventsMocks(t *testing.T) {
 	NewFluxUpdatePolicyEvent()
 }
 
-func NewFluxSyncEvent() event.Event {
+func NewFluxSyncEvent() intflux.Event {
 	evt, _ := flux.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
@@ -80,7 +80,7 @@ func NewFluxSyncEvent() event.Event {
 	return evt
 }
 
-func NewFluxSyncErrorEvent() event.Event {
+func NewFluxSyncErrorEvent() intflux.Event {
 	evt, _ := flux.ParseFluxEvent(bytes.NewBufferString(`{
   "id": 0,
   "serviceIDs": [
@@ -118,7 +118,7 @@ func NewFluxSyncErrorEvent() event.Event {
 	return evt
 }
 
-func NewFluxCommitEvent() event.Event {
+func NewFluxCommitEvent() intflux.Event {
 	evt, _ := flux.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
@@ -157,7 +157,7 @@ func NewFluxCommitEvent() event.Event {
 	return evt
 }
 
-func NewFluxAutoReleaseEvent() event.Event {
+func NewFluxAutoReleaseEvent() intflux.Event {
 	evt, _ := flux.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [
@@ -199,7 +199,7 @@ func NewFluxAutoReleaseEvent() event.Event {
 	return evt
 }
 
-func NewFluxUpdatePolicyEvent() event.Event {
+func NewFluxUpdatePolicyEvent() intflux.Event {
 	evt, _ := flux.ParseFluxEvent(bytes.NewBufferString(`{
     "id": 0,
     "serviceIDs": [

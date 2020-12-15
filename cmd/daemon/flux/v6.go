@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/weaveworks/flux/event"
+	"github.com/lunarway/release-manager/internal/flux"
 )
 
 // HandleV6 Flux events
@@ -35,8 +35,8 @@ func HandleV6(api API) {
 }
 
 // ParseFluxEvent for doing flux event from Json into a flux Event struct.
-func ParseFluxEvent(reader io.Reader) (event.Event, error) {
-	var evt event.Event
+func ParseFluxEvent(reader io.Reader) (flux.Event, error) {
+	var evt flux.Event
 	err := json.NewDecoder(reader).Decode(&evt)
 	return evt, err
 }
