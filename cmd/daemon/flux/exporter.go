@@ -5,20 +5,19 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/lunarway/release-manager/internal/flux"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
-
 	"github.com/lunarway/release-manager/internal/log"
-	"github.com/weaveworks/flux/event"
 )
 
 type Message struct {
-	Event event.Event
+	Event flux.Event
 }
 
 // Exporter sends a formatted event to an upstream.
 type Exporter interface {
 	// Send a message through the exporter.
-	Send(c context.Context, event event.Event) error
+	Send(c context.Context, event flux.Event) error
 }
 type ReleaseManagerExporter struct {
 	Log         *log.Logger
@@ -26,7 +25,7 @@ type ReleaseManagerExporter struct {
 	Client      httpinternal.Client
 }
 
-func (f *ReleaseManagerExporter) Send(_ context.Context, event event.Event) error {
+func (f *ReleaseManagerExporter) Send(_ context.Context, event flux.Event) error {
 	f.Log.With("event", fmt.Sprintf("%#v", event)).Infof("flux event logged")
 	var resp httpinternal.FluxNotifyResponse
 	url, err := f.Client.URL("webhook/daemon/flux")

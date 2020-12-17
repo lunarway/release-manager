@@ -3,14 +3,14 @@ package flux_test
 import (
 	"context"
 
-	"github.com/weaveworks/flux/event"
+	"github.com/lunarway/release-manager/internal/flux"
 )
 
 type FakeExporter struct {
-	Sent []event.Event
+	Sent []flux.Event
 }
 
-func (f *FakeExporter) Send(_ context.Context, event event.Event) error {
+func (f *FakeExporter) Send(_ context.Context, event flux.Event) error {
 	f.Sent = append(f.Sent, event)
 	return nil
 }
