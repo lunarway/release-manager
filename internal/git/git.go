@@ -12,14 +12,14 @@ import (
 	"strings"
 	"sync"
 
+	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
-	git "gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
 var (

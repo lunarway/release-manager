@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/git"
@@ -13,7 +14,6 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 type DescribeReleaseResponse struct {

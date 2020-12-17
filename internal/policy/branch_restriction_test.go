@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	git "github.com/go-git/go-git/v5"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
@@ -11,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap/zapcore"
-	git "gopkg.in/src-d/go-git.v4"
 )
 
 func TestCanRelease(t *testing.T) {
