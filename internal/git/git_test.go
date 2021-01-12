@@ -1,8 +1,15 @@
 package git
 
 import (
+	"context"
+	"io/ioutil"
+	"os"
 	"testing"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -178,6 +185,92 @@ func TestLocateServiceReleaseCondition(t *testing.T) {
 			output := locateServiceReleaseCondition(tc.env, tc.service)(tc.message)
 			assert.Equal(t, tc.output, output, "output not as expected")
 		})
+	}
+}
+
+// TestLocateServiceReleaseRollbackSkip tests that
+// LocateServiceReleaseRollbackSkip works with multiple lookups on the same
+// repository where each found release is checked out on the repo.
+func TestLocateServiceReleaseRollbackSkip(t *testing.T) {
+	// setup temporary repository
+	tmpDir, err := ioutil.TempDir("", "release-manager-test")
+	if err != nil {
+		t.Fatalf("failed to get temp dir: %v", err)
+	}
+	defer func() {
+		err := os.RemoveAll(tmpDir)
+		if err != nil {
+			t.Fatalf("failed to remove temp dir with repository: %v", err)
+		}
+	}()
+
+	repo, err := git.PlainInit(tmpDir, false)
+	if err != nil {
+		t.Fatalf("failed to init repo: %v", err)
+	}
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		t.Fatalf("failed to get worktree: %v", err)
+	}
+
+	// setup commits in the repository for testing
+	commits := []struct {
+		message string
+		hash    plumbing.Hash
+	}{
+		{
+			message: "[prod/user] release master-1 by obr@lunar.app",
+		},
+		{
+			message: "[prod/user] release master-2 by shf@lunar.app",
+		},
+		{
+			message: "[prod/user] release master-3 by rol@lunar.app",
+		},
+		{
+			message: "[prod/user] release master-4 by tss@lunar.app",
+		},
+	}
+	for i := range commits {
+		hash, err := wt.Commit(commits[i].message, &git.CommitOptions{})
+		if err != nil {
+			t.Fatalf("failed to commit to worktree: %v", err)
+		}
+		commits[i].hash = hash
+	}
+
+	// print the commit log for human inspection on failures
+	t.Log("Commit log")
+	iter, err := repo.Log(&git.LogOptions{})
+	if err != nil {
+		t.Fatalf("failed to get repo log: %v", err)
+	}
+	iter.ForEach(func(c *object.Commit) error {
+		t.Logf("- %s %s", c.Hash.String(), c.Message)
+		return nil
+	})
+
+	s := Service{
+		Tracer: tracing.NewNoop(),
+	}
+
+	t.Logf("Finding releases")
+	for i := 0; i < len(commits); i++ {
+		hash, err := s.LocateServiceReleaseRollbackSkip(context.Background(), repo, "prod", "user", uint(i))
+		if err != nil {
+			t.Fatalf("failed to locate release: %v", err)
+		}
+
+		t.Logf("- %s n=%d", hash.String(), i)
+		assert.Equal(t, commits[len(commits)-(i+1)].hash.String(), hash.String(), "found hash not as expected for i=%d", i)
+
+		err = wt.Checkout(&git.CheckoutOptions{
+			Hash: hash,
+		})
+		if err != nil {
+			t.Fatalf("failed to checkout: %v", err)
+		}
 	}
 }
 
