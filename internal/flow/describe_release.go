@@ -48,6 +48,13 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 		return DescribeReleaseResponse{}, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)
 	}
 
+	// save the HEAD commit to reset the repository after each checkout when
+	// locating a release.
+	masterHead, err := sourceRepo.Head()
+	if err != nil {
+		return DescribeReleaseResponse{}, errors.WithMessage(err, "get head")
+	}
+
 	var releases []Release
 
 	for currentOffset := 0; currentOffset < count; currentOffset++ {
@@ -92,6 +99,12 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 			ReleasedByName:    commitInfo.ReleasedBy.Name,
 			Intent:            commitInfo.Intent,
 		})
+
+		// checkout master again to reset HEAD
+		err = s.Git.Checkout(ctx, sourceConfigRepoPath, masterHead.Hash())
+		if err != nil {
+			return DescribeReleaseResponse{}, errors.WithMessage(err, "checkout master")
+		}
 	}
 
 	return DescribeReleaseResponse{
