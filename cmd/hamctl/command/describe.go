@@ -67,6 +67,9 @@ Format the output with a custom template:
 		},
 		RunE: func(c *cobra.Command, args []string) error {
 			releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, count)
+			if err != nil {
+				return err
+			}
 			if len(template) == 0 {
 				template = describeReleaseDefaultTemplate
 			}
