@@ -230,8 +230,8 @@ func locateEnvReleaseCondition(env, artifactID string) conditionFunc {
 	})
 }
 
-// LocateServiceReleaseRollbackSkip traverses the git log to find a release or
-// rollback commit for a specified service and environment.
+// LocateServiceReleaseRollbackSkip traverses the git log to find the nth
+// release or rollback commit for a specified service and environment.
 //
 // It expects the commit to have a commit messages as the one returned by
 // ReleaseCommitMessage or RollbackCommitMessage.
