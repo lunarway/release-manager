@@ -5,7 +5,8 @@ import (
 	"path"
 
 	"github.com/lunarway/release-manager/internal/artifact"
-	"github.com/lunarway/release-manager/internal/slack"
+	intslack "github.com/lunarway/release-manager/internal/slack"
+	"github.com/nlopes/slack"
 	"github.com/spf13/cobra"
 )
 
@@ -14,13 +15,13 @@ func successfulCommand(options *Options) *cobra.Command {
 		Use:   "successful",
 		Short: "report successful in the pipeline",
 		RunE: func(c *cobra.Command, args []string) error {
-			client, err := slack.NewClient(options.SlackToken, options.UserMappings, options.EmailSuffix)
+			client, err := intslack.NewClient(slack.New(options.SlackToken), options.UserMappings, options.EmailSuffix)
 			if err != nil {
 				fmt.Printf("Error, not able to create Slack client in successful command: %v", err)
 				return nil
 			}
-			err = client.UpdateMessage(path.Join(options.RootPath, options.MessageFileName), func(m slack.Message) slack.Message {
-				m.Color = slack.MsgColorGreen
+			err = client.UpdateMessage(path.Join(options.RootPath, options.MessageFileName), func(m intslack.Message) intslack.Message {
+				m.Color = intslack.MsgColorGreen
 				m.Title = ":jenkins: Jenkins :white_check_mark:"
 				return m
 			})
@@ -35,7 +36,7 @@ func successfulCommand(options *Options) *cobra.Command {
 				return nil
 			}
 
-			err = client.NotifySlackBuildsChannel(slack.BuildsOptions{
+			err = client.NotifySlackBuildsChannel(intslack.BuildsOptions{
 				Service:       a.Service,
 				ArtifactID:    a.ID,
 				Branch:        a.Application.Branch,
@@ -44,7 +45,7 @@ func successfulCommand(options *Options) *cobra.Command {
 				CommitAuthor:  a.Application.AuthorName,
 				CommitMessage: a.Application.Message,
 				CIJobURL:      a.CI.JobURL,
-				Color:         slack.MsgColorGreen,
+				Color:         intslack.MsgColorGreen,
 			})
 			if err != nil {
 				fmt.Printf("Error, not able to notify #builds in successful command: %v", err)

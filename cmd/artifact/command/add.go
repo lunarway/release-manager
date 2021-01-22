@@ -5,7 +5,8 @@ import (
 	"path"
 
 	"github.com/lunarway/release-manager/internal/artifact"
-	"github.com/lunarway/release-manager/internal/slack"
+	intslack "github.com/lunarway/release-manager/internal/slack"
+	"github.com/nlopes/slack"
 	"github.com/spf13/cobra"
 )
 
@@ -48,7 +49,7 @@ func appendTestSubCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Test* (passed: %d, failed: %d, skipped: %d)", testData.Results.Passed, testData.Results.Failed, testData.Results.Skipped), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Test* (passed: %d, failed: %d, skipped: %d)", testData.Results.Passed, testData.Results.Failed, testData.Results.Skipped), intslack.MsgColorYellow)
 			if err != nil {
 				fmt.Printf("Error notifying slack")
 			}
@@ -87,7 +88,7 @@ func appendBuildSubCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return nil
 			}
-			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Build* (%s:%s)", buildData.Image, buildData.Tag), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Build* (%s:%s)", buildData.Image, buildData.Tag), intslack.MsgColorYellow)
 			if err != nil {
 				fmt.Printf("Error notifying slack")
 			}
@@ -126,7 +127,7 @@ func appendSnykDockerSubCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = notifySlack(options, fmt.Sprintf(":white_check_mark: <%s|*Snyk - Docker*> (high: %d, medium: %d, low: %d)", formatSnykURL(snykDockerData.URL), snykDockerData.Vulnerabilities.High, snykDockerData.Vulnerabilities.Medium, snykDockerData.Vulnerabilities.Low), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: <%s|*Snyk - Docker*> (high: %d, medium: %d, low: %d)", formatSnykURL(snykDockerData.URL), snykDockerData.Vulnerabilities.High, snykDockerData.Vulnerabilities.Medium, snykDockerData.Vulnerabilities.Low), intslack.MsgColorYellow)
 			if err != nil {
 				fmt.Printf("Error notifying slack")
 			}
@@ -162,7 +163,7 @@ func appendSnykCodeSubCommand(options *Options) *cobra.Command {
 				return err
 			}
 
-			err = notifySlack(options, fmt.Sprintf(":white_check_mark: <%s|*Snyk - Code*> (high: %d, medium: %d, low: %d)", formatSnykURL(snykCodeData.URL), snykCodeData.Vulnerabilities.High, snykCodeData.Vulnerabilities.Medium, snykCodeData.Vulnerabilities.Low), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: <%s|*Snyk - Code*> (high: %d, medium: %d, low: %d)", formatSnykURL(snykCodeData.URL), snykCodeData.Vulnerabilities.High, snykCodeData.Vulnerabilities.Medium, snykCodeData.Vulnerabilities.Low), intslack.MsgColorYellow)
 			if err != nil {
 				fmt.Printf("Error notifying slack")
 			}
@@ -196,7 +197,7 @@ func appendPushSubCommand(options *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Push* (%s:%s)", pushData.Image, pushData.Tag), slack.MsgColorYellow)
+			err = notifySlack(options, fmt.Sprintf(":white_check_mark: *Push* (%s:%s)", pushData.Image, pushData.Tag), intslack.MsgColorYellow)
 			if err != nil {
 				fmt.Printf("Error notifying slack")
 			}
@@ -240,12 +241,12 @@ func setStage(s artifact.Spec, stage artifact.Stage) artifact.Spec {
 }
 
 func notifySlack(options *Options, text, color string) error {
-	client, err := slack.NewClient(options.SlackToken, options.UserMappings, options.EmailSuffix)
+	client, err := intslack.NewClient(slack.New(options.SlackToken), options.UserMappings, options.EmailSuffix)
 	if err != nil {
 		return err
 	}
 	messageFilePath := path.Join(options.RootPath, options.MessageFileName)
-	err = client.UpdateMessage(messageFilePath, func(m slack.Message) slack.Message {
+	err = client.UpdateMessage(messageFilePath, func(m intslack.Message) intslack.Message {
 		m.Text += text + "\n"
 		m.Color = color
 		return m

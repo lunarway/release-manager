@@ -48,6 +48,10 @@ test:
 generate_mock:
 	mockery --dir ./internal/policy --inpackage --name GitService
 	mockery --dir ./internal/flow --inpackage --name GitService
+	mockery --dir ./internal/slack --inpackage --name SlackClient
+	# update imports of the slack client as it is not correctly resolved by
+	# mockery on generation
+	goimports -w ./internal/slack/mock_SlackClient.go
 
 integration-test: rabbitmq-background
 	@echo "Running integration tests against RabbitMQ on localhost"
