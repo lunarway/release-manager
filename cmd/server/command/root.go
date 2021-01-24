@@ -31,6 +31,7 @@ func NewCommand() (*cobra.Command, error) {
 	var logConfiguration *log.Configuration
 	var slackMuteOpts slack.MuteOptions
 	var s3storageOpts s3storageOptions
+	var emailSuffix string
 
 	var command = &cobra.Command{
 		Use:   "server",
@@ -71,6 +72,7 @@ func NewCommand() (*cobra.Command, error) {
 		slackMutes:                &slackMuteOpts,
 		userMappings:              &userMappings,
 		branchRestrictionPolicies: &branchRestrictions,
+		emailSuffix:               &emailSuffix,
 	}))
 	command.PersistentFlags().IntVar(&httpOpts.Port, "http-port", 8080, "port of the http server")
 	command.PersistentFlags().DurationVar(&httpOpts.Timeout, "timeout", 20*time.Second, "HTTP server timeout for incomming requests")
@@ -89,6 +91,7 @@ func NewCommand() (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&grafanaOpts.DevURL, "grafana-dev-url", os.Getenv("GRAFANA_DEV_URL"), "grafana dev url")
 	command.PersistentFlags().StringVar(&grafanaOpts.StagingURL, "grafana-staging-url", os.Getenv("GRAFANA_STAGING_URL"), "grafana staging url")
 	command.PersistentFlags().StringVar(&grafanaOpts.ProdURL, "grafana-prod-url", os.Getenv("GRAFANA_PROD_URL"), "grafana prod url")
+	command.PersistentFlags().StringVar(&emailSuffix, "email-suffix", "", "company email suffix to expect. E.g.: '@example.com'")
 	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between emails used by Git and Slack, key-value pair: <email>=<slack-email>")
 	command.PersistentFlags().StringSliceVar(&branchRestrictionsList, "policy-branch-restrictions", []string{}, "branch restriction policies applied to all releases, key-value pair: <environment>=<branch-regex>")
 	command.PersistentFlags().StringSliceVar(&gpgKeyPaths, "git-gpg-key-import-paths", []string{}, "a list of paths for signing keys to import to gpg")

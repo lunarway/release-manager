@@ -21,8 +21,9 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/s3storage"
-	"github.com/lunarway/release-manager/internal/slack"
+	intslack "github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
+	"github.com/nlopes/slack"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -102,10 +103,11 @@ type startOptions struct {
 	http                      *http.Options
 	broker                    *brokerOptions
 	s3storage                 *s3storageOptions
-	slackMutes                *slack.MuteOptions
+	slackMutes                *intslack.MuteOptions
 	gpgKeyPaths               *[]string
 	userMappings              *map[string]string
 	branchRestrictionPolicies *[]policy.BranchRestriction
+	emailSuffix               *string
 }
 
 func NewStart(startOptions *startOptions) *cobra.Command {
@@ -114,7 +116,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 		Short: "start the release-manager",
 		RunE: func(c *cobra.Command, args []string) error {
 			done := make(chan error, 1)
-			slackClient, err := slack.NewMuteableClient(*startOptions.slackAuthToken, *startOptions.userMappings, *startOptions.slackMutes)
+			slackClient, err := intslack.NewMuteableClient(slack.New(*startOptions.slackAuthToken), *startOptions.userMappings, *startOptions.emailSuffix, *startOptions.slackMutes)
 			if err != nil {
 				return err
 			}
@@ -224,7 +226,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 						"releaser", opts.Releaser,
 						"type", "release")
 
-					releaseOptions := slack.ReleaseOptions{
+					releaseOptions := intslack.ReleaseOptions{
 						Service:           opts.Service,
 						Environment:       opts.Environment,
 						ArtifactID:        opts.Spec.ID,

@@ -11,8 +11,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+type SlackClient interface {
+	GetUserByEmailContext(ctx context.Context, email string) (*slack.User, error)
+	UpdateMessage(channelID, timestamp string, options ...slack.MsgOption) (string, string, string, error)
+	PostMessage(channelID string, options ...slack.MsgOption) (string, string, error)
+	PostMessageContext(ctx context.Context, channelID string, options ...slack.MsgOption) (string, string, error)
+}
+
 type Client struct {
-	client        *slack.Client
+	client        SlackClient
 	emailMappings map[string]string
 	muteOptions   MuteOptions
 	emailSuffix   string
@@ -34,8 +41,8 @@ var (
 	ErrUnknownEmail = errors.New("not an accepted email domain")
 )
 
-func NewClient(token string, emailMappings map[string]string, emailSuffix string) (*Client, error) {
-	if token == "" {
+func NewClient(slackClient SlackClient, emailMappings map[string]string, emailSuffix string) (*Client, error) {
+	if slackClient == nil {
 		log.Infof("slack: skipping: no token, so no slack notification")
 		return &Client{
 			muteOptions: MuteOptions{
@@ -51,40 +58,22 @@ func NewClient(token string, emailMappings map[string]string, emailSuffix string
 	}
 
 	log.Infof("slack: new client: initialized with emailMappings: %+v", emailMappings)
-	slackClient := slack.New(token)
 	client := Client{
 		client:        slackClient,
 		emailMappings: emailMappings,
 		muteOptions:   MuteOptions{},
+		emailSuffix:   emailSuffix,
 	}
-	client.emailSuffix = emailSuffix
 	return &client, nil
 }
 
-func NewMuteableClient(token string, emailMappings map[string]string, muteOptions MuteOptions) (*Client, error) {
-	if token == "" {
-		log.Infof("slack: skipping: no token, so no slack notification")
-		return &Client{
-			muteOptions: MuteOptions{
-				Flux:                true,
-				Kubernetes:          true,
-				Policy:              true,
-				ReleaseProcessed:    true,
-				Releases:            true,
-				BuildStatus:         true,
-				ReleaseManagerError: true,
-			},
-		}, nil
+func NewMuteableClient(slackClient SlackClient, emailMappings map[string]string, emailSuffix string, muteOptions MuteOptions) (*Client, error) {
+	client, err := NewClient(slackClient, emailMappings, emailSuffix)
+	if err != nil {
+		return nil, err
 	}
-
-	log.Infof("slack: new client: initialized with emailMappings: %+v", emailMappings)
-	slackClient := slack.New(token)
-	client := Client{
-		client:        slackClient,
-		emailMappings: emailMappings,
-		muteOptions:   muteOptions,
-	}
-	return &client, nil
+	client.muteOptions = muteOptions
+	return client, nil
 }
 
 func (c *Client) getIdByEmail(ctx context.Context, email string) (string, error) {

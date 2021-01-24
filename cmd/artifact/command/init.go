@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
-	"github.com/lunarway/release-manager/internal/slack"
+	intslack "github.com/lunarway/release-manager/internal/slack"
+	"github.com/nlopes/slack"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -28,7 +29,7 @@ func initCommand(options *Options) *cobra.Command {
 				users = strings.Split(userMappingString, ",")
 			}
 			var err error
-			options.UserMappings, err = slack.ParseUserMappings(users)
+			options.UserMappings, err = intslack.ParseUserMappings(users)
 			if err != nil {
 				return err
 			}
@@ -71,7 +72,7 @@ func initCommand(options *Options) *cobra.Command {
 			// If we have an email to use for slack, lets inform
 			if s.Application.AuthorEmail != "" {
 				// Setup Slack client
-				client, err := slack.NewClient(options.SlackToken, options.UserMappings, options.EmailSuffix)
+				client, err := intslack.NewClient(slack.New(options.SlackToken), options.UserMappings, options.EmailSuffix)
 				if err != nil {
 					fmt.Printf("Error creating Slack client")
 					return nil
@@ -81,7 +82,7 @@ func initCommand(options *Options) *cobra.Command {
 				title := ":jenkins: Jenkins :sonic-running:"
 				titleLink := s.CI.JobURL
 				text := fmt.Sprintf("Build for: %s\nBranch: <%s|*%s*>\n", s.Application.Name, s.Application.URL, s.Application.Branch)
-				color := slack.MsgColorYellow
+				color := intslack.MsgColorYellow
 				respChan, timestamp, err := client.PostSlackBuildStarted(s.Application.AuthorEmail, title, titleLink, text, color)
 				if err != nil {
 					return nil
@@ -89,7 +90,7 @@ func initCommand(options *Options) *cobra.Command {
 
 				// Persist the Slack message to disk for later retrieval and updates
 				messageFilePath := path.Join(options.RootPath, options.MessageFileName)
-				err = slack.Persist(messageFilePath, slack.Message{
+				err = intslack.Persist(messageFilePath, intslack.Message{
 					Title:     title,
 					TitleLink: titleLink,
 					Text:      text,

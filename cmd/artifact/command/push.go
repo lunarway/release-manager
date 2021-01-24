@@ -8,7 +8,8 @@ import (
 
 	"github.com/lunarway/release-manager/internal/flow"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
-	"github.com/lunarway/release-manager/internal/slack"
+	intslack "github.com/lunarway/release-manager/internal/slack"
+	"github.com/nlopes/slack"
 	"github.com/spf13/cobra"
 )
 
@@ -32,12 +33,12 @@ func pushCommand(options *Options) *cobra.Command {
 					return err
 				}
 			}
-			client, err := slack.NewClient(options.SlackToken, options.UserMappings, options.EmailSuffix)
+			client, err := intslack.NewClient(slack.New(options.SlackToken), options.UserMappings, options.EmailSuffix)
 			if err != nil {
 				fmt.Printf("Error, not able to create Slack client in successful command: %v", err)
 				return nil
 			}
-			err = client.UpdateMessage(path.Join(options.RootPath, options.MessageFileName), func(m slack.Message) slack.Message {
+			err = client.UpdateMessage(path.Join(options.RootPath, options.MessageFileName), func(m intslack.Message) intslack.Message {
 				m.Text += fmt.Sprintf(":white_check_mark: *Artifact pushed:* %s", artifactID)
 				return m
 			})
