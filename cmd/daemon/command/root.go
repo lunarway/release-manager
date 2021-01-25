@@ -4,8 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// DaemonCommand returns a new instance of a daemon command.
-func DaemonCommand() (*cobra.Command, error) {
+// NewRoot returns a new instance of a daemon command.
+func NewRoot(version string) (*cobra.Command, error) {
 	var command = &cobra.Command{
 		Use:   "daemon",
 		Short: "daemon",
@@ -13,6 +13,9 @@ func DaemonCommand() (*cobra.Command, error) {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(StartDaemon())
+	command.AddCommand(
+		StartDaemon(),
+		NewVersion(version),
+	)
 	return command, nil
 }

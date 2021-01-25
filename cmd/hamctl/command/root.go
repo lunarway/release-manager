@@ -13,8 +13,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// NewCommand returns a new instance of a hamctl command.
-func NewCommand(version *string) (*cobra.Command, error) {
+// NewRoot returns a new instance of a hamctl command.
+func NewRoot(version *string) (*cobra.Command, error) {
 	var service, email string
 	client := http.Client{
 		Metadata: http.Metadata{
@@ -27,7 +27,7 @@ func NewCommand(version *string) (*cobra.Command, error) {
 		BashCompletionFunction: completion.Hamctl,
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			// all commands but version and completion requires the "service" flag
-			// if this is thee version command, skip the check
+			// if this is one of them, skip the check
 			if c.Name() == "version" || c.Name() == "completion" {
 				return nil
 			}
@@ -63,19 +63,21 @@ func NewCommand(version *string) (*cobra.Command, error) {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(NewPromote(&client, &service))
-	command.AddCommand(NewRelease(&client, &service))
-	command.AddCommand(NewStatus(&client, &service))
-	command.AddCommand(NewRollback(&client, &service))
-	command.AddCommand(NewPolicy(&client, &service))
-	command.AddCommand(NewDescribe(&client, &service))
-	command.AddCommand(NewCompletion(command))
+	command.AddCommand(
+		NewCompletion(command),
+		NewDescribe(&client, &service),
+		NewPolicy(&client, &service),
+		NewPromote(&client, &service),
+		NewRelease(&client, &service),
+		NewRollback(&client, &service),
+		NewStatus(&client, &service),
+		NewVersion(*version),
+	)
 	command.PersistentFlags().DurationVar(&client.Timeout, "http-timeout", 120*time.Second, "HTTP request timeout")
 	command.PersistentFlags().StringVar(&client.BaseURL, "http-base-url", "", "address of the http release manager server")
 	command.PersistentFlags().StringVar(&client.Metadata.AuthToken, "http-auth-token", "", "auth token for the http service")
 	command.PersistentFlags().StringVar(&service, "service", "", "service name to execute commands for")
 	command.PersistentFlags().StringVar(&email, "user-email", "", "email of user performing the command (defaults to Git configurated user.email)")
-
 
 	return command, nil
 }

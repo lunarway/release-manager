@@ -5,17 +5,20 @@ current_dir := $(dir $(mkfile_path))
 
 build: build_hamctl build_server build_artifact build_daemon
 
+VERSION=$(shell git rev-parse HEAD)
+GO_BUILD=go build -ldflags='-s -w -X main.version=$(VERSION)'
+
 build_artifact:
-	go build -o dist/artifact ./cmd/artifact
+	${GO_BUILD} -o dist/artifact ./cmd/artifact
 
 build_hamctl:
-	go build -o dist/hamctl ./cmd/hamctl
+	${GO_BUILD} -o dist/hamctl ./cmd/hamctl
 
 build_server:
-	go build -o dist/server ./cmd/server
+	${GO_BUILD} -o dist/server ./cmd/server
 
 build_daemon:
-	go build -o dist/daemon ./cmd/daemon
+	${GO_BUILD} -o dist/daemon ./cmd/daemon
 
 build_daemon_docker:
 ifeq ($(TAG),)
