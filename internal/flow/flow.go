@@ -110,6 +110,7 @@ type StatusResponse struct {
 	Dev               Environment `json:"dev,omitempty"`
 	Staging           Environment `json:"staging,omitempty"`
 	Prod              Environment `json:"prod,omitempty"`
+	Platform          Environment `json:"platform,omitempty"`
 }
 
 type Actor struct {
@@ -173,6 +174,21 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	}
 	defer span.Finish()
 
+	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
+	span.SetTag("env", "platform")
+	platformSpec, err := s.releaseSpecification(ctx, releaseLocation{
+		Environment: "platform",
+		Service:     service,
+		Namespace:   defaultNamespace("platform"),
+	})
+	if err != nil {
+		cause := errors.Cause(err)
+		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
+			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env platform")
+		}
+	}
+	defer span.Finish()
+
 	return StatusResponse{
 		DefaultNamespaces: defaultNamespaces,
 		Dev: Environment{
@@ -207,6 +223,17 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 			HighVulnerabilities:   calculateTotalVulnerabilties("high", prodSpec),
 			MediumVulnerabilities: calculateTotalVulnerabilties("medium", prodSpec),
 			LowVulnerabilities:    calculateTotalVulnerabilties("low", prodSpec),
+		},
+		Platform: Environment{
+			Tag:                   platformSpec.ID,
+			Committer:             platformSpec.Application.CommitterName,
+			Author:                platformSpec.Application.AuthorName,
+			Message:               platformSpec.Application.Message,
+			Date:                  platformSpec.CI.End,
+			BuildURL:              platformSpec.CI.JobURL,
+			HighVulnerabilities:   calculateTotalVulnerabilties("high", platformSpec),
+			MediumVulnerabilities: calculateTotalVulnerabilties("medium", platformSpec),
+			LowVulnerabilities:    calculateTotalVulnerabilties("low", platformSpec),
 		},
 	}, nil
 }

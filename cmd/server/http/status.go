@@ -70,6 +70,18 @@ func status(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			LowVulnerabilities:    s.Prod.LowVulnerabilities,
 		}
 
+		platform := httpinternal.Environment{
+			Message:               s.Platform.Message,
+			Author:                s.Platform.Author,
+			Tag:                   s.Platform.Tag,
+			Committer:             s.Platform.Committer,
+			Date:                  convertTimeToEpoch(s.Platform.Date),
+			BuildUrl:              s.Platform.BuildURL,
+			HighVulnerabilities:   s.Platform.HighVulnerabilities,
+			MediumVulnerabilities: s.Platform.MediumVulnerabilities,
+			LowVulnerabilities:    s.Platform.LowVulnerabilities,
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
@@ -78,6 +90,7 @@ func status(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			Dev:               &dev,
 			Staging:           &staging,
 			Prod:              &prod,
+			Platform:          &platform,
 		})
 		if err != nil {
 			logger.Errorf("http: status: service '%s': marshal response failed: %v", service, err)

@@ -18,6 +18,7 @@ type StatusResponse struct {
 	Dev               *Environment `json:"dev,omitempty"`
 	Staging           *Environment `json:"staging,omitempty"`
 	Prod              *Environment `json:"prod,omitempty"`
+	Platform          *Environment `json:"platform,omitempty"`
 }
 
 type Environment struct {

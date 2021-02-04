@@ -54,6 +54,9 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 
 			color.Green("prod:\n")
 			printStatus(resp.Prod)
+
+			color.Green("platform:\n")
+			printStatus(resp.Platform)
 			return nil
 		},
 	}

@@ -31,6 +31,8 @@ func ArtifactIDFromEnvironment(client *httpinternal.Client, service, namespace, 
 		return statusResp.Staging.Tag, nil
 	case "prod":
 		return statusResp.Prod.Tag, nil
+	case "platform":
+		return statusResp.Platform.Tag, nil
 	}
 
 	return "", fmt.Errorf("unknown environment %s", environment)
