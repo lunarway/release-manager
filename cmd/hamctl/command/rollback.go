@@ -144,11 +144,10 @@ has no effect.`,
 				fmt.Printf("    %s\n", err)
 				return err
 			}
-			if resp.Status != "" {
-				fmt.Printf("%s\n", resp.Status)
-			} else {
-				fmt.Printf("[✓] Rollback of %s to %s initialized\n", resp.Tag, resp.ToEnvironment)
-			}
+
+			printReleaseResponse(func(s string, i ...interface{}) {
+				fmt.Printf(s, i...)
+			}, resp)
 			return nil
 		},
 	}

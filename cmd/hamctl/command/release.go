@@ -1,7 +1,7 @@
 package command
 
 import (
-	"fmt"
+	"strings"
 
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
@@ -11,8 +11,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewRelease(client *httpinternal.Client, service *string) *cobra.Command {
-	var environment, branch, artifact string
+type LoggerFunc = func(string, ...interface{})
+
+func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc) *cobra.Command {
+	var branch, artifact string
+	var environments []string
 	var command = &cobra.Command{
 		Use:   "release",
 		Short: `Release a specific artifact or latest artifact from a branch into a specific environment.`,
@@ -24,6 +27,10 @@ Release latest artifact from branch 'master' of service 'product' into environme
 
   hamctl release --service product --env dev --branch master`,
 		RunE: func(c *cobra.Command, args []string) error {
+			environments = trimEmptyValues(environments)
+			if len(environments) == 0 {
+				return errors.New("--env must contain at least one value")
+			}
 			switch {
 			case branch != "" && artifact != "":
 				return errors.New("--branch and --artifact cannot both be specificed")
@@ -35,28 +42,23 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				if err != nil {
 					return err
 				}
-				fmt.Printf("Release of service %s using branch %s\n", *service, branch)
-				resp, err := actions.ReleaseArtifactID(client, *service, environment, artifactID, intent.NewReleaseBranch(branch))
+				logger("Release of service %s using branch %s\n", *service, branch)
+				resps, err := actions.ReleaseArtifactIDMultipleEnvironments(client, *service, environments, artifactID, intent.NewReleaseBranch(branch))
 				if err != nil {
 					return err
 				}
-
-				if resp.Status != "" {
-					fmt.Printf("%s\n", resp.Status)
-				} else {
-					fmt.Printf("[✓] Release of %s to %s initialized\n", resp.Tag, resp.ToEnvironment)
+				for _, resp := range resps {
+					printReleaseResponse(logger, resp)
 				}
 				return nil
 			case artifact != "":
-				fmt.Printf("Release of service: %s\n", *service)
-				resp, err := actions.ReleaseArtifactID(client, *service, environment, artifact, intent.NewReleaseArtifact())
+				logger("Release of service: %s\n", *service)
+				resps, err := actions.ReleaseArtifactIDMultipleEnvironments(client, *service, environments, artifact, intent.NewReleaseArtifact())
 				if err != nil {
 					return err
 				}
-				if resp.Status != "" {
-					fmt.Printf("%s\n", resp.Status)
-				} else {
-					fmt.Printf("[✓] Release of %s to %s initialized\n", resp.Tag, resp.ToEnvironment)
+				for _, resp := range resps {
+					printReleaseResponse(logger, resp)
 				}
 				return nil
 			}
@@ -64,7 +66,7 @@ Release latest artifact from branch 'master' of service 'product' into environme
 			return nil
 		},
 	}
-	command.Flags().StringVarP(&environment, "env", "e", "", "environment to release to (required)")
+	command.Flags().StringSliceVarP(&environments, "env", "e", nil, "Comma separated list of environments to release to (required)")
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
 	//nolint:errcheck
@@ -74,4 +76,15 @@ Release latest artifact from branch 'master' of service 'product' into environme
 	completion.FlagAnnotation(command, "branch", "__hamctl_get_branches")
 	command.Flags().StringVar(&artifact, "artifact", "", "release this artifact id (mutually exclusive with --branch)")
 	return command
+}
+
+func trimEmptyValues(values []string) []string {
+	var trimmed []string
+	for _, v := range values {
+		t := strings.TrimSpace(v)
+		if t != "" {
+			trimmed = append(trimmed, t)
+		}
+	}
+	return trimmed
 }
