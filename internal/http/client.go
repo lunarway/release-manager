@@ -80,9 +80,7 @@ func (c *Client) Do(method string, path string, requestBody, responseBody interf
 		var dnsError *net.DNSError
 		var urlError *url.Error
 		if stderrors.As(err, &dnsError) || (stderrors.As(err, &urlError) && stderrors.Is(err, io.EOF)) {
-			return &ErrorResponse{
-				Message: "could not connect to the release-manager server. Are you connected to the internet and, if required, a VPN?",
-			}
+			return connectivityError
 		}
 		return &ErrorResponse{
 			Message: err.Error(),
@@ -95,6 +93,10 @@ func (c *Client) Do(method string, path string, requestBody, responseBody interf
 		var responseError ErrorResponse
 		err = decoder.Decode(&responseError)
 		if err != nil {
+			var jsonError *json.SyntaxError
+			if stderrors.As(err, &jsonError) {
+				return connectivityError
+			}
 			return errors.WithMessagef(err, "response status %s: unmarshal error response", resp.Status)
 		}
 		responseError.ID = id.String()
@@ -105,4 +107,8 @@ func (c *Client) Do(method string, path string, requestBody, responseBody interf
 		return err
 	}
 	return nil
+}
+
+var connectivityError = &ErrorResponse{
+	Message: "could not connect to the release-manager server. Are you connected to the internet and, if required, a VPN?",
 }
