@@ -544,3 +544,59 @@ func TestIsKnownGitError(t *testing.T) {
 		})
 	}
 }
+
+func TestIsBranchBehindOrigin(t *testing.T) {
+	tt := []struct {
+		name     string
+		stderr   string
+		isBehind bool
+	}{
+		{
+			name:     "empty string",
+			stderr:   "",
+			isBehind: false,
+		},
+		{
+			name:     "unknown git error",
+			stderr:   `fatal: Could not read from remote repository.`,
+			isBehind: false,
+		},
+		{
+			name: "tip behind",
+			stderr: `error: failed to push some refs to 'git@github.com:lunarway/k8s-cluster-config.git'
+hint: Updates were rejected because the tip of your current branch is behind
+hint: its remote counterpart. Integrate the remote changes (e.g.
+hint: 'git pull ...') before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+`,
+			isBehind: true,
+		},
+		{
+			name: "tip behind with odd casing",
+			stderr: `error: failed to push some refs to 'git@github.com:lunarway/k8s-cluster-config.git'
+hint: Updates were rejected because the TIP of your current branch is behind
+hint: its remote counterpart. Integrate the remote changes (e.g.
+hint: 'git pull ...') before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+`,
+			isBehind: true,
+		},
+		{
+			name: "origin has work not available locally",
+			stderr: `error: failed to push some refs to 'git@github.com:lunarway/k8s-cluster-config.git'
+hint: Updates were rejected because the remote contains work that you do
+hint: not have locally. This is usually caused by another repository pushing
+hint: to the same ref. You may want to first integrate the remote changes
+hint: (e.g., 'git pull ...') before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+`,
+			isBehind: true,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			isBehind := isBranchBehindOrigin([]byte(tc.stderr))
+			assert.Equal(t, tc.isBehind, isBehind, "result not as expected")
+		})
+	}
+}

@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -509,11 +508,7 @@ func gitPush(ctx context.Context, rootPath string) error {
 	logger.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
 	logger.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
 	if err != nil {
-		match, regexpErr := regexp.Match("(?i)rejected because the remote contains work that you do", stderrData)
-		if regexpErr != nil {
-			logger.Errorf("git/gitPush: failed to detect if push error is caused by master being behind: %v", regexpErr)
-		}
-		if match {
+		if isBranchBehindOrigin(stderrData) {
 			return ErrBranchBehindOrigin
 		}
 		return errors.WithMessage(err, "execute command failed")
@@ -522,3 +517,28 @@ func gitPush(ctx context.Context, rootPath string) error {
 }
 
 func falseConditionFunc(commitMsg string) bool { return false }
+
+// branchBehindOriginIndicators contains partial Git messages that is used to
+// detect branch behind origin errors on push commands.
+var branchBehindOriginIndicators = []string{
+	"rejected because the remote contains work that you do",
+	"tip of your current branch is behind",
+}
+
+// isBranchBehindOrigin returns wether stderrData indicates that the push is
+// rejected do to its local state is behind the origin.
+func isBranchBehindOrigin(stderrData []byte) bool {
+	if len(stderrData) == 0 {
+		return false
+	}
+
+	// ignore casing of Git message to make it more rebust.
+	stderrData = bytes.ToLower(stderrData)
+
+	for _, e := range branchBehindOriginIndicators {
+		if bytes.Contains(stderrData, []byte(e)) {
+			return true
+		}
+	}
+	return false
+}
