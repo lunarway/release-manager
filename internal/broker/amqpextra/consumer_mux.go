@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/lunarway/release-manager/internal/log"
-	"github.com/makasim/amqpextra"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
@@ -18,9 +17,7 @@ type mux struct {
 	eventDropped func(msgType string, msgBody []byte, err error)
 }
 
-var _ amqpextra.Worker = &mux{}
-
-func (m mux) ServeMsg(ctx context.Context, msg amqp.Delivery) interface{} {
+func (m mux) ServeMsg(ctx context.Context, msg amqp.Delivery) error {
 	handler, ok := m.handlers[msg.Type]
 	if !ok {
 		m.nack(msg, false, "no handler")
