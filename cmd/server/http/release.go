@@ -50,7 +50,7 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 				httpinternal.Error(w, fmt.Sprintf("cannot release %s to environment '%s' due to branch restriction policy", req.Intent.AsArtifactWithIntent(req.ArtifactID), req.Environment), http.StatusBadRequest)
 				return
 			case flow.ErrNothingToRelease:
-				statusString = "Environment is already up-to-date"
+				statusString = fmt.Sprintf("Environment '%s' is already up-to-date", req.Environment)
 				logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': release skipped: environment up to date: %v", req.Service, req.Environment, req.ArtifactID, err)
 			case flow.ErrArtifactNotFound:
 				logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': release rejected: %v", req.Service, req.Environment, req.ArtifactID, err)

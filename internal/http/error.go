@@ -19,7 +19,7 @@ var _ error = &ErrorResponse{}
 
 func (e *ErrorResponse) Error() string {
 	if e.ID != "" {
-		return fmt.Sprintf("%s\nReference: %s", e.Message, e.ID)
+		return fmt.Sprintf("%s (reference: %s)", e.Message, e.ID)
 	}
 	return e.Message
 }

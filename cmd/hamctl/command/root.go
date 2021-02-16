@@ -1,6 +1,7 @@
 package command
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -68,7 +69,9 @@ func NewRoot(version *string) (*cobra.Command, error) {
 		NewDescribe(&client, &service),
 		NewPolicy(&client, &service),
 		NewPromote(&client, &service),
-		NewRelease(&client, &service),
+		NewRelease(&client, &service, func(f string, args ...interface{}) {
+			fmt.Printf(f, args...)
+		}),
 		NewRollback(&client, &service),
 		NewStatus(&client, &service),
 		NewVersion(*version),

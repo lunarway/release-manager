@@ -44,12 +44,12 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 
 			fmt.Printf("Promote of service: %s\n", *service)
 			resp, err := actions.ReleaseArtifactID(client, *service, toEnvironment, artifactID, intent.NewPromoteEnvironment(fromEnvironment))
-
-			if resp.Status != "" {
-				fmt.Printf("%s\n", resp.Status)
-			} else {
-				fmt.Printf("[✓] Release of %s to %s initialized\n", resp.Tag, resp.ToEnvironment)
+			if err != nil {
+				return err
 			}
+			printReleaseResponse(func(s string, i ...interface{}) {
+				fmt.Printf(s, i...)
+			}, resp)
 			return nil
 		},
 	}
@@ -64,4 +64,15 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")
 
 	return command
+}
+
+func printReleaseResponse(logger LoggerFunc, resp actions.ReleaseResult) {
+	switch {
+	case resp.Error != nil:
+		logger("[X] %s\n", resp.Error.Error())
+	case resp.Response.Status != "":
+		logger("[✓] %s\n", resp.Response.Status)
+	default:
+		logger("[✓] Release of %s to %s initialized\n", resp.Response.Tag, resp.Response.ToEnvironment)
+	}
 }
