@@ -128,6 +128,8 @@ func registerBrokerFlags(cmd *cobra.Command, c *brokerOptions) {
 	cmd.PersistentFlags().StringVar(&c.AMQP.Password, "amqp-password", "", "AMQP password")
 	cmd.PersistentFlags().StringVar(&c.AMQP.VirtualHost, "amqp-virtualhost", "/", "AMQP virtual host")
 	cmd.PersistentFlags().DurationVar(&c.AMQP.ReconnectionTimeout, "amqp-reconnection-timeouts", 5*time.Second, "AMQP reconnection attempt timeout")
+	cmd.PersistentFlags().DurationVar(&c.AMQP.ConnectionTimeout, "amqp-connection-timeouts", 10*time.Second, "AMQP dial connection timeout")
+	cmd.PersistentFlags().DurationVar(&c.AMQP.InitTimeout, "amqp-init-timeouts", 10*time.Second, "AMQP initialization timeout")
 	cmd.PersistentFlags().IntVar(&c.AMQP.Prefetch, "amqp-prefetch", 1, "AMQP queue prefetch")
 	cmd.PersistentFlags().StringVar(&c.AMQP.Exchange, "amqp-exchange", "release-manager", "AMQP exchange")
 	cmd.PersistentFlags().StringVar(&c.AMQP.Queue, "amqp-queue", "release-manager", "AMQP queue")

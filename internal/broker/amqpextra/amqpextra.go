@@ -1,10 +1,7 @@
 package amqpextra
 
 import (
-	"time"
-
-	"github.com/makasim/amqpextra"
-	"github.com/streadway/amqp"
+	"github.com/lunarway/release-manager/internal/amqp"
 )
 
 // Worker is a RabbitMQ consumer and publisher. It configures an AMQP channel to
@@ -14,10 +11,8 @@ import (
 // It transparently recovers from connection failures and publishes are blocked
 // during recovery.
 type Worker struct {
-	conn      *amqpextra.Connection
-	consumer  *amqpextra.Consumer
-	publisher *amqpextra.Publisher
-	config    Config
+	worker *amqp.Worker
+	config Config
 }
 
 // New allocates, intializes and returns a new Worker instance.
@@ -34,54 +29,30 @@ func New(c Config) (*Worker, error) {
 	)
 
 	logger.Infof("Connecting to: %s", c.Connection.String())
-
-	conn := amqpextra.DialConfig([]string{c.Connection.Raw()}, amqp.Config{
-		Heartbeat: 60 * time.Second,
-		Vhost:     c.Connection.VirtualHost,
+	worker, err := amqp.New(amqp.Config{
+		Logger:                          c.Logger,
+		ConnectionString:                c.Connection.Raw(),
+		VirtualHost:                     c.Connection.VirtualHost,
+		Prefix:                          "",
+		ReconnectionTimeout:             c.ReconnectionTimeout,
+		ConnectTimeout:                  c.ConnectionTimeout,
+		InitTimeout:                     c.InitTimeout,
+		MaxUnconfirmedInFlightPublishes: 1, // this enables publisher confirms
+		OnDial: func(attempt int, err error) {
+			c.Logger.Infof("Dialing to amqp attempt %d due error: %v", attempt, err)
+		},
 	})
-	conn.SetLogger(newLogger(c.Logger))
-	conn.SetReconnectSleep(c.ReconnectionTimeout)
-
-	<-conn.Ready()
-
-	w := &Worker{
-		conn:      conn,
-		config:    c,
-		publisher: conn.Publisher(),
-	}
-	err := w.declareExchange()
 	if err != nil {
 		return nil, err
 	}
-	return w, nil
-}
 
-func (w *Worker) declareExchange() error {
-	amqpConn, err := w.conn.Conn()
-	if err != nil {
-		return err
-	}
-	channel, err := amqpConn.Channel()
-	if err != nil {
-		return err
-	}
-	err = channel.ExchangeDeclare(
-		w.config.Exchange,
-		"topic", // kind
-		true,    // durable
-		false,   // autoDelete
-		false,   // internal
-		false,   // noWait
-		nil,     // args
-	)
-	if err != nil {
-		return err
-	}
-	return nil
+	return &Worker{
+		worker: worker,
+		config: c,
+	}, nil
 }
 
 // Close closes the worker stopping any active consumers and publishes.
 func (w *Worker) Close() error {
-	w.conn.Close()
-	return nil
+	return w.worker.Close()
 }

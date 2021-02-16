@@ -15,6 +15,8 @@ type Config struct {
 	RoutingKey          string
 	Prefetch            int
 	ReconnectionTimeout time.Duration
+	ConnectionTimeout   time.Duration
+	InitTimeout         time.Duration
 	Logger              *log.Logger
 }
 
