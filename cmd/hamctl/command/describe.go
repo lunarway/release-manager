@@ -60,6 +60,7 @@ func newDescribeRelease(client *httpinternal.Client, service *string) *cobra.Com
 Format the output with a custom template:
 
 	hamctl describe release --service product --env dev --template '{{ .Service }}'`,
+		Args: cobra.ExactArgs(0),
 		PreRun: func(c *cobra.Command, args []string) {
 			defaultShuttleString(shuttleSpecFromFile, &namespace, func(s *shuttleSpec) string {
 				return s.Vars.K8S.Namespace
@@ -119,6 +120,7 @@ Get details about the latest 5 artifacts for a service:
 Format the output with a custom template:
 
 	hamctl describe artifact --service product --template '{{ .Service }}'`,
+		Args: cobra.ExactArgs(0),
 		RunE: func(c *cobra.Command, args []string) error {
 			var resp httpinternal.DescribeArtifactResponse
 			params := url.Values{}

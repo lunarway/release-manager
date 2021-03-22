@@ -32,6 +32,7 @@ has no effect.`,
 		Example: `Rollback to the previous artifact for service 'product' in environment 'dev':
 
   hamctl rollback --service product --env dev`,
+		Args: cobra.ExactArgs(0),
 		PreRun: func(c *cobra.Command, args []string) {
 			defaultShuttleString(shuttleSpecFromFile, &namespace, func(s *shuttleSpec) string {
 				return s.Vars.K8S.Namespace

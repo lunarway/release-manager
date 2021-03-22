@@ -26,6 +26,7 @@ func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc)
 Release latest artifact from branch 'master' of service 'product' into environment 'dev':
 
   hamctl release --service product --env dev --branch master`,
+		Args: cobra.ExactArgs(0),
 		RunE: func(c *cobra.Command, args []string) error {
 			environments = trimEmptyValues(environments)
 			if len(environments) == 0 {
