@@ -42,6 +42,7 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "auto-release",
 		Short: "Auto-release policy for releasing branch artifacts to an environment",
+		Args:  cobra.ExactArgs(0),
 		RunE: func(c *cobra.Command, args []string) error {
 			committerName, committerEmail, err := git.CommitterDetails()
 			if err != nil {
@@ -87,6 +88,7 @@ func branchRestriction(client *httpinternal.Client, service *string) *cobra.Comm
 		Use:   "branch-restriction",
 		Short: "Branch restriction policy for limiting releases by their origin branch",
 		Long:  "Branch restriction policy for limiting releases of artifacts by their origin branch to specific environments",
+		Args:  cobra.ExactArgs(0),
 		RunE: func(c *cobra.Command, args []string) error {
 			committerName, committerEmail, err := git.CommitterDetails()
 			if err != nil {
