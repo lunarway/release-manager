@@ -13,6 +13,7 @@ type Exporter interface {
 	// Send a message through the exporter.
 	SendSuccessfulReleaseEvent(c context.Context, event httpinternal.ReleaseEvent) error
 	SendPodErrorEvent(c context.Context, event httpinternal.PodErrorEvent) error
+	SendJobErrorEvent(c context.Context, event httpinternal.JobErrorEvent) error
 }
 
 type ReleaseManagerExporter struct {
@@ -40,6 +41,21 @@ func (e *ReleaseManagerExporter) SendPodErrorEvent(ctx context.Context, event ht
 	e.Log.With("event", event).Infof("PodError Event")
 	var resp httpinternal.KubernetesNotifyResponse
 	url, err := e.Client.URL("webhook/daemon/k8s/error")
+	if err != nil {
+		return err
+	}
+	event.Environment = e.Environment
+	err = e.Client.Do(http.MethodPost, url, event, &resp)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *ReleaseManagerExporter) SendJobErrorEvent(ctx context.Context, event httpinternal.JobErrorEvent) error {
+	e.Log.With("event", event).Infof("JobError Event")
+	var resp httpinternal.KubernetesNotifyResponse
+	url, err := e.Client.URL("webhook/daemon/k8s/joberror")
 	if err != nil {
 		return err
 	}

@@ -363,6 +363,37 @@ func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErro
 	return err
 }
 
+func (c *Client) NotifyK8SJobErrorEvent(ctx context.Context, event *http.JobErrorEvent) error {
+	if c.muteOptions.Kubernetes {
+		return nil
+	}
+	userID, err := c.getIdByEmail(ctx, event.AuthorEmail)
+	if err != nil {
+		return err
+	}
+	asUser := slack.MsgOptionAsUser(true)
+	var fields []slack.AttachmentField
+	for _, condition := range event.Errors {
+		fields = append(fields, slack.AttachmentField{
+			Title: fmt.Sprintf("Reason: %s", condition.Reason),
+			Value: fmt.Sprintf("```%s```", condition.ErrorMessage),
+			Short: false,
+		})
+	}
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      fmt.Sprintf(":kubernetes: k8s (%s) :no_entry:", event.Environment),
+		Text:       fmt.Sprintf("Job Error: %s\nArtifact: *%s*", event.JobName, event.ArtifactID),
+		Color:      "#e24d42",
+		MarkdownIn: []string{"text", "fields"},
+		Fields:     fields,
+	})
+	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
 func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service, environment, branch, namespace, actorEmail string, inputErr error) error {
 	if c.muteOptions.ReleaseManagerError {
 		return nil
