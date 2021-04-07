@@ -82,3 +82,4 @@ func jobErrorMessages(job *batchv1.Job) []http.JobConditionError {
 	}
 	return errors
 }
+
