@@ -49,7 +49,7 @@ func (c *Client) HandleJobErrors(ctx context.Context) error {
 					AuthorEmail: job.Annotations["lunarway.com/author"],
 				})
 				if err != nil {
-					log.Errorf("Failed to send successful job error event: %v", err)
+					log.Errorf("Failed to send job error event: %v", err)
 					continue
 				}
 			}
@@ -82,4 +82,3 @@ func jobErrorMessages(job *batchv1.Job) []http.JobConditionError {
 	}
 	return errors
 }
-
