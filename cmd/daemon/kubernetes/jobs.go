@@ -75,8 +75,8 @@ func jobErrorMessages(job *batchv1.Job) []http.JobConditionError {
 	for _, condition := range job.Status.Conditions {
 		if condition.Status == corev1.ConditionTrue && condition.Type == batchv1.JobFailed {
 			errors = append(errors, http.JobConditionError {
-				Reason: condition.Reason,
-				ErrorMessage: condition.Message,
+				Reason:  condition.Reason,
+				Message: condition.Message,
 			})
 		}
 	}

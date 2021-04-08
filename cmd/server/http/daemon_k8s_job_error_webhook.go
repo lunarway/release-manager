@@ -28,12 +28,18 @@ func daemonk8sJobErrorWebhook(payload *payload, flowSvc *flow.Service) http.Hand
 		err = flowSvc.NotifyK8SJobErrorEvent(ctx, &event)
 		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
 			logger.Errorf("http: daemon k8s pod error webhook failed: %+v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
-		w.WriteHeader(http.StatusOK)
+
 		err = payload.encodeResponse(ctx, w, httpinternal.KubernetesNotifyResponse{})
 		if err != nil {
 			logger.Errorf("http: daemon k8s job error webhook: environment: '%s' marshal response: %v", event.Environment, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
+
+		w.WriteHeader(http.StatusOK)
 		logger.Infof("http: daemon k8s job error webhook: handled")
 	}
 }

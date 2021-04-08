@@ -376,7 +376,7 @@ func (c *Client) NotifyK8SJobErrorEvent(ctx context.Context, event *http.JobErro
 	for _, condition := range event.Errors {
 		fields = append(fields, slack.AttachmentField{
 			Title: fmt.Sprintf("Reason: %s", condition.Reason),
-			Value: fmt.Sprintf("```%s```", condition.ErrorMessage),
+			Value: fmt.Sprintf("```%s```", condition.Message),
 			Short: false,
 		})
 	}

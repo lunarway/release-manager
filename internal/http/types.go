@@ -117,8 +117,8 @@ type PodErrorEvent struct {
 }
 
 type JobConditionError struct {
-	Reason          string `json:"reason,omitempty"`
-	ErrorMessage 	string `json:"message,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 type JobErrorEvent struct {
