@@ -104,6 +104,16 @@ func StartDaemon() *cobra.Command {
 				}
 			}()
 
+			go func() {
+				for {
+					err = kubectl.HandleJobErrors(context.Background())
+					if err != nil && err != kubernetes.ErrWatcherClosed {
+						done <- errors.WithMessage(err, "kubectl handle job errors: watcher closed")
+						return
+					}
+				}
+			}()
+
 			sigs := make(chan os.Signal, 1)
 			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 			go func() {

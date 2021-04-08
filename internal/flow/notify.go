@@ -34,6 +34,18 @@ func (s *Service) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErr
 	return nil
 }
 
+func (s *Service) NotifyK8SJobErrorEvent(ctx context.Context, event *http.JobErrorEvent) error {
+	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyK8SJobErrorEvent")
+	defer span.Finish()
+	span, _ = s.Tracer.FromCtx(ctx, "post k8s NotifyK8SJobErrorEvent slack message")
+	err := s.Slack.NotifyK8SJobErrorEvent(ctx, event)
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "post k8s NotifyK8SJobErrorEvent slack message")
+	}
+	return nil
+}
+
 func (s *Service) NotifyFluxEvent(ctx context.Context, event *http.FluxNotifyRequest) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyFluxEvent")
 	defer span.Finish()

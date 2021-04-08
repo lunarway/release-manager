@@ -115,6 +115,21 @@ type PodErrorEvent struct {
 	Environment string           `json:"environment,omitempty"`
 	ArtifactID  string           `json:"artifactId,omitempty"`
 }
+
+type JobConditionError struct {
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+type JobErrorEvent struct {
+	JobName     string           	`json:"jobName,omitempty"`
+	Namespace   string           	`json:"namespace,omitempty"`
+	Errors      []JobConditionError	`json:"errors,omitempty"`
+	AuthorEmail string           	`json:"authorEmail,omitempty"`
+	Environment string           	`json:"environment,omitempty"`
+	ArtifactID  string           	`json:"artifactId,omitempty"`
+}
+
 type KubernetesNotifyResponse struct {
 }
 
