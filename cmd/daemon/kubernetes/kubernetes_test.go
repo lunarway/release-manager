@@ -5,22 +5,38 @@ import (
 	"testing"
 )
 
-func TestMisingLabelsIsNotCorrectlyAnnotated(t *testing.T) {
+func TestIsCorrectlyAnnotated(t *testing.T) {
+	tt := []struct {
+		name       string
+		controlled string
+		artifactID string
+		author     string
+		correct    bool
+	}{
+		{
+			name:       "only controlled",
+			controlled: "true",
+			artifactID: "",
+			author:     "",
+			correct:    false,
+		},
+		{
+			name:       "all good",
+			controlled: "true",
+			artifactID: "1",
+			author:     "platon",
+			correct:    true,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			correct := isCorrectlyAnnotated(map[string]string{
+				"lunarway.com/controlled-by-release-manager": tc.controlled,
+				"lunarway.com/artifact-id":                    tc.artifactID,
+				"lunarway.com/author":                        tc.author,
+			})
 
-	annotations := map[string]string{}
-	annotations["lunarway.com/controlled-by-release-manager"] = "true"
-	correctlyAnnotated := isCorrectlyAnnotated(annotations)
-
-	assert.False(t, correctlyAnnotated)
-}
-
-func TestAllLabelsSetIsCorrectlyAnnotated(t *testing.T) {
-
-	annotations := map[string]string{}
-	annotations["lunarway.com/controlled-by-release-manager"] = "true"
-	annotations["lunarway.com/artifact-id"] = "1"
-	annotations["lunarway.com/author"] = "platon"
-	correctlyAnnotated := isCorrectlyAnnotated(annotations)
-
-	assert.True(t, correctlyAnnotated)
+			assert.Equal(t, tc.correct, correct)
+		})
+	}
 }
