@@ -40,3 +40,4 @@ func TestIsCorrectlyAnnotated(t *testing.T) {
 		})
 	}
 }
+
