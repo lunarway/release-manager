@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
@@ -40,7 +41,11 @@ func (f *Service) ArtifactPaths(ctx context.Context, service string, environment
 	if err != nil {
 		return "", "", nil, errors.WithMessagef(err, "download from key '%s'", key)
 	}
-	return path.Join(artifact, "artifact.json"), path.Join(artifact, environment), close, nil
+	resourcesPath, err = securejoin.SecureJoin(artifact, environment)
+	if err != nil {
+		return "", "", nil, errors.WithMessagef(err, "resources path invalid for '%s'", environment)
+	}
+	return path.Join(artifact, "artifact.json"), resourcesPath, close, nil
 }
 
 func (f *Service) LatestArtifactSpecification(ctx context.Context, service string, branch string) (artifact.Spec, error) {
@@ -62,7 +67,11 @@ func (f *Service) LatestArtifactPaths(ctx context.Context, service string, envir
 	if err != nil {
 		return "", "", nil, errors.WithMessagef(err, "download from key '%s'", key)
 	}
-	return path.Join(artifact, "artifact.json"), path.Join(artifact, environment), close, nil
+	resourcesPath, err = securejoin.SecureJoin(artifact, environment)
+	if err != nil {
+		return "", "", nil, errors.WithMessagef(err, "resources path invalid for '%s'", environment)
+	}
+	return path.Join(artifact, "artifact.json"), resourcesPath, close, nil
 }
 
 func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n int) ([]artifact.Spec, error) {
