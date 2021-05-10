@@ -225,7 +225,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 
 		policiesPath, err := securejoin.SecureJoin(policiesDir, fmt.Sprintf("%s.json", svc))
 		if err != nil {
-			return true, errors.WithMessage(err, "join policy path")
+			return true, errors.WithMessagef(err, "join policy path '%s'", policiesDir)
 		}
 		logger.Debugf("internal/policy: open policies file '%s'", policiesPath)
 		policiesFile, err := os.OpenFile(policiesPath, os.O_CREATE|os.O_RDWR, os.ModePerm)
