@@ -11,6 +11,7 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/gorilla/websocket v1.4.2
+	github.com/johannesboyne/gofakes3 v0.0.0-20210608054100-92d5d4af5fde
 	github.com/lunarway/color v1.7.0
 	github.com/makasim/amqpextra v0.16.3
 	github.com/manifoldco/promptui v0.8.0

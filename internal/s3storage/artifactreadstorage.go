@@ -74,7 +74,7 @@ func (f *Service) LatestArtifactPaths(ctx context.Context, service string, envir
 	return path.Join(artifact, "artifact.json"), resourcesPath, close, nil
 }
 
-func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n int) ([]artifact.Spec, error) {
+func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n int, branch string) ([]artifact.Spec, error) {
 	prefix := getServiceObjectKeyPrefix(service)
 	list, err := f.s3client.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
 		Bucket:  aws.String(f.bucketName),
@@ -96,6 +96,9 @@ func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n 
 		artifactSpec, err := f.getArtifactSpecFromObjectKey(ctx, *object.Key)
 		if err != nil {
 			return nil, errors.WithMessagef(err, "failed getting object %s", *object.Key)
+		}
+		if branch != "" && artifactSpec.Application.Branch != branch {
+			continue
 		}
 		artifactSpecs = append(artifactSpecs, artifactSpec)
 		if len(artifactSpecs) >= n {

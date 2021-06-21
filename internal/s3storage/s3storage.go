@@ -6,9 +6,10 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
@@ -16,10 +17,9 @@ import (
 )
 
 type Service struct {
-	region                 string
 	bucketName             string
-	s3client               *s3.S3
-	sqsClient              *sqs.SQS
+	s3client               s3iface.S3API
+	sqsClient              sqsiface.SQSAPI
 	tracer                 tracing.Tracer
 	sqsQueueURL            string
 	sqsQueueARN            string
@@ -27,20 +27,8 @@ type Service struct {
 	sqsHandlerErrorChannel chan error
 }
 
-func New(bucketName string, tracer tracing.Tracer) (*Service, error) {
-	region := "eu-west-1"
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(region),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	s3client := s3.New(sess)
-	sqsClient := sqs.New(sess)
-
+func New(bucketName string, s3client s3iface.S3API, sqsClient sqsiface.SQSAPI, tracer tracing.Tracer) (*Service, error) {
 	return &Service{
-		region:     region,
 		bucketName: bucketName,
 		s3client:   s3client,
 		sqsClient:  sqsClient,
