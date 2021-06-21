@@ -157,9 +157,10 @@ func describeArtifact(ctx context.Context, payload *payload, flowSvc *flow.Servi
 			httpinternal.Error(w, fmt.Sprintf("invalid value '%s' of count. Must be a positive integer.", countParam), http.StatusBadRequest)
 			return
 		}
-		logger := log.WithContext(ctx).WithFields("service", service, "count", count)
+		branch := values.Get("branch")
+		logger := log.WithContext(ctx).WithFields("service", service, "count", count, "branch", branch)
 		ctx := r.Context()
-		resp, err := flowSvc.DescribeArtifact(ctx, service, count)
+		resp, err := flowSvc.DescribeArtifact(ctx, service, count, branch)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Infof("http: describe artifact: service '%s': request cancelled", service)

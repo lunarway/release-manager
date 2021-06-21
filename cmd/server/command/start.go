@@ -9,6 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/lunarway/release-manager/cmd/server/gpg"
 	"github.com/lunarway/release-manager/cmd/server/http"
 	"github.com/lunarway/release-manager/internal/broker"
@@ -169,7 +173,18 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 
 			var s3storageSvc *s3storage.Service
 			if startOptions.s3storage.S3BucketName != "" {
-				s3storageSvc, err = s3storage.New(startOptions.s3storage.S3BucketName, tracer)
+				region := "eu-west-1"
+				sess, err := session.NewSession(&aws.Config{
+					Region: aws.String(region),
+				})
+				if err != nil {
+					return err
+				}
+
+				s3client := s3.New(sess)
+				sqsClient := sqs.New(sess)
+
+				s3storageSvc, err = s3storage.New(startOptions.s3storage.S3BucketName, s3client, sqsClient, tracer)
 				if err != nil {
 					return err
 				}

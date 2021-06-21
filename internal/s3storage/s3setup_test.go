@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,7 +20,7 @@ func SkipIfNoAWS(t *testing.T) {
 	}
 }
 
-func EnsureTestS3Objects(t *testing.T, setup S3BucketSetup) {
+func EnsureTestS3Objects(t *testing.T, setup S3BucketSetup) s3iface.S3API {
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("eu-west-1"),
 	})
@@ -51,6 +52,7 @@ func EnsureTestS3Objects(t *testing.T, setup S3BucketSetup) {
 		})
 		assert.NoError(t, err)
 	}
+	return s3client
 }
 
 type S3BucketSetup struct {

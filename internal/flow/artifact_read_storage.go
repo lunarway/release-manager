@@ -34,7 +34,7 @@ type ArtifactReadStorage interface {
 
 	// ArtifactSpecifications returns a list of n newest artifact specifications
 	// for service. They should be ordered by newest first.
-	ArtifactSpecifications(ctx context.Context, service string, n int) ([]artifact.Spec, error)
+	ArtifactSpecifications(ctx context.Context, service string, n int, branch string) ([]artifact.Spec, error)
 }
 
 // ErrArtifactNotFound should be returned by implementations of
