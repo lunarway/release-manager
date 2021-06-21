@@ -254,7 +254,7 @@ func seedArtifacts(t *testing.T, s3Client s3iface.S3API, bucket string, artifact
 			Body:   strings.NewReader(artifactZip),
 			Bucket: aws.String(bucket),
 
-			Key: aws.String(fmt.Sprintf("%s/%s/artifact.json", artifact.Service, artifact.ID)),
+			Key: aws.String(fmt.Sprintf("%s/%s", artifact.Service, artifact.ID)),
 		})
 		if err != nil {
 			t.Fatalf("Failed to marshal artifact: %v", err)
