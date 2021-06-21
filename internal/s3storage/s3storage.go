@@ -28,7 +28,6 @@ type Service struct {
 }
 
 func New(bucketName string, s3client s3iface.S3API, sqsClient sqsiface.SQSAPI, tracer tracing.Tracer) (*Service, error) {
-
 	return &Service{
 		bucketName: bucketName,
 		s3client:   s3client,
