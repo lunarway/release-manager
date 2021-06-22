@@ -15,7 +15,9 @@ import (
 )
 
 func pushCommand(options *Options) *cobra.Command {
-	var baseURL, authToken string
+	clientConfig := http.Config{
+		Timeout: 30 * time.Second,
+	}
 
 	// retries for comitting changes into config repo
 	// can be required for racing writes
@@ -28,8 +30,8 @@ func pushCommand(options *Options) *cobra.Command {
 			var err error
 			ctx := context.Background()
 
-			if authToken != "" {
-				releaseManagerClient, auth := http.NewClient(baseURL, authToken, 30*time.Second)
+			if clientConfig.AuthToken != "" {
+				releaseManagerClient, auth := http.NewClient(&clientConfig)
 				artifactID, err = flow.PushArtifactToReleaseManager(ctx, releaseManagerClient.Release, auth, options.FileName, options.RootPath)
 				if err != nil {
 					return err
@@ -51,8 +53,8 @@ func pushCommand(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&baseURL, "http-base-url", os.Getenv("ARTIFACT_URL"), "address of the http release manager server")
-	command.Flags().StringVar(&authToken, "http-auth-token", "", "auth token for the http service")
+	command.Flags().StringVar(&clientConfig.BaseURL, "http-base-url", os.Getenv("ARTIFACT_URL"), "address of the http release manager server")
+	command.Flags().StringVar(&clientConfig.AuthToken, "http-auth-token", "", "auth token for the http service")
 
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.

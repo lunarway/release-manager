@@ -1,12 +1,13 @@
 package command
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/go-openapi/runtime"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
+	"github.com/lunarway/release-manager/generated/http/client"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/pkg/errors"
@@ -16,12 +17,16 @@ import (
 
 // NewRoot returns a new instance of a hamctl command.
 func NewRoot(version *string) (*cobra.Command, error) {
-	var service, email string
-	client := http.Client{
-		Metadata: http.Metadata{
+	var (
+		service      string
+		email        string
+		clientConfig = http.Config{
 			CLIVersion: *version,
-		},
-	}
+		}
+		client     = new(client.ReleaseManagerServerAPI)
+		clientAuth = new(runtime.ClientAuthInfoWriter)
+	)
+
 	var command = &cobra.Command{
 		Use:                    "hamctl",
 		Short:                  "hamctl controls a release manager server",
@@ -36,12 +41,12 @@ func NewRoot(version *string) (*cobra.Command, error) {
 				return s.Vars.Service
 			})
 
-			if client.BaseURL == "" {
-				client.BaseURL = os.Getenv("HAMCTL_URL")
+			if clientConfig.BaseURL == "" {
+				clientConfig.BaseURL = os.Getenv("HAMCTL_URL")
 			}
 
-			if client.Metadata.AuthToken == "" {
-				client.Metadata.AuthToken = os.Getenv("HAMCTL_AUTH_TOKEN")
+			if clientConfig.AuthToken == "" {
+				clientConfig.AuthToken = os.Getenv("HAMCTL_AUTH_TOKEN")
 			}
 
 			var missingFlags []string
@@ -54,10 +59,16 @@ func NewRoot(version *string) (*cobra.Command, error) {
 					missingFlags = append(missingFlags, "user-email")
 				}
 			}
-			client.Metadata.CallerEmail = email
+			clientConfig.CallerEmail = email
 			if len(missingFlags) != 0 {
 				return errors.Errorf(`required flag(s) "%s" not set`, strings.Join(missingFlags, `", "`))
 			}
+
+			localClient, localClientAuth := http.NewClient(&clientConfig)
+			// assign the created client to the existing pointer values to ensure
+			// references passed to sub commands are updated
+			*client = *localClient
+			*clientAuth = localClientAuth
 			return nil
 		},
 		Run: func(c *cobra.Command, args []string) {
@@ -66,19 +77,19 @@ func NewRoot(version *string) (*cobra.Command, error) {
 	}
 	command.AddCommand(
 		NewCompletion(command),
-		NewDescribe(&client, &service),
-		NewPolicy(&client, &service),
-		NewPromote(&client, &service),
-		NewRelease(&client, &service, func(f string, args ...interface{}) {
-			fmt.Printf(f, args...)
-		}),
-		NewRollback(&client, &service),
-		NewStatus(&client, &service),
+		NewDescribe(client, clientAuth, &service),
+		// NewPolicy(&client, &service),
+		// NewPromote(&client, &service),
+		// NewRelease(&client, &service, func(f string, args ...interface{}) {
+		// 	fmt.Printf(f, args...)
+		// }),
+		// NewRollback(&client, &service),
+		// NewStatus(&client, &service),
 		NewVersion(*version),
 	)
-	command.PersistentFlags().DurationVar(&client.Timeout, "http-timeout", 120*time.Second, "HTTP request timeout")
-	command.PersistentFlags().StringVar(&client.BaseURL, "http-base-url", "", "address of the http release manager server")
-	command.PersistentFlags().StringVar(&client.Metadata.AuthToken, "http-auth-token", "", "auth token for the http service")
+	command.PersistentFlags().DurationVar(&clientConfig.Timeout, "http-timeout", 120*time.Second, "HTTP request timeout")
+	command.PersistentFlags().StringVar(&clientConfig.BaseURL, "http-base-url", "", "address of the http release manager server")
+	command.PersistentFlags().StringVar(&clientConfig.AuthToken, "http-auth-token", "", "auth token for the http service")
 	command.PersistentFlags().StringVar(&service, "service", "", "service name to execute commands for")
 	command.PersistentFlags().StringVar(&email, "user-email", "", "email of user performing the command (defaults to Git configurated user.email)")
 

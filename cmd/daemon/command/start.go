@@ -22,8 +22,7 @@ func StartDaemon() *cobra.Command {
 	var environment, kubeConfigPath string
 	var moduloCrashReportNotif float64
 	var logConfiguration *log.Configuration
-	var releaseManagerBaseURL, releaseManagerToken string
-	var releaseManagerTimeout time.Duration
+	var clientConfig http.Config
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-daemon",
@@ -33,7 +32,7 @@ func StartDaemon() *cobra.Command {
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 
-			client, auth := http.NewClient(releaseManagerBaseURL, releaseManagerToken, releaseManagerTimeout)
+			client, auth := http.NewClient(&clientConfig)
 
 			kubectl, err := kubernetes.NewClient(kubeConfigPath, moduloCrashReportNotif, &kubernetes.ReleaseManagerExporter{
 				Log:         log.With("type", "k8s-exporter"),
@@ -114,9 +113,9 @@ func StartDaemon() *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&releaseManagerBaseURL, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")
-	command.Flags().StringVar(&releaseManagerToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
-	command.Flags().DurationVar(&releaseManagerTimeout, "http-timeout", 20*time.Second, "HTTP request timeout")
+	command.Flags().StringVar(&clientConfig.BaseURL, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")
+	command.Flags().StringVar(&clientConfig.AuthToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
+	command.Flags().DurationVar(&clientConfig.Timeout, "http-timeout", 20*time.Second, "HTTP request timeout")
 	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
 	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "path to kubeconfig file. If not specified, then daemon is expected to run inside kubernetes")
 	command.Flags().Float64Var(&moduloCrashReportNotif, "modulo-crash-report-notif", 5, "modulo for how often to report CrashLoopBackOff events")
