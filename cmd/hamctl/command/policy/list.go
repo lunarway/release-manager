@@ -3,47 +3,42 @@ package policy
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"reflect"
 
-	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/go-openapi/runtime"
+	"github.com/lunarway/release-manager/generated/http/client"
+	"github.com/lunarway/release-manager/generated/http/client/policies"
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/spf13/cobra"
 )
 
-func NewList(client *httpinternal.Client, service *string) *cobra.Command {
+func NewList(client *client.ReleaseManagerServerAPI, clientAuth *runtime.ClientAuthInfoWriter, service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List current policies",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(c *cobra.Command, args []string) error {
-			var resp httpinternal.ListPoliciesResponse
-			params := url.Values{}
-			params.Add("service", *service)
-			path, err := client.URLWithQuery(path, params)
+			resp, err := client.Policies.GetPolicies(policies.NewGetPoliciesParams().WithService(*service), *clientAuth)
 			if err != nil {
-				return err
-			}
-			err = client.Do(http.MethodGet, path, nil, &resp)
-			if err != nil {
-				responseErr, ok := err.(*httpinternal.ErrorResponse)
-				if !ok || responseErr.Status != http.StatusNotFound {
+				responseErr, ok := err.(*policies.GetPoliciesNotFound)
+				if !ok || responseErr.Payload.Status != http.StatusNotFound {
 					return err
 				}
 				fmt.Printf("No policies exist for service\n")
 				return nil
 			}
-			fmt.Printf("Policies for service %s\n", resp.Service)
+			fmt.Printf("Policies for service %s\n", resp.Payload.Service)
 			fmt.Println()
-			printAutoReleasePolicies(resp.AutoReleases)
+			printAutoReleasePolicies(resp.Payload.AutoReleases)
 			fmt.Println()
-			printBranchRestrictionPolicies(resp.BranchRestrictions)
+			printBranchRestrictionPolicies(resp.Payload.BranchRestrictions)
 			return nil
 		},
 	}
 	return command
 }
 
-func printAutoReleasePolicies(autoReleases []httpinternal.AutoReleasePolicy) {
+func printAutoReleasePolicies(autoReleases []*models.GetPoliciesResponseAutoReleasesItems0) {
 	if len(autoReleases) == 0 {
 		return
 	}
@@ -66,7 +61,7 @@ func printAutoReleasePolicies(autoReleases []httpinternal.AutoReleasePolicy) {
 	}
 }
 
-func printBranchRestrictionPolicies(policies []httpinternal.BranchRestrictionPolicy) {
+func printBranchRestrictionPolicies(policies []*models.GetPoliciesResponseBranchRestrictionsItems0) {
 	if len(policies) == 0 {
 		return
 	}

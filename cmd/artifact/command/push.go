@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"time"
 
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/http"
@@ -15,9 +14,7 @@ import (
 )
 
 func pushCommand(options *Options) *cobra.Command {
-	clientConfig := http.Config{
-		Timeout: 30 * time.Second,
-	}
+	clientConfig := http.Config{}
 
 	// retries for comitting changes into config repo
 	// can be required for racing writes

@@ -55,14 +55,14 @@ func TestRelease(t *testing.T) {
 		}
 	}))
 
-	c := internalhttp.Client{
+	c, ca := internalhttp.NewClient(&internalhttp.Config{
 		BaseURL: server.URL,
-	}
+	})
 
 	runCommand := func(t *testing.T, args ...string) []string {
 		var output []string
 
-		cmd := command.NewRelease(&c, &serviceName, func(f string, args ...interface{}) {
+		cmd := command.NewRelease(c, &ca, &serviceName, func(f string, args ...interface{}) {
 			output = append(output, fmt.Sprintf(f, args...))
 		})
 
@@ -188,9 +188,9 @@ func maskGUID(output []string) []string {
 
 func TestRelease_emptyEnvValue(t *testing.T) {
 	serviceName := "service-name"
-	c := internalhttp.Client{}
+	c, ca := internalhttp.NewClient(&internalhttp.Config{})
 
-	cmd := command.NewRelease(&c, &serviceName, func(f string, args ...interface{}) {
+	cmd := command.NewRelease(c, &ca, &serviceName, func(f string, args ...interface{}) {
 		t.Logf(f, args...)
 	})
 

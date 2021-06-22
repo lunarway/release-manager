@@ -2,17 +2,18 @@ package command
 
 import (
 	"fmt"
-	"net/http"
-	"net/url"
 	"time"
 
+	"github.com/go-openapi/runtime"
 	"github.com/lunarway/color"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/generated/http/client"
+	"github.com/lunarway/release-manager/generated/http/client/status"
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/spf13/cobra"
 )
 
-func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
+func NewStatus(client *client.ReleaseManagerServerAPI, clientAuth *runtime.ClientAuthInfoWriter, service *string) *cobra.Command {
 	var namespace string
 	var command = &cobra.Command{
 		Use:   "status",
@@ -24,23 +25,12 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 			})
 		},
 		RunE: func(c *cobra.Command, args []string) error {
-			var resp httpinternal.StatusResponse
-			params := url.Values{}
-			params.Add("service", *service)
-			if namespace != "" {
-				params.Add("namespace", namespace)
-			}
-			path, err := client.URLWithQuery("status", params)
+			resp, err := client.Status.GetStatus(status.NewGetStatusParams().WithNamespace(&namespace).WithService(*service), *clientAuth)
 			if err != nil {
 				return err
 			}
-			err = client.Do(http.MethodGet, path, nil, &resp)
-
-			if err != nil {
-				return err
-			}
-			if !someManaged(resp.Dev, resp.Staging, resp.Prod) {
-				if resp.DefaultNamespaces {
+			if !someManaged(resp.Payload.Dev, resp.Payload.Staging, resp.Payload.Prod) {
+				if resp.Payload.DefaultNamespaces {
 					fmt.Printf("Using default namespaces. ")
 				}
 				fmt.Printf("Are you setting the right namespace?\n")
@@ -48,13 +38,13 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 			fmt.Printf("Status for service: %s\n", *service)
 			fmt.Printf("\n")
 			color.Green("dev:\n")
-			printStatus(resp.Dev)
+			printStatus(resp.Payload.Dev)
 
 			color.Green("staging:\n")
-			printStatus(resp.Staging)
+			printStatus(resp.Payload.Staging)
 
 			color.Green("prod:\n")
-			printStatus(resp.Prod)
+			printStatus(resp.Payload.Prod)
 			return nil
 		},
 	}
@@ -64,7 +54,7 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 }
 
 // someManaged returns true if any of provided environments are managed.
-func someManaged(envs ...*httpinternal.Environment) bool {
+func someManaged(envs ...*models.EnvironmentStatus) bool {
 	for _, e := range envs {
 		if e != nil && e.Tag != "" {
 			return true
@@ -76,7 +66,7 @@ func Time(epoch int64) time.Time {
 	return time.Unix(epoch/1000, 0)
 }
 
-func printStatus(e *httpinternal.Environment) {
+func printStatus(e *models.EnvironmentStatus) {
 	if e == nil {
 		return
 	}
@@ -84,5 +74,5 @@ func printStatus(e *httpinternal.Environment) {
 		fmt.Printf("  Not managed by the release-manager\n\n")
 		return
 	}
-	fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n  Link: %s\n  Vulnerabilities: %d high, %d medium, %d low\n\n", e.Tag, e.Author, e.Committer, e.Message, Time(e.Date), e.BuildUrl, e.HighVulnerabilities, e.MediumVulnerabilities, e.LowVulnerabilities)
+	fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n  Link: %s\n  Vulnerabilities: %d high, %d medium, %d low\n\n", e.Tag, e.Author, e.Committer, e.Message, Time(e.Date), e.BuildURL, e.HighVulnerabilities, e.MediumVulnerabilities, e.LowVulnerabilities)
 }

@@ -1,22 +1,23 @@
 package actions
 
 import (
-	"net/http"
-
+	"github.com/go-openapi/runtime"
+	"github.com/lunarway/release-manager/generated/http/client"
+	"github.com/lunarway/release-manager/generated/http/client/release"
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/lunarway/release-manager/internal/git"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/intent"
 )
 
 type ReleaseResult struct {
-	Response    httpinternal.ReleaseResponse
+	Response    models.ReleaseResponse
 	Environment string
 	Error       error
 }
 
 // ReleaseArtifactID issues a release request to a single environment.
-func ReleaseArtifactID(client *httpinternal.Client, service, environment string, artifactID string, intent intent.Intent) (ReleaseResult, error) {
-	resps, err := ReleaseArtifactIDMultipleEnvironments(client, service, []string{environment}, artifactID, intent)
+func ReleaseArtifactID(client *client.ReleaseManagerServerAPI, clientAuth *runtime.ClientAuthInfoWriter, service, environment string, artifactID string, intent intent.Intent) (ReleaseResult, error) {
+	resps, err := ReleaseArtifactIDMultipleEnvironments(client, clientAuth, service, []string{environment}, artifactID, intent)
 	if err != nil {
 		return ReleaseResult{}, err
 	}
@@ -25,29 +26,38 @@ func ReleaseArtifactID(client *httpinternal.Client, service, environment string,
 
 // ReleaseArtifactIDMultipleEnvironments issues a release request to multiple
 // environments.
-func ReleaseArtifactIDMultipleEnvironments(client *httpinternal.Client, service string, environments []string, artifactID string, intent intent.Intent) ([]ReleaseResult, error) {
+func ReleaseArtifactIDMultipleEnvironments(client *client.ReleaseManagerServerAPI, clientAuth *runtime.ClientAuthInfoWriter, service string, environments []string, artifactID string, intent intent.Intent) ([]ReleaseResult, error) {
 	var results []ReleaseResult
 	committerName, committerEmail, err := git.CommitterDetails()
 	if err != nil {
 		return nil, err
 	}
-	path, err := client.URL("release")
-	if err != nil {
-		return nil, err
-	}
 	for _, environment := range environments {
-		var resp httpinternal.ReleaseResponse
-		err = client.Do(http.MethodPost, path, httpinternal.ReleaseRequest{
-			Service:        service,
-			Environment:    environment,
-			ArtifactID:     artifactID,
-			CommitterName:  committerName,
-			CommitterEmail: committerEmail,
-			Intent:         intent,
-		}, &resp)
+		resp, err := client.Release.PostRelease(release.NewPostReleaseParams().WithBody(&models.ReleaseRequest{
+			Service:        &service,
+			Environment:    &environment,
+			ArtifactID:     &artifactID,
+			CommitterName:  &committerName,
+			CommitterEmail: &committerEmail,
+			Intent: &models.Intent{
+				Type: &intent.Type,
+				Promote: &models.IntentPromote{
+					FromEnvironment: intent.Promote.FromEnvironment,
+				},
+				ReleaseBranch: &models.IntentReleaseBranch{
+					Branch: intent.ReleaseBranch.Branch,
+				},
+				Rollback: &models.IntentRollback{
+					PreviousArtifactID: intent.Rollback.PreviousArtifactID,
+				},
+			},
+		}), *clientAuth)
+		if err != nil {
+			return nil, err
+		}
 
 		results = append(results, ReleaseResult{
-			Response:    resp,
+			Response:    *resp.Payload,
 			Environment: environment,
 			Error:       err,
 		})

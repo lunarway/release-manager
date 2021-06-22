@@ -3,14 +3,15 @@ package command
 import (
 	"fmt"
 
+	"github.com/go-openapi/runtime"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/generated/http/client"
 	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/spf13/cobra"
 )
 
-func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
+func NewPromote(client *client.ReleaseManagerServerAPI, clientAuth *runtime.ClientAuthInfoWriter, service *string) *cobra.Command {
 	var toEnvironment, fromEnvironment, namespace string
 	var command = &cobra.Command{
 		Use:   "promote",
@@ -35,16 +36,16 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 			var artifactID string
 			var err error
 			if fromEnvironment == "master" {
-				artifactID, err = actions.ArtifactIDFromBranch(client, *service, "master")
+				artifactID, err = actions.ArtifactIDFromBranch(client, clientAuth, *service, "master")
 			} else {
-				artifactID, err = actions.ArtifactIDFromEnvironment(client, *service, namespace, fromEnvironment)
+				artifactID, err = actions.ArtifactIDFromEnvironment(client, clientAuth, *service, namespace, fromEnvironment)
 			}
 			if err != nil {
 				return err
 			}
 
 			fmt.Printf("Promote of service: %s\n", *service)
-			resp, err := actions.ReleaseArtifactID(client, *service, toEnvironment, artifactID, intent.NewPromoteEnvironment(fromEnvironment))
+			resp, err := actions.ReleaseArtifactID(client, clientAuth, *service, toEnvironment, artifactID, intent.NewPromoteEnvironment(fromEnvironment))
 			if err != nil {
 				return err
 			}

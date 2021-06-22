@@ -3,15 +3,17 @@ package policy
 import (
 	"errors"
 	"fmt"
-	"net/http"
 
+	"github.com/go-openapi/runtime"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
+	"github.com/lunarway/release-manager/generated/http/client"
+	"github.com/lunarway/release-manager/generated/http/client/policies"
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/lunarway/release-manager/internal/git"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
 
-func NewApply(client *httpinternal.Client, service *string) *cobra.Command {
+func NewApply(client *client.ReleaseManagerServerAPI, clientAuth *runtime.ClientAuthInfoWriter, service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "apply",
 		Short: "Apply a release policy for a service. See available commands for specific policies.",
@@ -32,12 +34,12 @@ func NewApply(client *httpinternal.Client, service *string) *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(autoRelease(client, service))
-	command.AddCommand(branchRestriction(client, service))
+	command.AddCommand(autoRelease(client, clientAuth, service))
+	command.AddCommand(branchRestriction(client, clientAuth, service))
 	return command
 }
 
-func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
+func autoRelease(client *client.ReleaseManagerServerAPI, clientAuth *runtime.ClientAuthInfoWriter, service *string) *cobra.Command {
 	var branch, env string
 	var command = &cobra.Command{
 		Use:   "auto-release",
@@ -49,23 +51,18 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 				return err
 			}
 
-			var resp httpinternal.ApplyPolicyResponse
-			path, err := client.URL(pathAutoRelease)
-			if err != nil {
-				return err
-			}
-			err = client.Do(http.MethodPatch, path, httpinternal.ApplyAutoReleasePolicyRequest{
-				Service:        *service,
-				Branch:         branch,
-				Environment:    env,
-				CommitterEmail: committerEmail,
-				CommitterName:  committerName,
-			}, &resp)
+			resp, err := client.Policies.PatchPolicyAutoRelease(policies.NewPatchPolicyAutoReleaseParams().WithBody(&models.ApplyAutoReleasePolicyRequest{
+				Service:        service,
+				Branch:         &branch,
+				Environment:    &env,
+				CommitterEmail: &committerEmail,
+				CommitterName:  &committerName,
+			}), *clientAuth)
 			if err != nil {
 				return err
 			}
 
-			fmt.Printf("[✓] Applied auto-release policy '%s' to service '%s'\n", resp.ID, resp.Service)
+			fmt.Printf("[✓] Applied auto-release policy '%s' to service '%s'\n", resp.Payload.ID, resp.Payload.Service)
 			return nil
 		},
 	}
@@ -82,7 +79,7 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 	return command
 }
 
-func branchRestriction(client *httpinternal.Client, service *string) *cobra.Command {
+func branchRestriction(client *client.ReleaseManagerServerAPI, clientAuth *runtime.ClientAuthInfoWriter, service *string) *cobra.Command {
 	var branchRegex, env string
 	var command = &cobra.Command{
 		Use:   "branch-restriction",
@@ -95,23 +92,18 @@ func branchRestriction(client *httpinternal.Client, service *string) *cobra.Comm
 				return err
 			}
 
-			var resp httpinternal.ApplyBranchRestrictionPolicyResponse
-			path, err := client.URL(pathBranchRestrction)
-			if err != nil {
-				return err
-			}
-			err = client.Do(http.MethodPatch, path, httpinternal.ApplyBranchRestrictionPolicyRequest{
-				Service:        *service,
-				BranchRegex:    branchRegex,
-				Environment:    env,
-				CommitterEmail: committerEmail,
-				CommitterName:  committerName,
-			}, &resp)
+			resp, err := client.Policies.PatchPolicyBranchRestriction(policies.NewPatchPolicyBranchRestrictionParams().WithBody(&models.ApplyBranchRestrictionPolicyRequest{
+				Service:        service,
+				BranchRegex:    &branchRegex,
+				Environment:    &env,
+				CommitterEmail: &committerEmail,
+				CommitterName:  &committerName,
+			}), *clientAuth)
 			if err != nil {
 				return err
 			}
 
-			fmt.Printf("[✓] Applied branch restriction policy '%s' to service '%s'\n", resp.ID, resp.Service)
+			fmt.Printf("[✓] Applied branch restriction policy '%s' to service '%s'\n", resp.Payload.ID, resp.Payload.Service)
 			return nil
 		},
 	}

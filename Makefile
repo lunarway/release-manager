@@ -174,7 +174,8 @@ URL=localhost:8080
 
 # posts a github push webhook to $(URL) for a product build commit
 github-webhook:
-	curl -H 'X-GitHub-Event: push' \
+	curl -H 'Content-Type: application/json' \
+	-H 'X-GitHub-Event: push' \
 	-d '{ \
 		"ref": "refs/heads/master", \
 		"head_commit": { \
@@ -185,13 +186,15 @@ github-webhook:
 	$(URL)/webhook/github
 
 hamctl-status:
-	curl -X GET \
+	curl -H 'Content-Type: application/json' \
+	-X GET \
 	-H 'Content-Type: application/json' \
 	-H 'Authorization: Bearer test' \
 	"$(URL)/status?service=a"
 
 daemon-webhook-success:
-	curl -X POST \
+	curl -H 'Content-Type: application/json' \
+  -X POST \
 	-H "Content-Type: application/json" \
 	-H "Authorization: Bearer test" \
 	-d '{ \
@@ -209,7 +212,8 @@ daemon-webhook-success:
 	$(URL)/webhook/daemon
 
 daemon-webhook-crashloop:
-	curl -X POST \
+	curl -H 'Content-Type: application/json' \
+	-X POST \
 	-H "Content-Type: application/json" \
 	-H "Authorization: Bearer test" \
 	-d '{ \
@@ -228,7 +232,8 @@ daemon-webhook-crashloop:
 	$(URL)/webhook/daemon
 
 daemon-webhook-configerror:
-	curl -X POST \
+	curl -H 'Content-Type: application/json' \
+	-X POST \
 	-H "Content-Type: application/json" \
 	-H "Authorization: Bearer test" \
 	-d '{ \

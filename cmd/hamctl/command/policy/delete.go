@@ -3,14 +3,16 @@ package policy
 import (
 	"errors"
 	"fmt"
-	"net/http"
 
+	"github.com/go-openapi/runtime"
+	"github.com/lunarway/release-manager/generated/http/client"
+	"github.com/lunarway/release-manager/generated/http/client/policies"
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/lunarway/release-manager/internal/git"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
 
-func NewDelete(client *httpinternal.Client, service *string) *cobra.Command {
+func NewDelete(client *client.ReleaseManagerServerAPI, clientAuth *runtime.ClientAuthInfoWriter, service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "delete",
 		Short: "Delete one or more policies by their id.",
@@ -47,21 +49,17 @@ Delete multiple policies:
 				return err
 			}
 
-			var resp httpinternal.DeletePolicyResponse
-			path, err := client.URL(path)
+			resp, err := client.Policies.DeletePolicies(policies.NewDeletePoliciesParams().WithBody(&models.DeletePolicyRequest{
+				Service:        service,
+				PolicyIds:      args,
+				CommitterName:  &committerName,
+				CommitterEmail: &committerEmail,
+			}), *clientAuth)
 			if err != nil {
 				return err
 			}
-			err = client.Do(http.MethodDelete, path, httpinternal.DeletePolicyRequest{
-				Service:        *service,
-				PolicyIDs:      args,
-				CommitterName:  committerName,
-				CommitterEmail: committerEmail,
-			}, &resp)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("Deleted %d policies\n", resp.Count)
+
+			fmt.Printf("Deleted %d policies\n", resp.Payload.Count)
 			return nil
 		},
 	}

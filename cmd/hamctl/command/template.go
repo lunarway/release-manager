@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"io"
 	"text/template"
+	"time"
 
+	"github.com/go-openapi/strfmt"
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/lunarway/release-manager/internal/intent"
 )
 
@@ -16,8 +19,9 @@ import (
 func templateOutput(destination io.Writer, name, text string, data interface{}) error {
 	t := template.New(name)
 	t.Funcs(template.FuncMap{
-		"rightPad":    tmplRightPad,
-		"printIntent": tmplPrintIntent,
+		"rightPad":         tmplRightPad,
+		"printIntent":      tmplPrintIntent,
+		"formatStrfmtDate": tmplFormatStrfmtDate,
 	})
 	t, err := t.Parse(text)
 	if err != nil {
@@ -40,8 +44,8 @@ func tmplRightPad(s string, padding int) string {
 	return fmt.Sprintf(template, s)
 }
 
-func tmplPrintIntent(i intent.Intent) string {
-	switch i.Type {
+func tmplPrintIntent(i *models.Intent) string {
+	switch *i.Type {
 	case intent.TypeAutoRelease:
 		return "autorelease"
 	case intent.TypePromote:
@@ -53,6 +57,10 @@ func tmplPrintIntent(i intent.Intent) string {
 	case intent.TypeRollback:
 		return fmt.Sprintf("rollback of %s", i.Rollback.PreviousArtifactID)
 	default:
-		return fmt.Sprintf("unknown intent type '%s'", i.Type)
+		return fmt.Sprintf("unknown intent type '%s'", *i.Type)
 	}
+}
+
+func tmplFormatStrfmtDate(s strfmt.Date, format string) string {
+	return time.Time(s).Format(format)
 }

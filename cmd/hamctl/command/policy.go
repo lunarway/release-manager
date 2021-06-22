@@ -1,13 +1,14 @@
 package command
 
 import (
+	"github.com/go-openapi/runtime"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/policy"
-	"github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/generated/http/client"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
-func NewPolicy(client *http.Client, service *string) *cobra.Command {
+func NewPolicy(client *client.ReleaseManagerServerAPI, clientAuth *runtime.ClientAuthInfoWriter, service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "policy",
 		Short: "Manage release policies for services.",
@@ -28,8 +29,8 @@ func NewPolicy(client *http.Client, service *string) *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(policy.NewApply(client, service))
-	command.AddCommand(policy.NewList(client, service))
-	command.AddCommand(policy.NewDelete(client, service))
+	command.AddCommand(policy.NewApply(client, clientAuth, service))
+	command.AddCommand(policy.NewList(client, clientAuth, service))
+	command.AddCommand(policy.NewDelete(client, clientAuth, service))
 	return command
 }

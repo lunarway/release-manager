@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/go-openapi/runtime"
+	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	"github.com/lunarway/release-manager/generated/http/client"
 	"github.com/lunarway/release-manager/generated/http/client/status"
@@ -34,9 +35,9 @@ Environment: {{ .Environment }}
    {{ if ne (len .Artifact.Namespace) 0 -}}
    Namespace:  {{ .Artifact.Namespace }}
    {{ end -}}
-   Artifact from: {{ .Artifact.CI.End.Format "2006-01-02 15:04:03" }}
+   Artifact from: {{ formatStrfmtDate .Artifact.Ci.End "2006-01-02 15:04:03" }}
    Artifact by: {{ .Artifact.Application.CommitterName }} ({{ .Artifact.Application.CommitterEmail }})
-   Released at: {{ .ReleasedAt.Format "2006-01-02 15:04:03" }}
+   Released at: {{ formatStrfmtDate .ReleasedAt "2006-01-02 15:04:03" }}
    Released by: {{ .ReleasedByName }} ({{ .ReleasedByEmail }})
    Commit: {{ .Artifact.Application.URL }}
    Message: {{ .Artifact.Application.Message }}
@@ -65,12 +66,7 @@ Format the output with a custom template:
 			})
 		},
 		RunE: func(c *cobra.Command, args []string) error {
-			releasesResponse, err := client.Status.GetDescribeReleaseServiceEnvironment(
-				status.NewGetDescribeReleaseServiceEnvironmentParams().
-					WithCount(&count).
-					WithService(*service).
-					WithEnvironment(environment),
-				*clientAuth)
+			releasesResponse, err := actions.ReleasesFromEnvironment(client, clientAuth, *service, environment, count)
 			if err != nil {
 				return err
 			}
@@ -101,7 +97,7 @@ var describeArtifactDefaultTemplate = `Latest artifacts for service: {{ .Service
 
 {{ rightPad "Date" 21 }}{{ rightPad "Artifact" 30 }}Message
 {{ range $k, $v := .Artifacts -}}
-{{ rightPad (.CI.End.Format "2006-01-02 15:04:03") 21 }}{{ rightPad .ID 30 }}{{ .Application.Message }}
+{{ rightPad (formatStrfmtDate .Ci.End "2006-01-02 15:04:03") 21 }}{{ rightPad .ID 30 }}{{ .Application.Message }}
 {{ end -}}
 `
 
@@ -135,7 +131,7 @@ Format the output with a custom template:
 			if len(template) == 0 {
 				template = describeArtifactDefaultTemplate
 			}
-			err = templateOutput(os.Stdout, "describeArtifact", template, resp)
+			err = templateOutput(os.Stdout, "describeArtifact", template, resp.Payload)
 			if err != nil {
 				return err
 			}

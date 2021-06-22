@@ -1,9 +1,7 @@
 package http
 
 import (
-	"context"
 	"net/http"
-	"time"
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/client"
@@ -15,7 +13,6 @@ import (
 type Config struct {
 	BaseURL     string
 	AuthToken   string
-	Timeout     time.Duration
 	CLIVersion  string
 	CallerEmail string
 }
@@ -24,10 +21,6 @@ func NewClient(config *Config) (*releasemanagerclient.ReleaseManagerServerAPI, r
 	transport := client.New(config.BaseURL, "", nil)
 
 	transport.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-		ctx, cancel := context.WithTimeout(req.Context(), config.Timeout)
-		defer cancel()
-		*req = *req.WithContext(ctx)
-
 		id, err := uuid.NewRandom()
 		if err == nil {
 			req.Header.Set("x-request-id", id.String())

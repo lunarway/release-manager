@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/lunarway/release-manager/cmd/daemon/kubernetes"
 	"github.com/lunarway/release-manager/internal/http"
@@ -115,7 +114,7 @@ func StartDaemon() *cobra.Command {
 	}
 	command.Flags().StringVar(&clientConfig.BaseURL, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")
 	command.Flags().StringVar(&clientConfig.AuthToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
-	command.Flags().DurationVar(&clientConfig.Timeout, "http-timeout", 20*time.Second, "HTTP request timeout")
+	// command.Flags().DurationVar(&clientConfig.Timeout, "http-timeout", 20*time.Second, "HTTP request timeout")
 	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
 	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "path to kubeconfig file. If not specified, then daemon is expected to run inside kubernetes")
 	command.Flags().Float64Var(&moduloCrashReportNotif, "modulo-crash-report-notif", 5, "modulo for how often to report CrashLoopBackOff events")

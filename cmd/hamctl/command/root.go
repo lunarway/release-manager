@@ -1,9 +1,9 @@
 package command
 
 import (
+	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/go-openapi/runtime"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
@@ -78,16 +78,16 @@ func NewRoot(version *string) (*cobra.Command, error) {
 	command.AddCommand(
 		NewCompletion(command),
 		NewDescribe(client, clientAuth, &service),
-		// NewPolicy(&client, &service),
-		// NewPromote(&client, &service),
-		// NewRelease(&client, &service, func(f string, args ...interface{}) {
-		// 	fmt.Printf(f, args...)
-		// }),
-		// NewRollback(&client, &service),
-		// NewStatus(&client, &service),
+		NewPolicy(client, clientAuth, &service),
+		NewPromote(client, clientAuth, &service),
+		NewRelease(client, clientAuth, &service, func(f string, args ...interface{}) {
+			fmt.Printf(f, args...)
+		}),
+		NewRollback(client, clientAuth, &service),
+		NewStatus(client, clientAuth, &service),
 		NewVersion(*version),
 	)
-	command.PersistentFlags().DurationVar(&clientConfig.Timeout, "http-timeout", 120*time.Second, "HTTP request timeout")
+	// command.PersistentFlags().DurationVar(&clientConfig.Timeout, "http-timeout", 120*time.Second, "HTTP request timeout")
 	command.PersistentFlags().StringVar(&clientConfig.BaseURL, "http-base-url", "", "address of the http release manager server")
 	command.PersistentFlags().StringVar(&clientConfig.AuthToken, "http-auth-token", "", "auth token for the http service")
 	command.PersistentFlags().StringVar(&service, "service", "", "service name to execute commands for")

@@ -27,7 +27,7 @@ func ReleaseHandler(flowSvc *flow.Service) HandlerFactory {
 				committerName  = *params.Body.CommitterName
 				committerEmail = *params.Body.CommitterEmail
 				environment    = *params.Body.Environment
-				artifactID     = *params.Body.Environment
+				artifactID     = *params.Body.ArtifactID
 				intent         = intent.Intent{
 					Type: *params.Body.Intent.Type,
 					ReleaseBranch: intent.ReleaseBranchIntent{
@@ -84,7 +84,6 @@ func ReleaseHandler(flowSvc *flow.Service) HandlerFactory {
 					logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': release rejected: %v", service, environment, artifactID, err)
 					return release.NewPostReleaseBadRequest().
 						WithPayload(badRequest("%s not found for service '%s'", intent.AsArtifactWithIntent(artifactID), service))
-					return nil
 				case flow.ErrUnknownEnvironment:
 					logger.Infof("http: release: service '%s' environment '%s': release rejected: %v", service, environment, err)
 					return release.NewPostReleaseBadRequest().

@@ -3,9 +3,10 @@ package command
 import (
 	"strings"
 
+	"github.com/go-openapi/runtime"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/generated/http/client"
 	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -13,7 +14,7 @@ import (
 
 type LoggerFunc = func(string, ...interface{})
 
-func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc) *cobra.Command {
+func NewRelease(client *client.ReleaseManagerServerAPI, clientAuth *runtime.ClientAuthInfoWriter, service *string, logger LoggerFunc) *cobra.Command {
 	var branch, artifact string
 	var environments []string
 	var command = &cobra.Command{
@@ -39,12 +40,12 @@ Release latest artifact from branch 'master' of service 'product' into environme
 			case branch == "" && artifact == "":
 				return errors.New("--branch or --artifact is required")
 			case branch != "":
-				artifactID, err := actions.ArtifactIDFromBranch(client, *service, branch)
+				artifactID, err := actions.ArtifactIDFromBranch(client, clientAuth, *service, branch)
 				if err != nil {
 					return err
 				}
 				logger("Release of service %s using branch %s\n", *service, branch)
-				resps, err := actions.ReleaseArtifactIDMultipleEnvironments(client, *service, environments, artifactID, intent.NewReleaseBranch(branch))
+				resps, err := actions.ReleaseArtifactIDMultipleEnvironments(client, clientAuth, *service, environments, artifactID, intent.NewReleaseBranch(branch))
 				if err != nil {
 					return err
 				}
@@ -54,7 +55,7 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				return nil
 			case artifact != "":
 				logger("Release of service: %s\n", *service)
-				resps, err := actions.ReleaseArtifactIDMultipleEnvironments(client, *service, environments, artifact, intent.NewReleaseArtifact())
+				resps, err := actions.ReleaseArtifactIDMultipleEnvironments(client, clientAuth, *service, environments, artifact, intent.NewReleaseArtifact())
 				if err != nil {
 					return err
 				}

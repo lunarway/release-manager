@@ -141,7 +141,7 @@ func ListPoliciesHandler(policySvc *policy.Service) HandlerFactory {
 					return policies.NewGetPoliciesBadRequest().WithPayload(cancelled())
 				}
 				if errorCause(err) == policy.ErrNotFound {
-					return policies.NewGetPoliciesNotFound().WithPayload(notFound("no policiex exist"))
+					return policies.NewGetPoliciesNotFound().WithPayload(notFound("no policies exist"))
 				}
 				logger.Errorf("http: policy: list: service '%s': get policies failed: %v", service, err)
 				return policies.NewGetPoliciesInternalServerError().WithPayload(unknownError())
