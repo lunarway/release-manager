@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"time"
 
 	"github.com/lunarway/release-manager/internal/flow"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/http"
 	intslack "github.com/lunarway/release-manager/internal/slack"
 	"github.com/nlopes/slack"
 	"github.com/spf13/cobra"
 )
 
 func pushCommand(options *Options) *cobra.Command {
-	releaseManagerClient := httpinternal.Client{}
+	var baseURL, authToken string
 
 	// retries for comitting changes into config repo
 	// can be required for racing writes
@@ -27,8 +28,9 @@ func pushCommand(options *Options) *cobra.Command {
 			var err error
 			ctx := context.Background()
 
-			if releaseManagerClient.Metadata.AuthToken != "" {
-				artifactID, err = flow.PushArtifactToReleaseManager(ctx, &releaseManagerClient, options.FileName, options.RootPath)
+			if authToken != "" {
+				releaseManagerClient, auth := http.NewClient(baseURL, authToken, 30*time.Second)
+				artifactID, err = flow.PushArtifactToReleaseManager(ctx, releaseManagerClient.Release, auth, options.FileName, options.RootPath)
 				if err != nil {
 					return err
 				}
@@ -49,8 +51,8 @@ func pushCommand(options *Options) *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&releaseManagerClient.BaseURL, "http-base-url", os.Getenv("ARTIFACT_URL"), "address of the http release manager server")
-	command.Flags().StringVar(&releaseManagerClient.Metadata.AuthToken, "http-auth-token", "", "auth token for the http service")
+	command.Flags().StringVar(&baseURL, "http-base-url", os.Getenv("ARTIFACT_URL"), "address of the http release manager server")
+	command.Flags().StringVar(&authToken, "http-auth-token", "", "auth token for the http service")
 
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.

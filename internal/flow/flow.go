@@ -17,10 +17,12 @@ import (
 	securejoin "github.com/cyphar/filepath-securejoin"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-openapi/runtime"
+	"github.com/lunarway/release-manager/generated/http/client/release"
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
 	internalgit "github.com/lunarway/release-manager/internal/git"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/slack"
@@ -275,7 +277,7 @@ func releasePath(root, service, env, namespace string) (string, error) {
 }
 
 // PushArtifactToReleaseManager pushes an artifact to the release manager
-func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *httpinternal.Client, artifactFileName, resourceRoot string) (string, error) {
+func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient release.ClientService, releaseManagerClientAuth runtime.ClientAuthInfoWriter, artifactFileName, resourceRoot string) (string, error) {
 	artifactSpecPath := path.Join(resourceRoot, artifactFileName)
 	artifactSpec, err := artifact.Get(artifactSpecPath)
 	if err != nil {
@@ -299,22 +301,20 @@ func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *htt
 
 	log.WithFields("artifactID", artifactSpec.ID, "artifactFiles", files).Infof("calculated zip md5: %x", zipMD5s)
 
-	path, err := releaseManagerClient.URL(fmt.Sprintf("artifacts/create"))
-	if err != nil {
-		return "", errors.WithMessage(err, "push artifact URL generation failed")
-	}
-
-	resp := httpinternal.ArtifactUploadResponse{}
-	err = releaseManagerClient.Do(http.MethodPost, path, httpinternal.ArtifactUploadRequest{
-		Artifact: artifactSpec,
-		MD5:      zipMD5s,
-	}, &resp)
+	resp, err := releaseManagerClient.PostArtifactCreate(release.NewPostArtifactCreateParams().WithBody(&models.CreateArtifactRequest{
+		Artifact: &models.CreateArtifactRequestArtifact{
+			ID:      &artifactSpec.ID,
+			Service: &artifactSpec.Service,
+		},
+		Md5: &zipMD5s,
+	}), releaseManagerClientAuth)
 	if err != nil {
 		return "", errors.WithMessage(err, "create artifact request failed")
 	}
-	log.WithFields("artifactID", artifactSpec.ID, "uploadURL", resp.ArtifactUploadURL).Infof("artifact upload URL created for %s", artifactSpec.ID)
 
-	err = uploadFile(resp.ArtifactUploadURL, zipContent, string(zipMD5s))
+	log.WithFields("artifactID", artifactSpec.ID, "uploadURL", resp.Payload.ArtifactUploadURL).Infof("artifact upload URL created for %s", artifactSpec.ID)
+
+	err = uploadFile(resp.Payload.ArtifactUploadURL, zipContent, string(zipMD5s))
 	if err != nil {
 		return "", errors.WithMessage(err, "upload artifact failed")
 	}
