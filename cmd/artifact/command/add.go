@@ -42,7 +42,7 @@ func appendTestSubCommand(options *Options) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Test"
-				stage.ID = "test"
+				stage.ID = artifact.StageIDTest
 				stage.Data = testData
 				return setStage(s, stage)
 			})
@@ -81,7 +81,7 @@ func appendBuildSubCommand(options *Options) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Build"
-				stage.ID = "build"
+				stage.ID = artifact.StageIDBuild
 				stage.Data = buildData
 				return setStage(s, stage)
 			})
@@ -120,7 +120,7 @@ func appendSnykDockerSubCommand(options *Options) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Security Scan - Docker"
-				stage.ID = "snyk-docker"
+				stage.ID = artifact.StageIDSnykDocker
 				stage.Data = snykDockerData
 				return setStage(s, stage)
 			})
@@ -155,7 +155,7 @@ func appendSnykCodeSubCommand(options *Options) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Security Scan - Code"
-				stage.ID = "snyk-code"
+				stage.ID = artifact.StageIDSnykCode
 				stage.Data = snykCodeData
 				return setStage(s, stage)
 			})
@@ -190,7 +190,7 @@ func appendPushSubCommand(options *Options) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := artifact.Update(path.Join(options.RootPath, options.FileName), func(s artifact.Spec) artifact.Spec {
 				stage.Name = "Push"
-				stage.ID = "push"
+				stage.ID = artifact.StageIDPush
 				stage.Data = pushData
 				return setStage(s, stage)
 			})
