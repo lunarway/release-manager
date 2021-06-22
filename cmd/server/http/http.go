@@ -2,76 +2,67 @@ package http
 
 import (
 	"fmt"
+	"net"
 	"net/http"
-	"net/http/pprof"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/go-openapi/loads"
+	"github.com/go-openapi/runtime/middleware"
 	"github.com/google/uuid"
-	"github.com/lunarway/release-manager/internal/flow"
-	"github.com/lunarway/release-manager/internal/git"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/generated/http/restapi"
+	"github.com/lunarway/release-manager/generated/http/restapi/operations"
 	"github.com/lunarway/release-manager/internal/log"
-	policyinternal "github.com/lunarway/release-manager/internal/policy"
-	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
-	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Options struct {
-	Port                int
-	Timeout             time.Duration
-	GithubWebhookSecret string
-	HamCtlAuthToken     string
-	DaemonAuthToken     string
-	ArtifactAuthToken   string
-	S3WebhookSecret     string
+	Port              int
+	Timeout           time.Duration
+	HamCtlAuthToken   string
+	DaemonAuthToken   string
+	ArtifactAuthToken string
 }
 
-func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, artifactWriteStorage ArtifactWriteStorage, tracer tracing.Tracer) error {
-	payloader := payload{
-		tracer: tracer,
+type HandlerFactory func(*operations.ReleaseManagerServerAPIAPI)
+
+func NewServer(opts *Options, tracer tracing.Tracer, handlers []HandlerFactory) error {
+	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
+	if err != nil {
+		return fmt.Errorf("load swagger spec: %w", err)
 	}
-	mux := http.NewServeMux()
-	mux.HandleFunc("/ping", ping)
-	mux.HandleFunc("/release", trace(tracer, authenticate(opts.HamCtlAuthToken, release(&payloader, flowSvc))))
-	mux.HandleFunc("/status", trace(tracer, authenticate(opts.HamCtlAuthToken, status(&payloader, flowSvc))))
-	// register both a rooted and unrooted path to avoid a 301 redirect on /policies when only /policies/ is registered
-	mux.HandleFunc("/policies", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(&payloader, policySvc))))
-	mux.HandleFunc("/policies/", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(&payloader, policySvc))))
-	mux.HandleFunc("/describe/", trace(tracer, authenticate(opts.HamCtlAuthToken, describe(&payloader, flowSvc))))
-	mux.HandleFunc("/webhook/github", trace(tracer, githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret)))
-	mux.HandleFunc("/webhook/daemon/k8s/deploy", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sDeployWebhook(&payloader, flowSvc))))
-	mux.HandleFunc("/webhook/daemon/k8s/error", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sPodErrorWebhook(&payloader, flowSvc))))
-	mux.HandleFunc("/webhook/daemon/k8s/joberror", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sJobErrorWebhook(&payloader, flowSvc))))
+	swaggerAPI := operations.NewReleaseManagerServerAPIAPI(swaggerSpec)
+	swaggerAPI.Logger = log.Infof
+	swaggerAPI.HamctlAuthorizationTokenAuth = authenticate(opts.HamCtlAuthToken)
+	swaggerAPI.DaemonAuthorizationTokenAuth = authenticate(opts.DaemonAuthToken)
+	swaggerAPI.ArtifactAuthorizationTokenAuth = authenticate(opts.ArtifactAuthToken)
+	// TODO: swaggerAPI.APIAuthorizer = runtime.AuthorizerFunc(func(r *http.Request, i interface{}) error {})
 
-	// s3 endpoints
-	mux.HandleFunc("/artifacts/create", trace(tracer, authenticate(opts.ArtifactAuthToken, createArtifact(&payloader, artifactWriteStorage))))
+	for _, handler := range handlers {
+		handler(swaggerAPI)
+	}
 
-	// profiling endpoints
-	mux.HandleFunc("/debug/pprof/", pprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-
-	mux.Handle("/metrics", promhttp.Handler())
-
-	s := http.Server{
-		Addr:              fmt.Sprintf(":%d", opts.Port),
-		Handler:           reqrespLogger(mux),
+	httpServer := http.Server{
+		Addr: net.JoinHostPort(hostName(), fmt.Sprintf("%d", opts.Port)),
+		Handler: reqrespLogger(
+			trace(tracer,
+				swaggerAPI.Serve(middleware.PassthroughBuilder),
+			),
+		),
 		ReadTimeout:       opts.Timeout,
 		WriteTimeout:      opts.Timeout,
 		IdleTimeout:       opts.Timeout,
 		ReadHeaderTimeout: opts.Timeout,
 	}
-	log.Infof("Initializing HTTP Server on port %d", opts.Port)
-	err := s.ListenAndServe()
-	if err != nil {
-		return errors.WithMessage(err, "listen and server")
+	return httpServer.ListenAndServe()
+}
+
+func hostName() string {
+	if os.Getenv("ENVIRONMENT") == "local" {
+		return "localhost"
 	}
-	return nil
+	return ""
 }
 
 // getRequestID returns the request ID of an HTTP request if it is set and
@@ -90,7 +81,7 @@ func getRequestID(r *http.Request) string {
 }
 
 // trace adds an OpenTracing span to the request context.
-func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
+func trace(tracer tracing.Tracer, h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		span, ctx := tracer.FromCtxf(ctx, "http %s %s", r.Method, r.URL.Path)
@@ -100,7 +91,7 @@ func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
 		ctx = log.AddContext(ctx, "requestId", requestID)
 		*r = *r.WithContext(ctx)
 		statusWriter := &statusCodeResponseWriter{w, http.StatusOK}
-		h(statusWriter, r)
+		h.ServeHTTP(statusWriter, r)
 		span.SetTag("request.id", requestID)
 		span.SetTag("http.status_code", statusWriter.statusCode)
 		span.SetTag("http.url", r.URL.RequestURI())
@@ -116,19 +107,13 @@ func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
-// authenticate authenticates the handler against a Bearer token.
-//
-// If authentication fails a 401 Unauthorized HTTP status is returned with an
-// ErrorResponse body.
-func authenticate(token string, h http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authorization := r.Header.Get("Authorization")
+func authenticate(token string) func(token string) (principal interface{}, err error) {
+	return func(authorization string) (principal interface{}, err error) {
 		t := strings.TrimPrefix(authorization, "Bearer ")
 		t = strings.TrimSpace(t)
 		if t != token {
-			httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
-			return
+			return nil, fmt.Errorf("please provide a valid authentication token")
 		}
-		h(w, r)
-	})
+		return nil, nil
+	}
 }

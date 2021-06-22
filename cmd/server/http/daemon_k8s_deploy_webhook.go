@@ -2,8 +2,11 @@ package http
 
 import (
 	"context"
-	"net/http"
 
+	"github.com/go-openapi/runtime/middleware"
+	"github.com/lunarway/release-manager/generated/http/models"
+	"github.com/lunarway/release-manager/generated/http/restapi/operations"
+	"github.com/lunarway/release-manager/generated/http/restapi/operations/webhook"
 	"github.com/lunarway/release-manager/internal/flow"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
@@ -12,28 +15,28 @@ import (
 	"github.com/pkg/errors"
 )
 
-func daemonk8sDeployWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func Daemonk8sDeployWebhookHandler(flowSvc *flow.Service) HandlerFactory {
+	return func(api *operations.ReleaseManagerServerAPIAPI) {
 		// copy span from request context but ignore any deadlines on the request context
-		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
-		logger := log.WithContext(ctx)
-		var k8sReleaseEvent httpinternal.ReleaseEvent
-		err := payload.decodeResponse(ctx, r.Body, &k8sReleaseEvent)
-		if err != nil {
-			logger.Errorf("http: daemon k8s deploy webhook: decode request body failed: %v", err)
-			invalidBodyError(w)
-			return
-		}
-		logger = logger.WithFields("event", k8sReleaseEvent)
-		err = flowSvc.NotifyK8SDeployEvent(ctx, &k8sReleaseEvent)
-		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
-			logger.Errorf("http: daemon k8s deploy webhook failed: %+v", err)
-		}
-		w.WriteHeader(http.StatusOK)
-		err = payload.encodeResponse(ctx, w, httpinternal.KubernetesNotifyResponse{})
-		if err != nil {
-			logger.Errorf("http: daemon k8s deploy webhook: environment: '%s' marshal response: %v", k8sReleaseEvent.Environment, err)
-		}
-		logger.Infof("http: daemon k8s deploy webhook: handled")
+		api.WebhookPostWebhookDaemonK8sDeployHandler = webhook.PostWebhookDaemonK8sDeployHandlerFunc(func(params webhook.PostWebhookDaemonK8sDeployParams, principal interface{}) middleware.Responder {
+			ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(params.HTTPRequest.Context()))
+			logger := log.WithContext(ctx)
+
+			k8sReleaseEvent := mapK8sDeployEvent(params.Body)
+
+			logger = logger.WithFields("event", k8sReleaseEvent)
+			err := flowSvc.NotifyK8SDeployEvent(ctx, &k8sReleaseEvent)
+			if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
+				logger.Errorf("http: daemon k8s deploy webhook failed: %+v", err)
+			}
+
+			logger.Infof("http: daemon k8s deploy webhook: handled")
+			return webhook.NewPostWebhookDaemonK8sDeployOK().WithPayload(models.EmptyWebhookResponse(struct{}{}))
+		})
 	}
+}
+
+func mapK8sDeployEvent(h *models.DaemonKubernetesDeploymentWebhookRequest) httpinternal.ReleaseEvent {
+	//TODO: map fields
+	return httpinternal.ReleaseEvent{}
 }

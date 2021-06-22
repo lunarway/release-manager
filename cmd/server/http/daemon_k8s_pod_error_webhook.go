@@ -2,8 +2,11 @@ package http
 
 import (
 	"context"
-	"net/http"
 
+	"github.com/go-openapi/runtime/middleware"
+	"github.com/lunarway/release-manager/generated/http/models"
+	"github.com/lunarway/release-manager/generated/http/restapi/operations"
+	"github.com/lunarway/release-manager/generated/http/restapi/operations/webhook"
 	"github.com/lunarway/release-manager/internal/flow"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
@@ -12,28 +15,27 @@ import (
 	"github.com/pkg/errors"
 )
 
-func daemonk8sPodErrorWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// copy span from request context but ignore any deadlines on the request context
-		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
-		logger := log.WithContext(ctx)
-		var event httpinternal.PodErrorEvent
-		err := payload.decodeResponse(ctx, r.Body, &event)
-		if err != nil {
-			logger.Errorf("http: daemon k8s pod error webhook: decode request body failed: %v", err)
-			invalidBodyError(w)
-			return
-		}
-		logger = logger.WithFields("event", event)
-		err = flowSvc.NotifyK8SPodErrorEvent(ctx, &event)
-		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
-			logger.Errorf("http: daemon k8s pod error webhook failed: %+v", err)
-		}
-		w.WriteHeader(http.StatusOK)
-		err = payload.encodeResponse(ctx, w, httpinternal.KubernetesNotifyResponse{})
-		if err != nil {
-			logger.Errorf("http: daemon k8s pod error webhook: environment: '%s' marshal response: %v", event.Environment, err)
-		}
-		logger.Infof("http: daemon k8s pod error webhook: handled")
+func Daemonk8sPodErrorWebhookHandler(flowSvc *flow.Service) HandlerFactory {
+	return func(api *operations.ReleaseManagerServerAPIAPI) {
+		api.WebhookPostWebhookDaemonK8sErrorHandler = webhook.PostWebhookDaemonK8sErrorHandlerFunc(func(params webhook.PostWebhookDaemonK8sErrorParams, principal interface{}) middleware.Responder {
+			// copy span from request context but ignore any deadlines on the request context
+			ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(params.HTTPRequest.Context()))
+			logger := log.WithContext(ctx)
+			event := params.Body
+
+			logger = logger.WithFields("event", event)
+			err := flowSvc.NotifyK8SPodErrorEvent(ctx, event)
+			if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
+				logger.Errorf("http: daemon k8s pod error webhook failed: %+v", err)
+			}
+
+			logger.Infof("http: daemon k8s pod error webhook: handled")
+			return webhook.NewPostWebhookDaemonK8sErrorOK().WithPayload(models.EmptyWebhookResponse(struct{}{}))
+		})
 	}
+}
+
+func mapK8sPodErrorEvent(h *models.DaemonKubernetesErrorWebhookRequest) httpinternal.PodErrorEvent {
+	//TODO: map fields
+	return httpinternal.PodErrorEvent{}
 }

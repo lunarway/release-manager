@@ -1,46 +1,40 @@
 package http
 
 import (
-	"net/http"
-
+	"github.com/go-openapi/runtime/middleware"
+	"github.com/lunarway/release-manager/generated/http/models"
+	"github.com/lunarway/release-manager/generated/http/restapi/operations"
+	"github.com/lunarway/release-manager/generated/http/restapi/operations/release"
 	"github.com/lunarway/release-manager/internal/artifact"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 )
 
-func createArtifact(payload *payload, artifactWriteStorage ArtifactWriteStorage) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		logger := log.WithContext(ctx)
+func CreateArtifactHandler(artifactWriteStorage ArtifactWriteStorage) HandlerFactory {
+	return func(api *operations.ReleaseManagerServerAPIAPI) {
+		api.ReleasePostArtifactCreateHandler = release.PostArtifactCreateHandlerFunc(func(params release.PostArtifactCreateParams, principal interface{}) middleware.Responder {
+			ctx := params.HTTPRequest.Context()
+			logger := log.WithContext(ctx)
 
-		var req httpinternal.ArtifactUploadRequest
-		err := payload.decodeResponse(ctx, r.Body, &req)
-		if err != nil {
-			logger.Errorf("http: artifact: create: decode request body failed: %v", err)
-			invalidBodyError(w)
-			return
-		}
+			var (
+				service    = *params.Body.Artifact.Service
+				artifactID = *params.Body.Artifact.ID
+				md5        = *params.Body.Md5
+			)
 
-		if !req.Validate(w) {
-			return
-		}
+			logger.Infof("http: artifact: creating artifact for '%s/%s' with hash '%x'", service, artifactID, md5)
+			uploadURL, err := artifactWriteStorage.CreateArtifact(artifact.Spec{
+				ID:      artifactID,
+				Service: service,
+			}, md5)
+			if err != nil {
+				logger.Errorf("http: artifact: create: storage failed failed creating artifact: %v", err)
+				return release.NewPostArtifactCreateInternalServerError().WithPayload(unknownError())
+			}
 
-		logger.Infof("http: artifact: creating artifact for '%s/%s' with hash '%x'", req.Artifact.Service, req.Artifact.ID, req.MD5)
-		uploadURL, err := artifactWriteStorage.CreateArtifact(req.Artifact, req.MD5)
-		if err != nil {
-			logger.Errorf("http: artifact: create: storage failed failed creating artifact: %v", err)
-			unknownError(w)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		err = payload.encodeResponse(ctx, w, httpinternal.ArtifactUploadResponse{
-			ArtifactUploadURL: uploadURL,
+			return release.NewPostArtifactCreateCreated().WithPayload(&models.CreateArtifactResponse{
+				ArtifactUploadURL: uploadURL,
+			})
 		})
-		if err != nil {
-			logger.Errorf("http: artifact: create: marshal response failed: %v", err)
-		}
 	}
 }
 

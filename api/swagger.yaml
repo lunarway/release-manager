@@ -1,0 +1,891 @@
+swagger: "2.0"
+
+info:
+  version: "0.1.0"
+  title: Release manager server API
+  description: HTTP API for the server component of release-manager.
+consumes:
+  - application/json
+produces:
+  - application/json
+  - text/plain
+
+tags:
+  - name: policies
+  - name: status
+  - name: webhook
+  - name: release
+  - name: internal
+
+responses:
+  AccessTokenNotFound:
+    description: The provided access token was not found.
+    schema:
+      $ref: "#/definitions/ErrorResponse"
+securityDefinitions:
+  hamctlAuthorizationToken:
+    type: apiKey
+    description: Authorization token formatted as 'Bearer <token>'
+    name: Authorization
+    in: header
+  daemonAuthorizationToken:
+    type: apiKey
+    description: Authorization token formatted as 'Bearer <token>'
+    name: Authorization
+    in: header
+  artifactAuthorizationToken:
+    type: apiKey
+    description: Authorization token formatted as 'Bearer <token>'
+    name: Authorization
+    in: header
+
+security:
+  - hamctlAuthorizationToken: []
+
+paths:
+  /ping:
+    get:
+      description: Get a pong
+      tags:
+        - internal
+      produces:
+        - text/plain
+      responses:
+        200:
+          description: Successful response
+          schema:
+            type: string
+      security: []
+  /release:
+    post:
+      description: Release an artifact
+      tags:
+        - release
+      parameters:
+        - name: body
+          description: The release to perform
+          in: body
+          schema:
+            $ref: "#/definitions/ReleaseRequest"
+          required: true
+      produces:
+        - application/json
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: "#/definitions/ReleaseResponse"
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+              description: Allowed origins
+        400:
+          description: Invalid payload
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /artifact/create:
+    post:
+      description: Create a new artifact
+      tags:
+        - release
+      security:
+        - artifactAuthorizationToken: []
+      parameters:
+        - name: body
+          description: The artifact to create
+          in: body
+          schema:
+            $ref: "#/definitions/CreateArtifactRequest"
+          required: true
+      produces:
+        - application/json
+      responses:
+        201:
+          description: OK
+          schema:
+            $ref: "#/definitions/CreateArtifactResponse"
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+              description: Allowed origins
+        404:
+          description: Invalid payload
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /status:
+    get:
+      description: Get current release status for a service
+      tags:
+        - status
+      produces:
+        - application/json
+      parameters:
+        - name: namespace
+          description: Namespace to find release in
+          in: query
+          type: string
+          required: false
+        - name: service
+          description: Service to find releases for
+          in: query
+          type: string
+          required: true
+      responses:
+        200:
+          description: Status found
+          schema:
+            $ref: "#/definitions/StatusResponse"
+        400:
+          description: Invalid payload
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /describe/release/{service}/{environment}:
+    get:
+      description: Get releases in environment
+      tags:
+        - status
+      produces:
+        - application/json
+      parameters:
+        - name: service
+          description: Service to find releases for
+          in: path
+          type: string
+          required: true
+        - name: environment
+          description: Environment to get release for
+          in: path
+          type: string
+          required: true
+        - name: count
+          description: Number of releases to return
+          in: query
+          type: integer
+          required: false
+          default: 1
+        - name: namespace
+          description: Namespace to find service in
+          in: query
+          type: string
+          required: false
+      responses:
+        200:
+          description: Current release in environment
+          schema:
+            $ref: "#/definitions/DescribeReleaseResponse"
+        400:
+          description: Invalid payload
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /describe/artifact/{service}:
+    get:
+      description: Get artifacts for service
+      tags:
+        - status
+      produces:
+        - application/json
+      parameters:
+        - name: service
+          description: Service to find artifacts for
+          in: path
+          type: string
+          required: true
+        - name: count
+          description: Number of artifacts to return
+          in: query
+          type: integer
+          default: 1
+          required: false
+        - name: branch
+          description: Only return artifacts from this branch
+          in: query
+          type: string
+          required: false
+      responses:
+        200:
+          description: Artifacts for service
+          schema:
+            $ref: "#/definitions/DescribeArtifactResponse"
+        400:
+          description: Invalid payload
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /describe/latest-artifact/{service}:
+    get:
+      description: Get latest artifacts for a service
+      tags:
+        - status
+      produces:
+        - application/json
+      parameters:
+        - name: service
+          description: Service to find artifact for
+          in: path
+          type: string
+          required: true
+        - name: branch
+          description: Branch artifact originates from
+          in: query
+          type: string
+          required: true
+      responses:
+        200:
+          description: Latest artifact for service
+          schema:
+            $ref: "#/definitions/DescribeArtifactResponse"
+        400:
+          description: Invalid payload
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /policies:
+    get:
+      description: Get policies for a service
+      tags:
+        - policies
+      produces:
+        - application/json
+      parameters:
+        - name: service
+          description: Service to find policies for
+          in: query
+          type: string
+          required: true
+      responses:
+        200:
+          description: Found policies
+          schema:
+            $ref: "#/definitions/GetPoliciesResponse"
+        400:
+          description: Invalid payload
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        404:
+          description: Invalid payload
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    delete:
+      description: Delete one or more policies for a service
+      tags:
+        - policies
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          description: The policies to delete
+          in: body
+          schema:
+            $ref: "#/definitions/DeletePolicyRequest"
+          required: true
+      responses:
+        200:
+          description: Policies deleted
+          schema:
+            $ref: "#/definitions/DeletePoliciesResponse"
+        400:
+          description: Invalid payload
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        404:
+          description: Invalid payload
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /policy/auto-release:
+    patch:
+      description: Apply an auto-release policy
+      tags:
+        - policies
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          description: The auto-release policy to apply
+          in: body
+          schema:
+            $ref: "#/definitions/ApplyAutoReleasePolicyRequest"
+          required: true
+      responses:
+        201:
+          description: Policy applied
+          schema:
+            $ref: "#/definitions/ApplyAutoReleasePolicyResponse"
+        400:
+          description: Invalid payload
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /policy/branch-restriction:
+    patch:
+      description: Apply a branch restriction policy
+      tags:
+        - policies
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          description: The branch restriction policy to apply
+          in: body
+          schema:
+            $ref: "#/definitions/ApplyBranchRestrictionPolicyRequest"
+          required: true
+      responses:
+        201:
+          description: Policy applied
+          schema:
+            $ref: "#/definitions/ApplyBranchRestrictionPolicyResponce"
+        400:
+          description: Invalid payload
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /webhook/github:
+    post:
+      description: |
+        GitHub webhook endpoint. This is modeled after the GitHub webhook API. See payloads at https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads
+      tags:
+        - webhook
+      security: []
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid payload
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /webhook/daemon/k8s/deploy:
+    post:
+      description: Daemon webhook for kubernetes deployment events
+      tags:
+        - webhook
+      security:
+        - daemonAuthorizationToken: []
+      parameters:
+        - name: body
+          description: Kubernetes deployment event payload
+          in: body
+          schema:
+            $ref: "#/definitions/DaemonKubernetesDeploymentWebhookRequest"
+          required: true
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: "#/definitions/EmptyWebhookResponse"
+  /webhook/daemon/k8s/error:
+    post:
+      description: Daemon webhook for kubernetes error events
+      tags:
+        - webhook
+      security:
+        - daemonAuthorizationToken: []
+      parameters:
+        - name: body
+          description: Kubernetes error event payload
+          in: body
+          schema:
+            $ref: "#/definitions/DaemonKubernetesErrorWebhookRequest"
+          required: true
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: "#/definitions/EmptyWebhookResponse"
+  /webhook/daemon/k8s/joberror:
+    post:
+      description: Daemon webhook for kubernetes job error events
+      tags:
+        - webhook
+      security:
+        - daemonAuthorizationToken: []
+      parameters:
+        - name: body
+          description: Kubernetes job error event payload
+          in: body
+          schema:
+            $ref: "#/definitions/DaemonKubernetesJobErrorWebhookRequest"
+          required: true
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: "#/definitions/EmptyWebhookResponse"
+        500:
+          description: Error response
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+definitions:
+  ErrorResponse:
+    description: Generic error response
+    properties:
+      message:
+        type: string
+      status:
+        type: integer
+
+  CreateArtifactRequest:
+    description: Create artifact payload
+    type: object
+    required:
+      - md5
+      - artifact
+    properties:
+      artifact:
+        type: object
+        required:
+          - service
+          - id
+        properties:
+          service:
+            type: string
+          id:
+            type: string
+      md5:
+        type: string
+  CreateArtifactResponse:
+    description: Artifact created
+    type: object
+    properties:
+      artifactUploadUrl:
+        description: URL to upload the artifact to
+        type: string
+
+  DaemonKubernetesDeploymentWebhookRequest:
+    description: Daemon webhook with kubernetes deployment event
+    type: object
+    properties:
+      name:
+        type: string
+      namespace:
+        type: string
+      resourceType:
+        type: string
+      availablePods:
+        type: integer
+      desiredPods:
+        type: integer
+      artifactId:
+        type: string
+      authorEmail:
+        type: string
+      environment:
+        type: string
+
+  DaemonKubernetesErrorWebhookRequest:
+    description: Daemon webhook with kubernetes error event
+    type: object
+    properties:
+      podName:
+        type: string
+      namespace:
+        type: string
+      errors:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            errorMessage:
+              type: string
+            type:
+              type: string
+      artifactId:
+        type: string
+      authorEmail:
+        type: string
+      environment:
+        type: string
+
+  DaemonKubernetesJobErrorWebhookRequest:
+    description: Daemon webhook with kubernetes job error event
+    type: object
+    properties:
+      jobName:
+        type: string
+      namespace:
+        type: string
+      errors:
+        type: array
+        items:
+          type: object
+          properties:
+            reason:
+              type: string
+            message:
+              type: string
+      artifactId:
+        type: string
+      authorEmail:
+        type: string
+      environment:
+        type: string
+
+  EmptyWebhookResponse:
+    description: Daemo webhook processed
+    type: object
+
+  DescribeArtifactResponse:
+    description: Description of artifacts
+    type: object
+    properties:
+      service:
+        type: string
+      artifacts:
+        type: array
+        items:
+          $ref: "#/definitions/Artifact"
+
+  DescribeReleaseResponse:
+    description: Description of releases in an environment
+    type: object
+    properties:
+      service:
+        type: string
+      environment:
+        type: string
+      releases:
+        type: array
+        items:
+          type: object
+          properties:
+            releaseIndex:
+              type: integer
+            artifact:
+              $ref: "#/definitions/Artifact"
+            releasedAt:
+              type: string
+              format: date
+            releasedByEmail:
+              type: string
+            releasedByName:
+              type: string
+            intent:
+              $ref: "#/definitions/Intent"
+  Artifact:
+    description: An artifact specification
+    type: object
+    properties:
+      id:
+        type: string
+      service:
+        type: string
+      namespace:
+        type: string
+      squad:
+        type: string
+      application:
+        $ref: "#/definitions/Repository"
+      ci:
+        type: object
+        properties:
+          jobUrl:
+            type: string
+          start:
+            type: string
+          end:
+            type: string
+      shuttle:
+        type: object
+        properties:
+          plan:
+            $ref: "#/definitions/Repository"
+          shuttleVersion:
+            type: string
+  Repository:
+    description: Git repository details
+    type: object
+    properties:
+      branch:
+        type: string
+      sha:
+        type: string
+      authorName:
+        type: string
+      authorEmail:
+        type: string
+      committerName:
+        type: string
+      committerEmail:
+        type: string
+      message:
+        type: string
+      name:
+        type: string
+      url:
+        type: string
+      provider:
+        type: string
+
+  ApplyAutoReleasePolicyRequest:
+    description: Apply an auto-release policy
+    type: object
+    required:
+      - service
+      - branch
+      - environment
+      - committerName
+      - committerEmail
+    properties:
+      service:
+        type: string
+      branch:
+        type: string
+      environment:
+        type: string
+      committerName:
+        type: string
+      committerEmail:
+        type: string
+
+  ApplyBranchRestrictionPolicyRequest:
+    description: Apply a branch restriction policy
+    type: object
+    required:
+      - service
+      - branchRegex
+      - environment
+      - committerName
+      - committerEmail
+    properties:
+      service:
+        type: string
+      branchRegex:
+        type: string
+      environment:
+        type: string
+      committerName:
+        type: string
+      committerEmail:
+        type: string
+
+  ApplyAutoReleasePolicyResponse:
+    description: Auto release policy applied
+    type: object
+    properties:
+      id:
+        type: string
+      service:
+        type: string
+      branch:
+        type: string
+      environment:
+        type: string
+
+  ApplyBranchRestrictionPolicyResponce:
+    description: Branch restriction policy applied
+    type: object
+    properties:
+      id:
+        type: string
+      service:
+        type: string
+      branchRegex:
+        type: string
+      environment:
+        type: string
+
+  DeletePolicyRequest:
+    description: Policies to delete
+    type: object
+    required:
+      - service
+      - committerName
+      - committerEmail
+      - policyIds
+    properties:
+      service:
+        type: string
+      policyIds:
+        type: array
+        items:
+          type: string
+          minItems: 1
+      committerName:
+        type: string
+      committerEmail:
+        type: string
+
+  DeletePoliciesResponse:
+    type: object
+    properties:
+      service:
+        type: string
+      count:
+        type: integer
+
+  GetPoliciesResponse:
+    description: List of policies on a service
+    properties:
+      service:
+        type: string
+      autoReleases:
+        type: array
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+            branch:
+              type: string
+            environment:
+              type: string
+      branchRestrictions:
+        type: array
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+            environment:
+              type: string
+            branchRegex:
+              type: string
+
+  ReleaseRequest:
+    description: A release to perform
+    required:
+      - service
+      - environment
+      - committerName
+      - committerEmail
+      - artifactId
+    properties:
+      service:
+        type: string
+      environment:
+        type: string
+      artifactId:
+        type: string
+      committerName:
+        type: string
+      committerEmail:
+        type: string
+      intent:
+        $ref: "#/definitions/Intent"
+  ReleaseResponse:
+    description: Result of a release request
+    type: object
+    properties:
+      service:
+        type: string
+      releaseId:
+        type: string
+      status:
+        type: string
+      toEnvironment:
+        type: string
+      tag:
+        type: string
+
+  Intent:
+    description: An action intent
+    type: object
+    required:
+      - type
+    properties:
+      type:
+        type: string
+      releaseBranch:
+        type: object
+        properties:
+          branch:
+            type: string
+      promote:
+        type: object
+        properties:
+          fromEnvironment:
+            type: string
+      rollback:
+        type: object
+        properties:
+          previousArtifactId:
+            type: string
+
+  StatusResponse:
+    description: Current releases for a service
+    type: object
+    properties:
+      defaultNamespaces:
+        type: boolean
+      dev:
+        $ref: "#/definitions/EnvironmentStatus"
+      staging:
+        $ref: "#/definitions/EnvironmentStatus"
+      prod:
+        $ref: "#/definitions/EnvironmentStatus"
+  EnvironmentStatus:
+    type: object
+    properties:
+      tag:
+        type: string
+      committer:
+        type: string
+      author:
+        type: string
+      message:
+        type: string
+      date:
+        type: integer
+        description: Epoch timestamp
+      buildUrl:
+        type: string
+      highVulnerabilities:
+        type: integer
+      mediumVulnerabilities:
+        type: integer
+      lowVulnerabilities:
+        type: integer

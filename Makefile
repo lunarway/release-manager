@@ -48,6 +48,22 @@ endif
 test:
 	go test -v ./...
 
+SWAGGER_GENERATION_IMAGE="quay.io/goswagger/swagger:v0.27.0"
+
+generate_http:
+	rm -rf ./generated/http
+	mkdir -p ./generated/http
+	docker run \
+		--rm \
+		-v $(shell pwd):/src \
+		-w /src \
+		${SWAGGER_GENERATION_IMAGE} \
+			generate \
+			server \
+			--spec api/swagger.yaml \
+			--exclude-main \
+			--target ./generated/http
+
 generate_mock:
 	mockery --dir ./internal/policy --inpackage --name GitService
 	mockery --dir ./internal/flow --inpackage --name GitService

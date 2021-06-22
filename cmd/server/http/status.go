@@ -2,86 +2,81 @@ package http
 
 import (
 	"context"
-	"net/http"
 	"time"
 
+	"github.com/go-openapi/runtime/middleware"
+	"github.com/lunarway/release-manager/generated/http/models"
+	"github.com/lunarway/release-manager/generated/http/restapi/operations"
+	"github.com/lunarway/release-manager/generated/http/restapi/operations/status"
 	"github.com/lunarway/release-manager/internal/flow"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 )
 
-func status(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		values := r.URL.Query()
-		namespace := values.Get("namespace")
-		service := values.Get("service")
-		if emptyString(service) {
-			requiredQueryError(w, "service")
-			return
-		}
+func StatusHandler(flowSvc *flow.Service) HandlerFactory {
+	return func(api *operations.ReleaseManagerServerAPIAPI) {
+		api.StatusGetStatusHandler = status.GetStatusHandlerFunc(func(params status.GetStatusParams, principal interface{}) middleware.Responder {
 
-		ctx := r.Context()
-		logger := log.WithContext(ctx).WithFields("service", service, "namespace", namespace)
-		s, err := flowSvc.Status(ctx, namespace, service)
-		if err != nil {
-			if ctx.Err() == context.Canceled {
-				logger.Infof("http: status: get status cancelled: service '%s'", service)
-				cancelled(w)
-				return
+			service := params.Service
+			var namespace string
+			if params.Namespace != nil {
+				namespace = *params.Namespace
 			}
-			logger.Errorf("http: status: get status failed: service '%s': %v", service, err)
-			unknownError(w)
-			return
-		}
 
-		dev := httpinternal.Environment{
-			Message:               s.Dev.Message,
-			Author:                s.Dev.Author,
-			Tag:                   s.Dev.Tag,
-			Committer:             s.Dev.Committer,
-			Date:                  convertTimeToEpoch(s.Dev.Date),
-			BuildUrl:              s.Dev.BuildURL,
-			HighVulnerabilities:   s.Dev.HighVulnerabilities,
-			MediumVulnerabilities: s.Dev.MediumVulnerabilities,
-			LowVulnerabilities:    s.Dev.LowVulnerabilities,
-		}
+			ctx := params.HTTPRequest.Context()
+			logger := log.WithContext(ctx).WithFields("service", service, "namespace", namespace)
+			s, err := flowSvc.Status(ctx, namespace, service)
+			if err != nil {
+				if ctx.Err() == context.Canceled {
+					logger.Infof("http: status: get status cancelled: service '%s'", service)
+					return status.NewGetStatusBadRequest().WithPayload(cancelled())
+				}
+				logger.Errorf("http: status: get status failed: service '%s': %v", service, err)
+				return status.NewGetStatusInternalServerError().WithPayload(unknownError())
+			}
 
-		staging := httpinternal.Environment{
-			Message:               s.Staging.Message,
-			Author:                s.Staging.Author,
-			Tag:                   s.Staging.Tag,
-			Committer:             s.Staging.Committer,
-			Date:                  convertTimeToEpoch(s.Staging.Date),
-			BuildUrl:              s.Staging.BuildURL,
-			HighVulnerabilities:   s.Staging.HighVulnerabilities,
-			MediumVulnerabilities: s.Staging.MediumVulnerabilities,
-			LowVulnerabilities:    s.Staging.LowVulnerabilities,
-		}
+			dev := &models.EnvironmentStatus{
+				Message:               s.Dev.Message,
+				Author:                s.Dev.Author,
+				Tag:                   s.Dev.Tag,
+				Committer:             s.Dev.Committer,
+				Date:                  convertTimeToEpoch(s.Dev.Date),
+				BuildURL:              s.Dev.BuildURL,
+				HighVulnerabilities:   s.Dev.HighVulnerabilities,
+				MediumVulnerabilities: s.Dev.MediumVulnerabilities,
+				LowVulnerabilities:    s.Dev.LowVulnerabilities,
+			}
 
-		prod := httpinternal.Environment{
-			Message:               s.Prod.Message,
-			Author:                s.Prod.Author,
-			Tag:                   s.Prod.Tag,
-			Committer:             s.Prod.Committer,
-			Date:                  convertTimeToEpoch(s.Prod.Date),
-			BuildUrl:              s.Prod.BuildURL,
-			HighVulnerabilities:   s.Prod.HighVulnerabilities,
-			MediumVulnerabilities: s.Prod.MediumVulnerabilities,
-			LowVulnerabilities:    s.Prod.LowVulnerabilities,
-		}
+			staging := &models.EnvironmentStatus{
+				Message:               s.Staging.Message,
+				Author:                s.Staging.Author,
+				Tag:                   s.Staging.Tag,
+				Committer:             s.Staging.Committer,
+				Date:                  convertTimeToEpoch(s.Staging.Date),
+				BuildURL:              s.Staging.BuildURL,
+				HighVulnerabilities:   s.Staging.HighVulnerabilities,
+				MediumVulnerabilities: s.Staging.MediumVulnerabilities,
+				LowVulnerabilities:    s.Staging.LowVulnerabilities,
+			}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+			prod := &models.EnvironmentStatus{
+				Message:               s.Prod.Message,
+				Author:                s.Prod.Author,
+				Tag:                   s.Prod.Tag,
+				Committer:             s.Prod.Committer,
+				Date:                  convertTimeToEpoch(s.Prod.Date),
+				BuildURL:              s.Prod.BuildURL,
+				HighVulnerabilities:   s.Prod.HighVulnerabilities,
+				MediumVulnerabilities: s.Prod.MediumVulnerabilities,
+				LowVulnerabilities:    s.Prod.LowVulnerabilities,
+			}
 
-		err = payload.encodeResponse(ctx, w, httpinternal.StatusResponse{
-			DefaultNamespaces: s.DefaultNamespaces,
-			Dev:               &dev,
-			Staging:           &staging,
-			Prod:              &prod,
+			return status.NewGetStatusOK().WithPayload(&models.StatusResponse{
+				DefaultNamespaces: s.DefaultNamespaces,
+				Dev:               dev,
+				Staging:           staging,
+				Prod:              prod,
+			})
 		})
-		if err != nil {
-			logger.Errorf("http: status: service '%s': marshal response failed: %v", service, err)
-		}
 	}
 }
 

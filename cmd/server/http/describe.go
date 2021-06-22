@@ -2,235 +2,155 @@ package http
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-	"strconv"
-	"strings"
 
+	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-openapi/strfmt"
+	"github.com/lunarway/release-manager/generated/http/models"
+	"github.com/lunarway/release-manager/generated/http/restapi/operations"
+	"github.com/lunarway/release-manager/generated/http/restapi/operations/status"
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/flow"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/log"
 )
 
-func describe(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			notFound(w)
-			return
-		}
-		p, ok := newDescribePath(r)
-		if !ok {
-			notFound(w)
-			return
-		}
-		ctx := r.Context()
-		switch p.Resource() {
-		case "release":
-			describeRelease(ctx, payload, flowSvc, p.Namespace(), p.Environment(), p.Service())(w, r)
-		case "artifact":
-			describeArtifact(ctx, payload, flowSvc, p.Service())(w, r)
-		case "latest-artifact":
-			describeLatestArtifacts(ctx, payload, flowSvc, p.Service())(w, r)
-		default:
-			log.WithContext(ctx).Errorf("describe path not found: %+v", p)
-			notFound(w)
-		}
-	}
-}
+func DescribeReleaseHandler(flowSvc *flow.Service) HandlerFactory {
+	return func(api *operations.ReleaseManagerServerAPIAPI) {
+		api.StatusGetDescribeReleaseServiceEnvironmentHandler = status.GetDescribeReleaseServiceEnvironmentHandlerFunc(func(params status.GetDescribeReleaseServiceEnvironmentParams, principal interface{}) middleware.Responder {
+			var (
+				service     = params.Service
+				environment = params.Environment
+				namespace   = params.Namespace
+				count       = *params.Count
+			)
 
-type describePath struct {
-	r        *http.Request
-	segments []string
-}
+			ctx := params.HTTPRequest.Context()
 
-func newDescribePath(r *http.Request) (describePath, bool) {
-	p := describePath{
-		r:        r,
-		segments: strings.Split(r.URL.Path, "/"),
-	}
-	if len(p.segments) < 4 {
-		return describePath{}, false
-	}
-	return p, true
-}
-
-func (p *describePath) Resource() string {
-	return p.segments[2]
-}
-
-func (p *describePath) Service() string {
-	return p.segments[3]
-}
-
-func (p *describePath) Environment() string {
-	if len(p.segments) < 5 {
-		return ""
-	}
-	return p.segments[4]
-}
-
-func (p *describePath) Namespace() string {
-	values := p.r.URL.Query()
-	namespace := values.Get("namespace")
-	return namespace
-}
-
-func describeRelease(ctx context.Context, payload *payload, flowSvc *flow.Service, namespace, environment, service string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if emptyString(service) {
-			requiredFieldError(w, "service")
-			return
-		}
-		if emptyString(environment) {
-			requiredFieldError(w, "environment")
-			return
-		}
-		values := r.URL.Query()
-		countParam := values.Get("count")
-		if emptyString(countParam) {
-			countParam = "1"
-		}
-		count, err := strconv.Atoi(countParam)
-		if err != nil || count <= 0 {
-			httpinternal.Error(w, fmt.Sprintf("invalid value '%s' of count. Must be a positive integer.", countParam), http.StatusBadRequest)
-			return
-		}
-		logger := log.WithContext(ctx).WithFields("service", service, "environment", environment, "namespace", namespace)
-		ctx := r.Context()
-		resp, err := flowSvc.DescribeRelease(ctx, environment, service, count)
-		if err != nil {
-			if ctx.Err() == context.Canceled {
-				logger.Infof("http: describe release: service '%s' environment '%s': request cancelled", service, environment)
-				cancelled(w)
-				return
+			logger := log.WithContext(ctx).WithFields("service", service, "environment", environment, "namespace", namespace)
+			resp, err := flowSvc.DescribeRelease(ctx, environment, service, int(count))
+			if err != nil {
+				if ctx.Err() == context.Canceled {
+					logger.Infof("http: describe release: service '%s' environment '%s': request cancelled", service, environment)
+					return status.NewGetDescribeReleaseServiceEnvironmentBadRequest().
+						WithPayload(cancelled())
+				}
+				switch errorCause(err) {
+				case artifact.ErrFileNotFound:
+					return status.NewGetDescribeReleaseServiceEnvironmentBadRequest().
+						WithPayload(badRequest("no release of service '%s' available in environment '%s'. Are you missing a namespace?", service, environment))
+				default:
+					logger.Errorf("http: describe release: service '%s' environment '%s': failed: %v", service, environment, err)
+					return status.NewGetDescribeReleaseServiceEnvironmentInternalServerError().
+						WithPayload(unknownError())
+				}
 			}
-			switch errorCause(err) {
-			case artifact.ErrFileNotFound:
-				httpinternal.Error(w, fmt.Sprintf("no release of service '%s' available in environment '%s'. Are you missing a namespace?", service, environment), http.StatusBadRequest)
-				return
-			default:
-				logger.Errorf("http: describe release: service '%s' environment '%s': failed: %v", service, environment, err)
-				unknownError(w)
-				return
-			}
-		}
 
-		var releases []httpinternal.DescribeReleaseResponseRelease
-		for _, release := range resp.Releases {
-			releases = append(releases, httpinternal.DescribeReleaseResponseRelease{
-				ReleaseIndex:    release.ReleaseIndex,
-				Artifact:        release.Artifact,
-				ReleasedAt:      release.ReleasedAt,
-				ReleasedByName:  release.ReleasedByName,
-				ReleasedByEmail: release.ReleasedByEmail,
-				Intent:          release.Intent,
+			var releases []*models.DescribeReleaseResponseReleasesItems0
+			for _, release := range resp.Releases {
+				releases = append(releases, &models.DescribeReleaseResponseReleasesItems0{
+					ReleaseIndex:    int64(release.ReleaseIndex),
+					Artifact:        mapArtifactToHTTP(release.Artifact),
+					ReleasedAt:      strfmt.Date(release.ReleasedAt),
+					ReleasedByName:  release.ReleasedByName,
+					ReleasedByEmail: release.ReleasedByEmail,
+					Intent:          mapIntent(release.Intent),
+				})
+			}
+
+			return status.NewGetDescribeReleaseServiceEnvironmentOK().WithPayload(&models.DescribeReleaseResponse{
+				Service:     service,
+				Environment: environment,
+				Releases:    releases,
 			})
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		err = payload.encodeResponse(ctx, w, httpinternal.DescribeReleaseResponse{
-			Service:     service,
-			Environment: environment,
-			Releases:    releases,
 		})
-		if err != nil {
-			logger.Errorf("http: describe release: service '%s' environment '%s': marshal response failed: %v", service, environment, err)
-		}
 	}
 }
 
-func describeArtifact(ctx context.Context, payload *payload, flowSvc *flow.Service, service string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if emptyString(service) {
-			requiredFieldError(w, "service")
-			return
-		}
-		values := r.URL.Query()
-		countParam := values.Get("count")
-		if emptyString(countParam) {
-			countParam = "1"
-		}
-		count, err := strconv.Atoi(countParam)
-		if err != nil || count <= 0 {
-			httpinternal.Error(w, fmt.Sprintf("invalid value '%s' of count. Must be a positive integer.", countParam), http.StatusBadRequest)
-			return
-		}
-		branch := values.Get("branch")
-		logger := log.WithContext(ctx).WithFields("service", service, "count", count, "branch", branch)
-		ctx := r.Context()
-		resp, err := flowSvc.DescribeArtifact(ctx, service, count, branch)
-		if err != nil {
-			if ctx.Err() == context.Canceled {
-				logger.Infof("http: describe artifact: service '%s': request cancelled", service)
-				cancelled(w)
-				return
-			}
-			switch errorCause(err) {
-			case flow.ErrArtifactNotFound:
-				httpinternal.Error(w, fmt.Sprintf("no artifacts available for service '%s'.", service), http.StatusBadRequest)
-				return
-			default:
-				logger.Errorf("http: describe artifact: service '%s': failed: %v", service, err)
-				unknownError(w)
-				return
-			}
-		}
+func mapIntent(i intent.Intent) *models.Intent {
+	// TODO: map fields
+	return &models.Intent{}
+}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		err = payload.encodeResponse(ctx, w, httpinternal.DescribeArtifactResponse{
-			Service:   service,
-			Artifacts: resp,
+func mapArtifactToHTTP(a artifact.Spec) *models.Artifact {
+	// TODO: map fields
+	return &models.Artifact{}
+}
+
+func DescribeArtifactHandler(flowSvc *flow.Service) HandlerFactory {
+	return func(api *operations.ReleaseManagerServerAPIAPI) {
+		api.StatusGetDescribeArtifactServiceHandler = status.GetDescribeArtifactServiceHandlerFunc(func(params status.GetDescribeArtifactServiceParams, principal interface{}) middleware.Responder {
+			var (
+				service = params.Service
+				count   = *params.Count
+				branch  = ""
+			)
+			if params.Branch != nil {
+				branch = *params.Branch
+			}
+
+			ctx := params.HTTPRequest.Context()
+
+			logger := log.WithContext(ctx).WithFields("service", service, "count", count, "branch", branch)
+
+			resp, err := flowSvc.DescribeArtifact(ctx, service, int(count), branch)
+			if err != nil {
+				if ctx.Err() == context.Canceled {
+					logger.Infof("http: describe artifact: service '%s': request cancelled", service)
+					return status.NewGetDescribeArtifactServiceBadRequest().WithPayload(cancelled())
+				}
+				switch errorCause(err) {
+				case flow.ErrArtifactNotFound:
+					return status.NewGetDescribeArtifactServiceBadRequest().WithPayload(badRequest("no artifacts available for service '%s'.", service))
+				default:
+					logger.Errorf("http: describe artifact: service '%s': failed: %v", service, err)
+					return status.NewGetDescribeArtifactServiceInternalServerError().WithPayload(unknownError())
+				}
+			}
+
+			var httpArtifacts []*models.Artifact
+			for _, artifact := range resp {
+				httpArtifacts = append(httpArtifacts, mapArtifactToHTTP(artifact))
+			}
+
+			return status.NewGetDescribeArtifactServiceOK().WithPayload(&models.DescribeArtifactResponse{
+				Service:   service,
+				Artifacts: httpArtifacts,
+			})
 		})
-		if err != nil {
-			logger.Errorf("http: describe artifact: service '%s': marshal response failed: %v", service, err)
-		}
 	}
 }
 
-func describeLatestArtifacts(ctx context.Context, payload *payload, flowSvc *flow.Service, service string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if emptyString(service) {
-			requiredFieldError(w, "service")
-			return
-		}
-		values := r.URL.Query()
-		branch := values.Get("branch")
-		if emptyString(branch) {
-			requiredFieldError(w, "branch")
-			return
-		}
+func DescribeLatestArtifactsHandler(flowSvc *flow.Service) HandlerFactory {
+	return func(api *operations.ReleaseManagerServerAPIAPI) {
+		api.StatusGetDescribeLatestArtifactServiceHandler = status.GetDescribeLatestArtifactServiceHandlerFunc(func(params status.GetDescribeLatestArtifactServiceParams, principal interface{}) middleware.Responder {
+			var (
+				service = params.Service
+				branch  = params.Branch
+			)
 
-		logger := log.WithContext(ctx).WithFields("service", service, "branch", branch)
-		ctx := r.Context()
-		resp, err := flowSvc.DescribeLatestArtifact(ctx, service, branch)
-		if err != nil {
-			if ctx.Err() == context.Canceled {
-				logger.Infof("http: describe latest artifact: service '%s': request cancelled", service)
-				cancelled(w)
-				return
-			}
-			switch errorCause(err) {
-			case flow.ErrArtifactNotFound:
-				httpinternal.Error(w, fmt.Sprintf("no artifacts available for service '%s' and branch '%s'.", service, branch), http.StatusBadRequest)
-				return
-			default:
-				logger.Errorf("http: describe latest artifact: service '%s' and branch '%s': failed: %v", service, branch, err)
-				unknownError(w)
-				return
-			}
-		}
+			ctx := params.HTTPRequest.Context()
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		err = payload.encodeResponse(ctx, w, httpinternal.DescribeArtifactResponse{
-			Service:   service,
-			Artifacts: []artifact.Spec{resp},
+			logger := log.WithContext(ctx).WithFields("service", service, "branch", branch)
+
+			resp, err := flowSvc.DescribeLatestArtifact(ctx, service, branch)
+			if err != nil {
+				if ctx.Err() == context.Canceled {
+					logger.Infof("http: describe latest artifact: service '%s': request cancelled", service)
+					return status.NewGetDescribeLatestArtifactServiceBadRequest().WithPayload(cancelled())
+				}
+				switch errorCause(err) {
+				case flow.ErrArtifactNotFound:
+					return status.NewGetDescribeLatestArtifactServiceBadRequest().WithPayload(badRequest("no artifacts available for service '%s' and branch '%s'.", service, branch))
+				default:
+					logger.Errorf("http: describe latest artifact: service '%s' and branch '%s': failed: %v", service, branch, err)
+					return status.NewGetDescribeLatestArtifactServiceInternalServerError().WithPayload(unknownError())
+				}
+			}
+
+			return status.NewGetDescribeLatestArtifactServiceOK().WithPayload(&models.DescribeArtifactResponse{
+				Service:   service,
+				Artifacts: []*models.Artifact{mapArtifactToHTTP(resp)},
+			})
 		})
-		if err != nil {
-			logger.Errorf("http: describe latest artifact: service '%s' and branch '%s': marshal response failed: %v", service, branch, err)
-		}
 	}
 }

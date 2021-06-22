@@ -4,34 +4,45 @@ import (
 	"fmt"
 	"net/http"
 
-	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/lunarway/release-manager/internal/try"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 )
 
-func unknownError(w http.ResponseWriter) {
-	httpinternal.Error(w, "unknown error", http.StatusInternalServerError)
+func unknownError() *models.ErrorResponse {
+	return &models.ErrorResponse{
+		Message: "unknown error",
+		Status:  http.StatusInternalServerError,
+	}
 }
 
-func invalidBodyError(w http.ResponseWriter) {
-	httpinternal.Error(w, "invalid body", http.StatusBadRequest)
+func badRequest(format string, args ...interface{}) *models.ErrorResponse {
+	return &models.ErrorResponse{
+		Message: fmt.Sprintf(format, args...),
+		Status:  http.StatusBadRequest,
+	}
 }
 
-func cancelled(w http.ResponseWriter) {
-	httpinternal.Error(w, "request cancelled", http.StatusBadRequest)
+func unavailable(format string, args ...interface{}) *models.ErrorResponse {
+	return &models.ErrorResponse{
+		Message: fmt.Sprintf(format, args...),
+		Status:  http.StatusServiceUnavailable,
+	}
 }
 
-func requiredFieldError(w http.ResponseWriter, field string) {
-	httpinternal.Error(w, fmt.Sprintf("field %s required but was empty", field), http.StatusBadRequest)
+func cancelled() *models.ErrorResponse {
+	return &models.ErrorResponse{
+		Message: "reqest cancelled",
+		Status:  http.StatusBadRequest,
+	}
 }
 
-func requiredQueryError(w http.ResponseWriter, field string) {
-	httpinternal.Error(w, fmt.Sprintf("query param %s required but was empty", field), http.StatusBadRequest)
-}
-
-func notFound(w http.ResponseWriter) {
-	httpinternal.Error(w, "not found", http.StatusNotFound)
+func notFound(format string, args ...interface{}) *models.ErrorResponse {
+	return &models.ErrorResponse{
+		Message: fmt.Sprintf(format, args...),
+		Status:  http.StatusNotFound,
+	}
 }
 
 // errorCause unwraps err from pkg/errors messages and if err contains a

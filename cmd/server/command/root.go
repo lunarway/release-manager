@@ -21,6 +21,7 @@ func NewRoot(version string) (*cobra.Command, error) {
 	var grafanaOpts grafanaOptions
 	var slackAuthToken string
 	var githubAPIToken string
+	var githubWebhookSecret string
 	var configRepoOpts configRepoOptions
 	var gitConfigOpts git.GitConfig
 	var gpgKeyPaths []string
@@ -64,6 +65,7 @@ func NewRoot(version string) (*cobra.Command, error) {
 			grafana:                   &grafanaOpts,
 			slackAuthToken:            &slackAuthToken,
 			githubAPIToken:            &githubAPIToken,
+			githubWebhookSecret:       &githubWebhookSecret,
 			configRepo:                &configRepoOpts,
 			gitConfigOpts:             &gitConfigOpts,
 			s3storage:                 &s3storageOpts,
@@ -85,7 +87,7 @@ func NewRoot(version string) (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&configRepoOpts.ConfigRepo, "config-repo", os.Getenv("CONFIG_REPO"), "ssh url for the git config repository")
 	command.PersistentFlags().StringVar(&configRepoOpts.ArtifactFileName, "artifact-filename", "artifact.json", "the filename of the artifact to be used")
 	command.PersistentFlags().StringVar(&configRepoOpts.SSHPrivateKeyPath, "ssh-private-key", "/etc/release-manager/ssh/identity", "ssh-private-key for the config repo")
-	command.PersistentFlags().StringVar(&httpOpts.GithubWebhookSecret, "github-webhook-secret", os.Getenv("GITHUB_WEBHOOK_SECRET"), "github webhook secret")
+	command.PersistentFlags().StringVar(&githubWebhookSecret, "github-webhook-secret", os.Getenv("GITHUB_WEBHOOK_SECRET"), "github webhook secret")
 	command.PersistentFlags().StringVar(&githubAPIToken, "github-api-token", os.Getenv("GITHUB_API_TOKEN"), "github api token for tagging releases")
 	command.PersistentFlags().StringVar(&slackAuthToken, "slack-token", os.Getenv("SLACK_TOKEN"), "token to be used to communicate with the slack api")
 	command.PersistentFlags().StringVar(&grafanaOpts.DevAPIKey, "grafana-api-key-dev", os.Getenv("GRAFANA_DEV_API_KEY"), "api key to be used to annotate in dev")

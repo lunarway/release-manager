@@ -103,6 +103,7 @@ type s3storageOptions struct {
 type startOptions struct {
 	slackAuthToken            *string
 	githubAPIToken            *string
+	githubWebhookSecret       *string
 	grafana                   *grafanaOptions
 	configRepo                *configRepoOptions
 	gitConfigOpts             *git.GitConfig
@@ -344,13 +345,42 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					log.Errorf("Failed to close broker: %v", err)
 				}
 			}()
+
+			httpHandlers := []http.HandlerFactory{
+				http.PingHandler(),
+
+				// status
+				http.StatusHandler(&flowSvc),
+				http.DescribeReleaseHandler(&flowSvc),
+				http.DescribeArtifactHandler(&flowSvc),
+				http.DescribeLatestArtifactsHandler(&flowSvc),
+
+				// release
+				http.CreateArtifactHandler(s3storageSvc),
+				http.ReleaseHandler(&flowSvc),
+
+				// webhooks
+				http.DaemonFluxWebhookHandler(&flowSvc),
+				http.Daemonk8sDeployWebhookHandler(&flowSvc),
+				http.Daemonk8sJobErrorWebhookHandler(&flowSvc),
+				http.Daemonk8sPodErrorWebhookHandler(&flowSvc),
+				http.GithubWebhookHandler(&gitSvc, *startOptions.githubWebhookSecret),
+
+				// policies
+				http.ApplyAutoReleasePolicyHandler(&policySvc),
+				http.ApplyBranchRestrictionPolicyHandler(&policySvc),
+				http.ListPoliciesHandler(&policySvc),
+				http.DeletePoliciesHandler(&policySvc),
+			}
+
 			go func() {
-				err := http.NewServer(startOptions.http, slackClient, &flowSvc, &policySvc, &gitSvc, s3storageSvc, tracer)
+				err := http.NewServer(startOptions.http, tracer, httpHandlers)
 				if err != nil {
 					done <- errors.WithMessage(err, "new http server")
 					return
 				}
 			}()
+
 			go func() {
 				err := brokerImpl.StartConsumer(eventHandlers, errorHandler)
 				done <- errors.WithMessage(err, "broker")

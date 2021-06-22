@@ -3,231 +3,163 @@ package http
 import (
 	"context"
 	"errors"
-	"fmt"
-	"net/http"
 	"regexp/syntax"
-	"strings"
 
+	"github.com/go-openapi/runtime/middleware"
+	"github.com/lunarway/release-manager/generated/http/models"
+	"github.com/lunarway/release-manager/generated/http/restapi/operations"
+	"github.com/lunarway/release-manager/generated/http/restapi/operations/policies"
 	"github.com/lunarway/release-manager/internal/git"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
-	policyinternal "github.com/lunarway/release-manager/internal/policy"
+	"github.com/lunarway/release-manager/internal/policy"
 )
 
-type policyPatchPath struct {
-	segments []string
-}
+func ApplyAutoReleasePolicyHandler(policySvc *policy.Service) HandlerFactory {
+	return func(api *operations.ReleaseManagerServerAPIAPI) {
+		api.PoliciesPatchPolicyAutoReleaseHandler = policies.PatchPolicyAutoReleaseHandlerFunc(func(params policies.PatchPolicyAutoReleaseParams, principal interface{}) middleware.Responder {
 
-func newPolicyPatchPath(r *http.Request) (policyPatchPath, bool) {
-	p := policyPatchPath{
-		segments: strings.Split(r.URL.Path, "/"),
-	}
-	if len(p.segments) < 3 {
-		return policyPatchPath{}, false
-	}
-	return p, true
-}
+			ctx := params.HTTPRequest.Context()
+			logger := log.WithContext(ctx)
 
-func (p *policyPatchPath) PolicyType() string {
-	return p.segments[2]
-}
+			var (
+				service        = *params.Body.Service
+				branch         = *params.Body.Branch
+				environment    = *params.Body.Environment
+				committerName  = *params.Body.CommitterName
+				committerEmail = *params.Body.CommitterEmail
+			)
 
-func policy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPatch:
-			ctx := r.Context()
-			p, ok := newPolicyPatchPath(r)
-			if !ok {
-				log.WithContext(ctx).Errorf("Could not parse PATCH policy path: %s", r.URL.Path)
-				notFound(w)
-				return
+			logger = logger.WithFields("service", service, "req", params.Body)
+			logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release policy started", service, branch, environment)
+			id, err := policySvc.ApplyAutoRelease(ctx, policy.Actor{
+				Name:  committerName,
+				Email: committerEmail,
+			}, service, branch, environment)
+			if err != nil {
+				if ctx.Err() == context.Canceled {
+					logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release cancelled", service, branch, environment)
+					return policies.NewPatchPolicyAutoReleaseBadRequest().
+						WithPayload(cancelled())
+				}
+				switch errorCause(err) {
+				case policy.ErrConflict:
+					logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release rejected: conflicts with another policy: %v", service, branch, environment, err)
+					return policies.NewPatchPolicyAutoReleaseBadRequest().
+						WithPayload(badRequest("policy conflicts with another policy"))
+				case git.ErrBranchBehindOrigin:
+					logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': %v", service, branch, environment, err)
+					return policies.NewPatchPolicyAutoReleaseServiceUnavailable().
+						WithPayload(unavailable("could not apply policy right now. Please try again in a moment."))
+				default:
+					logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release failed: %v", service, branch, environment, err)
+					return policies.NewPatchPolicyAutoReleaseInternalServerError().
+						WithPayload(unknownError())
+				}
 			}
-			switch p.PolicyType() {
-			case "auto-release":
-				applyAutoReleasePolicy(payload, policySvc)(w, r)
-			case "branch-restriction":
-				applyBranchRestrictionPolicy(payload, policySvc)(w, r)
-			default:
-				log.WithContext(ctx).Errorf("apply policy not found: %+v", p)
-				notFound(w)
-			}
-		case http.MethodGet:
-			listPolicies(payload, policySvc)(w, r)
-		case http.MethodDelete:
-			deletePolicies(payload, policySvc)(w, r)
-		default:
-			httpinternal.Error(w, "not found", http.StatusNotFound)
-		}
-	}
-}
 
-func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		logger := log.WithContext(ctx)
-		var req httpinternal.ApplyAutoReleasePolicyRequest
-		err := payload.decodeResponse(ctx, r.Body, &req)
-		if err != nil {
-			logger.Errorf("http: policy: apply auto-release: decode request body failed: %v", err)
-			invalidBodyError(w)
-			return
-		}
-
-		if !req.Validate(w) {
-			return
-		}
-
-		logger = logger.WithFields("service", req.Service, "req", req)
-		logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release policy started", req.Service, req.Branch, req.Environment)
-		id, err := policySvc.ApplyAutoRelease(ctx, policyinternal.Actor{
-			Name:  req.CommitterName,
-			Email: req.CommitterEmail,
-		}, req.Service, req.Branch, req.Environment)
-		if err != nil {
-			if ctx.Err() == context.Canceled {
-				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release cancelled", req.Service, req.Branch, req.Environment)
-				cancelled(w)
-				return
-			}
-			switch errorCause(err) {
-			case policyinternal.ErrConflict:
-				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release rejected: conflicts with another policy: %v", req.Service, req.Branch, req.Environment, err)
-				httpinternal.Error(w, "policy conflicts with another policy", http.StatusBadRequest)
-				return
-			case git.ErrBranchBehindOrigin:
-				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': %v", req.Service, req.Branch, req.Environment, err)
-				httpinternal.Error(w, "could not apply policy right now. Please try again in a moment.", http.StatusServiceUnavailable)
-				return
-			default:
-				logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release failed: %v", req.Service, req.Branch, req.Environment, err)
-				unknownError(w)
-				return
-			}
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		err = payload.encodeResponse(ctx, w, httpinternal.ApplyPolicyResponse{
-			ID:          id,
-			Service:     req.Service,
-			Branch:      req.Branch,
-			Environment: req.Environment,
+			return policies.NewPatchPolicyAutoReleaseCreated().
+				WithPayload(&models.ApplyAutoReleasePolicyResponse{
+					ID:          id,
+					Service:     service,
+					Branch:      branch,
+					Environment: environment,
+				})
 		})
-		if err != nil {
-			logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release: marshal response failed: %v", req.Service, req.Branch, req.Environment, err)
-		}
 	}
 }
 
-func applyBranchRestrictionPolicy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		logger := log.WithContext(ctx)
-		var req httpinternal.ApplyBranchRestrictionPolicyRequest
-		err := payload.decodeResponse(ctx, r.Body, &req)
-		if err != nil {
-			logger.Errorf("http: policy: apply: branch-restriction: decode request body failed: %v", err)
-			invalidBodyError(w)
-			return
-		}
+func ApplyBranchRestrictionPolicyHandler(policySvc *policy.Service) HandlerFactory {
+	return func(api *operations.ReleaseManagerServerAPIAPI) {
+		api.PoliciesPatchPolicyBranchRestrictionHandler = policies.PatchPolicyBranchRestrictionHandlerFunc(func(params policies.PatchPolicyBranchRestrictionParams, principal interface{}) middleware.Responder {
+			ctx := params.HTTPRequest.Context()
+			logger := log.WithContext(ctx)
 
-		if !req.Validate(w) {
-			return
-		}
+			var (
+				service        = *params.Body.Service
+				branchRegex    = *params.Body.BranchRegex
+				environment    = *params.Body.Environment
+				committerName  = *params.Body.CommitterName
+				committerEmail = *params.Body.CommitterEmail
+			)
 
-		logger = logger.WithFields("service", req.Service, "req", req)
-		logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction policy started", req.Service, req.BranchRegex, req.Environment)
-		id, err := policySvc.ApplyBranchRestriction(ctx, policyinternal.Actor{
-			Name:  req.CommitterName,
-			Email: req.CommitterEmail,
-		}, req.Service, req.BranchRegex, req.Environment)
-		if err != nil {
-			if ctx.Err() == context.Canceled {
-				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction cancelled", req.Service, req.BranchRegex, req.Environment)
-				cancelled(w)
-				return
+			logger = logger.WithFields("service", service, "req", params.Body)
+			logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction policy started", service, branchRegex, environment)
+			id, err := policySvc.ApplyBranchRestriction(ctx, policy.Actor{
+				Name:  committerName,
+				Email: committerEmail,
+			}, service, branchRegex, environment)
+			if err != nil {
+				if ctx.Err() == context.Canceled {
+					logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction cancelled", service, branchRegex, environment)
+					return policies.NewPatchPolicyBranchRestrictionBadRequest().
+						WithPayload(cancelled())
+				}
+				var regexErr *syntax.Error
+				if errors.As(err, &regexErr) {
+					logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction: invalid branch regex: %v", service, branchRegex, environment, err)
+					return policies.NewPatchPolicyBranchRestrictionBadRequest().
+						WithPayload(badRequest("branch regex not valid: %v", regexErr))
+				}
+				switch errorCause(err) {
+				case policy.ErrConflict:
+					logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction rejected: conflicts with another policy: %v", service, branchRegex, environment, err)
+					return policies.NewPatchPolicyBranchRestrictionBadRequest().
+						WithPayload(badRequest("policy conflicts with another policy"))
+				case git.ErrBranchBehindOrigin:
+					logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction: %v", service, branchRegex, environment, err)
+					return policies.NewPatchPolicyBranchRestrictionServiceUnavailable().
+						WithPayload(unavailable("could not apply policy right now. Please try again in a moment."))
+				default:
+					logger.Errorf("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction failed: %v", service, branchRegex, environment, err)
+					return policies.NewPatchPolicyBranchRestrictionInternalServerError().WithPayload(unknownError())
+				}
 			}
-			var regexErr *syntax.Error
-			if errors.As(err, &regexErr) {
-				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction: invalid branch regex: %v", req.Service, req.BranchRegex, req.Environment, err)
-				httpinternal.Error(w, fmt.Sprintf("branch regex not valid: %v", regexErr), http.StatusBadRequest)
-				return
-			}
-			switch errorCause(err) {
-			case policyinternal.ErrConflict:
-				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction rejected: conflicts with another policy: %v", req.Service, req.BranchRegex, req.Environment, err)
-				httpinternal.Error(w, fmt.Sprintf("policy conflicts with another policy"), http.StatusBadRequest)
-				return
-			case git.ErrBranchBehindOrigin:
-				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction: %v", req.Service, req.BranchRegex, req.Environment, err)
-				httpinternal.Error(w, fmt.Sprintf("could not apply policy right now. Please try again in a moment."), http.StatusServiceUnavailable)
-				return
-			default:
-				logger.Errorf("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction failed: %v", req.Service, req.BranchRegex, req.Environment, err)
-				unknownError(w)
-				return
-			}
-		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		err = payload.encodeResponse(ctx, w, httpinternal.ApplyBranchRestrictionPolicyResponse{
-			ID:          id,
-			Service:     req.Service,
-			BranchRegex: req.BranchRegex,
-			Environment: req.Environment,
+			return policies.NewPatchPolicyBranchRestrictionCreated().WithPayload(&models.ApplyBranchRestrictionPolicyResponce{
+				ID:          id,
+				Service:     service,
+				BranchRegex: branchRegex,
+				Environment: environment,
+			})
 		})
-		if err != nil {
-			logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply branch-restriction: marshal response failed: %v", req.Service, req.BranchRegex, req.Environment, err)
-		}
 	}
 }
 
-func listPolicies(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		values := r.URL.Query()
-		service := values.Get("service")
-		if emptyString(service) {
-			requiredQueryError(w, "service")
-			return
-		}
+func ListPoliciesHandler(policySvc *policy.Service) HandlerFactory {
+	return func(api *operations.ReleaseManagerServerAPIAPI) {
+		api.PoliciesGetPoliciesHandler = policies.GetPoliciesHandlerFunc(func(params policies.GetPoliciesParams, principal interface{}) middleware.Responder {
 
-		ctx := r.Context()
-		logger := log.WithContext(ctx).WithFields("service", service)
-		policies, err := policySvc.Get(ctx, service)
-		if err != nil {
-			if ctx.Err() == context.Canceled {
-				logger.Infof("http: policy: list: service '%s': get policies cancelled", service)
-				cancelled(w)
-				return
-			}
-			if errorCause(err) == policyinternal.ErrNotFound {
-				httpinternal.Error(w, "no policies exist", http.StatusNotFound)
-				return
-			}
-			logger.Errorf("http: policy: list: service '%s': get policies failed: %v", service, err)
-			unknownError(w)
-			return
-		}
+			service := params.Service
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		err = payload.encodeResponse(ctx, w, httpinternal.ListPoliciesResponse{
-			Service:            policies.Service,
-			AutoReleases:       mapAutoReleasePolicies(policies.AutoReleases),
-			BranchRestrictions: mapBranchRestrictionPolicies(policies.BranchRestrictions),
+			ctx := params.HTTPRequest.Context()
+			logger := log.WithContext(ctx).WithFields("service", service)
+
+			foundPolicies, err := policySvc.Get(ctx, service)
+			if err != nil {
+				if ctx.Err() == context.Canceled {
+					logger.Infof("http: policy: list: service '%s': get policies cancelled", service)
+					return policies.NewGetPoliciesBadRequest().WithPayload(cancelled())
+				}
+				if errorCause(err) == policy.ErrNotFound {
+					return policies.NewGetPoliciesNotFound().WithPayload(notFound("no policiex exist"))
+				}
+				logger.Errorf("http: policy: list: service '%s': get policies failed: %v", service, err)
+				return policies.NewGetPoliciesInternalServerError().WithPayload(unknownError())
+			}
+
+			return policies.NewGetPoliciesOK().WithPayload(&models.GetPoliciesResponse{
+				Service:            foundPolicies.Service,
+				AutoReleases:       mapAutoReleasePolicies(foundPolicies.AutoReleases),
+				BranchRestrictions: mapBranchRestrictionPolicies(foundPolicies.BranchRestrictions),
+			})
 		})
-		if err != nil {
-			logger.Errorf("http: policy: list: service '%s': marshal response failed: %v", service, err)
-		}
 	}
 }
 
-func mapAutoReleasePolicies(policies []policyinternal.AutoReleasePolicy) []httpinternal.AutoReleasePolicy {
-	h := make([]httpinternal.AutoReleasePolicy, len(policies))
+func mapAutoReleasePolicies(policies []policy.AutoReleasePolicy) []*models.GetPoliciesResponseAutoReleasesItems0 {
+	h := make([]*models.GetPoliciesResponseAutoReleasesItems0, len(policies))
 	for i, p := range policies {
-		h[i] = httpinternal.AutoReleasePolicy{
+		h[i] = &models.GetPoliciesResponseAutoReleasesItems0{
 			ID:          p.ID,
 			Branch:      p.Branch,
 			Environment: p.Environment,
@@ -236,10 +168,10 @@ func mapAutoReleasePolicies(policies []policyinternal.AutoReleasePolicy) []httpi
 	return h
 }
 
-func mapBranchRestrictionPolicies(policies []policyinternal.BranchRestriction) []httpinternal.BranchRestrictionPolicy {
-	h := make([]httpinternal.BranchRestrictionPolicy, len(policies))
+func mapBranchRestrictionPolicies(policies []policy.BranchRestriction) []*models.GetPoliciesResponseBranchRestrictionsItems0 {
+	h := make([]*models.GetPoliciesResponseBranchRestrictionsItems0, len(policies))
 	for i, p := range policies {
-		h[i] = httpinternal.BranchRestrictionPolicy{
+		h[i] = &models.GetPoliciesResponseBranchRestrictionsItems0{
 			ID:          p.ID,
 			Environment: p.Environment,
 			BranchRegex: p.BranchRegex,
@@ -248,74 +180,46 @@ func mapBranchRestrictionPolicies(policies []policyinternal.BranchRestriction) [
 	return h
 }
 
-func deletePolicies(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		logger := log.WithContext(ctx)
-		var req httpinternal.DeletePolicyRequest
-		err := payload.decodeResponse(ctx, r.Body, &req)
-		if err != nil {
-			logger.Errorf("http: policy: delete: decode request body failed: %v", err)
-			invalidBodyError(w)
-			return
-		}
+func DeletePoliciesHandler(policySvc *policy.Service) HandlerFactory {
+	return func(api *operations.ReleaseManagerServerAPIAPI) {
+		api.PoliciesDeletePoliciesHandler = policies.DeletePoliciesHandlerFunc(func(params policies.DeletePoliciesParams, principal interface{}) middleware.Responder {
+			ctx := params.HTTPRequest.Context()
+			logger := log.WithContext(ctx)
 
-		if !req.Validate(w) {
-			return
-		}
+			var (
+				ids            = params.Body.PolicyIds
+				service        = *params.Body.Service
+				committerName  = *params.Body.CommitterName
+				committerEmail = *params.Body.CommitterEmail
+			)
 
-		ids := filterEmptyStrings(req.PolicyIDs)
-		logger = logger.WithFields("service", req.Service, "req", req)
+			logger = logger.WithFields("service", service, "req", params.Body)
 
-		deleted, err := policySvc.Delete(ctx, policyinternal.Actor{
-			Name:  req.CommitterName,
-			Email: req.CommitterEmail,
-		}, req.Service, ids)
-		if err != nil {
-			if ctx.Err() == context.Canceled {
-				logger.Errorf("http: policy: delete: service '%s' ids %v: delete cancelled", req.Service, ids)
-				cancelled(w)
-				return
+			deleted, err := policySvc.Delete(ctx, policy.Actor{
+				Name:  committerName,
+				Email: committerEmail,
+			}, service, ids)
+			if err != nil {
+				if ctx.Err() == context.Canceled {
+					logger.Errorf("http: policy: delete: service '%s' ids %v: delete cancelled", service, ids)
+					return policies.NewDeletePoliciesBadRequest().WithPayload(cancelled())
+				}
+				switch errorCause(err) {
+				case policy.ErrNotFound:
+					return policies.NewDeletePoliciesNotFound().WithPayload(notFound("no policies exist"))
+				case git.ErrBranchBehindOrigin:
+					logger.Infof("http: policy: delete: service '%s' ids %v: %v", service, ids, err)
+					return policies.NewDeletePoliciesServiceUnavailable().WithPayload(unavailable("could not delete policy right now. Please try again in a moment."))
+				default:
+					logger.Errorf("http: policy: delete: service '%s' ids %v: delete failed: %v", service, ids, err)
+					return policies.NewDeletePoliciesInternalServerError().WithPayload(unknownError())
+				}
 			}
-			switch errorCause(err) {
-			case policyinternal.ErrNotFound:
-				httpinternal.Error(w, "no policies exist", http.StatusNotFound)
-				return
-			case git.ErrBranchBehindOrigin:
-				logger.Infof("http: policy: delete: service '%s' ids %v: %v", req.Service, ids, err)
-				httpinternal.Error(w, fmt.Sprintf("could not delete policy right now. Please try again in a moment."), http.StatusServiceUnavailable)
-				return
-			default:
-				logger.Errorf("http: policy: delete: service '%s' ids %v: delete failed: %v", req.Service, ids, err)
-				unknownError(w)
-				return
-			}
-		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		err = payload.encodeResponse(ctx, w, httpinternal.DeletePolicyResponse{
-			Service: req.Service,
-			Count:   deleted,
+			return policies.NewDeletePoliciesOK().WithPayload(&models.DeletePoliciesResponse{
+				Service: service,
+				Count:   int64(deleted),
+			})
 		})
-		if err != nil {
-			logger.Errorf("http: policy: delete: service '%s' ids %v: marshal response failed: %v", req.Service, ids, err)
-		}
 	}
-}
-
-func filterEmptyStrings(ss []string) []string {
-	var f []string
-	for _, s := range ss {
-		s = strings.TrimSpace(s)
-		if len(s) == 0 {
-			continue
-		}
-		f = append(f, s)
-	}
-	return f
-}
-
-func emptyString(s string) bool {
-	return len(strings.TrimSpace(s)) == 0
 }

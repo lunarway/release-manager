@@ -1,8 +1,7 @@
 package http
 
 import (
-	"net/http"
-	"net/http/httptest"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,62 +12,60 @@ func TestAuthenticate(t *testing.T) {
 		name          string
 		serverToken   string
 		authorization string
-		status        int
+		status        error
 	}{
 		{
 			name:          "empty authorization",
 			serverToken:   "token",
 			authorization: "",
-			status:        http.StatusUnauthorized,
+			status:        fmt.Errorf("please provide a valid authentication token"),
 		},
 		{
 			name:          "whitespace token",
 			serverToken:   "token",
 			authorization: "  ",
-			status:        http.StatusUnauthorized,
+			status:        fmt.Errorf("please provide a valid authentication token"),
 		},
 		{
 			name:          "non-bearer authorization",
 			serverToken:   "token",
 			authorization: "non-bearer-token",
-			status:        http.StatusUnauthorized,
+			status:        fmt.Errorf("please provide a valid authentication token"),
 		},
 		{
 			name:          "empty bearer authorization",
 			serverToken:   "token",
 			authorization: "Bearer ",
-			status:        http.StatusUnauthorized,
+			status:        fmt.Errorf("please provide a valid authentication token"),
 		},
 		{
 			name:          "whitespace bearer authorization",
 			serverToken:   "token",
 			authorization: "Bearer      ",
-			status:        http.StatusUnauthorized,
+			status:        fmt.Errorf("please provide a valid authentication token"),
 		},
 		{
 			name:          "wrong bearer authorization",
 			serverToken:   "token",
 			authorization: "Bearer another-token",
-			status:        http.StatusUnauthorized,
+			status:        fmt.Errorf("please provide a valid authentication token"),
 		},
 		{
 			name:          "correct bearer authorization",
 			serverToken:   "token",
 			authorization: "Bearer token",
-			status:        http.StatusOK,
+			status:        nil,
 		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			handler := func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-			}
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
-			req.Header.Set("Authorization", tc.authorization)
-			w := httptest.NewRecorder()
-			authenticate(tc.serverToken, handler)(w, req)
+			_, err := authenticate(tc.serverToken)(tc.authorization)
 
-			assert.Equal(t, tc.status, w.Result().StatusCode, "status code not as expected")
+			if tc.status != nil {
+				assert.EqualError(t, err, tc.status.Error())
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }
