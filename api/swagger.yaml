@@ -636,8 +636,10 @@ definitions:
             type: string
           start:
             type: string
+            format: date
           end:
             type: string
+            format: date
       shuttle:
         type: object
         properties:
@@ -645,6 +647,118 @@ definitions:
             $ref: "#/definitions/Repository"
           shuttleVersion:
             type: string
+      stages:
+        type: array
+        items:
+          allOf:
+            - $ref: "#/definitions/ArtifactStageBuild"
+            - $ref: "#/definitions/ArtifactStagePush"
+            - $ref: "#/definitions/ArtifactStageTest"
+            - $ref: "#/definitions/ArtifactStageSnykDocker"
+            - $ref: "#/definitions/ArtifactStageSnykCode"
+
+  ArtifactStageBuild:
+    type: object
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      data:
+        type: object
+        properties:
+          image:
+            type: string
+          tag:
+            type: string
+          dockerVersion:
+            type: string
+  ArtifactStagePush:
+    type: object
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      data:
+        type: object
+        properties:
+          image:
+            type: string
+          tag:
+            type: string
+          dockerVersion:
+            type: string
+  ArtifactStageTest:
+    type: object
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      data:
+        type: object
+        properties:
+          url:
+            type: string
+          results:
+            type: object
+            properties:
+              passed:
+                type: integer
+              failed:
+                type: integer
+              skipped:
+                type: integer
+  ArtifactStageSnykDocker:
+    type: object
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      data:
+        type: object
+        properties:
+          tag:
+            type: string
+          snykVersion:
+            type: string
+          url:
+            type: string
+          baseImage:
+            type: string
+          vulnerabilities:
+            $ref: "#/definitions/Vulnerabilities"
+  ArtifactStageSnykCode:
+    type: object
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      data:
+        type: object
+        properties:
+          snykVersion:
+            type: string
+          url:
+            type: string
+          language:
+            type: string
+          vulnerabilities:
+            $ref: "#/definitions/Vulnerabilities"
+
+  Vulnerabilities:
+    type: object
+    properties:
+      high:
+        type: integer
+      medium:
+        type: integer
+      low:
+        type: integer
+
   Repository:
     description: Git repository details
     type: object

@@ -8,7 +8,6 @@ import (
 	"github.com/lunarway/release-manager/generated/http/restapi/operations"
 	"github.com/lunarway/release-manager/generated/http/restapi/operations/webhook"
 	"github.com/lunarway/release-manager/internal/flow"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/slack"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -22,10 +21,10 @@ func Daemonk8sDeployWebhookHandler(flowSvc *flow.Service) HandlerFactory {
 			ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(params.HTTPRequest.Context()))
 			logger := log.WithContext(ctx)
 
-			k8sReleaseEvent := mapK8sDeployEvent(params.Body)
+			event := params.Body
 
-			logger = logger.WithFields("event", k8sReleaseEvent)
-			err := flowSvc.NotifyK8SDeployEvent(ctx, &k8sReleaseEvent)
+			logger = logger.WithFields("event", event)
+			err := flowSvc.NotifyK8SDeployEvent(ctx, event)
 			if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
 				logger.Errorf("http: daemon k8s deploy webhook failed: %+v", err)
 			}
@@ -34,9 +33,4 @@ func Daemonk8sDeployWebhookHandler(flowSvc *flow.Service) HandlerFactory {
 			return webhook.NewPostWebhookDaemonK8sDeployOK().WithPayload(models.EmptyWebhookResponse(struct{}{}))
 		})
 	}
-}
-
-func mapK8sDeployEvent(h *models.DaemonKubernetesDeploymentWebhookRequest) httpinternal.ReleaseEvent {
-	//TODO: map fields
-	return httpinternal.ReleaseEvent{}
 }

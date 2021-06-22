@@ -786,13 +786,15 @@ func init() {
           "type": "object",
           "properties": {
             "end": {
-              "type": "string"
+              "type": "string",
+              "format": "date"
             },
             "jobUrl": {
               "type": "string"
             },
             "start": {
-              "type": "string"
+              "type": "string",
+              "format": "date"
             }
           }
         },
@@ -817,6 +819,170 @@ func init() {
           }
         },
         "squad": {
+          "type": "string"
+        },
+        "stages": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/ArtifactStageBuild"
+              },
+              {
+                "$ref": "#/definitions/ArtifactStagePush"
+              },
+              {
+                "$ref": "#/definitions/ArtifactStageTest"
+              },
+              {
+                "$ref": "#/definitions/ArtifactStageSnykDocker"
+              },
+              {
+                "$ref": "#/definitions/ArtifactStageSnykCode"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "ArtifactStageBuild": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "dockerVersion": {
+              "type": "string"
+            },
+            "image": {
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            }
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactStagePush": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "dockerVersion": {
+              "type": "string"
+            },
+            "image": {
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            }
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactStageSnykCode": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "language": {
+              "type": "string"
+            },
+            "snykVersion": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "vulnerabilities": {
+              "$ref": "#/definitions/Vulnerabilities"
+            }
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactStageSnykDocker": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "baseImage": {
+              "type": "string"
+            },
+            "snykVersion": {
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "vulnerabilities": {
+              "$ref": "#/definitions/Vulnerabilities"
+            }
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactStageTest": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "results": {
+              "type": "object",
+              "properties": {
+                "failed": {
+                  "type": "integer"
+                },
+                "passed": {
+                  "type": "integer"
+                },
+                "skipped": {
+                  "type": "integer"
+                }
+              }
+            },
+            "url": {
+              "type": "string"
+            }
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
           "type": "string"
         }
       }
@@ -1283,6 +1449,20 @@ func init() {
         },
         "staging": {
           "$ref": "#/definitions/EnvironmentStatus"
+        }
+      }
+    },
+    "Vulnerabilities": {
+      "type": "object",
+      "properties": {
+        "high": {
+          "type": "integer"
+        },
+        "low": {
+          "type": "integer"
+        },
+        "medium": {
+          "type": "integer"
         }
       }
     }
@@ -2107,13 +2287,15 @@ func init() {
           "type": "object",
           "properties": {
             "end": {
-              "type": "string"
+              "type": "string",
+              "format": "date"
             },
             "jobUrl": {
               "type": "string"
             },
             "start": {
-              "type": "string"
+              "type": "string",
+              "format": "date"
             }
           }
         },
@@ -2139,6 +2321,12 @@ func init() {
         },
         "squad": {
           "type": "string"
+        },
+        "stages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ArtifactStagesItems0"
+          }
         }
       }
     },
@@ -2146,13 +2334,15 @@ func init() {
       "type": "object",
       "properties": {
         "end": {
-          "type": "string"
+          "type": "string",
+          "format": "date"
         },
         "jobUrl": {
           "type": "string"
         },
         "start": {
-          "type": "string"
+          "type": "string",
+          "format": "date"
         }
       }
     },
@@ -2166,6 +2356,268 @@ func init() {
           "type": "string"
         }
       }
+    },
+    "ArtifactStageBuild": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "dockerVersion": {
+              "type": "string"
+            },
+            "image": {
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            }
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactStageBuildData": {
+      "type": "object",
+      "properties": {
+        "dockerVersion": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactStagePush": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "dockerVersion": {
+              "type": "string"
+            },
+            "image": {
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            }
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactStagePushData": {
+      "type": "object",
+      "properties": {
+        "dockerVersion": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactStageSnykCode": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "language": {
+              "type": "string"
+            },
+            "snykVersion": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "vulnerabilities": {
+              "$ref": "#/definitions/Vulnerabilities"
+            }
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactStageSnykCodeData": {
+      "type": "object",
+      "properties": {
+        "language": {
+          "type": "string"
+        },
+        "snykVersion": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "vulnerabilities": {
+          "$ref": "#/definitions/Vulnerabilities"
+        }
+      }
+    },
+    "ArtifactStageSnykDocker": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "baseImage": {
+              "type": "string"
+            },
+            "snykVersion": {
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "vulnerabilities": {
+              "$ref": "#/definitions/Vulnerabilities"
+            }
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactStageSnykDockerData": {
+      "type": "object",
+      "properties": {
+        "baseImage": {
+          "type": "string"
+        },
+        "snykVersion": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "vulnerabilities": {
+          "$ref": "#/definitions/Vulnerabilities"
+        }
+      }
+    },
+    "ArtifactStageTest": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "results": {
+              "type": "object",
+              "properties": {
+                "failed": {
+                  "type": "integer"
+                },
+                "passed": {
+                  "type": "integer"
+                },
+                "skipped": {
+                  "type": "integer"
+                }
+              }
+            },
+            "url": {
+              "type": "string"
+            }
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactStageTestData": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "object",
+          "properties": {
+            "failed": {
+              "type": "integer"
+            },
+            "passed": {
+              "type": "integer"
+            },
+            "skipped": {
+              "type": "integer"
+            }
+          }
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactStageTestDataResults": {
+      "type": "object",
+      "properties": {
+        "failed": {
+          "type": "integer"
+        },
+        "passed": {
+          "type": "integer"
+        },
+        "skipped": {
+          "type": "integer"
+        }
+      }
+    },
+    "ArtifactStagesItems0": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ArtifactStageBuild"
+        },
+        {
+          "$ref": "#/definitions/ArtifactStagePush"
+        },
+        {
+          "$ref": "#/definitions/ArtifactStageTest"
+        },
+        {
+          "$ref": "#/definitions/ArtifactStageSnykDocker"
+        },
+        {
+          "$ref": "#/definitions/ArtifactStageSnykCode"
+        }
+      ]
     },
     "CreateArtifactRequest": {
       "description": "Create artifact payload",
@@ -2682,6 +3134,20 @@ func init() {
         },
         "staging": {
           "$ref": "#/definitions/EnvironmentStatus"
+        }
+      }
+    },
+    "Vulnerabilities": {
+      "type": "object",
+      "properties": {
+        "high": {
+          "type": "integer"
+        },
+        "low": {
+          "type": "integer"
+        },
+        "medium": {
+          "type": "integer"
         }
       }
     }

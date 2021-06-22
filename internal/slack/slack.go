@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/nlopes/slack"
 	"github.com/pkg/errors"
@@ -264,7 +264,7 @@ func (c *Client) NotifyAuthorEventProcessed(ctx context.Context, options Release
 	return err
 }
 
-func (c *Client) NotifyK8SDeployEvent(ctx context.Context, event *http.ReleaseEvent) error {
+func (c *Client) NotifyK8SDeployEvent(ctx context.Context, event *models.DaemonKubernetesDeploymentWebhookRequest) error {
 	if c.muteOptions.Kubernetes {
 		return nil
 	}
@@ -286,7 +286,7 @@ func (c *Client) NotifyK8SDeployEvent(ctx context.Context, event *http.ReleaseEv
 	return err
 }
 
-func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErrorEvent) error {
+func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *models.DaemonKubernetesErrorWebhookRequest) error {
 	if c.muteOptions.Kubernetes {
 		return nil
 	}
@@ -317,7 +317,7 @@ func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErro
 	return err
 }
 
-func (c *Client) NotifyK8SJobErrorEvent(ctx context.Context, event *http.JobErrorEvent) error {
+func (c *Client) NotifyK8SJobErrorEvent(ctx context.Context, event *models.DaemonKubernetesJobErrorWebhookRequest) error {
 	if c.muteOptions.Kubernetes {
 		return nil
 	}

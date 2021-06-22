@@ -10,7 +10,6 @@ import (
 	"github.com/lunarway/release-manager/generated/http/restapi/operations/status"
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/flow"
-	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/log"
 )
 
@@ -64,16 +63,6 @@ func DescribeReleaseHandler(flowSvc *flow.Service) HandlerFactory {
 			})
 		})
 	}
-}
-
-func mapIntent(i intent.Intent) *models.Intent {
-	// TODO: map fields
-	return &models.Intent{}
-}
-
-func mapArtifactToHTTP(a artifact.Spec) *models.Artifact {
-	// TODO: map fields
-	return &models.Artifact{}
 }
 
 func DescribeArtifactHandler(flowSvc *flow.Service) HandlerFactory {

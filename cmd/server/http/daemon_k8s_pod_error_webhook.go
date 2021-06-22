@@ -8,7 +8,6 @@ import (
 	"github.com/lunarway/release-manager/generated/http/restapi/operations"
 	"github.com/lunarway/release-manager/generated/http/restapi/operations/webhook"
 	"github.com/lunarway/release-manager/internal/flow"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/slack"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -33,9 +32,4 @@ func Daemonk8sPodErrorWebhookHandler(flowSvc *flow.Service) HandlerFactory {
 			return webhook.NewPostWebhookDaemonK8sErrorOK().WithPayload(models.EmptyWebhookResponse(struct{}{}))
 		})
 	}
-}
-
-func mapK8sPodErrorEvent(h *models.DaemonKubernetesErrorWebhookRequest) httpinternal.PodErrorEvent {
-	//TODO: map fields
-	return httpinternal.PodErrorEvent{}
 }

@@ -55,8 +55,18 @@ type CI struct {
 	End    time.Time `json:"end,omitempty"`
 }
 
+type StageID string
+
+const (
+	StageIDBuild      StageID = "build"
+	StageIDTest       StageID = "test"
+	StageIDSnykCode   StageID = "snyk-code"
+	StageIDSnykDocker StageID = "snyk-docker"
+	StageIDPush       StageID = "push"
+)
+
 type Stage struct {
-	ID   string      `json:"id,omitempty"`
+	ID   StageID     `json:"id,omitempty"`
 	Name string      `json:"name,omitempty"`
 	Data interface{} `json:"data,omitempty"`
 }
@@ -103,16 +113,6 @@ type VulnerabilityResult struct {
 	High   int `json:"high"`
 	Medium int `json:"medium"`
 	Low    int `json:"low"`
-}
-
-// GetStage returns a stage of the spec with provided stage ID.
-func (s *Spec) GetStage(stageID string) (Stage, bool) {
-	for _, stage := range s.Stages {
-		if stage.ID == stageID {
-			return stage, true
-		}
-	}
-	return Stage{}, false
 }
 
 func Get(path string) (Spec, error) {

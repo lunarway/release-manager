@@ -3,11 +3,11 @@ package flow
 import (
 	"context"
 
-	"github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/pkg/errors"
 )
 
-func (s *Service) NotifyK8SDeployEvent(ctx context.Context, event *http.ReleaseEvent) error {
+func (s *Service) NotifyK8SDeployEvent(ctx context.Context, event *models.DaemonKubernetesDeploymentWebhookRequest) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyK8SDeployment")
 	defer span.Finish()
 	span, _ = s.Tracer.FromCtx(ctx, "post k8s deploy slack message")
@@ -19,7 +19,7 @@ func (s *Service) NotifyK8SDeployEvent(ctx context.Context, event *http.ReleaseE
 	return nil
 }
 
-func (s *Service) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErrorEvent) error {
+func (s *Service) NotifyK8SPodErrorEvent(ctx context.Context, event *models.DaemonKubernetesErrorWebhookRequest) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyK8SPodErrorEvent")
 	defer span.Finish()
 	span, _ = s.Tracer.FromCtx(ctx, "post k8s NotifyK8SPodErrorEvent slack message")
@@ -31,7 +31,7 @@ func (s *Service) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErr
 	return nil
 }
 
-func (s *Service) NotifyK8SJobErrorEvent(ctx context.Context, event *http.JobErrorEvent) error {
+func (s *Service) NotifyK8SJobErrorEvent(ctx context.Context, event *models.DaemonKubernetesJobErrorWebhookRequest) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyK8SJobErrorEvent")
 	defer span.Finish()
 	span, _ = s.Tracer.FromCtx(ctx, "post k8s NotifyK8SJobErrorEvent slack message")

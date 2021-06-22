@@ -156,30 +156,6 @@ func ListPoliciesHandler(policySvc *policy.Service) HandlerFactory {
 	}
 }
 
-func mapAutoReleasePolicies(policies []policy.AutoReleasePolicy) []*models.GetPoliciesResponseAutoReleasesItems0 {
-	h := make([]*models.GetPoliciesResponseAutoReleasesItems0, len(policies))
-	for i, p := range policies {
-		h[i] = &models.GetPoliciesResponseAutoReleasesItems0{
-			ID:          p.ID,
-			Branch:      p.Branch,
-			Environment: p.Environment,
-		}
-	}
-	return h
-}
-
-func mapBranchRestrictionPolicies(policies []policy.BranchRestriction) []*models.GetPoliciesResponseBranchRestrictionsItems0 {
-	h := make([]*models.GetPoliciesResponseBranchRestrictionsItems0, len(policies))
-	for i, p := range policies {
-		h[i] = &models.GetPoliciesResponseBranchRestrictionsItems0{
-			ID:          p.ID,
-			Environment: p.Environment,
-			BranchRegex: p.BranchRegex,
-		}
-	}
-	return h
-}
-
 func DeletePoliciesHandler(policySvc *policy.Service) HandlerFactory {
 	return func(api *operations.ReleaseManagerServerAPIAPI) {
 		api.PoliciesDeletePoliciesHandler = policies.DeletePoliciesHandlerFunc(func(params policies.DeletePoliciesParams, principal interface{}) middleware.Responder {

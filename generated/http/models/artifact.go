@@ -7,10 +7,12 @@ package models
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
+	"github.com/go-openapi/validate"
 )
 
 // Artifact An artifact specification
@@ -38,6 +40,9 @@ type Artifact struct {
 
 	// squad
 	Squad string `json:"squad,omitempty"`
+
+	// stages
+	Stages []*ArtifactStagesItems0 `json:"stages"`
 }
 
 // Validate validates this artifact
@@ -53,6 +58,10 @@ func (m *Artifact) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateShuttle(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateStages(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -113,6 +122,30 @@ func (m *Artifact) validateShuttle(formats strfmt.Registry) error {
 	return nil
 }
 
+func (m *Artifact) validateStages(formats strfmt.Registry) error {
+	if swag.IsZero(m.Stages) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.Stages); i++ {
+		if swag.IsZero(m.Stages[i]) { // not required
+			continue
+		}
+
+		if m.Stages[i] != nil {
+			if err := m.Stages[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("stages" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
 // ContextValidate validate this artifact based on the context it is used
 func (m *Artifact) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	var res []error
@@ -126,6 +159,10 @@ func (m *Artifact) ContextValidate(ctx context.Context, formats strfmt.Registry)
 	}
 
 	if err := m.contextValidateShuttle(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateStages(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -177,6 +214,24 @@ func (m *Artifact) contextValidateShuttle(ctx context.Context, formats strfmt.Re
 	return nil
 }
 
+func (m *Artifact) contextValidateStages(ctx context.Context, formats strfmt.Registry) error {
+
+	for i := 0; i < len(m.Stages); i++ {
+
+		if m.Stages[i] != nil {
+			if err := m.Stages[i].ContextValidate(ctx, formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("stages" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
 // MarshalBinary interface implementation
 func (m *Artifact) MarshalBinary() ([]byte, error) {
 	if m == nil {
@@ -201,17 +256,56 @@ func (m *Artifact) UnmarshalBinary(b []byte) error {
 type ArtifactCi struct {
 
 	// end
-	End string `json:"end,omitempty"`
+	// Format: date
+	End strfmt.Date `json:"end,omitempty"`
 
 	// job Url
 	JobURL string `json:"jobUrl,omitempty"`
 
 	// start
-	Start string `json:"start,omitempty"`
+	// Format: date
+	Start strfmt.Date `json:"start,omitempty"`
 }
 
 // Validate validates this artifact ci
 func (m *ArtifactCi) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.validateEnd(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateStart(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *ArtifactCi) validateEnd(formats strfmt.Registry) error {
+	if swag.IsZero(m.End) { // not required
+		return nil
+	}
+
+	if err := validate.FormatOf("ci"+"."+"end", "body", "date", m.End.String(), formats); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *ArtifactCi) validateStart(formats strfmt.Registry) error {
+	if swag.IsZero(m.Start) { // not required
+		return nil
+	}
+
+	if err := validate.FormatOf("ci"+"."+"start", "body", "date", m.Start.String(), formats); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -320,6 +414,177 @@ func (m *ArtifactShuttle) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary interface implementation
 func (m *ArtifactShuttle) UnmarshalBinary(b []byte) error {
 	var res ArtifactShuttle
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*m = res
+	return nil
+}
+
+// ArtifactStagesItems0 artifact stages items0
+//
+// swagger:model ArtifactStagesItems0
+type ArtifactStagesItems0 struct {
+	ArtifactStageBuild
+
+	ArtifactStagePush
+
+	ArtifactStageTest
+
+	ArtifactStageSnykDocker
+
+	ArtifactStageSnykCode
+}
+
+// UnmarshalJSON unmarshals this object from a JSON structure
+func (m *ArtifactStagesItems0) UnmarshalJSON(raw []byte) error {
+	// AO0
+	var aO0 ArtifactStageBuild
+	if err := swag.ReadJSON(raw, &aO0); err != nil {
+		return err
+	}
+	m.ArtifactStageBuild = aO0
+
+	// AO1
+	var aO1 ArtifactStagePush
+	if err := swag.ReadJSON(raw, &aO1); err != nil {
+		return err
+	}
+	m.ArtifactStagePush = aO1
+
+	// AO2
+	var aO2 ArtifactStageTest
+	if err := swag.ReadJSON(raw, &aO2); err != nil {
+		return err
+	}
+	m.ArtifactStageTest = aO2
+
+	// AO3
+	var aO3 ArtifactStageSnykDocker
+	if err := swag.ReadJSON(raw, &aO3); err != nil {
+		return err
+	}
+	m.ArtifactStageSnykDocker = aO3
+
+	// AO4
+	var aO4 ArtifactStageSnykCode
+	if err := swag.ReadJSON(raw, &aO4); err != nil {
+		return err
+	}
+	m.ArtifactStageSnykCode = aO4
+
+	return nil
+}
+
+// MarshalJSON marshals this object to a JSON structure
+func (m ArtifactStagesItems0) MarshalJSON() ([]byte, error) {
+	_parts := make([][]byte, 0, 5)
+
+	aO0, err := swag.WriteJSON(m.ArtifactStageBuild)
+	if err != nil {
+		return nil, err
+	}
+	_parts = append(_parts, aO0)
+
+	aO1, err := swag.WriteJSON(m.ArtifactStagePush)
+	if err != nil {
+		return nil, err
+	}
+	_parts = append(_parts, aO1)
+
+	aO2, err := swag.WriteJSON(m.ArtifactStageTest)
+	if err != nil {
+		return nil, err
+	}
+	_parts = append(_parts, aO2)
+
+	aO3, err := swag.WriteJSON(m.ArtifactStageSnykDocker)
+	if err != nil {
+		return nil, err
+	}
+	_parts = append(_parts, aO3)
+
+	aO4, err := swag.WriteJSON(m.ArtifactStageSnykCode)
+	if err != nil {
+		return nil, err
+	}
+	_parts = append(_parts, aO4)
+	return swag.ConcatJSON(_parts...), nil
+}
+
+// Validate validates this artifact stages items0
+func (m *ArtifactStagesItems0) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	// validation for a type composition with ArtifactStageBuild
+	if err := m.ArtifactStageBuild.Validate(formats); err != nil {
+		res = append(res, err)
+	}
+	// validation for a type composition with ArtifactStagePush
+	if err := m.ArtifactStagePush.Validate(formats); err != nil {
+		res = append(res, err)
+	}
+	// validation for a type composition with ArtifactStageTest
+	if err := m.ArtifactStageTest.Validate(formats); err != nil {
+		res = append(res, err)
+	}
+	// validation for a type composition with ArtifactStageSnykDocker
+	if err := m.ArtifactStageSnykDocker.Validate(formats); err != nil {
+		res = append(res, err)
+	}
+	// validation for a type composition with ArtifactStageSnykCode
+	if err := m.ArtifactStageSnykCode.Validate(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+// ContextValidate validate this artifact stages items0 based on the context it is used
+func (m *ArtifactStagesItems0) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	// validation for a type composition with ArtifactStageBuild
+	if err := m.ArtifactStageBuild.ContextValidate(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+	// validation for a type composition with ArtifactStagePush
+	if err := m.ArtifactStagePush.ContextValidate(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+	// validation for a type composition with ArtifactStageTest
+	if err := m.ArtifactStageTest.ContextValidate(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+	// validation for a type composition with ArtifactStageSnykDocker
+	if err := m.ArtifactStageSnykDocker.ContextValidate(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+	// validation for a type composition with ArtifactStageSnykCode
+	if err := m.ArtifactStageSnykCode.ContextValidate(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (m *ArtifactStagesItems0) MarshalBinary() ([]byte, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(m)
+}
+
+// UnmarshalBinary interface implementation
+func (m *ArtifactStagesItems0) UnmarshalBinary(b []byte) error {
+	var res ArtifactStagesItems0
 	if err := swag.ReadJSON(b, &res); err != nil {
 		return err
 	}

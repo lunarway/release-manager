@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"time"
 
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/lunarway/release-manager/generated/http/models"
@@ -78,8 +77,4 @@ func StatusHandler(flowSvc *flow.Service) HandlerFactory {
 			})
 		})
 	}
-}
-
-func convertTimeToEpoch(t time.Time) int64 {
-	return t.UnixNano() / int64(time.Millisecond)
 }

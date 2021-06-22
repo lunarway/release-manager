@@ -214,12 +214,12 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 func calculateTotalVulnerabilties(severity string, s artifact.Spec) int64 {
 	result := float64(0)
 	for _, stage := range s.Stages {
-		if stage.ID == "snyk-code" {
+		if stage.ID == artifact.StageIDSnykCode {
 			data := stage.Data.(map[string]interface{})
 			vulnerabilities := data["vulnerabilities"].(map[string]interface{})
 			result += vulnerabilities[severity].(float64)
 		}
-		if stage.ID == "snyk-docker" {
+		if stage.ID == artifact.StageIDSnykDocker {
 			data := stage.Data.(map[string]interface{})
 			vulnerabilities := data["vulnerabilities"].(map[string]interface{})
 			result += vulnerabilities[severity].(float64)
