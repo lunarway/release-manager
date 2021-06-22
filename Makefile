@@ -51,8 +51,12 @@ test:
 SWAGGER_GENERATION_IMAGE="quay.io/goswagger/swagger:v0.27.0"
 
 generate_http:
-	rm -rf ./generated/http
-	mkdir -p ./generated/http
+	rm -rf ./generated/httpclient
+	mkdir -p ./generated/httpclient
+	make generate_http_server
+	make generate_http_client
+
+generate_http_server:
 	docker run \
 		--rm \
 		-v $(shell pwd):/src \
@@ -62,6 +66,18 @@ generate_http:
 			server \
 			--spec api/swagger.yaml \
 			--exclude-main \
+			--target ./generated/http
+
+generate_http_client:
+	docker run \
+		--rm \
+		-v $(shell pwd):/src \
+		-w /src \
+		${SWAGGER_GENERATION_IMAGE} \
+			generate \
+			client \
+			--spec api/swagger.yaml \
+			--skip-models \
 			--target ./generated/http
 
 generate_mock:
