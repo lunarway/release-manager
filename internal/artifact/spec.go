@@ -60,15 +60,60 @@ type StageID string
 const (
 	StageIDBuild      StageID = "build"
 	StageIDTest       StageID = "test"
+	StageIDPush       StageID = "push"
 	StageIDSnykCode   StageID = "snyk-code"
 	StageIDSnykDocker StageID = "snyk-docker"
-	StageIDPush       StageID = "push"
 )
 
 type Stage struct {
 	ID   StageID     `json:"id,omitempty"`
 	Name string      `json:"name,omitempty"`
 	Data interface{} `json:"data,omitempty"`
+}
+
+// UnmarshalJSON implements a custom JSON unmarshal method that sets the
+// concrete Data types for each stage type.
+func (s *Stage) UnmarshalJSON(data []byte) error {
+	type genericStage struct {
+		ID   StageID         `json:"id,omitempty"`
+		Name string          `json:"name,omitempty"`
+		Data json.RawMessage `json:"data,omitempty"`
+	}
+	var gStage genericStage
+	err := json.Unmarshal(data, &gStage)
+	if err != nil {
+		return err
+	}
+
+	s.ID = gStage.ID
+	s.Name = gStage.Name
+
+	switch s.ID {
+	case StageIDBuild:
+		data := BuildData{}
+		err = json.Unmarshal(gStage.Data, &data)
+		s.Data = data
+	case StageIDPush:
+		data := PushData{}
+		err = json.Unmarshal(gStage.Data, &data)
+		s.Data = data
+	case StageIDTest:
+		data := TestData{}
+		err = json.Unmarshal(gStage.Data, &data)
+		s.Data = data
+	case StageIDSnykCode:
+		data := SnykCodeData{}
+		err = json.Unmarshal(gStage.Data, &data)
+		s.Data = data
+	case StageIDSnykDocker:
+		data := SnykDockerData{}
+		err = json.Unmarshal(gStage.Data, &data)
+		s.Data = data
+	}
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 type BuildData struct {

@@ -177,55 +177,57 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 
 	return StatusResponse{
 		DefaultNamespaces: defaultNamespaces,
-		Dev: Environment{
-			Tag:                   devSpec.ID,
-			Committer:             devSpec.Application.CommitterName,
-			Author:                devSpec.Application.AuthorName,
-			Message:               devSpec.Application.Message,
-			Date:                  devSpec.CI.End,
-			BuildURL:              devSpec.CI.JobURL,
-			HighVulnerabilities:   calculateTotalVulnerabilties("high", devSpec),
-			MediumVulnerabilities: calculateTotalVulnerabilties("medium", devSpec),
-			LowVulnerabilities:    calculateTotalVulnerabilties("low", devSpec),
-		},
-		Staging: Environment{
-			Tag:                   stagingSpec.ID,
-			Committer:             stagingSpec.Application.CommitterName,
-			Author:                stagingSpec.Application.AuthorName,
-			Message:               stagingSpec.Application.Message,
-			Date:                  stagingSpec.CI.End,
-			BuildURL:              stagingSpec.CI.JobURL,
-			HighVulnerabilities:   calculateTotalVulnerabilties("high", stagingSpec),
-			MediumVulnerabilities: calculateTotalVulnerabilties("medium", stagingSpec),
-			LowVulnerabilities:    calculateTotalVulnerabilties("low", stagingSpec),
-		},
-		Prod: Environment{
-			Tag:                   prodSpec.ID,
-			Committer:             prodSpec.Application.CommitterName,
-			Author:                prodSpec.Application.AuthorName,
-			Message:               prodSpec.Application.Message,
-			Date:                  prodSpec.CI.End,
-			BuildURL:              prodSpec.CI.JobURL,
-			HighVulnerabilities:   calculateTotalVulnerabilties("high", prodSpec),
-			MediumVulnerabilities: calculateTotalVulnerabilties("medium", prodSpec),
-			LowVulnerabilities:    calculateTotalVulnerabilties("low", prodSpec),
-		},
+		Dev:               mapSpec(devSpec),
+		Staging:           mapSpec(stagingSpec),
+		Prod:              mapSpec(prodSpec),
 	}, nil
 }
 
-func calculateTotalVulnerabilties(severity string, s artifact.Spec) int64 {
+func mapSpec(spec artifact.Spec) Environment {
+	return Environment{
+		Tag:                   spec.ID,
+		Committer:             spec.Application.CommitterName,
+		Author:                spec.Application.AuthorName,
+		Message:               spec.Application.Message,
+		Date:                  spec.CI.End,
+		BuildURL:              spec.CI.JobURL,
+		HighVulnerabilities:   calculateHighTotalVulnerabilties(spec),
+		MediumVulnerabilities: calculateMediumTotalVulnerabilties(spec),
+		LowVulnerabilities:    calculateLowTotalVulnerabilties(spec),
+	}
+}
+
+func calculateHighTotalVulnerabilties(s artifact.Spec) int64 {
+	return calculateTotalVulnerabilties(s, func(v artifact.VulnerabilityResult) int {
+		return v.High
+	})
+}
+
+func calculateMediumTotalVulnerabilties(s artifact.Spec) int64 {
+	return calculateTotalVulnerabilties(s, func(v artifact.VulnerabilityResult) int {
+		return v.Medium
+	})
+}
+
+func calculateLowTotalVulnerabilties(s artifact.Spec) int64 {
+	return calculateTotalVulnerabilties(s, func(v artifact.VulnerabilityResult) int {
+		return v.Low
+	})
+}
+
+func calculateTotalVulnerabilties(s artifact.Spec, field func(artifact.VulnerabilityResult) int) int64 {
 	result := float64(0)
 	for _, stage := range s.Stages {
+		var vulnerabilities artifact.VulnerabilityResult
 		if stage.ID == artifact.StageIDSnykCode {
-			data := stage.Data.(map[string]interface{})
-			vulnerabilities := data["vulnerabilities"].(map[string]interface{})
-			result += vulnerabilities[severity].(float64)
+			data := stage.Data.(artifact.SnykCodeData)
+			vulnerabilities = data.Vulnerabilities
 		}
 		if stage.ID == artifact.StageIDSnykDocker {
-			data := stage.Data.(map[string]interface{})
-			vulnerabilities := data["vulnerabilities"].(map[string]interface{})
-			result += vulnerabilities[severity].(float64)
+			data := stage.Data.(artifact.SnykDockerData)
+			vulnerabilities = data.Vulnerabilities
 		}
+		result += float64(field(vulnerabilities))
 	}
 	return int64(result + 0.5)
 }
