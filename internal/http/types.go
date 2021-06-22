@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
-	"github.com/lunarway/release-manager/internal/flux"
 	"github.com/lunarway/release-manager/internal/intent"
 )
 
@@ -75,22 +74,6 @@ type ReleaseResponse struct {
 	Tag           string `json:"tag,omitempty"`
 }
 
-type FluxNotifyResponse struct {
-}
-
-type FluxNotifyRequest struct {
-	Environment string `json:"environment,omitempty"`
-	FluxEvent   flux.Event
-}
-
-func (r FluxNotifyRequest) Validate(w http.ResponseWriter) bool {
-	var errs validationErrors
-	if emptyString(r.Environment) {
-		errs.Append("environment")
-	}
-	return errs.Evaluate(w)
-}
-
 type ReleaseEvent struct {
 	Name          string `json:"name,omitempty"`
 	Namespace     string `json:"namespace,omitempty"`
@@ -122,12 +105,12 @@ type JobConditionError struct {
 }
 
 type JobErrorEvent struct {
-	JobName     string           	`json:"jobName,omitempty"`
-	Namespace   string           	`json:"namespace,omitempty"`
-	Errors      []JobConditionError	`json:"errors,omitempty"`
-	AuthorEmail string           	`json:"authorEmail,omitempty"`
-	Environment string           	`json:"environment,omitempty"`
-	ArtifactID  string           	`json:"artifactId,omitempty"`
+	JobName     string              `json:"jobName,omitempty"`
+	Namespace   string              `json:"namespace,omitempty"`
+	Errors      []JobConditionError `json:"errors,omitempty"`
+	AuthorEmail string              `json:"authorEmail,omitempty"`
+	Environment string              `json:"environment,omitempty"`
+	ArtifactID  string              `json:"artifactId,omitempty"`
 }
 
 type KubernetesNotifyResponse struct {

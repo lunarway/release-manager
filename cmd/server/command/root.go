@@ -110,7 +110,6 @@ func NewRoot(version string) (*cobra.Command, error) {
 
 func registerSlackNotificationFlags(cmd *cobra.Command, opts *slack.MuteOptions) {
 	cmd.PersistentFlags().BoolVar(&opts.Kubernetes, "mute-slack-notification-k8s", false, "Enable/disable k8s slack notifications")
-	cmd.PersistentFlags().BoolVar(&opts.Flux, "mute-slack-notification-flux", false, "Enable/disable flux slack notifications")
 	cmd.PersistentFlags().BoolVar(&opts.Policy, "mute-slack-notification-policy", false, "Enable/disable policies slack notifications")
 	cmd.PersistentFlags().BoolVar(&opts.ReleaseProcessed, "mute-slack-notification-release-processed", false, "Enable/disable release processed slack notifications")
 }

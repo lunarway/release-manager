@@ -7,7 +7,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lunarway/release-manager/cmd/daemon/flux"
 	"github.com/lunarway/release-manager/cmd/daemon/kubernetes"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
@@ -16,12 +15,11 @@ import (
 )
 
 // Release Daemon wathces for the following changes
-// 1. Events from Flux on changes applied to the cluster
-// 2. Successful release of a new deployment
-// 3. Detects CrashLoopBackOff, fetches the specific pods log
-// 4. Detects CreateContainerConfigError, and fetches the message about the wrong config.
+// 1. Successful release of a new deployment
+// 2. Detects CrashLoopBackOff, fetches the specific pods log
+// 3. Detects CreateContainerConfigError, and fetches the message about the wrong config.
 func StartDaemon() *cobra.Command {
-	var environment, kubeConfigPath, fluxApiBinding string
+	var environment, kubeConfigPath string
 	var moduloCrashReportNotif float64
 	var logConfiguration *log.Configuration
 
@@ -45,24 +43,6 @@ func StartDaemon() *cobra.Command {
 			}
 
 			log.Info("Deamon started")
-
-			//  Handle flux events. Use http to communicate events back to release-manager.
-			go func() {
-				api := flux.NewAPI(&flux.ReleaseManagerExporter{
-					Log:         log.With("type", "flux-exporter"),
-					Client:      client,
-					Environment: environment,
-				}, log.With("type", "api"))
-
-				flux.HandleWebsocket(api)
-				flux.HandleV6(api)
-
-				err = api.Listen(fluxApiBinding)
-				if err != nil {
-					done <- errors.WithMessage(err, "flux-api: listen err")
-					return
-				}
-			}()
 
 			go func() {
 				for {
@@ -136,7 +116,6 @@ func StartDaemon() *cobra.Command {
 	command.Flags().DurationVar(&client.Timeout, "http-timeout", 20*time.Second, "HTTP request timeout")
 	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
 	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "path to kubeconfig file. If not specified, then daemon is expected to run inside kubernetes")
-	command.Flags().StringVar(&fluxApiBinding, "flux-api-binding", ":8080", "binding of the daemon flux api server")
 	command.Flags().Float64Var(&moduloCrashReportNotif, "modulo-crash-report-notif", 5, "modulo for how often to report CrashLoopBackOff events")
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.

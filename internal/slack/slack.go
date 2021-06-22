@@ -26,7 +26,6 @@ type Client struct {
 }
 
 type MuteOptions struct {
-	Flux                bool
 	Kubernetes          bool
 	Policy              bool
 	ReleaseProcessed    bool
@@ -46,7 +45,6 @@ func NewClient(slackClient SlackClient, emailMappings map[string]string, emailSu
 		log.Infof("slack: skipping: no token, so no slack notification")
 		return &Client{
 			muteOptions: MuteOptions{
-				Flux:                true,
 				Kubernetes:          true,
 				Policy:              true,
 				ReleaseProcessed:    true,
@@ -257,50 +255,6 @@ func (c *Client) NotifyAuthorEventProcessed(ctx context.Context, options Release
 		Title:      fmt.Sprintf(":rocket: Release Manager :white_check_mark:"),
 		Color:      MsgColorGreen,
 		Text:       fmt.Sprintf("Release for *%s* in %s processed\nArtifact: <%s|*%s*>", options.Service, options.Environment, options.CommitLink, options.ArtifactID),
-		MarkdownIn: []string{"text", "fields"},
-	})
-	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
-	if err != nil {
-		return err
-	}
-	return err
-}
-
-func (c *Client) NotifyFluxEventProcessed(ctx context.Context, artifactID, env, email, service string) error {
-	if c.muteOptions.Flux {
-		return nil
-	}
-	userID, err := c.getIdByEmail(ctx, email)
-	if err != nil {
-		return err
-	}
-	asUser := slack.MsgOptionAsUser(true)
-	attachments := slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":flux: Flux (%s) :white_check_mark:", env),
-		Color:      MsgColorGreen,
-		Text:       fmt.Sprintf("Rollout initiated for *%s*\nArtifact: %s", service, artifactID),
-		MarkdownIn: []string{"text", "fields"},
-	})
-	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
-	if err != nil {
-		return err
-	}
-	return err
-}
-
-func (c *Client) NotifyFluxErrorEvent(ctx context.Context, artifactID, env, email, service, errorMessage, errorPath string) error {
-	if c.muteOptions.Flux {
-		return nil
-	}
-	userID, err := c.getIdByEmail(ctx, email)
-	if err != nil {
-		return err
-	}
-	asUser := slack.MsgOptionAsUser(true)
-	attachments := slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":flux: Flux (%s) :no_entry:", env),
-		Color:      MsgColorRed,
-		Text:       fmt.Sprintf("Error detected for *%s*\nArtifact: %s\nPath: `%s`\n```%s```", service, artifactID, errorPath, errorMessage),
 		MarkdownIn: []string{"text", "fields"},
 	})
 	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)

@@ -170,30 +170,6 @@ func TestParseCommitInfo(t *testing.T) {
 				Intent:            intent.NewAutoRelease(),
 			},
 		},
-		{
-			name: "single line commit message from flux for auto release commit",
-			commitMessage: []string{
-				"[dev/finance-manager] auto release master-2f20470a40-0f65a98846 by nko@lunar.app",
-			},
-			commitInfo: CommitInfo{
-				ArtifactID:        "master-2f20470a40-0f65a98846",
-				Environment:       "dev",
-				Service:           "finance-manager",
-				ArtifactCreatedBy: NewPersonInfo("", ""),
-				ReleasedBy:        NewPersonInfo("", "nko@lunar.app"),
-				Intent:            intent.NewAutoRelease(),
-			},
-			correctCommitMessage: []string{
-				"[dev/finance-manager] auto release master-2f20470a40-0f65a98846 by nko@lunar.app",
-				"",
-				"Service: finance-manager",
-				"Environment: dev",
-				"Artifact-ID: master-2f20470a40-0f65a98846",
-				"Artifact-released-by:  <nko@lunar.app>",
-				"Artifact-created-by:  <>",
-				"Release-intent: AutoRelease",
-			},
-		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {

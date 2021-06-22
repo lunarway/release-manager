@@ -26,11 +26,6 @@ func parseIntent(cci ConventionalCommitInfo, commitMessageMatches []string) inte
 		if commitMessageMatches != nil && commitMessageMatches[parseCommitInfoFromCommitMessageRegexLookup.Type] == "rollback" {
 			return intent.NewRollback(commitMessageMatches[parseCommitInfoFromCommitMessageRegexLookup.PreviousArtifactID])
 		}
-		// flux only publishes the first line of commit messages so there will not
-		// be an intent field.
-		if commitMessageMatches != nil && commitMessageMatches[parseCommitInfoFromCommitMessageRegexLookup.Type] == "auto release" {
-			return intent.NewAutoRelease()
-		}
 		return intent.NewReleaseArtifact()
 	}
 }
