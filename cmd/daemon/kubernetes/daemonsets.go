@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"context"
 
-	"github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/lunarway/release-manager/internal/log"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -63,14 +63,14 @@ func (c *Client) HandleNewDaemonSets(ctx context.Context) error {
 			}
 
 			// Notify the release-manager with the successful deployment event.
-			err = c.exporter.SendSuccessfulReleaseEvent(ctx, http.ReleaseEvent{
+			err = c.exporter.SendSuccessfulReleaseEvent(ctx, models.DaemonKubernetesDeploymentWebhookRequest{
 				Name:          ds.Name,
 				Namespace:     ds.Namespace,
 				ResourceType:  "DaemonSet",
 				ArtifactID:    ds.Annotations["lunarway.com/artifact-id"],
 				AuthorEmail:   ds.Annotations["lunarway.com/author"],
-				AvailablePods: ds.Status.NumberAvailable,
-				DesiredPods:   ds.Status.DesiredNumberScheduled,
+				AvailablePods: int64(ds.Status.NumberAvailable),
+				DesiredPods:   int64(ds.Status.DesiredNumberScheduled),
 			})
 			if err != nil {
 				log.Errorf("Failed to send successful daemonset event: %v", err)

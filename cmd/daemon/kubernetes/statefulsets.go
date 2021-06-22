@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"context"
 
-	"github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/prometheus/common/log"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -63,14 +63,14 @@ func (c *Client) HandleNewStatefulSets(ctx context.Context) error {
 			}
 
 			// Notify the release-manager with the successful deployment event.
-			err = c.exporter.SendSuccessfulReleaseEvent(ctx, http.ReleaseEvent{
+			err = c.exporter.SendSuccessfulReleaseEvent(ctx, models.DaemonKubernetesDeploymentWebhookRequest{
 				Name:          ss.Name,
 				Namespace:     ss.Namespace,
 				ResourceType:  "StatefulSet",
 				ArtifactID:    ss.Annotations["lunarway.com/artifact-id"],
 				AuthorEmail:   ss.Annotations["lunarway.com/author"],
-				AvailablePods: ss.Status.ReadyReplicas,
-				DesiredPods:   ss.Status.Replicas,
+				AvailablePods: int64(ss.Status.ReadyReplicas),
+				DesiredPods:   int64(ss.Status.Replicas),
 			})
 			if err != nil {
 				log.Errorf("Failed to send successful statefulset event: %v", err)

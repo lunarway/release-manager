@@ -2,13 +2,18 @@ package command
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/strfmt"
+	"github.com/google/uuid"
 	"github.com/lunarway/release-manager/cmd/daemon/kubernetes"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
+	releasemanagerclient "github.com/lunarway/release-manager/generated/http/client"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -22,8 +27,8 @@ func StartDaemon() *cobra.Command {
 	var environment, kubeConfigPath string
 	var moduloCrashReportNotif float64
 	var logConfiguration *log.Configuration
-
-	client := httpinternal.Client{}
+	var releaseManagerBaseURL, releaseManagerToken string
+	var releaseManagerTimeout time.Duration
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-daemon",
@@ -33,9 +38,12 @@ func StartDaemon() *cobra.Command {
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 
+			client, auth := newClient(releaseManagerBaseURL, releaseManagerToken, releaseManagerTimeout)
+
 			kubectl, err := kubernetes.NewClient(kubeConfigPath, moduloCrashReportNotif, &kubernetes.ReleaseManagerExporter{
 				Log:         log.With("type", "k8s-exporter"),
-				Client:      client,
+				Client:      client.Webhook,
+				ClientAuth:  auth,
 				Environment: environment,
 			})
 			if err != nil {
@@ -111,9 +119,9 @@ func StartDaemon() *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&client.BaseURL, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")
-	command.Flags().StringVar(&client.Metadata.AuthToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
-	command.Flags().DurationVar(&client.Timeout, "http-timeout", 20*time.Second, "HTTP request timeout")
+	command.Flags().StringVar(&releaseManagerBaseURL, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")
+	command.Flags().StringVar(&releaseManagerToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
+	command.Flags().DurationVar(&releaseManagerTimeout, "http-timeout", 20*time.Second, "HTTP request timeout")
 	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
 	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "path to kubeconfig file. If not specified, then daemon is expected to run inside kubernetes")
 	command.Flags().Float64Var(&moduloCrashReportNotif, "modulo-crash-report-notif", 5, "modulo for how often to report CrashLoopBackOff events")
@@ -123,4 +131,43 @@ func StartDaemon() *cobra.Command {
 	command.MarkFlagRequired("environment")
 	logConfiguration = log.RegisterFlags(command)
 	return command
+}
+
+func newClient(baseURL, token string, timeout time.Duration) (*releasemanagerclient.ReleaseManagerServerAPI, runtime.ClientAuthInfoWriter) {
+	transport := client.New(baseURL, "", nil)
+	transport.Transport = &Roundtripper{
+		underlyingTransport: http.DefaultTransport,
+	}
+
+	bearerTokenAuth := client.BearerToken(token)
+	client := releasemanagerclient.New(transport, strfmt.Default)
+
+	return client, bearerTokenAuth
+}
+
+var _ http.RoundTripper = &Roundtripper{}
+
+type Roundtripper struct {
+	underlyingTransport http.RoundTripper
+	Timeout             time.Duration
+	CLIVersion          string
+	CallerEmail         string
+}
+
+func (r *Roundtripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	ctx, cancel := context.WithTimeout(req.Context(), r.Timeout)
+	defer cancel()
+	*req = *req.WithContext(ctx)
+
+	id, err := uuid.NewRandom()
+	if err == nil {
+		req.Header.Set("x-request-id", id.String())
+	}
+	if r.CLIVersion != "" {
+		req.Header.Set("X-Cli-Version", r.CLIVersion)
+	}
+	if r.CallerEmail != "" {
+		req.Header.Set("X-Caller-Email", r.CallerEmail)
+	}
+	return r.underlyingTransport.RoundTrip(req)
 }

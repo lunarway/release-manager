@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"context"
 
-	"github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/lunarway/release-manager/internal/log"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,14 +64,14 @@ func (c *Client) HandleNewDeployments(ctx context.Context) error {
 			}
 
 			// Notify the release-manager with the successful deployment event.
-			err = c.exporter.SendSuccessfulReleaseEvent(ctx, http.ReleaseEvent{
+			err = c.exporter.SendSuccessfulReleaseEvent(ctx, models.DaemonKubernetesDeploymentWebhookRequest{
 				Name:          deploy.Name,
 				Namespace:     deploy.Namespace,
 				ResourceType:  "Deployment",
 				ArtifactID:    deploy.Annotations["lunarway.com/artifact-id"],
 				AuthorEmail:   deploy.Annotations["lunarway.com/author"],
-				AvailablePods: deploy.Status.AvailableReplicas,
-				DesiredPods:   *deploy.Spec.Replicas,
+				AvailablePods: int64(deploy.Status.AvailableReplicas),
+				DesiredPods:   int64(*deploy.Spec.Replicas),
 			})
 			if err != nil {
 				log.Errorf("Failed to send successful deployment event: %v", err)

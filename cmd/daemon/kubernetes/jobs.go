@@ -2,11 +2,12 @@ package kubernetes
 
 import (
 	"context"
-	"github.com/lunarway/release-manager/internal/http"
+
+	"github.com/lunarway/release-manager/generated/http/models"
 	"github.com/lunarway/release-manager/internal/log"
 	batchv1 "k8s.io/api/batch/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
@@ -41,7 +42,7 @@ func (c *Client) HandleJobErrors(ctx context.Context) error {
 
 			if isJobFailed(job) {
 				// Notify the release-manager with the job error event.
-				err = c.exporter.SendJobErrorEvent(ctx, http.JobErrorEvent{
+				err = c.exporter.SendJobErrorEvent(ctx, models.DaemonKubernetesJobErrorWebhookRequest{
 					JobName:     job.Name,
 					Namespace:   job.Namespace,
 					Errors:      jobErrorMessages(job),
@@ -69,12 +70,12 @@ func isJobFailed(job *batchv1.Job) bool {
 	return false
 }
 
-func jobErrorMessages(job *batchv1.Job) []http.JobConditionError {
-	var errors []http.JobConditionError
+func jobErrorMessages(job *batchv1.Job) []*models.DaemonKubernetesJobErrorWebhookRequestErrorsItems0 {
+	var errors []*models.DaemonKubernetesJobErrorWebhookRequestErrorsItems0
 
 	for _, condition := range job.Status.Conditions {
 		if condition.Status == corev1.ConditionTrue && condition.Type == batchv1.JobFailed {
-			errors = append(errors, http.JobConditionError {
+			errors = append(errors, &models.DaemonKubernetesJobErrorWebhookRequestErrorsItems0{
 				Reason:  condition.Reason,
 				Message: condition.Message,
 			})
