@@ -10,8 +10,9 @@ This project is used as an internal project at Lunar and it therefore contains s
 We will however, have it public available for reference. This might change over time.
 
 # Design
+
 The release-manager consist of 4 different "microservices" with each having a specific responsibility in the pipeline. The applications are basically utilities for moving files around a Git repository.
- The four applications are:
+The four applications are:
 
 | Application | Description                                                                                                                                                          |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -28,10 +29,12 @@ The applications are not enough to complete the flow. We utilize jenkins as a CI
 # Components
 
 ## Artifact
+
 `artifact` is used to generate, what we refer to as artifacts. These are just a json-blob containing relevant information from the Continuous Integration flow.
 As mentioned we use `shuttle` in our jenkins to minimize the custom "CI" code we have to write, making it portable, if we decide to change CI solution at some point. The id's of the artifacts, are composed of `<Branch>-<Source Repository>-<Plan Repository>`.
 
 An example of a generated `artifact.json`
+
 ```json
 {
   "id": "dev-0017d995e3-67e9d69164",
@@ -107,6 +110,7 @@ An example of a generated `artifact.json`
 ## Server
 
 ### Promote
+
 The promotion flows, is a convetion based release process. It can be invoked by `hamctl` as follows:
 
 ```
@@ -121,9 +125,11 @@ Another example, is a promotion of an artifact running in, e.g. staging, to the 
 ```
 $ hamctl promote --service example --env prod
 ```
+
 The above locates what is running in the `staging` environment, and takes the necessary steps to run the same artifact in `prod`.
 
 ### Release
+
 The release flow, is a more liberal release process. There is no conventions in how artifacts move between environments. This makes it suitable for releasing `hotfix`-branches to production or `feature`-branches to a specific environment for testing before merging into `master`.
 
 The release flow currently consist of two approaches, either the release of the lastest artifact from a given branch, or a specific artifact id.
@@ -173,7 +179,7 @@ prod:
   Date: 2019-04-01 11:14:26 +0200 CEST
   Link: https://jenkins.example.lunarway.com/job/bitbucket/job/lunar-way-example-service/job/master/132/display/redirect
   Vulnerabilities: 0 high, 0 medium, 0 low
-````
+```
 
 ### Policies
 
@@ -295,7 +301,6 @@ hamctl completion --help
 
 `daemon` uses a token-based authentication model for interacting with the release-manager. This token can be set using the command-line argument `--auth-token` or the ENV variable: `HAMCTL_AUTH_TOKEN`
 
-
 # Storage
 
 Multiple entities are stored in different storage layers to allow the release manager to work.
@@ -359,6 +364,7 @@ Resources starting with `00_` will skip resource validation. CustomResourceDefin
 # Installation
 
 ## Access to the config repository
+
 The release manager needs read/write permissions to the config repo.
 
 To create a secret that the release manager can consume: (expects that the filename is identity)
@@ -415,10 +421,8 @@ To use the e2e setup there are the following actions supported:
 | Watch manager            | `make e2e-rebuild-local-manager` | Watch source code changes and rebuild the manager and restart pod in e2e cluster. Requires `nodemon` |
 | Watch daemon             | `make e2e-rebuild-local-daemon`  | Like "Watch manager" but for the daemon                                                              |
 | Do dummy release         | `make e2e-do-release`            | Do a release in git repo to trigger fluxd change                                                     |
-| Do failing dummy release | `make e2e-do-bad-release`        | Do a bad release in git repo to trigger fluxd error                                                  |
 | Do another dummy release | `make e2e-do-another-release`    | Do another kind of release in git repo to trigger fluxd change                                       |
 | Stop e2e setup           | `make e2e-teardown`              | Stop and cleanup the e2e setup                                                                       |
-
 
 # Release
 

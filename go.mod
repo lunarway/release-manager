@@ -10,7 +10,6 @@ require (
 	github.com/go-git/go-git/v5 v5.2.0
 	github.com/google/uuid v1.2.0
 	github.com/googleapis/gnostic v0.3.1 // indirect
-	github.com/gorilla/websocket v1.4.2
 	github.com/johannesboyne/gofakes3 v0.0.0-20210608054100-92d5d4af5fde
 	github.com/lunarway/color v1.7.0
 	github.com/makasim/amqpextra v0.16.3
@@ -27,7 +26,6 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/uber/jaeger-client-go v2.25.0+incompatible
 	github.com/uber/jaeger-lib v2.4.0+incompatible
-	go.opencensus.io v0.22.5
 	go.uber.org/multierr v1.6.0
 	go.uber.org/zap v1.16.0
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect

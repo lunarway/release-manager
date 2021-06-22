@@ -323,18 +323,6 @@ data:\n\
 	git add .;\
 	git commit -m "[env/service] release master-5975d93540-ddcd22312b by kni@lunar.app"
 
-e2e-do-bad-release:
-	echo "apiVersion: v1\n\
-kind: ConfigMap\n\
-metadata:\n\
-  name: test\n\
-  namespace: default\n\
-baddata:\n\
-  somevalue: $$(date)" > ./e2e-test/source-git-repo/local/releases/default/test.yaml
-	cd ./e2e-test/source-git-repo;\
-	git add .;\
-	git commit -m "[env/service] release master-5975d93540-ddcd22312b by kni@lunar.app"
-
 e2e-do-duplicate-release:
 	echo "apiVersion: v1\n\
 kind: ConfigMap\n\
