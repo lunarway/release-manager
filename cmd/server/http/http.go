@@ -37,7 +37,6 @@ func NewServer(opts *Options, tracer tracing.Tracer, handlers []HandlerFactory) 
 	swaggerAPI.HamctlAuthorizationTokenAuth = authenticate(opts.HamCtlAuthToken)
 	swaggerAPI.DaemonAuthorizationTokenAuth = authenticate(opts.DaemonAuthToken)
 	swaggerAPI.ArtifactAuthorizationTokenAuth = authenticate(opts.ArtifactAuthToken)
-	// TODO: swaggerAPI.APIAuthorizer = runtime.AuthorizerFunc(func(r *http.Request, i interface{}) error {})
 
 	for _, handler := range handlers {
 		handler(swaggerAPI)
@@ -114,6 +113,8 @@ func authenticate(token string) func(token string) (principal interface{}, err e
 		if t != token {
 			return nil, fmt.Errorf("please provide a valid authentication token")
 		}
-		return nil, nil
+		// It is required by swagger to return a non-nil value as principal so we
+		// return an empty struct as we have no principal value that makes sense.
+		return struct{}{}, nil
 	}
 }
