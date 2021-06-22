@@ -70,6 +70,9 @@ func init() {
               }
             }
           },
+          "401": {
+            "$ref": "#/responses/AccessDenied"
+          },
           "404": {
             "description": "Invalid payload",
             "schema": {
@@ -129,6 +132,9 @@ func init() {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "401": {
+            "$ref": "#/responses/AccessDenied"
+          },
           "500": {
             "description": "Error response",
             "schema": {
@@ -175,6 +181,9 @@ func init() {
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
+          },
+          "401": {
+            "$ref": "#/responses/AccessDenied"
           },
           "500": {
             "description": "Error response",
@@ -236,6 +245,9 @@ func init() {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "401": {
+            "$ref": "#/responses/AccessDenied"
+          },
           "500": {
             "description": "Error response",
             "schema": {
@@ -296,6 +308,9 @@ func init() {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "401": {
+            "$ref": "#/responses/AccessDenied"
+          },
           "404": {
             "description": "Invalid payload",
             "schema": {
@@ -341,6 +356,9 @@ func init() {
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
+          },
+          "401": {
+            "$ref": "#/responses/AccessDenied"
           },
           "404": {
             "description": "Invalid payload",
@@ -396,6 +414,9 @@ func init() {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "401": {
+            "$ref": "#/responses/AccessDenied"
+          },
           "500": {
             "description": "Error response",
             "schema": {
@@ -443,6 +464,9 @@ func init() {
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
+          },
+          "401": {
+            "$ref": "#/responses/AccessDenied"
           },
           "500": {
             "description": "Error response",
@@ -498,6 +522,9 @@ func init() {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "401": {
+            "$ref": "#/responses/AccessDenied"
+          },
           "500": {
             "description": "Error response",
             "schema": {
@@ -550,6 +577,9 @@ func init() {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "401": {
+            "$ref": "#/responses/AccessDenied"
+          },
           "500": {
             "description": "Error response",
             "schema": {
@@ -587,6 +617,9 @@ func init() {
             "schema": {
               "$ref": "#/definitions/EmptyWebhookResponse"
             }
+          },
+          "401": {
+            "$ref": "#/responses/AccessDenied"
           }
         }
       }
@@ -619,6 +652,9 @@ func init() {
             "schema": {
               "$ref": "#/definitions/EmptyWebhookResponse"
             }
+          },
+          "401": {
+            "$ref": "#/responses/AccessDenied"
           }
         }
       }
@@ -651,6 +687,9 @@ func init() {
             "schema": {
               "$ref": "#/definitions/EmptyWebhookResponse"
             }
+          },
+          "401": {
+            "$ref": "#/responses/AccessDenied"
           },
           "500": {
             "description": "Error response",
@@ -1468,8 +1507,8 @@ func init() {
     }
   },
   "responses": {
-    "AccessTokenNotFound": {
-      "description": "The provided access token was not found.",
+    "AccessDenied": {
+      "description": "Provided access token was not found or is invalid",
       "schema": {
         "$ref": "#/definitions/ErrorResponse"
       }
@@ -1571,6 +1610,12 @@ func init() {
               }
             }
           },
+          "401": {
+            "description": "Provided access token was not found or is invalid",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "404": {
             "description": "Invalid payload",
             "schema": {
@@ -1630,6 +1675,12 @@ func init() {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "401": {
+            "description": "Provided access token was not found or is invalid",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "500": {
             "description": "Error response",
             "schema": {
@@ -1673,6 +1724,12 @@ func init() {
           },
           "400": {
             "description": "Invalid payload",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Provided access token was not found or is invalid",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -1737,6 +1794,12 @@ func init() {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "401": {
+            "description": "Provided access token was not found or is invalid",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "500": {
             "description": "Error response",
             "schema": {
@@ -1797,6 +1860,12 @@ func init() {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "401": {
+            "description": "Provided access token was not found or is invalid",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "404": {
             "description": "Invalid payload",
             "schema": {
@@ -1839,6 +1908,12 @@ func init() {
           },
           "400": {
             "description": "Invalid payload",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Provided access token was not found or is invalid",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -1897,6 +1972,12 @@ func init() {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "401": {
+            "description": "Provided access token was not found or is invalid",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "500": {
             "description": "Error response",
             "schema": {
@@ -1941,6 +2022,12 @@ func init() {
           },
           "400": {
             "description": "Invalid payload",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Provided access token was not found or is invalid",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -1999,6 +2086,12 @@ func init() {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "401": {
+            "description": "Provided access token was not found or is invalid",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "500": {
             "description": "Error response",
             "schema": {
@@ -2051,6 +2144,12 @@ func init() {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "401": {
+            "description": "Provided access token was not found or is invalid",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "500": {
             "description": "Error response",
             "schema": {
@@ -2088,6 +2187,12 @@ func init() {
             "schema": {
               "$ref": "#/definitions/EmptyWebhookResponse"
             }
+          },
+          "401": {
+            "description": "Provided access token was not found or is invalid",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
           }
         }
       }
@@ -2120,6 +2225,12 @@ func init() {
             "schema": {
               "$ref": "#/definitions/EmptyWebhookResponse"
             }
+          },
+          "401": {
+            "description": "Provided access token was not found or is invalid",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
           }
         }
       }
@@ -2151,6 +2262,12 @@ func init() {
             "description": "OK",
             "schema": {
               "$ref": "#/definitions/EmptyWebhookResponse"
+            }
+          },
+          "401": {
+            "description": "Provided access token was not found or is invalid",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
             }
           },
           "500": {
@@ -3153,8 +3270,8 @@ func init() {
     }
   },
   "responses": {
-    "AccessTokenNotFound": {
-      "description": "The provided access token was not found.",
+    "AccessDenied": {
+      "description": "Provided access token was not found or is invalid",
       "schema": {
         "$ref": "#/definitions/ErrorResponse"
       }

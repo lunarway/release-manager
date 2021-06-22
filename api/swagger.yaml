@@ -18,8 +18,8 @@ tags:
   - name: internal
 
 responses:
-  AccessTokenNotFound:
-    description: The provided access token was not found.
+  AccessDenied:
+    description: Provided access token was not found or is invalid
     schema:
       $ref: "#/definitions/ErrorResponse"
 securityDefinitions:
@@ -83,6 +83,8 @@ paths:
           description: Invalid payload
           schema:
             $ref: "#/definitions/ErrorResponse"
+        401:
+          $ref: "#/responses/AccessDenied"
         500:
           description: Error response
           schema:
@@ -116,6 +118,8 @@ paths:
             Access-Control-Allow-Origin:
               type: string
               description: Allowed origins
+        401:
+          $ref: "#/responses/AccessDenied"
         404:
           description: Invalid payload
           schema:
@@ -151,6 +155,8 @@ paths:
           description: Invalid payload
           schema:
             $ref: "#/definitions/ErrorResponse"
+        401:
+          $ref: "#/responses/AccessDenied"
         500:
           description: Error response
           schema:
@@ -193,6 +199,8 @@ paths:
           description: Invalid payload
           schema:
             $ref: "#/definitions/ErrorResponse"
+        401:
+          $ref: "#/responses/AccessDenied"
         500:
           description: Error response
           schema:
@@ -230,6 +238,8 @@ paths:
           description: Invalid payload
           schema:
             $ref: "#/definitions/ErrorResponse"
+        401:
+          $ref: "#/responses/AccessDenied"
         500:
           description: Error response
           schema:
@@ -261,6 +271,8 @@ paths:
           description: Invalid payload
           schema:
             $ref: "#/definitions/ErrorResponse"
+        401:
+          $ref: "#/responses/AccessDenied"
         500:
           description: Error response
           schema:
@@ -287,6 +299,8 @@ paths:
           description: Invalid payload
           schema:
             $ref: "#/definitions/ErrorResponse"
+        401:
+          $ref: "#/responses/AccessDenied"
         404:
           description: Invalid payload
           schema:
@@ -317,6 +331,8 @@ paths:
           description: Invalid payload
           schema:
             $ref: "#/definitions/ErrorResponse"
+        401:
+          $ref: "#/responses/AccessDenied"
         404:
           description: Invalid payload
           schema:
@@ -352,6 +368,8 @@ paths:
           description: Invalid payload
           schema:
             $ref: "#/definitions/ErrorResponse"
+        401:
+          $ref: "#/responses/AccessDenied"
         500:
           description: Error response
           schema:
@@ -383,6 +401,8 @@ paths:
           description: Invalid payload
           schema:
             $ref: "#/definitions/ErrorResponse"
+        401:
+          $ref: "#/responses/AccessDenied"
         500:
           description: Error response
           schema:
@@ -424,6 +444,8 @@ paths:
           description: OK
           schema:
             $ref: "#/definitions/EmptyWebhookResponse"
+        401:
+          $ref: "#/responses/AccessDenied"
   /webhook/daemon/k8s/error:
     post:
       description: Daemon webhook for kubernetes error events
@@ -443,6 +465,8 @@ paths:
           description: OK
           schema:
             $ref: "#/definitions/EmptyWebhookResponse"
+        401:
+          $ref: "#/responses/AccessDenied"
   /webhook/daemon/k8s/joberror:
     post:
       description: Daemon webhook for kubernetes job error events
@@ -462,6 +486,8 @@ paths:
           description: OK
           schema:
             $ref: "#/definitions/EmptyWebhookResponse"
+        401:
+          $ref: "#/responses/AccessDenied"
         500:
           description: Error response
           schema:

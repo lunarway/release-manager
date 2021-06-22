@@ -101,6 +101,50 @@ func (o *GetDescribeReleaseServiceEnvironmentBadRequest) WriteResponse(rw http.R
 	}
 }
 
+// GetDescribeReleaseServiceEnvironmentUnauthorizedCode is the HTTP code returned for type GetDescribeReleaseServiceEnvironmentUnauthorized
+const GetDescribeReleaseServiceEnvironmentUnauthorizedCode int = 401
+
+/*GetDescribeReleaseServiceEnvironmentUnauthorized Provided access token was not found or is invalid
+
+swagger:response getDescribeReleaseServiceEnvironmentUnauthorized
+*/
+type GetDescribeReleaseServiceEnvironmentUnauthorized struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.ErrorResponse `json:"body,omitempty"`
+}
+
+// NewGetDescribeReleaseServiceEnvironmentUnauthorized creates GetDescribeReleaseServiceEnvironmentUnauthorized with default headers values
+func NewGetDescribeReleaseServiceEnvironmentUnauthorized() *GetDescribeReleaseServiceEnvironmentUnauthorized {
+
+	return &GetDescribeReleaseServiceEnvironmentUnauthorized{}
+}
+
+// WithPayload adds the payload to the get describe release service environment unauthorized response
+func (o *GetDescribeReleaseServiceEnvironmentUnauthorized) WithPayload(payload *models.ErrorResponse) *GetDescribeReleaseServiceEnvironmentUnauthorized {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the get describe release service environment unauthorized response
+func (o *GetDescribeReleaseServiceEnvironmentUnauthorized) SetPayload(payload *models.ErrorResponse) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *GetDescribeReleaseServiceEnvironmentUnauthorized) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(401)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}
+
 // GetDescribeReleaseServiceEnvironmentInternalServerErrorCode is the HTTP code returned for type GetDescribeReleaseServiceEnvironmentInternalServerError
 const GetDescribeReleaseServiceEnvironmentInternalServerErrorCode int = 500
 

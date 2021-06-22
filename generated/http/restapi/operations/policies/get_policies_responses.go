@@ -101,6 +101,50 @@ func (o *GetPoliciesBadRequest) WriteResponse(rw http.ResponseWriter, producer r
 	}
 }
 
+// GetPoliciesUnauthorizedCode is the HTTP code returned for type GetPoliciesUnauthorized
+const GetPoliciesUnauthorizedCode int = 401
+
+/*GetPoliciesUnauthorized Provided access token was not found or is invalid
+
+swagger:response getPoliciesUnauthorized
+*/
+type GetPoliciesUnauthorized struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.ErrorResponse `json:"body,omitempty"`
+}
+
+// NewGetPoliciesUnauthorized creates GetPoliciesUnauthorized with default headers values
+func NewGetPoliciesUnauthorized() *GetPoliciesUnauthorized {
+
+	return &GetPoliciesUnauthorized{}
+}
+
+// WithPayload adds the payload to the get policies unauthorized response
+func (o *GetPoliciesUnauthorized) WithPayload(payload *models.ErrorResponse) *GetPoliciesUnauthorized {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the get policies unauthorized response
+func (o *GetPoliciesUnauthorized) SetPayload(payload *models.ErrorResponse) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *GetPoliciesUnauthorized) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(401)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}
+
 // GetPoliciesNotFoundCode is the HTTP code returned for type GetPoliciesNotFound
 const GetPoliciesNotFoundCode int = 404
 

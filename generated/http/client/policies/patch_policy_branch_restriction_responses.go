@@ -35,6 +35,12 @@ func (o *PatchPolicyBranchRestrictionReader) ReadResponse(response runtime.Clien
 			return nil, err
 		}
 		return nil, result
+	case 401:
+		result := NewPatchPolicyBranchRestrictionUnauthorized()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	case 500:
 		result := NewPatchPolicyBranchRestrictionInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -105,6 +111,38 @@ func (o *PatchPolicyBranchRestrictionBadRequest) GetPayload() *models.ErrorRespo
 }
 
 func (o *PatchPolicyBranchRestrictionBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.ErrorResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewPatchPolicyBranchRestrictionUnauthorized creates a PatchPolicyBranchRestrictionUnauthorized with default headers values
+func NewPatchPolicyBranchRestrictionUnauthorized() *PatchPolicyBranchRestrictionUnauthorized {
+	return &PatchPolicyBranchRestrictionUnauthorized{}
+}
+
+/* PatchPolicyBranchRestrictionUnauthorized describes a response with status code 401, with default header values.
+
+Provided access token was not found or is invalid
+*/
+type PatchPolicyBranchRestrictionUnauthorized struct {
+	Payload *models.ErrorResponse
+}
+
+func (o *PatchPolicyBranchRestrictionUnauthorized) Error() string {
+	return fmt.Sprintf("[PATCH /policy/branch-restriction][%d] patchPolicyBranchRestrictionUnauthorized  %+v", 401, o.Payload)
+}
+func (o *PatchPolicyBranchRestrictionUnauthorized) GetPayload() *models.ErrorResponse {
+	return o.Payload
+}
+
+func (o *PatchPolicyBranchRestrictionUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.ErrorResponse)
 

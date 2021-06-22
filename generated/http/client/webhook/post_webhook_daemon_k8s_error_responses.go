@@ -29,6 +29,12 @@ func (o *PostWebhookDaemonK8sErrorReader) ReadResponse(response runtime.ClientRe
 			return nil, err
 		}
 		return result, nil
+	case 401:
+		result := NewPostWebhookDaemonK8sErrorUnauthorized()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -58,6 +64,38 @@ func (o *PostWebhookDaemonK8sErrorOK) readResponse(response runtime.ClientRespon
 
 	// response payload
 	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewPostWebhookDaemonK8sErrorUnauthorized creates a PostWebhookDaemonK8sErrorUnauthorized with default headers values
+func NewPostWebhookDaemonK8sErrorUnauthorized() *PostWebhookDaemonK8sErrorUnauthorized {
+	return &PostWebhookDaemonK8sErrorUnauthorized{}
+}
+
+/* PostWebhookDaemonK8sErrorUnauthorized describes a response with status code 401, with default header values.
+
+Provided access token was not found or is invalid
+*/
+type PostWebhookDaemonK8sErrorUnauthorized struct {
+	Payload *models.ErrorResponse
+}
+
+func (o *PostWebhookDaemonK8sErrorUnauthorized) Error() string {
+	return fmt.Sprintf("[POST /webhook/daemon/k8s/error][%d] postWebhookDaemonK8sErrorUnauthorized  %+v", 401, o.Payload)
+}
+func (o *PostWebhookDaemonK8sErrorUnauthorized) GetPayload() *models.ErrorResponse {
+	return o.Payload
+}
+
+func (o *PostWebhookDaemonK8sErrorUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.ErrorResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
 		return err
 	}
 

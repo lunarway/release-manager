@@ -35,6 +35,12 @@ func (o *PostReleaseReader) ReadResponse(response runtime.ClientResponse, consum
 			return nil, err
 		}
 		return nil, result
+	case 401:
+		result := NewPostReleaseUnauthorized()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	case 500:
 		result := NewPostReleaseInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -117,6 +123,38 @@ func (o *PostReleaseBadRequest) GetPayload() *models.ErrorResponse {
 }
 
 func (o *PostReleaseBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.ErrorResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewPostReleaseUnauthorized creates a PostReleaseUnauthorized with default headers values
+func NewPostReleaseUnauthorized() *PostReleaseUnauthorized {
+	return &PostReleaseUnauthorized{}
+}
+
+/* PostReleaseUnauthorized describes a response with status code 401, with default header values.
+
+Provided access token was not found or is invalid
+*/
+type PostReleaseUnauthorized struct {
+	Payload *models.ErrorResponse
+}
+
+func (o *PostReleaseUnauthorized) Error() string {
+	return fmt.Sprintf("[POST /release][%d] postReleaseUnauthorized  %+v", 401, o.Payload)
+}
+func (o *PostReleaseUnauthorized) GetPayload() *models.ErrorResponse {
+	return o.Payload
+}
+
+func (o *PostReleaseUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.ErrorResponse)
 

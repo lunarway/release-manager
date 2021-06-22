@@ -101,6 +101,50 @@ func (o *DeletePoliciesBadRequest) WriteResponse(rw http.ResponseWriter, produce
 	}
 }
 
+// DeletePoliciesUnauthorizedCode is the HTTP code returned for type DeletePoliciesUnauthorized
+const DeletePoliciesUnauthorizedCode int = 401
+
+/*DeletePoliciesUnauthorized Provided access token was not found or is invalid
+
+swagger:response deletePoliciesUnauthorized
+*/
+type DeletePoliciesUnauthorized struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.ErrorResponse `json:"body,omitempty"`
+}
+
+// NewDeletePoliciesUnauthorized creates DeletePoliciesUnauthorized with default headers values
+func NewDeletePoliciesUnauthorized() *DeletePoliciesUnauthorized {
+
+	return &DeletePoliciesUnauthorized{}
+}
+
+// WithPayload adds the payload to the delete policies unauthorized response
+func (o *DeletePoliciesUnauthorized) WithPayload(payload *models.ErrorResponse) *DeletePoliciesUnauthorized {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the delete policies unauthorized response
+func (o *DeletePoliciesUnauthorized) SetPayload(payload *models.ErrorResponse) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *DeletePoliciesUnauthorized) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(401)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}
+
 // DeletePoliciesNotFoundCode is the HTTP code returned for type DeletePoliciesNotFound
 const DeletePoliciesNotFoundCode int = 404
 

@@ -123,6 +123,50 @@ func (o *PostReleaseBadRequest) WriteResponse(rw http.ResponseWriter, producer r
 	}
 }
 
+// PostReleaseUnauthorizedCode is the HTTP code returned for type PostReleaseUnauthorized
+const PostReleaseUnauthorizedCode int = 401
+
+/*PostReleaseUnauthorized Provided access token was not found or is invalid
+
+swagger:response postReleaseUnauthorized
+*/
+type PostReleaseUnauthorized struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.ErrorResponse `json:"body,omitempty"`
+}
+
+// NewPostReleaseUnauthorized creates PostReleaseUnauthorized with default headers values
+func NewPostReleaseUnauthorized() *PostReleaseUnauthorized {
+
+	return &PostReleaseUnauthorized{}
+}
+
+// WithPayload adds the payload to the post release unauthorized response
+func (o *PostReleaseUnauthorized) WithPayload(payload *models.ErrorResponse) *PostReleaseUnauthorized {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the post release unauthorized response
+func (o *PostReleaseUnauthorized) SetPayload(payload *models.ErrorResponse) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *PostReleaseUnauthorized) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(401)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}
+
 // PostReleaseInternalServerErrorCode is the HTTP code returned for type PostReleaseInternalServerError
 const PostReleaseInternalServerErrorCode int = 500
 

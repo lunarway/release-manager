@@ -101,6 +101,50 @@ func (o *PatchPolicyAutoReleaseBadRequest) WriteResponse(rw http.ResponseWriter,
 	}
 }
 
+// PatchPolicyAutoReleaseUnauthorizedCode is the HTTP code returned for type PatchPolicyAutoReleaseUnauthorized
+const PatchPolicyAutoReleaseUnauthorizedCode int = 401
+
+/*PatchPolicyAutoReleaseUnauthorized Provided access token was not found or is invalid
+
+swagger:response patchPolicyAutoReleaseUnauthorized
+*/
+type PatchPolicyAutoReleaseUnauthorized struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.ErrorResponse `json:"body,omitempty"`
+}
+
+// NewPatchPolicyAutoReleaseUnauthorized creates PatchPolicyAutoReleaseUnauthorized with default headers values
+func NewPatchPolicyAutoReleaseUnauthorized() *PatchPolicyAutoReleaseUnauthorized {
+
+	return &PatchPolicyAutoReleaseUnauthorized{}
+}
+
+// WithPayload adds the payload to the patch policy auto release unauthorized response
+func (o *PatchPolicyAutoReleaseUnauthorized) WithPayload(payload *models.ErrorResponse) *PatchPolicyAutoReleaseUnauthorized {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the patch policy auto release unauthorized response
+func (o *PatchPolicyAutoReleaseUnauthorized) SetPayload(payload *models.ErrorResponse) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *PatchPolicyAutoReleaseUnauthorized) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(401)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}
+
 // PatchPolicyAutoReleaseInternalServerErrorCode is the HTTP code returned for type PatchPolicyAutoReleaseInternalServerError
 const PatchPolicyAutoReleaseInternalServerErrorCode int = 500
 

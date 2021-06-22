@@ -35,6 +35,12 @@ func (o *GetDescribeLatestArtifactServiceReader) ReadResponse(response runtime.C
 			return nil, err
 		}
 		return nil, result
+	case 401:
+		result := NewGetDescribeLatestArtifactServiceUnauthorized()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	case 500:
 		result := NewGetDescribeLatestArtifactServiceInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -99,6 +105,38 @@ func (o *GetDescribeLatestArtifactServiceBadRequest) GetPayload() *models.ErrorR
 }
 
 func (o *GetDescribeLatestArtifactServiceBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.ErrorResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewGetDescribeLatestArtifactServiceUnauthorized creates a GetDescribeLatestArtifactServiceUnauthorized with default headers values
+func NewGetDescribeLatestArtifactServiceUnauthorized() *GetDescribeLatestArtifactServiceUnauthorized {
+	return &GetDescribeLatestArtifactServiceUnauthorized{}
+}
+
+/* GetDescribeLatestArtifactServiceUnauthorized describes a response with status code 401, with default header values.
+
+Provided access token was not found or is invalid
+*/
+type GetDescribeLatestArtifactServiceUnauthorized struct {
+	Payload *models.ErrorResponse
+}
+
+func (o *GetDescribeLatestArtifactServiceUnauthorized) Error() string {
+	return fmt.Sprintf("[GET /describe/latest-artifact/{service}][%d] getDescribeLatestArtifactServiceUnauthorized  %+v", 401, o.Payload)
+}
+func (o *GetDescribeLatestArtifactServiceUnauthorized) GetPayload() *models.ErrorResponse {
+	return o.Payload
+}
+
+func (o *GetDescribeLatestArtifactServiceUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.ErrorResponse)
 

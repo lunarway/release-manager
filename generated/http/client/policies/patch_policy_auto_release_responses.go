@@ -35,6 +35,12 @@ func (o *PatchPolicyAutoReleaseReader) ReadResponse(response runtime.ClientRespo
 			return nil, err
 		}
 		return nil, result
+	case 401:
+		result := NewPatchPolicyAutoReleaseUnauthorized()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	case 500:
 		result := NewPatchPolicyAutoReleaseInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -105,6 +111,38 @@ func (o *PatchPolicyAutoReleaseBadRequest) GetPayload() *models.ErrorResponse {
 }
 
 func (o *PatchPolicyAutoReleaseBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.ErrorResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewPatchPolicyAutoReleaseUnauthorized creates a PatchPolicyAutoReleaseUnauthorized with default headers values
+func NewPatchPolicyAutoReleaseUnauthorized() *PatchPolicyAutoReleaseUnauthorized {
+	return &PatchPolicyAutoReleaseUnauthorized{}
+}
+
+/* PatchPolicyAutoReleaseUnauthorized describes a response with status code 401, with default header values.
+
+Provided access token was not found or is invalid
+*/
+type PatchPolicyAutoReleaseUnauthorized struct {
+	Payload *models.ErrorResponse
+}
+
+func (o *PatchPolicyAutoReleaseUnauthorized) Error() string {
+	return fmt.Sprintf("[PATCH /policy/auto-release][%d] patchPolicyAutoReleaseUnauthorized  %+v", 401, o.Payload)
+}
+func (o *PatchPolicyAutoReleaseUnauthorized) GetPayload() *models.ErrorResponse {
+	return o.Payload
+}
+
+func (o *PatchPolicyAutoReleaseUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.ErrorResponse)
 

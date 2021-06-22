@@ -101,6 +101,50 @@ func (o *GetStatusBadRequest) WriteResponse(rw http.ResponseWriter, producer run
 	}
 }
 
+// GetStatusUnauthorizedCode is the HTTP code returned for type GetStatusUnauthorized
+const GetStatusUnauthorizedCode int = 401
+
+/*GetStatusUnauthorized Provided access token was not found or is invalid
+
+swagger:response getStatusUnauthorized
+*/
+type GetStatusUnauthorized struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.ErrorResponse `json:"body,omitempty"`
+}
+
+// NewGetStatusUnauthorized creates GetStatusUnauthorized with default headers values
+func NewGetStatusUnauthorized() *GetStatusUnauthorized {
+
+	return &GetStatusUnauthorized{}
+}
+
+// WithPayload adds the payload to the get status unauthorized response
+func (o *GetStatusUnauthorized) WithPayload(payload *models.ErrorResponse) *GetStatusUnauthorized {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the get status unauthorized response
+func (o *GetStatusUnauthorized) SetPayload(payload *models.ErrorResponse) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *GetStatusUnauthorized) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(401)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}
+
 // GetStatusInternalServerErrorCode is the HTTP code returned for type GetStatusInternalServerError
 const GetStatusInternalServerErrorCode int = 500
 

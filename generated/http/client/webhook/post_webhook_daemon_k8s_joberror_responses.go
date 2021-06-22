@@ -29,6 +29,12 @@ func (o *PostWebhookDaemonK8sJoberrorReader) ReadResponse(response runtime.Clien
 			return nil, err
 		}
 		return result, nil
+	case 401:
+		result := NewPostWebhookDaemonK8sJoberrorUnauthorized()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	case 500:
 		result := NewPostWebhookDaemonK8sJoberrorInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -64,6 +70,38 @@ func (o *PostWebhookDaemonK8sJoberrorOK) readResponse(response runtime.ClientRes
 
 	// response payload
 	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewPostWebhookDaemonK8sJoberrorUnauthorized creates a PostWebhookDaemonK8sJoberrorUnauthorized with default headers values
+func NewPostWebhookDaemonK8sJoberrorUnauthorized() *PostWebhookDaemonK8sJoberrorUnauthorized {
+	return &PostWebhookDaemonK8sJoberrorUnauthorized{}
+}
+
+/* PostWebhookDaemonK8sJoberrorUnauthorized describes a response with status code 401, with default header values.
+
+Provided access token was not found or is invalid
+*/
+type PostWebhookDaemonK8sJoberrorUnauthorized struct {
+	Payload *models.ErrorResponse
+}
+
+func (o *PostWebhookDaemonK8sJoberrorUnauthorized) Error() string {
+	return fmt.Sprintf("[POST /webhook/daemon/k8s/joberror][%d] postWebhookDaemonK8sJoberrorUnauthorized  %+v", 401, o.Payload)
+}
+func (o *PostWebhookDaemonK8sJoberrorUnauthorized) GetPayload() *models.ErrorResponse {
+	return o.Payload
+}
+
+func (o *PostWebhookDaemonK8sJoberrorUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.ErrorResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
 		return err
 	}
 

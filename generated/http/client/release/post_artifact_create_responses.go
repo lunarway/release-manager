@@ -29,6 +29,12 @@ func (o *PostArtifactCreateReader) ReadResponse(response runtime.ClientResponse,
 			return nil, err
 		}
 		return result, nil
+	case 401:
+		result := NewPostArtifactCreateUnauthorized()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	case 404:
 		result := NewPostArtifactCreateNotFound()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -81,6 +87,38 @@ func (o *PostArtifactCreateCreated) readResponse(response runtime.ClientResponse
 	}
 
 	o.Payload = new(models.CreateArtifactResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewPostArtifactCreateUnauthorized creates a PostArtifactCreateUnauthorized with default headers values
+func NewPostArtifactCreateUnauthorized() *PostArtifactCreateUnauthorized {
+	return &PostArtifactCreateUnauthorized{}
+}
+
+/* PostArtifactCreateUnauthorized describes a response with status code 401, with default header values.
+
+Provided access token was not found or is invalid
+*/
+type PostArtifactCreateUnauthorized struct {
+	Payload *models.ErrorResponse
+}
+
+func (o *PostArtifactCreateUnauthorized) Error() string {
+	return fmt.Sprintf("[POST /artifact/create][%d] postArtifactCreateUnauthorized  %+v", 401, o.Payload)
+}
+func (o *PostArtifactCreateUnauthorized) GetPayload() *models.ErrorResponse {
+	return o.Payload
+}
+
+func (o *PostArtifactCreateUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.ErrorResponse)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

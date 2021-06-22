@@ -79,6 +79,50 @@ func (o *PostArtifactCreateCreated) WriteResponse(rw http.ResponseWriter, produc
 	}
 }
 
+// PostArtifactCreateUnauthorizedCode is the HTTP code returned for type PostArtifactCreateUnauthorized
+const PostArtifactCreateUnauthorizedCode int = 401
+
+/*PostArtifactCreateUnauthorized Provided access token was not found or is invalid
+
+swagger:response postArtifactCreateUnauthorized
+*/
+type PostArtifactCreateUnauthorized struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.ErrorResponse `json:"body,omitempty"`
+}
+
+// NewPostArtifactCreateUnauthorized creates PostArtifactCreateUnauthorized with default headers values
+func NewPostArtifactCreateUnauthorized() *PostArtifactCreateUnauthorized {
+
+	return &PostArtifactCreateUnauthorized{}
+}
+
+// WithPayload adds the payload to the post artifact create unauthorized response
+func (o *PostArtifactCreateUnauthorized) WithPayload(payload *models.ErrorResponse) *PostArtifactCreateUnauthorized {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the post artifact create unauthorized response
+func (o *PostArtifactCreateUnauthorized) SetPayload(payload *models.ErrorResponse) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *PostArtifactCreateUnauthorized) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(401)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}
+
 // PostArtifactCreateNotFoundCode is the HTTP code returned for type PostArtifactCreateNotFound
 const PostArtifactCreateNotFoundCode int = 404
 

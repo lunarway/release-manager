@@ -54,3 +54,47 @@ func (o *PostWebhookDaemonK8sErrorOK) WriteResponse(rw http.ResponseWriter, prod
 		panic(err) // let the recovery middleware deal with this
 	}
 }
+
+// PostWebhookDaemonK8sErrorUnauthorizedCode is the HTTP code returned for type PostWebhookDaemonK8sErrorUnauthorized
+const PostWebhookDaemonK8sErrorUnauthorizedCode int = 401
+
+/*PostWebhookDaemonK8sErrorUnauthorized Provided access token was not found or is invalid
+
+swagger:response postWebhookDaemonK8sErrorUnauthorized
+*/
+type PostWebhookDaemonK8sErrorUnauthorized struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.ErrorResponse `json:"body,omitempty"`
+}
+
+// NewPostWebhookDaemonK8sErrorUnauthorized creates PostWebhookDaemonK8sErrorUnauthorized with default headers values
+func NewPostWebhookDaemonK8sErrorUnauthorized() *PostWebhookDaemonK8sErrorUnauthorized {
+
+	return &PostWebhookDaemonK8sErrorUnauthorized{}
+}
+
+// WithPayload adds the payload to the post webhook daemon k8s error unauthorized response
+func (o *PostWebhookDaemonK8sErrorUnauthorized) WithPayload(payload *models.ErrorResponse) *PostWebhookDaemonK8sErrorUnauthorized {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the post webhook daemon k8s error unauthorized response
+func (o *PostWebhookDaemonK8sErrorUnauthorized) SetPayload(payload *models.ErrorResponse) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *PostWebhookDaemonK8sErrorUnauthorized) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(401)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}

@@ -35,6 +35,12 @@ func (o *GetDescribeArtifactServiceReader) ReadResponse(response runtime.ClientR
 			return nil, err
 		}
 		return nil, result
+	case 401:
+		result := NewGetDescribeArtifactServiceUnauthorized()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	case 500:
 		result := NewGetDescribeArtifactServiceInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -99,6 +105,38 @@ func (o *GetDescribeArtifactServiceBadRequest) GetPayload() *models.ErrorRespons
 }
 
 func (o *GetDescribeArtifactServiceBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.ErrorResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewGetDescribeArtifactServiceUnauthorized creates a GetDescribeArtifactServiceUnauthorized with default headers values
+func NewGetDescribeArtifactServiceUnauthorized() *GetDescribeArtifactServiceUnauthorized {
+	return &GetDescribeArtifactServiceUnauthorized{}
+}
+
+/* GetDescribeArtifactServiceUnauthorized describes a response with status code 401, with default header values.
+
+Provided access token was not found or is invalid
+*/
+type GetDescribeArtifactServiceUnauthorized struct {
+	Payload *models.ErrorResponse
+}
+
+func (o *GetDescribeArtifactServiceUnauthorized) Error() string {
+	return fmt.Sprintf("[GET /describe/artifact/{service}][%d] getDescribeArtifactServiceUnauthorized  %+v", 401, o.Payload)
+}
+func (o *GetDescribeArtifactServiceUnauthorized) GetPayload() *models.ErrorResponse {
+	return o.Payload
+}
+
+func (o *GetDescribeArtifactServiceUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.ErrorResponse)
 

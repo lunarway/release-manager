@@ -35,6 +35,12 @@ func (o *GetPoliciesReader) ReadResponse(response runtime.ClientResponse, consum
 			return nil, err
 		}
 		return nil, result
+	case 401:
+		result := NewGetPoliciesUnauthorized()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	case 404:
 		result := NewGetPoliciesNotFound()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -105,6 +111,38 @@ func (o *GetPoliciesBadRequest) GetPayload() *models.ErrorResponse {
 }
 
 func (o *GetPoliciesBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.ErrorResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewGetPoliciesUnauthorized creates a GetPoliciesUnauthorized with default headers values
+func NewGetPoliciesUnauthorized() *GetPoliciesUnauthorized {
+	return &GetPoliciesUnauthorized{}
+}
+
+/* GetPoliciesUnauthorized describes a response with status code 401, with default header values.
+
+Provided access token was not found or is invalid
+*/
+type GetPoliciesUnauthorized struct {
+	Payload *models.ErrorResponse
+}
+
+func (o *GetPoliciesUnauthorized) Error() string {
+	return fmt.Sprintf("[GET /policies][%d] getPoliciesUnauthorized  %+v", 401, o.Payload)
+}
+func (o *GetPoliciesUnauthorized) GetPayload() *models.ErrorResponse {
+	return o.Payload
+}
+
+func (o *GetPoliciesUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.ErrorResponse)
 

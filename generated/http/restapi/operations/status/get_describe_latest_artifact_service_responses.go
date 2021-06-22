@@ -101,6 +101,50 @@ func (o *GetDescribeLatestArtifactServiceBadRequest) WriteResponse(rw http.Respo
 	}
 }
 
+// GetDescribeLatestArtifactServiceUnauthorizedCode is the HTTP code returned for type GetDescribeLatestArtifactServiceUnauthorized
+const GetDescribeLatestArtifactServiceUnauthorizedCode int = 401
+
+/*GetDescribeLatestArtifactServiceUnauthorized Provided access token was not found or is invalid
+
+swagger:response getDescribeLatestArtifactServiceUnauthorized
+*/
+type GetDescribeLatestArtifactServiceUnauthorized struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.ErrorResponse `json:"body,omitempty"`
+}
+
+// NewGetDescribeLatestArtifactServiceUnauthorized creates GetDescribeLatestArtifactServiceUnauthorized with default headers values
+func NewGetDescribeLatestArtifactServiceUnauthorized() *GetDescribeLatestArtifactServiceUnauthorized {
+
+	return &GetDescribeLatestArtifactServiceUnauthorized{}
+}
+
+// WithPayload adds the payload to the get describe latest artifact service unauthorized response
+func (o *GetDescribeLatestArtifactServiceUnauthorized) WithPayload(payload *models.ErrorResponse) *GetDescribeLatestArtifactServiceUnauthorized {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the get describe latest artifact service unauthorized response
+func (o *GetDescribeLatestArtifactServiceUnauthorized) SetPayload(payload *models.ErrorResponse) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *GetDescribeLatestArtifactServiceUnauthorized) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(401)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}
+
 // GetDescribeLatestArtifactServiceInternalServerErrorCode is the HTTP code returned for type GetDescribeLatestArtifactServiceInternalServerError
 const GetDescribeLatestArtifactServiceInternalServerErrorCode int = 500
 

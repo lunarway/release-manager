@@ -35,6 +35,12 @@ func (o *GetDescribeReleaseServiceEnvironmentReader) ReadResponse(response runti
 			return nil, err
 		}
 		return nil, result
+	case 401:
+		result := NewGetDescribeReleaseServiceEnvironmentUnauthorized()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	case 500:
 		result := NewGetDescribeReleaseServiceEnvironmentInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -99,6 +105,38 @@ func (o *GetDescribeReleaseServiceEnvironmentBadRequest) GetPayload() *models.Er
 }
 
 func (o *GetDescribeReleaseServiceEnvironmentBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.ErrorResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewGetDescribeReleaseServiceEnvironmentUnauthorized creates a GetDescribeReleaseServiceEnvironmentUnauthorized with default headers values
+func NewGetDescribeReleaseServiceEnvironmentUnauthorized() *GetDescribeReleaseServiceEnvironmentUnauthorized {
+	return &GetDescribeReleaseServiceEnvironmentUnauthorized{}
+}
+
+/* GetDescribeReleaseServiceEnvironmentUnauthorized describes a response with status code 401, with default header values.
+
+Provided access token was not found or is invalid
+*/
+type GetDescribeReleaseServiceEnvironmentUnauthorized struct {
+	Payload *models.ErrorResponse
+}
+
+func (o *GetDescribeReleaseServiceEnvironmentUnauthorized) Error() string {
+	return fmt.Sprintf("[GET /describe/release/{service}/{environment}][%d] getDescribeReleaseServiceEnvironmentUnauthorized  %+v", 401, o.Payload)
+}
+func (o *GetDescribeReleaseServiceEnvironmentUnauthorized) GetPayload() *models.ErrorResponse {
+	return o.Payload
+}
+
+func (o *GetDescribeReleaseServiceEnvironmentUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.ErrorResponse)
 

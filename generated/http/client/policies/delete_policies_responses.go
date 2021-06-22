@@ -35,6 +35,12 @@ func (o *DeletePoliciesReader) ReadResponse(response runtime.ClientResponse, con
 			return nil, err
 		}
 		return nil, result
+	case 401:
+		result := NewDeletePoliciesUnauthorized()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	case 404:
 		result := NewDeletePoliciesNotFound()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -111,6 +117,38 @@ func (o *DeletePoliciesBadRequest) GetPayload() *models.ErrorResponse {
 }
 
 func (o *DeletePoliciesBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.ErrorResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewDeletePoliciesUnauthorized creates a DeletePoliciesUnauthorized with default headers values
+func NewDeletePoliciesUnauthorized() *DeletePoliciesUnauthorized {
+	return &DeletePoliciesUnauthorized{}
+}
+
+/* DeletePoliciesUnauthorized describes a response with status code 401, with default header values.
+
+Provided access token was not found or is invalid
+*/
+type DeletePoliciesUnauthorized struct {
+	Payload *models.ErrorResponse
+}
+
+func (o *DeletePoliciesUnauthorized) Error() string {
+	return fmt.Sprintf("[DELETE /policies][%d] deletePoliciesUnauthorized  %+v", 401, o.Payload)
+}
+func (o *DeletePoliciesUnauthorized) GetPayload() *models.ErrorResponse {
+	return o.Payload
+}
+
+func (o *DeletePoliciesUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.ErrorResponse)
 

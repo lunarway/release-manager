@@ -101,6 +101,50 @@ func (o *PatchPolicyBranchRestrictionBadRequest) WriteResponse(rw http.ResponseW
 	}
 }
 
+// PatchPolicyBranchRestrictionUnauthorizedCode is the HTTP code returned for type PatchPolicyBranchRestrictionUnauthorized
+const PatchPolicyBranchRestrictionUnauthorizedCode int = 401
+
+/*PatchPolicyBranchRestrictionUnauthorized Provided access token was not found or is invalid
+
+swagger:response patchPolicyBranchRestrictionUnauthorized
+*/
+type PatchPolicyBranchRestrictionUnauthorized struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.ErrorResponse `json:"body,omitempty"`
+}
+
+// NewPatchPolicyBranchRestrictionUnauthorized creates PatchPolicyBranchRestrictionUnauthorized with default headers values
+func NewPatchPolicyBranchRestrictionUnauthorized() *PatchPolicyBranchRestrictionUnauthorized {
+
+	return &PatchPolicyBranchRestrictionUnauthorized{}
+}
+
+// WithPayload adds the payload to the patch policy branch restriction unauthorized response
+func (o *PatchPolicyBranchRestrictionUnauthorized) WithPayload(payload *models.ErrorResponse) *PatchPolicyBranchRestrictionUnauthorized {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the patch policy branch restriction unauthorized response
+func (o *PatchPolicyBranchRestrictionUnauthorized) SetPayload(payload *models.ErrorResponse) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *PatchPolicyBranchRestrictionUnauthorized) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(401)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}
+
 // PatchPolicyBranchRestrictionInternalServerErrorCode is the HTTP code returned for type PatchPolicyBranchRestrictionInternalServerError
 const PatchPolicyBranchRestrictionInternalServerErrorCode int = 500
 
