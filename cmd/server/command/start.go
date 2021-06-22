@@ -360,7 +360,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				http.ReleaseHandler(&flowSvc),
 
 				// webhooks
-				http.DaemonFluxWebhookHandler(&flowSvc),
 				http.Daemonk8sDeployWebhookHandler(&flowSvc),
 				http.Daemonk8sJobErrorWebhookHandler(&flowSvc),
 				http.Daemonk8sPodErrorWebhookHandler(&flowSvc),
