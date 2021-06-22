@@ -2,12 +2,15 @@ package command
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
+	"github.com/lunarway/release-manager/cmd/hamctl/template"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
@@ -32,19 +35,43 @@ Get details about the current release of product in the dev environment:
 var describeReleaseDefaultTemplate = `Service: {{ .Service }}
 Environment: {{ .Environment }}
 {{ range $k, $v := .Releases }}
- - Artifact: {{ .Artifact.ID }}
-   {{ if ne (len .Artifact.Namespace) 0 -}}
-   Namespace:  {{ .Artifact.Namespace }}
+ - Artifact: {{ .ArtifactID }}
+   {{ if ne (len .Namespace) 0 -}}
+   Namespace:  {{ .Namespace }}
    {{ end -}}
-   Artifact from: {{ .Artifact.CI.End.Format "2006-01-02 15:04:03" }}
-   Artifact by: {{ .Artifact.Application.CommitterName }} ({{ .Artifact.Application.CommitterEmail }})
+   Artifact from: {{ .ArtifactFrom.Format "2006-01-02 15:04:03" }}
+   Artifact by: {{ .CommitterName }} ({{ .CommitterEmail }})
    Released at: {{ .ReleasedAt.Format "2006-01-02 15:04:03" }}
    Released by: {{ .ReleasedByName }} ({{ .ReleasedByEmail }})
-   Commit: {{ .Artifact.Application.URL }}
-   Message: {{ .Artifact.Application.Message }}
-   Intent: {{ .Intent | printIntent }}
+   Commit: {{ .CommitURL }}
+   Message: {{ .CommitMessage }}
+   Intent: {{ .Intent }}
 {{ end }}
 `
+
+type describeReleaseData struct {
+	Service     string
+	Environment string
+	Releases    []describeReleaseDataRelease
+}
+
+type describeReleaseDataRelease struct {
+	ArtifactID      string
+	Namespace       string
+	ArtifactFrom    time.Time
+	CommitterName   string
+	CommitterEmail  string
+	ReleasedAt      time.Time
+	ReleasedByName  string
+	ReleasedByEmail string
+	CommitURL       string
+	CommitMessage   string
+	Intent          string
+}
+
+func templateDescribeRelease(dest io.Writer, templateText string, data describeReleaseData) error {
+	return template.Output(dest, "describeRelease", templateText, data)
+}
 
 func newDescribeRelease(client *httpinternal.Client, service *string) *cobra.Command {
 	var environment, namespace, template string
@@ -74,7 +101,7 @@ Format the output with a custom template:
 			if len(template) == 0 {
 				template = describeReleaseDefaultTemplate
 			}
-			err = templateOutput(os.Stdout, "describeRelease", template, releasesResponse)
+			err = templateDescribeRelease(os.Stdout, template, mapReleaseResponseToTemplate(releasesResponse))
 			if err != nil {
 				return err
 			}
@@ -94,13 +121,54 @@ Format the output with a custom template:
 	return command
 }
 
+func mapReleaseResponseToTemplate(resp httpinternal.DescribeReleaseResponse) describeReleaseData {
+	var releases []describeReleaseDataRelease
+	for _, release := range resp.Releases {
+		releases = append(releases, describeReleaseDataRelease{
+			ArtifactID:      release.Artifact.ID,
+			Namespace:       release.Artifact.Namespace,
+			ArtifactFrom:    release.Artifact.CI.End,
+			CommitterName:   release.Artifact.Application.CommitterName,
+			CommitterEmail:  release.Artifact.Application.CommitterEmail,
+			ReleasedAt:      release.ReleasedAt,
+			ReleasedByName:  release.ReleasedByName,
+			ReleasedByEmail: release.ReleasedByEmail,
+			CommitURL:       release.Artifact.Application.URL,
+			CommitMessage:   release.Artifact.Application.Message,
+			Intent:          template.IntentString(release.Intent),
+		})
+	}
+	d := describeReleaseData{
+		Service:     resp.Service,
+		Environment: resp.Environment,
+		Releases:    releases,
+	}
+
+	return d
+}
+
 var describeArtifactDefaultTemplate = `Latest artifacts for service: {{ .Service }}
 
 {{ rightPad "Date" 21 }}{{ rightPad "Artifact" 30 }}Message
 {{ range $k, $v := .Artifacts -}}
-{{ rightPad (.CI.End.Format "2006-01-02 15:04:03") 21 }}{{ rightPad .ID 30 }}{{ .Application.Message }}
+{{ rightPad (.ArtifactFrom.Format "2006-01-02 15:04:03") 21 }}{{ rightPad .ArtifactID 30 }}{{ .CommitMessage }}
 {{ end -}}
 `
+
+type describeArtifactData struct {
+	Service   string
+	Artifacts []describeArtifactDataArtifact
+}
+
+type describeArtifactDataArtifact struct {
+	ArtifactID    string
+	ArtifactFrom  time.Time
+	CommitMessage string
+}
+
+func templateDescribeArtifact(dest io.Writer, templateText string, data describeArtifactData) error {
+	return template.Output(dest, "describeArtifact", templateText, data)
+}
 
 func newDescribeArtifact(client *httpinternal.Client, service *string) *cobra.Command {
 	var count int
@@ -136,7 +204,7 @@ Format the output with a custom template:
 			if len(template) == 0 {
 				template = describeArtifactDefaultTemplate
 			}
-			err = templateOutput(os.Stdout, "describeArtifact", template, resp)
+			err = templateDescribeArtifact(os.Stdout, template, mapArtifactResponseToTemplate(resp))
 			if err != nil {
 				return err
 			}
@@ -146,4 +214,19 @@ Format the output with a custom template:
 	command.Flags().IntVar(&count, "count", 5, "Number of artifacts to return sorted by latest")
 	command.Flags().StringVarP(&template, "template", "", "", "template string to format the output. The format is Go templates (http://golang.org/pkg/text/template/#pkg-overview). Available data structure is an 'http.DescribeArtifactResponse' struct.")
 	return command
+}
+
+func mapArtifactResponseToTemplate(resp httpinternal.DescribeArtifactResponse) describeArtifactData {
+	var artifacts []describeArtifactDataArtifact
+	for _, a := range resp.Artifacts {
+		artifacts = append(artifacts, describeArtifactDataArtifact{
+			ArtifactID:    a.ID,
+			ArtifactFrom:  a.CI.End,
+			CommitMessage: a.Application.Message,
+		})
+	}
+	return describeArtifactData{
+		Service:   resp.Service,
+		Artifacts: artifacts,
+	}
 }
