@@ -2,18 +2,13 @@ package command
 
 import (
 	"context"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/go-openapi/runtime"
-	"github.com/go-openapi/runtime/client"
-	"github.com/go-openapi/strfmt"
-	"github.com/google/uuid"
 	"github.com/lunarway/release-manager/cmd/daemon/kubernetes"
-	releasemanagerclient "github.com/lunarway/release-manager/generated/http/client"
+	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -38,7 +33,7 @@ func StartDaemon() *cobra.Command {
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 
-			client, auth := newClient(releaseManagerBaseURL, releaseManagerToken, releaseManagerTimeout)
+			client, auth := http.NewClient(releaseManagerBaseURL, releaseManagerToken, releaseManagerTimeout)
 
 			kubectl, err := kubernetes.NewClient(kubeConfigPath, moduloCrashReportNotif, &kubernetes.ReleaseManagerExporter{
 				Log:         log.With("type", "k8s-exporter"),
@@ -131,43 +126,4 @@ func StartDaemon() *cobra.Command {
 	command.MarkFlagRequired("environment")
 	logConfiguration = log.RegisterFlags(command)
 	return command
-}
-
-func newClient(baseURL, token string, timeout time.Duration) (*releasemanagerclient.ReleaseManagerServerAPI, runtime.ClientAuthInfoWriter) {
-	transport := client.New(baseURL, "", nil)
-	transport.Transport = &Roundtripper{
-		underlyingTransport: http.DefaultTransport,
-	}
-
-	bearerTokenAuth := client.BearerToken(token)
-	client := releasemanagerclient.New(transport, strfmt.Default)
-
-	return client, bearerTokenAuth
-}
-
-var _ http.RoundTripper = &Roundtripper{}
-
-type Roundtripper struct {
-	underlyingTransport http.RoundTripper
-	Timeout             time.Duration
-	CLIVersion          string
-	CallerEmail         string
-}
-
-func (r *Roundtripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	ctx, cancel := context.WithTimeout(req.Context(), r.Timeout)
-	defer cancel()
-	*req = *req.WithContext(ctx)
-
-	id, err := uuid.NewRandom()
-	if err == nil {
-		req.Header.Set("x-request-id", id.String())
-	}
-	if r.CLIVersion != "" {
-		req.Header.Set("X-Cli-Version", r.CLIVersion)
-	}
-	if r.CallerEmail != "" {
-		req.Header.Set("X-Caller-Email", r.CallerEmail)
-	}
-	return r.underlyingTransport.RoundTrip(req)
 }
