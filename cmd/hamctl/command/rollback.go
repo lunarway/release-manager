@@ -144,7 +144,7 @@ var (
 		Details: `
      {{ print "Release Details          " | bold | underline }}
      Release Number: {{ .ReleaseIndex }}
-     Released at: {{ .ReleasedAt.Format "2006-01-02 15:04:03" }}
+     Released at: {{ .ReleasedAt.Format dateFormat }}
      Released by: {{ .ReleasedByName }} ({{ .ReleasedByEmail }})
      Intent: {{ .Intent }}
 
@@ -153,7 +153,7 @@ var (
      {{ if ne (len .Namespace) 0 -}}
      Namespace:  {{ .Namespace }}
      {{ end -}}
-     Artifact from: {{ .ArtifactFrom.Format "2006-01-02 15:04:03" }}
+     Artifact from: {{ .ArtifactFrom.Format dateFormat }}
      Artifact by: {{ .CommitterName }} ({{ .CommitterEmail }})
      Commit: {{ .CommitURL }}
      Message: {{ .CommitMessage }}`,

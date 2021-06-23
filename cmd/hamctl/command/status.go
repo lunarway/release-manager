@@ -65,16 +65,19 @@ func mapToStatusData(resp httpinternal.StatusResponse, service string) statusDat
 	}
 }
 
-var statusTemplate = `
+var statusTemplate = `Status for service {{ .Service }}
 {{- if not .EnvironmentsManaged }}
-{{- if .UsingDefaultNamespaces -}}
-Using default namespaces.
-{{- end }}
-Are you setting the right namespace?
-{{ end -}}
-Status for service {{ .Service }}
 
-{{ range .Environments -}}
+No environments managed by release-manager.
+
+{{ if .UsingDefaultNamespaces -}}
+Using environment specific namespace, ie. dev, staging, prod.
+{{ end -}}
+Are you setting the right namespace?
+{{- end -}}
+
+{{ range .Environments }}
+
 {{ .Environment }}:
 {{- if eq (len .Tag) 0 }}
   Not managed by the release-manager
@@ -83,11 +86,11 @@ Status for service {{ .Service }}
   Author: {{ .Author }}
   Committer: {{ .Committer }}
   Message: {{ .CommitMessage }}
-  Date: {{ .Date }}
+  Date: {{ .Date.Format dateFormat }}
   Link: {{ .BuildURL }}
   Vulnerabilities: {{ .HighVulnerabilities }} high, {{ .MediumVulnerabilities }} medium, {{ .LowVulnerabilities }} low
-{{ end }}
-{{ end -}}
+{{- end -}}
+{{- end }}
 `
 
 type statusData struct {
