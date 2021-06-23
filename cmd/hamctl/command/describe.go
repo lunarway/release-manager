@@ -39,9 +39,9 @@ Environment: {{ .Environment }}
    {{ if ne (len .Namespace) 0 -}}
    Namespace:  {{ .Namespace }}
    {{ end -}}
-   Artifact from: {{ .ArtifactFrom.Format "2006-01-02 15:04:03" }}
+   Artifact from: {{ .ArtifactFrom.Format dateFormat }}
    Artifact by: {{ .CommitterName }} ({{ .CommitterEmail }})
-   Released at: {{ .ReleasedAt.Format "2006-01-02 15:04:03" }}
+   Released at: {{ .ReleasedAt.Format dateFormat }}
    Released by: {{ .ReleasedByName }} ({{ .ReleasedByEmail }})
    Commit: {{ .CommitURL }}
    Message: {{ .CommitMessage }}
@@ -151,7 +151,7 @@ var describeArtifactDefaultTemplate = `Latest artifacts for service: {{ .Service
 
 {{ rightPad "Date" 21 }}{{ rightPad "Artifact" 30 }}Message
 {{ range $k, $v := .Artifacts -}}
-{{ rightPad (.ArtifactFrom.Format "2006-01-02 15:04:03") 21 }}{{ rightPad .ArtifactID 30 }}{{ .CommitMessage }}
+{{ rightPad (.ArtifactFrom.Format dateFormat) 21 }}{{ rightPad .ArtifactID 30 }}{{ .CommitMessage }}
 {{ end -}}
 `
 

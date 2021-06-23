@@ -16,6 +16,9 @@ func Output(destination io.Writer, name, text string, data interface{}) error {
 	t := template.New(name)
 	t.Funcs(template.FuncMap{
 		"rightPad": tmplRightPad,
+		"dateFormat": func() string {
+			return "2006-01-02 15:04:05"
+		},
 	})
 	t, err := t.Parse(text)
 	if err != nil {
