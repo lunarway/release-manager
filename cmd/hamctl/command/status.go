@@ -1,13 +1,14 @@
 package command
 
 import (
-	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
-	"github.com/lunarway/color"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
+	"github.com/lunarway/release-manager/cmd/hamctl/template"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
@@ -35,32 +36,97 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 				return err
 			}
 			err = client.Do(http.MethodGet, path, nil, &resp)
-
 			if err != nil {
 				return err
 			}
-			if !someManaged(resp.Dev, resp.Staging, resp.Prod) {
-				if resp.DefaultNamespaces {
-					fmt.Printf("Using default namespaces. ")
-				}
-				fmt.Printf("Are you setting the right namespace?\n")
+
+			err = templateStatus(os.Stdout, mapToStatusData(resp, *service))
+			if err != nil {
+				return err
 			}
-			fmt.Printf("Status for service: %s\n", *service)
-			fmt.Printf("\n")
-			color.Green("dev:\n")
-			printStatus(resp.Dev)
-
-			color.Green("staging:\n")
-			printStatus(resp.Staging)
-
-			color.Green("prod:\n")
-			printStatus(resp.Prod)
 			return nil
 		},
 	}
 	command.Flags().StringVarP(&namespace, "namespace", "n", "", "namespace the service is deployed to (defaults to env)")
 	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")
 	return command
+}
+
+func mapToStatusData(resp httpinternal.StatusResponse, service string) statusData {
+	return statusData{
+		EnvironmentsManaged:    someManaged(resp.Dev, resp.Staging, resp.Prod),
+		UsingDefaultNamespaces: resp.DefaultNamespaces,
+		Service:                service,
+		Environments: []statusDataEnvironment{
+			mapEnvironment(resp.Dev, "dev"),
+			mapEnvironment(resp.Staging, "staging"),
+			mapEnvironment(resp.Prod, "prod"),
+		},
+	}
+}
+
+var statusTemplate = `
+{{- if not .EnvironmentsManaged }}
+{{- if .UsingDefaultNamespaces -}}
+Using default namespaces.
+{{- end }}
+Are you setting the right namespace?
+{{ end -}}
+Status for service {{ .Service }}
+
+{{ range .Environments -}}
+{{ .Environment }}:
+{{- if eq (len .Tag) 0 }}
+  Not managed by the release-manager
+{{- else }}
+  Tag: {{ .Tag }}
+  Author: {{ .Author }}
+  Committer: {{ .Committer }}
+  Message: {{ .CommitMessage }}
+  Date: {{ .Date }}
+  Link: {{ .BuildURL }}
+  Vulnerabilities: {{ .HighVulnerabilities }} high, {{ .MediumVulnerabilities }} medium, {{ .LowVulnerabilities }} low
+{{ end }}
+{{ end -}}
+`
+
+type statusData struct {
+	EnvironmentsManaged    bool
+	UsingDefaultNamespaces bool
+	Service                string
+	Environments           []statusDataEnvironment
+}
+
+type statusDataEnvironment struct {
+	Environment           string
+	Tag                   string
+	Author                string
+	Committer             string
+	CommitMessage         string
+	Date                  time.Time
+	BuildURL              string
+	HighVulnerabilities   int64
+	MediumVulnerabilities int64
+	LowVulnerabilities    int64
+}
+
+func templateStatus(dest io.Writer, data statusData) error {
+	return template.Output(dest, "status", statusTemplate, data)
+}
+
+func mapEnvironment(env *httpinternal.Environment, name string) statusDataEnvironment {
+	return statusDataEnvironment{
+		Environment:           name,
+		Tag:                   env.Tag,
+		Author:                env.Author,
+		Committer:             env.Committer,
+		CommitMessage:         env.Message,
+		Date:                  Time(env.Date),
+		BuildURL:              env.BuildUrl,
+		HighVulnerabilities:   env.HighVulnerabilities,
+		MediumVulnerabilities: env.MediumVulnerabilities,
+		LowVulnerabilities:    env.LowVulnerabilities,
+	}
 }
 
 // someManaged returns true if any of provided environments are managed.
@@ -72,17 +138,7 @@ func someManaged(envs ...*httpinternal.Environment) bool {
 	}
 	return false
 }
+
 func Time(epoch int64) time.Time {
 	return time.Unix(epoch/1000, 0)
-}
-
-func printStatus(e *httpinternal.Environment) {
-	if e == nil {
-		return
-	}
-	if e.Tag == "" {
-		fmt.Printf("  Not managed by the release-manager\n\n")
-		return
-	}
-	fmt.Printf("  Tag: %s\n  Author: %s\n  Committer: %s\n  Message: %s\n  Date: %s\n  Link: %s\n  Vulnerabilities: %d high, %d medium, %d low\n\n", e.Tag, e.Author, e.Committer, e.Message, Time(e.Date), e.BuildUrl, e.HighVulnerabilities, e.MediumVulnerabilities, e.LowVulnerabilities)
 }

@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
+	"github.com/lunarway/release-manager/cmd/hamctl/template"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/manifoldco/promptui"
@@ -44,7 +44,7 @@ has no effect.`,
 
 			if artifactID == "" {
 
-				releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, 10)
+				releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, 3)
 				if err != nil {
 					return err
 				}
@@ -53,47 +53,17 @@ has no effect.`,
 					return fmt.Errorf("can't do rollback, because there isn't a release to rollback to")
 				}
 
-				funcMap := template.FuncMap{
-					"rightPad":    tmplRightPad,
-					"printIntent": tmplPrintIntent,
-					"humanizeTime": func(input time.Time) string {
-						return humanize.Time(input)
-					},
+				funcMap := promptui.FuncMap
+				funcMap["humanizeTime"] = func(input time.Time) string {
+					return humanize.Time(input)
 				}
+				rollbackInteractiveTemplates.FuncMap = funcMap
 
-				for name, f := range promptui.FuncMap {
-					funcMap[name] = f
-				}
-
-				primaryPart := "#{{ .ReleaseIndex }} {{ .Artifact.ID | cyan }}{{ if eq .ReleaseIndex 0 }} current release{{ end }} {{ .ReleasedAt | humanizeTime }} by {{ .ReleasedByEmail | blue }}"
-
-				templates := &promptui.SelectTemplates{
-					Label:    "{{ . }}",
-					Active:   "-> " + primaryPart,
-					Inactive: "   " + primaryPart,
-					Selected: "-> " + primaryPart,
-					Details: `
-     {{ print "Release Details          " | bold | underline }}
-     Release Number: {{ .ReleaseIndex }}
-     Released at: {{ .ReleasedAt.Format "2006-01-02 15:04:03" }}
-     Released by: {{ .ReleasedByName }} ({{ .ReleasedByEmail }})
-     Intent: {{ .Intent | printIntent }}
-
-     {{ print "Artifact Details          " | bold | underline }}
-     Artifact: {{ .Artifact.ID | cyan }}
-     {{ if ne (len .Artifact.Namespace) 0 -}}
-     Namespace:  {{ .Artifact.Namespace }}
-     {{ end -}}
-     Artifact from: {{ .Artifact.CI.End.Format "2006-01-02 15:04:03" }}
-     Artifact by: {{ .Artifact.Application.CommitterName }} ({{ .Artifact.Application.CommitterEmail }})
-     Commit: {{ .Artifact.Application.URL }}
-     Message: {{ .Artifact.Application.Message }}`,
-					FuncMap: funcMap,
-				}
+				items := mapToRollbackInteractiveTemplateData(releasesResponse.Releases)
 
 				searcher := func(input string, index int) bool {
-					release := releasesResponse.Releases[index]
-					name := strings.ToLower(fmt.Sprintf("#%v %s", release.ReleaseIndex, release.Artifact.ID))
+					release := items[index]
+					name := strings.ToLower(fmt.Sprintf("#%v %s", release.ReleaseIndex, release.ArtifactID))
 					input = strings.ToLower(input)
 
 					return strings.Contains(name, input)
@@ -101,8 +71,8 @@ has no effect.`,
 
 				prompt := promptui.Select{
 					Label:             fmt.Sprintf("Which release to rollback '%s' to?", environment),
-					Items:             releasesResponse.Releases,
-					Templates:         templates,
+					Items:             items,
+					Templates:         &rollbackInteractiveTemplates,
 					Size:              10,
 					Searcher:          searcher,
 					StartInSearchMode: true,
@@ -111,7 +81,7 @@ has no effect.`,
 				index, _, err := prompt.Run()
 
 				if err != nil {
-					fmt.Println("Rollback cancelled")
+					fmt.Printf("Rollback cancelled: %v\n", err)
 					os.Exit(1)
 				}
 
@@ -162,4 +132,66 @@ has no effect.`,
 	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")
 	command.Flags().StringVarP(&artifactID, "artifact", "", "", "artifact to roll back to. Defaults to previously released artifact for the environment")
 	return command
+}
+
+var (
+	rollbackInteractiveItemTemlpate = "#{{ .ReleaseIndex }} {{ .ArtifactID | cyan }}{{ if eq .ReleaseIndex 0 }} current release{{ end }} {{ .ReleasedAt | humanizeTime }} by {{ .ReleasedByEmail | blue }}"
+	rollbackInteractiveTemplates    = promptui.SelectTemplates{
+		Label:    "{{ . }}",
+		Active:   "-> " + rollbackInteractiveItemTemlpate,
+		Inactive: "   " + rollbackInteractiveItemTemlpate,
+		Selected: "-> " + rollbackInteractiveItemTemlpate,
+		Details: `
+     {{ print "Release Details          " | bold | underline }}
+     Release Number: {{ .ReleaseIndex }}
+     Released at: {{ .ReleasedAt.Format "2006-01-02 15:04:03" }}
+     Released by: {{ .ReleasedByName }} ({{ .ReleasedByEmail }})
+     Intent: {{ .Intent }}
+
+     {{ print "Artifact Details          " | bold | underline }}
+     Artifact: {{ .ArtifactID | cyan }}
+     {{ if ne (len .Namespace) 0 -}}
+     Namespace:  {{ .Namespace }}
+     {{ end -}}
+     Artifact from: {{ .ArtifactFrom.Format "2006-01-02 15:04:03" }}
+     Artifact by: {{ .CommitterName }} ({{ .CommitterEmail }})
+     Commit: {{ .CommitURL }}
+     Message: {{ .CommitMessage }}`,
+	}
+)
+
+type rollbackInteractiveTemplatesData struct {
+	ReleaseIndex    int
+	ReleasedAt      time.Time
+	ReleasedByName  string
+	ReleasedByEmail string
+	Intent          string
+	ArtifactID      string
+	Namespace       string
+	ArtifactFrom    time.Time
+	CommitterName   string
+	CommitterEmail  string
+	CommitURL       string
+	CommitMessage   string
+}
+
+func mapToRollbackInteractiveTemplateData(resp []httpinternal.DescribeReleaseResponseRelease) []rollbackInteractiveTemplatesData {
+	var d []rollbackInteractiveTemplatesData
+	for _, r := range resp {
+		d = append(d, rollbackInteractiveTemplatesData{
+			ReleaseIndex:    r.ReleaseIndex,
+			ReleasedAt:      r.ReleasedAt,
+			ReleasedByName:  r.ReleasedByName,
+			ReleasedByEmail: r.ReleasedByEmail,
+			Intent:          template.IntentString(r.Intent),
+			ArtifactID:      r.Artifact.ID,
+			Namespace:       r.Artifact.Namespace,
+			ArtifactFrom:    r.Artifact.CI.End,
+			CommitterName:   r.Artifact.Application.CommitterName,
+			CommitterEmail:  r.Artifact.Application.CommitterEmail,
+			CommitURL:       r.Artifact.Application.URL,
+			CommitMessage:   r.Artifact.Application.Message,
+		})
+	}
+	return d
 }

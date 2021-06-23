@@ -2,13 +2,64 @@ package policy
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 
+	"github.com/lunarway/release-manager/cmd/hamctl/template"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
+
+var listPoliciesTemplate = `Policies for service {{ .Service }}
+
+{{ if ne (len .AutoReleases) 0 -}}
+Auto-releases:
+{{ $columnFormat := printf "%%-%ds     %%-%ds     %%-%ds" .AutoReleaseBranchMaxLen .AutoReleaseEnvMaxLen .AutoReleaseIDMaxLen }}
+{{ printf $columnFormat "ENV" "BRANCH" "ID" }}
+{{ range $k, $v := .AutoReleases -}}
+{{ printf $columnFormat .Environment .Branch .ID }}
+{{ end }}
+{{ end -}}
+{{ if ne (len .BranchRestrictions) 0 -}}
+Branch restrictions:
+{{ $columnFormat := printf "%%-%ds     %%-%ds     %%-%ds" .BranchRestrictionsEnvMaxLen .BranchRestrictionsBranchRegexMaxLen .BranchRestrictionsIDMaxLen }}
+{{ printf $columnFormat "ENV" "REGEX" "ID" }}
+{{ range $k, $v := .BranchRestrictions -}}
+{{ printf $columnFormat .Environment .BranchRegex .ID }}
+{{ end -}}
+{{ end -}}
+`
+
+type listPoliciesData struct {
+	Service                             string
+	AutoReleases                        []listPoliciesDataAutoRelease
+	AutoReleaseBranchMaxLen             int
+	AutoReleaseEnvMaxLen                int
+	AutoReleaseIDMaxLen                 int
+	BranchRestrictions                  []listPoliciesDataBranchRestriction
+	BranchRestrictionsBranchRegexMaxLen int
+	BranchRestrictionsEnvMaxLen         int
+	BranchRestrictionsIDMaxLen          int
+}
+
+type listPoliciesDataAutoRelease struct {
+	Environment string
+	Branch      string
+	ID          string
+}
+
+type listPoliciesDataBranchRestriction struct {
+	Environment string
+	BranchRegex string
+	ID          string
+}
+
+func templateListPolicies(dest io.Writer, data listPoliciesData) error {
+	return template.Output(dest, "describeArtifact", listPoliciesTemplate, data)
+}
 
 func NewList(client *httpinternal.Client, service *string) *cobra.Command {
 	var command = &cobra.Command{
@@ -32,60 +83,59 @@ func NewList(client *httpinternal.Client, service *string) *cobra.Command {
 				fmt.Printf("No policies exist for service\n")
 				return nil
 			}
-			fmt.Printf("Policies for service %s\n", resp.Service)
-			fmt.Println()
-			printAutoReleasePolicies(resp.AutoReleases)
-			fmt.Println()
-			printBranchRestrictionPolicies(resp.BranchRestrictions)
+			err = templateListPolicies(os.Stdout, mapListResponseToTemplate(resp))
+			if err != nil {
+				return err
+			}
 			return nil
 		},
 	}
 	return command
 }
 
-func printAutoReleasePolicies(autoReleases []httpinternal.AutoReleasePolicy) {
-	if len(autoReleases) == 0 {
-		return
+func mapListResponseToTemplate(resp httpinternal.ListPoliciesResponse) listPoliciesData {
+	var autoReleases []listPoliciesDataAutoRelease
+	for _, r := range resp.AutoReleases {
+		autoReleases = append(autoReleases, listPoliciesDataAutoRelease{
+			ID:          r.ID,
+			Environment: r.Environment,
+			Branch:      r.Environment,
+		})
 	}
-	fmt.Printf("Auto-releases:\n")
-	fmt.Println()
-	maxBranchLen := maxLen(autoReleases, func(i int) string {
-		return autoReleases[i].Branch
-	})
-	maxEnvLen := maxLen(autoReleases, func(i int) string {
-		return autoReleases[i].Environment
-	})
-	maxIDLen := maxLen(autoReleases, func(i int) string {
-		return autoReleases[i].ID
-	})
-	formatString := fmt.Sprintf("%%-%ds     %%-%ds     %%-%ds\n", maxEnvLen, maxBranchLen, maxIDLen)
-	fmt.Printf(formatString, "ENV", "BRANCH", "ID")
 
-	for _, p := range autoReleases {
-		fmt.Printf(formatString, p.Environment, p.Branch, p.ID)
+	var branchRestriction []listPoliciesDataBranchRestriction
+	for _, b := range resp.BranchRestrictions {
+		branchRestriction = append(branchRestriction, listPoliciesDataBranchRestriction{
+			Environment: b.Environment,
+			BranchRegex: b.BranchRegex,
+			ID:          b.ID,
+		})
 	}
-}
 
-func printBranchRestrictionPolicies(policies []httpinternal.BranchRestrictionPolicy) {
-	if len(policies) == 0 {
-		return
-	}
-	fmt.Printf("Branch restrictions:\n")
-	fmt.Println()
-	maxBranchLen := maxLen(policies, func(i int) string {
-		return policies[i].BranchRegex
-	})
-	maxEnvLen := maxLen(policies, func(i int) string {
-		return policies[i].Environment
-	})
-	maxIDLen := maxLen(policies, func(i int) string {
-		return policies[i].ID
-	})
-	formatString := fmt.Sprintf("%%-%ds     %%-%ds     %%-%ds\n", maxEnvLen, maxBranchLen, maxIDLen)
-	fmt.Printf(formatString, "ENV", "REGEX", "ID")
+	return listPoliciesData{
+		Service: resp.Service,
 
-	for _, p := range policies {
-		fmt.Printf(formatString, p.Environment, p.BranchRegex, p.ID)
+		AutoReleases: autoReleases,
+		AutoReleaseBranchMaxLen: maxLen(autoReleases, func(i int) string {
+			return autoReleases[i].Branch
+		}),
+		AutoReleaseEnvMaxLen: maxLen(autoReleases, func(i int) string {
+			return autoReleases[i].Environment
+		}),
+		AutoReleaseIDMaxLen: maxLen(autoReleases, func(i int) string {
+			return autoReleases[i].ID
+		}),
+
+		BranchRestrictions: branchRestriction,
+		BranchRestrictionsBranchRegexMaxLen: maxLen(branchRestriction, func(i int) string {
+			return branchRestriction[i].BranchRegex
+		}),
+		BranchRestrictionsEnvMaxLen: maxLen(branchRestriction, func(i int) string {
+			return branchRestriction[i].Environment
+		}),
+		BranchRestrictionsIDMaxLen: maxLen(branchRestriction, func(i int) string {
+			return branchRestriction[i].ID
+		}),
 	}
 }
 
