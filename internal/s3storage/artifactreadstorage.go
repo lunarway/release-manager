@@ -88,7 +88,7 @@ func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n 
 
 	err := f.s3client.ListObjectsV2PagesWithContext(ctx, &s3.ListObjectsV2Input{
 		Bucket:  aws.String(f.bucketName),
-		MaxKeys: aws.Int64(1000), // TODO: Find a solution to handle more than 1000
+		MaxKeys: aws.Int64(1000),
 		Prefix:  aws.String(prefix),
 	}, func(p *s3.ListObjectsV2Output, lastPage bool) bool {
 		for _, object := range p.Contents {
