@@ -75,24 +75,39 @@ func (f *Service) LatestArtifactPaths(ctx context.Context, service string, envir
 }
 
 func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n int, branch string) ([]artifact.Spec, error) {
-	prefix := getServiceObjectKeyPrefix(service)
-	list, err := f.s3client.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
+
+	var prefix string
+
+	if branch != "" {
+		prefix = getServiceAndBranchObjectKeyPrefix(service, branch)
+	} else {
+		prefix = getServiceObjectKeyPrefix(service)
+	}
+
+	list := []*s3.Object{}
+
+	err := f.s3client.ListObjectsV2PagesWithContext(ctx, &s3.ListObjectsV2Input{
 		Bucket:  aws.String(f.bucketName),
-		MaxKeys: aws.Int64(1000), // TODO: Find a solution to handle more than 1000
+		MaxKeys: aws.Int64(1000),
 		Prefix:  aws.String(prefix),
+	}, func(p *s3.ListObjectsV2Output, lastPage bool) bool {
+		for _, object := range p.Contents {
+			list = append(list, object)
+		}
+		return true
 	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "list objects with prefix '%s'", prefix)
 	}
 
-	log.WithContext(ctx).WithFields("service", service, "count", n).Infof("Found %d artifacts for service '%s'", len(list.Contents), service)
+	log.WithContext(ctx).WithFields("service", service, "count", n).Infof("Found %d artifacts for service '%s'", len(list), service)
 
-	sort.Slice(list.Contents, func(i, j int) bool {
-		return list.Contents[i].LastModified.After(*list.Contents[j].LastModified)
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].LastModified.After(*list[j].LastModified)
 	})
 
 	var artifactSpecs []artifact.Spec
-	for _, object := range list.Contents {
+	for _, object := range list {
 		artifactSpec, err := f.getArtifactSpecFromObjectKey(ctx, *object.Key)
 		if err != nil {
 			return nil, errors.WithMessagef(err, "failed getting object %s", *object.Key)
