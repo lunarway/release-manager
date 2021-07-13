@@ -5,7 +5,7 @@
 
 GitOps release manager for kubernetes configuration repositories.
 
-This project is used as an internal project at Lunar and it therefore contains some assumptions on our setup. This includes environment naming (dev, staging, prod), and also a specific check for @lunarway domains. Further it is build around assumptions made by our OSS project `shuttle`, and id's for releases are a combination of branch name, git-sha from source repo, and git-sha from shuttle plan repo. Our initial intent is not to support this as an open source project.
+This project is used as an internal project at Lunar and it therefore contains some assumptions on our setup. This includes environment naming (dev, staging, prod). Further it is build around assumptions made by our OSS project `shuttle`, and id's for releases are a combination of branch name, git-sha from source repo, and git-sha from shuttle plan repo. Our initial intent is not to support this as an open source project.
 
 We will however, have it public available for reference. This might change over time.
 
@@ -22,7 +22,7 @@ The four applications are:
 | daemon      | a daemon reporting events about cluster component status back to the release-manager server                                                                          |
 
 A simplified overview of all the components involved in the flow can be seen below:
-![](docs/gitops_workflow_white_bg.png)
+![](docs/gitops_workflow.png)
 
 The applications are not enough to complete the flow. We utilize jenkins as a CI server and Weaveworks Flux as a release operator running inside each cluster.
 
