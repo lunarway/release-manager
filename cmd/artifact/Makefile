@@ -21,7 +21,7 @@ example:
 		--shuttle-plan-url "https://someplanurl"\
 		--shuttle-plan-message "Some commit"\
 		--shuttle-plan-branch "plan-branch"\
-		--ci-job-url "https://jenkins.dev.lunarway.com/job/asdasd"\
+		--ci-job-url "https://jenkins.corp.com/job/asdasd"\
 		--root examples
 
 	./artifact add build\
@@ -37,7 +37,7 @@ example:
 		--root examples
 
 	./artifact add test\
-		--url "https://jenkins.dev.lunarway.com"\
+		--url "https://jenkins.corp.com"\
 		--passed 563\
 		--skipped 0\
 		--failed 0\
