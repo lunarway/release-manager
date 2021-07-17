@@ -31,7 +31,10 @@ func StartDaemon() *cobra.Command {
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 
-			client, auth := http.NewClient(&clientConfig)
+			client, auth, err := http.NewClient(&clientConfig)
+			if err != nil {
+				return err
+			}
 
 			kubectl, err := kubernetes.NewClient(kubeConfigPath, moduloCrashReportNotif, &kubernetes.ReleaseManagerExporter{
 				Log:         log.With("type", "k8s-exporter"),

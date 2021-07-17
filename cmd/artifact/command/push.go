@@ -28,7 +28,10 @@ func pushCommand(options *Options) *cobra.Command {
 			ctx := context.Background()
 
 			if clientConfig.AuthToken != "" {
-				releaseManagerClient, auth := http.NewClient(&clientConfig)
+				releaseManagerClient, auth, err := http.NewClient(&clientConfig)
+				if err != nil {
+					return err
+				}
 				artifactID, err = flow.PushArtifactToReleaseManager(ctx, releaseManagerClient.Release, auth, options.FileName, options.RootPath)
 				if err != nil {
 					return err

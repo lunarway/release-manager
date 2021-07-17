@@ -29,6 +29,7 @@ func TestRelease(t *testing.T) {
 		releaseResponse func(r internalhttp.ReleaseRequest) (internalhttp.ReleaseResponse, *internalhttp.ErrorResponse)
 	)
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		// TODO: fake all the responses in a more clever way
 		switch {
 		case strings.Contains(r.URL.Path, "describe/latest-artifact"):
 			resp := internalhttp.DescribeArtifactResponse{
@@ -51,13 +52,15 @@ func TestRelease(t *testing.T) {
 			err = json.NewEncoder(rw).Encode(resp)
 			require.NoError(t, err, "failed to encode test response payload")
 		default:
+			t.Logf("Unknown path hit in mock server: %s", r.URL.Path)
 			rw.WriteHeader(http.StatusInternalServerError)
 		}
 	}))
 
-	c, ca := internalhttp.NewClient(&internalhttp.Config{
+	c, ca, err := internalhttp.NewClient(&internalhttp.Config{
 		BaseURL: server.URL,
 	})
+	require.NoError(t, err, "unexpected error creating internal http client")
 
 	runCommand := func(t *testing.T, args ...string) []string {
 		var output []string
@@ -188,7 +191,10 @@ func maskGUID(output []string) []string {
 
 func TestRelease_emptyEnvValue(t *testing.T) {
 	serviceName := "service-name"
-	c, ca := internalhttp.NewClient(&internalhttp.Config{})
+	c, ca, err := internalhttp.NewClient(&internalhttp.Config{
+		BaseURL: "http://localhost",
+	})
+	require.NoError(t, err, "unexpected error creating internal http client")
 
 	cmd := command.NewRelease(c, &ca, &serviceName, func(f string, args ...interface{}) {
 		t.Logf(f, args...)
@@ -196,6 +202,6 @@ func TestRelease_emptyEnvValue(t *testing.T) {
 
 	cmd.SetArgs([]string{"--env", ""})
 
-	err := cmd.Execute()
+	err = cmd.Execute()
 	require.Error(t, err, "unexpected execution error")
 }

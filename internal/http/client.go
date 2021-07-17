@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/client"
@@ -17,8 +18,12 @@ type Config struct {
 	CallerEmail string
 }
 
-func NewClient(config *Config) (*releasemanagerclient.ReleaseManagerServerAPI, runtime.ClientAuthInfoWriter) {
-	transport := client.New(config.BaseURL, "", nil)
+func NewClient(config *Config) (*releasemanagerclient.ReleaseManagerServerAPI, runtime.ClientAuthInfoWriter, error) {
+	url, err := url.ParseRequestURI(config.BaseURL)
+	if err != nil {
+		return nil, nil, err
+	}
+	transport := client.New(url.Host, "", []string{url.Scheme})
 
 	transport.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		id, err := uuid.NewRandom()
@@ -37,7 +42,7 @@ func NewClient(config *Config) (*releasemanagerclient.ReleaseManagerServerAPI, r
 	bearerTokenAuth := client.BearerToken(config.AuthToken)
 	client := releasemanagerclient.New(transport, strfmt.Default)
 
-	return client, bearerTokenAuth
+	return client, bearerTokenAuth, err
 }
 
 type roundTripperFunc func(*http.Request) (*http.Response, error)

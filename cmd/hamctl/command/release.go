@@ -42,12 +42,12 @@ Release latest artifact from branch 'master' of service 'product' into environme
 			case branch != "":
 				artifactID, err := actions.ArtifactIDFromBranch(client, clientAuth, *service, branch)
 				if err != nil {
-					return err
+					return errors.WithMessage(err, "get artifact from branch")
 				}
 				logger("Release of service %s using branch %s\n", *service, branch)
 				resps, err := actions.ReleaseArtifactIDMultipleEnvironments(client, clientAuth, *service, environments, artifactID, intent.NewReleaseBranch(branch))
 				if err != nil {
-					return err
+					return errors.WithMessagef(err, "release artifact id '%s' from branch", artifactID)
 				}
 				for _, resp := range resps {
 					printReleaseResponse(logger, resp)
@@ -57,7 +57,7 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				logger("Release of service: %s\n", *service)
 				resps, err := actions.ReleaseArtifactIDMultipleEnvironments(client, clientAuth, *service, environments, artifact, intent.NewReleaseArtifact())
 				if err != nil {
-					return err
+					return errors.WithMessage(err, "release artifact id")
 				}
 				for _, resp := range resps {
 					printReleaseResponse(logger, resp)

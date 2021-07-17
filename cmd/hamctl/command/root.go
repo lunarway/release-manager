@@ -64,7 +64,10 @@ func NewRoot(version *string) (*cobra.Command, error) {
 				return errors.Errorf(`required flag(s) "%s" not set`, strings.Join(missingFlags, `", "`))
 			}
 
-			localClient, localClientAuth := http.NewClient(&clientConfig)
+			localClient, localClientAuth, err := http.NewClient(&clientConfig)
+			if err != nil {
+				return err
+			}
 			// assign the created client to the existing pointer values to ensure
 			// references passed to sub commands are updated
 			*client = *localClient
