@@ -59,7 +59,7 @@ Are you setting the right namespace?
 						Committer:             "Jane Doe",
 						CommitMessage:         "Useful bits",
 						Date:                  time.Date(2021, time.June, 23, 8, 42, 22, 0, time.UTC),
-						BuildURL:              "https://jenkins.dev.lunarway.com/job/github-lunarway/job/svc/job/master/105/display/redirect",
+						BuildURL:              "https://jenkins.corp.com/job/github-lunarway/job/svc/job/master/105/display/redirect",
 						HighVulnerabilities:   1,
 						MediumVulnerabilities: 2,
 						LowVulnerabilities:    3,
@@ -74,7 +74,7 @@ dev:
   Committer: Jane Doe
   Message: Useful bits
   Date: 2021-06-23 08:42:22
-  Link: https://jenkins.dev.lunarway.com/job/github-lunarway/job/svc/job/master/105/display/redirect
+  Link: https://jenkins.corp.com/job/github-lunarway/job/svc/job/master/105/display/redirect
   Vulnerabilities: 1 high, 2 medium, 3 low
 `,
 		},
@@ -92,7 +92,7 @@ dev:
 						Committer:             "Jane Doe",
 						CommitMessage:         "Useful bits",
 						Date:                  time.Date(2021, time.June, 23, 8, 42, 22, 0, time.UTC),
-						BuildURL:              "https://jenkins.dev.lunarway.com/job/github-lunarway/job/svc/job/master/105/display/redirect",
+						BuildURL:              "https://jenkins.corp.com/job/github-lunarway/job/svc/job/master/105/display/redirect",
 						HighVulnerabilities:   1,
 						MediumVulnerabilities: 2,
 						LowVulnerabilities:    3,
@@ -104,7 +104,7 @@ dev:
 						Committer:             "Jane Doe",
 						CommitMessage:         "Useful bits",
 						Date:                  time.Date(2021, time.June, 23, 8, 42, 22, 0, time.UTC),
-						BuildURL:              "https://jenkins.dev.lunarway.com/job/github-lunarway/job/svc/job/master/105/display/redirect",
+						BuildURL:              "https://jenkins.corp.com/job/github-lunarway/job/svc/job/master/105/display/redirect",
 						HighVulnerabilities:   1,
 						MediumVulnerabilities: 2,
 						LowVulnerabilities:    3,
@@ -119,7 +119,7 @@ dev:
   Committer: Jane Doe
   Message: Useful bits
   Date: 2021-06-23 08:42:22
-  Link: https://jenkins.dev.lunarway.com/job/github-lunarway/job/svc/job/master/105/display/redirect
+  Link: https://jenkins.corp.com/job/github-lunarway/job/svc/job/master/105/display/redirect
   Vulnerabilities: 1 high, 2 medium, 3 low
 
 staging:
@@ -128,7 +128,7 @@ staging:
   Committer: Jane Doe
   Message: Useful bits
   Date: 2021-06-23 08:42:22
-  Link: https://jenkins.dev.lunarway.com/job/github-lunarway/job/svc/job/master/105/display/redirect
+  Link: https://jenkins.corp.com/job/github-lunarway/job/svc/job/master/105/display/redirect
   Vulnerabilities: 1 high, 2 medium, 3 low
 `,
 		},
