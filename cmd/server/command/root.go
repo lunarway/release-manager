@@ -18,7 +18,7 @@ import (
 func NewRoot(version string) (*cobra.Command, error) {
 	var brokerOpts brokerOptions
 	var httpOpts http.Options
-	var grafanaOpts grafanaOptions
+	grafanaOpts := grafanaOptions{}
 	var slackAuthToken string
 	var githubAPIToken string
 	var configRepoOpts configRepoOptions
@@ -88,17 +88,7 @@ func NewRoot(version string) (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&httpOpts.GithubWebhookSecret, "github-webhook-secret", os.Getenv("GITHUB_WEBHOOK_SECRET"), "github webhook secret")
 	command.PersistentFlags().StringVar(&githubAPIToken, "github-api-token", os.Getenv("GITHUB_API_TOKEN"), "github api token for tagging releases")
 	command.PersistentFlags().StringVar(&slackAuthToken, "slack-token", os.Getenv("SLACK_TOKEN"), "token to be used to communicate with the slack api")
-
-	command.PersistentFlags().StringVar(&grafanaOpts.DevAPIKey, "grafana-api-key-dev", os.Getenv("GRAFANA_API_KEY_DEV"), "api key to be used to annotate in dev")
-	command.PersistentFlags().StringVar(&grafanaOpts.StagingAPIKey, "grafana-api-key-staging", os.Getenv("GRAFANA_API_KEY_STAGING"), "api key to be used to annotate in dev")
-	command.PersistentFlags().StringVar(&grafanaOpts.ProdAPIKey, "grafana-api-key-prod", os.Getenv("GRAFANA_API_KEY_PROD"), "api key to be used to annotate in prod")
-	command.PersistentFlags().StringVar(&grafanaOpts.PlatformAPIKey, "grafana-api-key-platform", os.Getenv("GRAFANA_API_KEY_PLATFORM"), "api key to be used to annotate in platform")
-
-	command.PersistentFlags().StringVar(&grafanaOpts.DevURL, "grafana-url-dev", os.Getenv("GRAFANA_URL_DEV"), "grafana dev url")
-	command.PersistentFlags().StringVar(&grafanaOpts.StagingURL, "grafana-url-staging", os.Getenv("GRAFANA_URL_STAGING"), "grafana staging url")
-	command.PersistentFlags().StringVar(&grafanaOpts.ProdURL, "grafana-url-prod", os.Getenv("GRAFANA_URL_PROD"), "grafana prod url")
-	command.PersistentFlags().StringVar(&grafanaOpts.PlatformURL, "grafana-url-platform", os.Getenv("GRAFANA_URL_PLATFORM"), "grafana platform url")
-
+	command.PersistentFlags().Var(&grafanaOpts, "grafana-annotations", "configuration of Grafana environments to annotate. Use comma separated list for multiple environments")
 	command.PersistentFlags().StringVar(&emailSuffix, "email-suffix", "", "company email suffix to expect. E.g.: '@example.com'")
 	command.PersistentFlags().StringSliceVar(&users, "user-mappings", []string{}, "user mappings between emails used by Git and Slack, key-value pair: <email>=<slack-email>")
 	command.PersistentFlags().StringSliceVar(&branchRestrictionsList, "policy-branch-restrictions", []string{}, "branch restriction policies applied to all releases, key-value pair: <environment>=<branch-regex>")

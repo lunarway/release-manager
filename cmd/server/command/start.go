@@ -32,17 +32,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type grafanaOptions struct {
-	DevAPIKey      string
-	DevURL         string
-	StagingAPIKey  string
-	StagingURL     string
-	ProdAPIKey     string
-	ProdURL        string
-	PlatformAPIKey string
-	PlatformURL    string
-}
-
 // brokerType represents a configured broker type. It implements pflag.Value to
 // support input validation and typesafety.
 type brokerType string
@@ -134,24 +123,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			}
 			defer tracer.Close()
 			grafanaSvc := grafana.Service{
-				Environments: map[string]grafana.Environment{
-					"dev": {
-						APIKey:  startOptions.grafana.DevAPIKey,
-						BaseURL: startOptions.grafana.DevURL,
-					},
-					"staging": {
-						APIKey:  startOptions.grafana.StagingAPIKey,
-						BaseURL: startOptions.grafana.StagingURL,
-					},
-					"prod": {
-						APIKey:  startOptions.grafana.ProdAPIKey,
-						BaseURL: startOptions.grafana.ProdURL,
-					},
-					"platform": {
-						APIKey:  startOptions.grafana.PlatformAPIKey,
-						BaseURL: startOptions.grafana.PlatformURL,
-					},
-				},
+				Environments: mapGrafanaOptionsToEnvironment(startOptions.grafana),
 			}
 			// Import GPG Keys
 			if startOptions.gitConfigOpts.SigningKey != "" {
@@ -461,4 +433,15 @@ func getBroker(c *brokerOptions) (broker.Broker, error) {
 		// values
 		return nil, errors.New("no broker selected")
 	}
+}
+
+func mapGrafanaOptionsToEnvironment(opts *grafanaOptions) map[string]grafana.Environment {
+	environments := make(map[string]grafana.Environment)
+	for env, config := range *opts {
+		environments[env] = grafana.Environment{
+			APIKey:  config.APIKey,
+			BaseURL: config.URL,
+		}
+	}
+	return environments
 }
