@@ -33,12 +33,14 @@ import (
 )
 
 type grafanaOptions struct {
-	DevAPIKey     string
-	DevURL        string
-	StagingAPIKey string
-	StagingURL    string
-	ProdAPIKey    string
-	ProdURL       string
+	DevAPIKey      string
+	DevURL         string
+	StagingAPIKey  string
+	StagingURL     string
+	ProdAPIKey     string
+	ProdURL        string
+	PlatformAPIKey string
+	PlatformURL    string
 }
 
 // brokerType represents a configured broker type. It implements pflag.Value to
@@ -144,6 +146,10 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					"prod": {
 						APIKey:  startOptions.grafana.ProdAPIKey,
 						BaseURL: startOptions.grafana.ProdURL,
+					},
+					"platform": {
+						APIKey:  startOptions.grafana.PlatformAPIKey,
+						BaseURL: startOptions.grafana.PlatformURL,
 					},
 				},
 			}
