@@ -45,15 +45,11 @@ builds:
 
 dockers:
   - dockerfile: Dockerfile-server-goreleaser
-    binaries:
-    - server
     image_templates:
     - "quay.io/lunarway/release-manager:{{ .Tag }}"
     extra_files:
     - ssh_config
   - dockerfile: Dockerfile-daemon-goreleaser
-    binaries:
-    - daemon
     image_templates:
     - "quay.io/lunarway/release-daemon:{{ .Tag }}"
 
