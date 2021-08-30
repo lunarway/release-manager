@@ -78,8 +78,7 @@ S3_BUCKET=release-manager-test
 SERVER_START=./dist/server start \
 		--ssh-private-key ${SSH_PRIVATE_KEY} \
 		--slack-token ${SLACK_TOKEN} \
-		--grafana-api-key-dev ${GRAFANA_API_KEY} \
-		--grafana-dev-url ${GRAFANA_URL} \
+		--grafana-annotations dev=${GRAFANA_API_KEY}=${GRAFANA_URL} \
 		--hamctl-auth-token ${AUTH_TOKEN} \
 		--daemon-auth-token ${AUTH_TOKEN} \
 		--artifact-auth-token ${AUTH_TOKEN} \

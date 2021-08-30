@@ -32,15 +32,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type grafanaOptions struct {
-	DevAPIKey     string
-	DevURL        string
-	StagingAPIKey string
-	StagingURL    string
-	ProdAPIKey    string
-	ProdURL       string
-}
-
 // brokerType represents a configured broker type. It implements pflag.Value to
 // support input validation and typesafety.
 type brokerType string
@@ -132,20 +123,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			}
 			defer tracer.Close()
 			grafanaSvc := grafana.Service{
-				Environments: map[string]grafana.Environment{
-					"dev": {
-						APIKey:  startOptions.grafana.DevAPIKey,
-						BaseURL: startOptions.grafana.DevURL,
-					},
-					"staging": {
-						APIKey:  startOptions.grafana.StagingAPIKey,
-						BaseURL: startOptions.grafana.StagingURL,
-					},
-					"prod": {
-						APIKey:  startOptions.grafana.ProdAPIKey,
-						BaseURL: startOptions.grafana.ProdURL,
-					},
-				},
+				Environments: mapGrafanaOptionsToEnvironment(startOptions.grafana),
 			}
 			// Import GPG Keys
 			if startOptions.gitConfigOpts.SigningKey != "" {
