@@ -4,8 +4,20 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lunarway/release-manager/internal/grafana"
 	"github.com/pkg/errors"
 )
+
+func mapGrafanaOptionsToEnvironment(opts *grafanaOptions) map[string]grafana.Environment {
+	environments := make(map[string]grafana.Environment)
+	for env, config := range *opts {
+		environments[env] = grafana.Environment{
+			APIKey:  config.APIKey,
+			BaseURL: config.URL,
+		}
+	}
+	return environments
+}
 
 type grafanaConfig struct {
 	URL    string

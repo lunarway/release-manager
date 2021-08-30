@@ -434,14 +434,3 @@ func getBroker(c *brokerOptions) (broker.Broker, error) {
 		return nil, errors.New("no broker selected")
 	}
 }
-
-func mapGrafanaOptionsToEnvironment(opts *grafanaOptions) map[string]grafana.Environment {
-	environments := make(map[string]grafana.Environment)
-	for env, config := range *opts {
-		environments[env] = grafana.Environment{
-			APIKey:  config.APIKey,
-			BaseURL: config.URL,
-		}
-	}
-	return environments
-}
