@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/lunarway/release-manager/internal/grafana"
@@ -54,6 +55,7 @@ func (opts *grafanaOptions) GetSlice() []string {
 	for env, value := range *opts {
 		values = append(values, fmt.Sprintf("%s=<redacted>=%s", env, value.URL))
 	}
+	sort.Strings(values)
 	return values
 }
 
