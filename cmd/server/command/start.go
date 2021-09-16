@@ -254,7 +254,11 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					})
 					span.Finish()
 					if err != nil {
-						logger.Errorf("flow.NotifyReleaseHook: failed to annotate Grafana: %v", err)
+						if errors.Is(err, grafana.ErrEnvironmentNotConfigured) {
+							logger.Infof("flow.NotifyReleaseHook: skipped annotation in Grafana: %v", err)
+						} else {
+							logger.Errorf("flow.NotifyReleaseHook: failed to annotate Grafana: %v", err)
+						}
 					}
 
 					if strings.ToLower(opts.Spec.Application.Provider) == "github" && *startOptions.githubAPIToken != "" {

@@ -32,6 +32,8 @@ type AnnotateResponse struct {
 	Id      int64  `json:"id,omitempty"`
 }
 
+var ErrEnvironmentNotConfigured = errors.New("environment not configured")
+
 func (s *Service) Annotate(ctx context.Context, env string, body AnnotateRequest) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -45,7 +47,7 @@ func (s *Service) Annotate(ctx context.Context, env string, body AnnotateRequest
 
 	e, ok := s.Environments[env]
 	if !ok {
-		return errors.New("unknown environment")
+		return ErrEnvironmentNotConfigured
 	}
 
 	req, err := http.NewRequest(http.MethodPost, e.BaseURL+"/api/annotations/graphite", b)
