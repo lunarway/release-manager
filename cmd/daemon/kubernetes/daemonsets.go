@@ -12,7 +12,7 @@ import (
 )
 
 func (c *Client) HandleNewDaemonSets(ctx context.Context) error {
-	watcher, err := c.clientset.AppsV1().DaemonSets("").Watch(ctx, metav1.ListOptions{})
+	watcher, err := c.Clientset.AppsV1().DaemonSets("").Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (c *Client) HandleNewDaemonSets(ctx context.Context) error {
 			}
 
 			// Annotate the DaemonSet to be able to skip it next time
-			err = annotateDaemonSet(ctx, c.clientset, ds)
+			err = annotateDaemonSet(ctx, c.Clientset, ds)
 			if err != nil {
 				log.Errorf("Unable to annotate DaemonSet: %v", err)
 				continue

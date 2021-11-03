@@ -2,16 +2,17 @@ package kubernetes
 
 import (
 	"context"
+
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	batchv1 "k8s.io/api/batch/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
 func (c *Client) HandleJobErrors(ctx context.Context) error {
-	watcher, err := c.clientset.BatchV1().Jobs("").Watch(ctx, metav1.ListOptions{})
+	watcher, err := c.Clientset.BatchV1().Jobs("").Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -74,7 +75,7 @@ func jobErrorMessages(job *batchv1.Job) []http.JobConditionError {
 
 	for _, condition := range job.Status.Conditions {
 		if condition.Status == corev1.ConditionTrue && condition.Type == batchv1.JobFailed {
-			errors = append(errors, http.JobConditionError {
+			errors = append(errors, http.JobConditionError{
 				Reason:  condition.Reason,
 				Message: condition.Message,
 			})

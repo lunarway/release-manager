@@ -33,26 +33,26 @@ func StartDaemon() *cobra.Command {
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 
-			kubectl, err := kubernetes.NewClient(kubeConfigPath, moduloCrashReportNotif, &kubernetes.ReleaseManagerExporter{
+			exporter := &kubernetes.ReleaseManagerExporter{
 				Log:         log.With("type", "k8s-exporter"),
 				Client:      client,
 				Environment: environment,
-			})
+			}
+
+			kubectl, err := kubernetes.NewClient(kubeConfigPath, moduloCrashReportNotif, exporter)
 			if err != nil {
 				return err
 			}
 
+			_ = kubernetes.NewDeploymentInformer(kubectl.Clientset, kubectl.InformerFactory, exporter, kubectl.HasSynced)
+
 			log.Info("Deamon started")
 
-			go func() {
-				for {
-					err = kubectl.HandleNewDeployments(context.Background())
-					if err != nil && err != kubernetes.ErrWatcherClosed {
-						done <- errors.WithMessage(err, "kubectl handle new deployments: watcher closed")
-						return
-					}
-				}
-			}()
+			stopCh := make(chan struct{})
+			err = kubectl.Start(stopCh)
+			if err != nil {
+				return errors.WithMessage(err, "could not start client")
+			}
 
 			go func() {
 				for {

@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
@@ -14,60 +13,46 @@ import (
 	deploymentutil "k8s.io/kubernetes/pkg/controller/deployment/util"
 )
 
-func (c *Client) HandleNewDeployments(ctx context.Context) error {
-	log.Info("Watching deployments")
-	factory := informers.NewSharedInformerFactory(c.clientset, 0)
-	deploymentInformer := factory.Apps().V1().Deployments()
+type DeploymentInformer struct {
+	clientset *kubernetes.Clientset
+	exporter  Exporter
+}
 
-	readyToProcess := make(chan struct{})
+func NewDeploymentInformer(clientset *kubernetes.Clientset, informerFactory informers.SharedInformerFactory, exporter Exporter, shouldProcess func() bool) *DeploymentInformer {
+	d := &DeploymentInformer{
+		clientset: clientset,
+		exporter:  exporter,
+	}
+
+	deploymentInformer := informerFactory.Apps().V1().Deployments()
 
 	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			if !hasSynced(readyToProcess) {
+			if !shouldProcess() {
 				return
 			}
 			log.Infof("Got Add: %+v", obj)
-			c.handleDeployment(obj)
+			d.handleDeployment(obj)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			if !hasSynced(readyToProcess) {
+			if !shouldProcess() {
 				return
 			}
 			log.Infof("Got Update: %+v", newObj)
-			c.handleDeployment(newObj)
+			d.handleDeployment(newObj)
 		},
 		DeleteFunc: func(obj interface{}) {
-			if !hasSynced(readyToProcess) {
+			if !shouldProcess() {
 				return
 			}
 			log.Infof("Got Delete: doing nothing: %+v", obj)
 		},
 	})
 
-	stopCh := make(chan struct{})
-	factory.Start(stopCh)
-	if !cache.WaitForCacheSync(stopCh, deploymentInformer.Informer().HasSynced) {
-		return fmt.Errorf("failed to sync deployment informer")
-	}
-
-	log.Infof("Last synced: %s", deploymentInformer.Informer().LastSyncResourceVersion())
-	close(readyToProcess)
-	<-ctx.Done()
-	close(stopCh)
-
-	return nil
+	return d
 }
 
-func hasSynced(readyToProcess chan struct{}) bool {
-	select {
-	case <-readyToProcess:
-		return true
-	default:
-		return false
-	}
-}
-
-func (c *Client) handleDeployment(e interface{}) {
+func (d *DeploymentInformer) handleDeployment(e interface{}) {
 	deploy, ok := e.(*appsv1.Deployment)
 	if !ok {
 		return
@@ -103,7 +88,7 @@ func (c *Client) handleDeployment(e interface{}) {
 	}
 
 	// Notify the release-manager with the successful deployment event.
-	err := c.exporter.SendSuccessfulReleaseEvent(ctx, http.ReleaseEvent{
+	err := d.exporter.SendSuccessfulReleaseEvent(ctx, http.ReleaseEvent{
 		Name:          deploy.Name,
 		Namespace:     deploy.Namespace,
 		ResourceType:  "Deployment",
@@ -118,7 +103,7 @@ func (c *Client) handleDeployment(e interface{}) {
 	}
 
 	// Annotate the Deployment to be able to skip it next time
-	err = annotateDeployment(ctx, c.clientset, deploy)
+	err = annotateDeployment(ctx, d.clientset, deploy)
 	if err != nil {
 		log.Errorf("Unable to annotate Deployment: %v", err)
 		return

@@ -1,15 +1,22 @@
 package kubernetes
 
 import (
+	"fmt"
+
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Client struct {
-	clientset              *kubernetes.Clientset
+	Clientset              *kubernetes.Clientset
 	exporter               Exporter
 	moduloCrashReportNotif float64
+	InformerFactory        informers.SharedInformerFactory
+
+	hasSynced chan struct{}
 }
 
 var (
@@ -25,12 +32,41 @@ func NewClient(kubeConfigPath string, moduloCrashReportNotif float64, e Exporter
 	if err != nil {
 		return nil, err
 	}
+	factory := informers.NewSharedInformerFactory(clientset, 0)
 
 	return &Client{
-		clientset:              clientset,
+		Clientset:              clientset,
+		InformerFactory:        factory,
 		exporter:               e,
 		moduloCrashReportNotif: moduloCrashReportNotif,
+
+		hasSynced: make(chan struct{}),
 	}, nil
+}
+
+func (c *Client) Start(stopCh chan struct{}) error {
+	c.InformerFactory.Start(stopCh)
+
+	syncStatus := c.InformerFactory.WaitForCacheSync(stopCh)
+	for informer, synced := range syncStatus {
+		if !synced {
+			return fmt.Errorf("failed to sync informer '%v'", informer)
+		}
+		log.Infof("Synced informer '%v'", informer)
+	}
+
+	close(c.hasSynced)
+
+	return nil
+}
+
+func (c *Client) HasSynced() bool {
+	select {
+	case <-c.hasSynced:
+		return true
+	default:
+		return false
+	}
 }
 
 func isCorrectlyAnnotated(annotations map[string]string) bool {

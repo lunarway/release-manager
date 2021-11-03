@@ -19,7 +19,7 @@ import (
 
 func (c *Client) HandlePodErrors(ctx context.Context) error {
 	// TODO; See if it's possible to use FieldSelector to limit events received.
-	watcher, err := c.clientset.CoreV1().Pods("").Watch(ctx, metav1.ListOptions{})
+	watcher, err := c.Clientset.CoreV1().Pods("").Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (c *Client) HandlePodErrors(ctx context.Context) error {
 				for _, cst := range pod.Status.ContainerStatuses {
 					if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CrashLoopBackOff" {
 
-						logs, err := getLogs(ctx, c.clientset, pod.Name, cst.Name, pod.Namespace)
+						logs, err := getLogs(ctx, c.Clientset, pod.Name, cst.Name, pod.Namespace)
 						if err != nil {
 							log.Errorf("Error retrieving logs from pod: %s, container: %s, namespace: %s: %v", pod.Name, cst.Name, pod.Namespace, err)
 						}

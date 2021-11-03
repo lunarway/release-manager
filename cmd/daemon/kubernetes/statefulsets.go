@@ -12,7 +12,7 @@ import (
 )
 
 func (c *Client) HandleNewStatefulSets(ctx context.Context) error {
-	watcher, err := c.clientset.AppsV1().StatefulSets("").Watch(ctx, metav1.ListOptions{})
+	watcher, err := c.Clientset.AppsV1().StatefulSets("").Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (c *Client) HandleNewStatefulSets(ctx context.Context) error {
 			}
 
 			// Annotate the StatefulSet to be able to skip it next time
-			err = annotateStatefulSet(ctx, c.clientset, ss)
+			err = annotateStatefulSet(ctx, c.Clientset, ss)
 			if err != nil {
 				log.Errorf("Unable to annotate StatefulSet: %v", err)
 				continue
