@@ -12,6 +12,7 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/tools/cache"
 )
 
 // Release Daemon wathces for the following changes
@@ -44,7 +45,14 @@ func StartDaemon() *cobra.Command {
 				return err
 			}
 
-			_ = kubernetes.NewDeploymentInformer(kubectl.Clientset, kubectl.InformerFactory, exporter, kubectl.HasSynced)
+			handlerFactory := func(handlers cache.ResourceEventHandlerFuncs) cache.ResourceEventHandler {
+				return kubernetes.ResourceEventHandlerFuncs{
+					ShouldProcess:             kubectl.HasSynced,
+					ResourceEventHandlerFuncs: handlers,
+				}
+			}
+
+			_ = kubernetes.NewDeploymentInformer(kubectl.Clientset, kubectl.InformerFactory, exporter, handlerFactory)
 
 			log.Info("Deamon started")
 

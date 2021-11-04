@@ -18,36 +18,30 @@ type DeploymentInformer struct {
 	exporter  Exporter
 }
 
-func NewDeploymentInformer(clientset *kubernetes.Clientset, informerFactory informers.SharedInformerFactory, exporter Exporter, shouldProcess func() bool) *DeploymentInformer {
+func NewDeploymentInformer(clientset *kubernetes.Clientset, informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory) *DeploymentInformer {
 	d := &DeploymentInformer{
 		clientset: clientset,
 		exporter:  exporter,
 	}
 
-	deploymentInformer := informerFactory.Apps().V1().Deployments()
-
-	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if !shouldProcess() {
-				return
-			}
-			log.Infof("Got Add: %+v", obj)
-			d.handleDeployment(obj)
-		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			if !shouldProcess() {
-				return
-			}
-			log.Infof("Got Update: %+v", newObj)
-			d.handleDeployment(newObj)
-		},
-		DeleteFunc: func(obj interface{}) {
-			if !shouldProcess() {
-				return
-			}
-			log.Infof("Got Delete: doing nothing: %+v", obj)
-		},
-	})
+	informerFactory.
+		Apps().
+		V1().
+		Deployments().
+		Informer().
+		AddEventHandler(handlerFactory(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				log.Infof("Got Add: %+v", obj)
+				d.handleDeployment(obj)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				log.Infof("Got Update: %+v", newObj)
+				d.handleDeployment(newObj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				log.Infof("Got Delete: doing nothing: %+v", obj)
+			},
+		}))
 
 	return d
 }
