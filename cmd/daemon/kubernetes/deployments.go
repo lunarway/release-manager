@@ -18,7 +18,7 @@ type DeploymentInformer struct {
 	exporter  Exporter
 }
 
-func RegisterDeploymentInformer(clientset *kubernetes.Clientset, informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory) {
+func RegisterDeploymentInformer(informerFactory informers.SharedInformerFactory, clientset *kubernetes.Clientset, exporter Exporter, handlerFactory ResourceEventHandlerFactory) {
 	d := &DeploymentInformer{
 		clientset: clientset,
 		exporter:  exporter,
@@ -31,15 +31,10 @@ func RegisterDeploymentInformer(clientset *kubernetes.Clientset, informerFactory
 		Informer().
 		AddEventHandler(handlerFactory(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				log.Infof("Got Add: %+v", obj)
 				d.handleDeployment(obj)
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
-				log.Infof("Got Update: %+v", newObj)
 				d.handleDeployment(newObj)
-			},
-			DeleteFunc: func(obj interface{}) {
-				log.Infof("Got Delete: doing nothing: %+v", obj)
 			},
 		}))
 }

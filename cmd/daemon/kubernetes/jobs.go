@@ -7,53 +7,54 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/tools/cache"
 )
 
-func (c *Client) HandleJobErrors(ctx context.Context) error {
-	watcher, err := c.Clientset.BatchV1().Jobs("").Watch(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
+type JobInformer struct {
+	exporter Exporter
+}
+
+func RegisterJobInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory) {
+	j := JobInformer{
+		exporter: exporter,
 	}
-	for {
-		select {
-		case <-ctx.Done():
-			watcher.Stop()
-		case e, ok := <-watcher.ResultChan():
-			if !ok {
-				return ErrWatcherClosed
-			}
-			if e.Object == nil {
-				continue
-			}
-			if e.Type == watch.Deleted {
-				continue
-			}
-			job, ok := e.Object.(*batchv1.Job)
-			if !ok {
-				continue
-			}
 
-			// Check if we have all the annotations we need for the release-daemon
-			if !isCorrectlyAnnotated(job.Annotations) {
-				continue
-			}
+	informerFactory.Batch().V1().Jobs().Informer().AddEventHandler(handlerFactory(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			j.handle(obj)
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			j.handle(newObj)
+		},
+	}))
+}
 
-			if isJobFailed(job) {
-				// Notify the release-manager with the job error event.
-				err = c.exporter.SendJobErrorEvent(ctx, http.JobErrorEvent{
-					JobName:     job.Name,
-					Namespace:   job.Namespace,
-					Errors:      jobErrorMessages(job),
-					ArtifactID:  job.Annotations["lunarway.com/artifact-id"],
-					AuthorEmail: job.Annotations["lunarway.com/author"],
-				})
-				if err != nil {
-					log.Errorf("Failed to send job error event: %v", err)
-					continue
-				}
-			}
+func (j JobInformer) handle(e interface{}) {
+	job, ok := e.(*batchv1.Job)
+	if !ok {
+		return
+	}
+
+	// Check if we have all the annotations we need for the release-daemon
+	if !isCorrectlyAnnotated(job.Annotations) {
+		return
+	}
+
+	ctx := context.Background()
+
+	if isJobFailed(job) {
+		// Notify the release-manager with the job error event.
+		err := j.exporter.SendJobErrorEvent(ctx, http.JobErrorEvent{
+			JobName:     job.Name,
+			Namespace:   job.Namespace,
+			Errors:      jobErrorMessages(job),
+			ArtifactID:  job.Annotations["lunarway.com/artifact-id"],
+			AuthorEmail: job.Annotations["lunarway.com/author"],
+		})
+		if err != nil {
+			log.Errorf("Failed to send job error event: %v", err)
+			return
 		}
 	}
 }

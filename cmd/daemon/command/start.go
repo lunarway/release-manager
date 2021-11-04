@@ -1,7 +1,6 @@
 package command
 
 import (
-	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -52,7 +51,12 @@ func StartDaemon() *cobra.Command {
 				}
 			}
 
-			kubernetes.RegisterDeploymentInformer(kubectl.Clientset, kubectl.InformerFactory, exporter, handlerFactory)
+			kubernetes.RegisterDeploymentInformer(kubectl.InformerFactory, kubectl.Clientset, exporter, handlerFactory)
+			kubernetes.RegisterDaemonSetInformer(kubectl.InformerFactory, kubectl.Clientset, exporter, handlerFactory)
+			kubernetes.RegisterJobInformer(kubectl.InformerFactory, exporter, handlerFactory)
+			kubernetes.RegisterJobInformer(kubectl.InformerFactory, exporter, handlerFactory)
+			kubernetes.RegisterPodInformer(kubectl.InformerFactory, exporter, handlerFactory, moduloCrashReportNotif)
+			kubernetes.RegisterStatefulSetInformer(kubectl.InformerFactory, kubectl.Clientset, exporter, handlerFactory)
 
 			log.Info("Deamon started")
 
@@ -61,46 +65,6 @@ func StartDaemon() *cobra.Command {
 			if err != nil {
 				return errors.WithMessage(err, "could not start client")
 			}
-
-			go func() {
-				for {
-					err = kubectl.HandleNewDaemonSets(context.Background())
-					if err != nil && err != kubernetes.ErrWatcherClosed {
-						done <- errors.WithMessage(err, "kubectl handle new daemonsets: watcher closed")
-						return
-					}
-				}
-			}()
-
-			go func() {
-				for {
-					err = kubectl.HandleNewStatefulSets(context.Background())
-					if err != nil && err != kubernetes.ErrWatcherClosed {
-						done <- errors.WithMessage(err, "kubectl handle new statefulsets: watcher closed")
-						return
-					}
-				}
-			}()
-
-			go func() {
-				for {
-					err = kubectl.HandlePodErrors(context.Background())
-					if err != nil && err != kubernetes.ErrWatcherClosed {
-						done <- errors.WithMessage(err, "kubectl handle pod errors: watcher closed")
-						return
-					}
-				}
-			}()
-
-			go func() {
-				for {
-					err = kubectl.HandleJobErrors(context.Background())
-					if err != nil && err != kubernetes.ErrWatcherClosed {
-						done <- errors.WithMessage(err, "kubectl handle job errors: watcher closed")
-						return
-					}
-				}
-			}()
 
 			sigs := make(chan os.Signal, 1)
 			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
