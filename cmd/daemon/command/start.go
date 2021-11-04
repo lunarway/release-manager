@@ -39,7 +39,7 @@ func StartDaemon() *cobra.Command {
 				Environment: environment,
 			}
 
-			kubectl, err := kubernetes.NewClient(kubeConfigPath, moduloCrashReportNotif, exporter)
+			kubectl, err := kubernetes.NewClient(kubeConfigPath)
 			if err != nil {
 				return err
 			}

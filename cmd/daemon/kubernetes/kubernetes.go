@@ -11,10 +11,8 @@ import (
 )
 
 type Client struct {
-	Clientset              *kubernetes.Clientset
-	exporter               Exporter
-	moduloCrashReportNotif float64
-	InformerFactory        informers.SharedInformerFactory
+	Clientset       *kubernetes.Clientset
+	InformerFactory informers.SharedInformerFactory
 
 	hasSynced chan struct{}
 }
@@ -23,22 +21,22 @@ var (
 	ErrWatcherClosed = errors.New("channel closed")
 )
 
-func NewClient(kubeConfigPath string, moduloCrashReportNotif float64, e Exporter) (*Client, error) {
+func NewClient(kubeConfigPath string) (*Client, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
 		return nil, err
 	}
+
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
+
 	factory := informers.NewSharedInformerFactory(clientset, 0)
 
 	return &Client{
-		Clientset:              clientset,
-		InformerFactory:        factory,
-		exporter:               e,
-		moduloCrashReportNotif: moduloCrashReportNotif,
+		Clientset:       clientset,
+		InformerFactory: factory,
 
 		hasSynced: make(chan struct{}),
 	}, nil
