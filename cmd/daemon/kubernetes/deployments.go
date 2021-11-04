@@ -19,7 +19,7 @@ type DeploymentInformer struct {
 }
 
 func RegisterDeploymentInformer(informerFactory informers.SharedInformerFactory, clientset *kubernetes.Clientset, exporter Exporter, handlerFactory ResourceEventHandlerFactory) {
-	d := &DeploymentInformer{
+	d := DeploymentInformer{
 		clientset: clientset,
 		exporter:  exporter,
 	}

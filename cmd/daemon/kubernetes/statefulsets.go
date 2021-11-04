@@ -23,11 +23,19 @@ func RegisterStatefulSetInformer(informerFactory informers.SharedInformerFactory
 		exporter:  exporter,
 	}
 
-	informerFactory.Apps().V1().StatefulSets().Informer().AddEventHandler(handlerFactory(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			s.handle(obj)
-		},
-	}))
+	informerFactory.
+		Apps().
+		V1().
+		StatefulSets().
+		Informer().
+		AddEventHandler(handlerFactory(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				s.handle(obj)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				s.handle(newObj)
+			},
+		}))
 }
 
 func (s *StatefulSetInformer) handle(e interface{}) {

@@ -55,7 +55,7 @@ func StartDaemon() *cobra.Command {
 			kubernetes.RegisterDaemonSetInformer(kubectl.InformerFactory, kubectl.Clientset, exporter, handlerFactory)
 			kubernetes.RegisterJobInformer(kubectl.InformerFactory, exporter, handlerFactory)
 			kubernetes.RegisterJobInformer(kubectl.InformerFactory, exporter, handlerFactory)
-			kubernetes.RegisterPodInformer(kubectl.InformerFactory, exporter, handlerFactory, moduloCrashReportNotif)
+			kubernetes.RegisterPodInformer(kubectl.InformerFactory, kubectl.Clientset, exporter, handlerFactory, moduloCrashReportNotif)
 			kubernetes.RegisterStatefulSetInformer(kubectl.InformerFactory, kubectl.Clientset, exporter, handlerFactory)
 
 			log.Info("Deamon started")

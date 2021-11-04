@@ -18,16 +18,24 @@ type DaemonSetInformer struct {
 }
 
 func RegisterDaemonSetInformer(informerFactory informers.SharedInformerFactory, clientset *kubernetes.Clientset, exporter Exporter, handlerFactory ResourceEventHandlerFactory) {
-	d := DaemonSetInformer{}
+	d := DaemonSetInformer{
+		clientset: clientset,
+		exporter:  exporter,
+	}
 
-	informerFactory.Apps().V1().DaemonSets().Informer().AddEventHandler(handlerFactory(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			d.handle(obj)
-		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			d.handle(newObj)
-		},
-	}))
+	informerFactory.
+		Apps().
+		V1().
+		DaemonSets().
+		Informer().
+		AddEventHandler(handlerFactory(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				d.handle(obj)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				d.handle(newObj)
+			},
+		}))
 }
 
 func (d *DaemonSetInformer) handle(e interface{}) {

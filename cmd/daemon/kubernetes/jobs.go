@@ -20,14 +20,19 @@ func RegisterJobInformer(informerFactory informers.SharedInformerFactory, export
 		exporter: exporter,
 	}
 
-	informerFactory.Batch().V1().Jobs().Informer().AddEventHandler(handlerFactory(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			j.handle(obj)
-		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			j.handle(newObj)
-		},
-	}))
+	informerFactory.
+		Batch().
+		V1().
+		Jobs().
+		Informer().
+		AddEventHandler(handlerFactory(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				j.handle(obj)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				j.handle(newObj)
+			},
+		}))
 }
 
 func (j JobInformer) handle(e interface{}) {
