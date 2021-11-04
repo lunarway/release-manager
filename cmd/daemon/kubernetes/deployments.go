@@ -18,7 +18,7 @@ type DeploymentInformer struct {
 	exporter  Exporter
 }
 
-func RegisterDeploymentInformer(informerFactory informers.SharedInformerFactory, clientset *kubernetes.Clientset, exporter Exporter, handlerFactory ResourceEventHandlerFactory) {
+func RegisterDeploymentInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset) {
 	d := DeploymentInformer{
 		clientset: clientset,
 		exporter:  exporter,

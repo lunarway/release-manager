@@ -17,7 +17,7 @@ type StatefulSetInformer struct {
 	exporter  Exporter
 }
 
-func RegisterStatefulSetInformer(informerFactory informers.SharedInformerFactory, clientset *kubernetes.Clientset, exporter Exporter, handlerFactory ResourceEventHandlerFactory) {
+func RegisterStatefulSetInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset) {
 	s := StatefulSetInformer{
 		clientset: clientset,
 		exporter:  exporter,

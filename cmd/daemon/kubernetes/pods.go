@@ -24,7 +24,7 @@ type PodInformer struct {
 	moduloCrashReportNotif float64
 }
 
-func RegisterPodInformer(informerFactory informers.SharedInformerFactory, clientset *kubernetes.Clientset, exporter Exporter, handlerFactory ResourceEventHandlerFactory, moduloCrashReportNotif float64) {
+func RegisterPodInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset, moduloCrashReportNotif float64) {
 	p := PodInformer{
 		clientset:              clientset,
 		exporter:               exporter,

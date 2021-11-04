@@ -17,7 +17,7 @@ type DaemonSetInformer struct {
 	exporter  Exporter
 }
 
-func RegisterDaemonSetInformer(informerFactory informers.SharedInformerFactory, clientset *kubernetes.Clientset, exporter Exporter, handlerFactory ResourceEventHandlerFactory) {
+func RegisterDaemonSetInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset) {
 	d := DaemonSetInformer{
 		clientset: clientset,
 		exporter:  exporter,
