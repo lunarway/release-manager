@@ -52,7 +52,7 @@ func StartDaemon() *cobra.Command {
 				}
 			}
 
-			_ = kubernetes.NewDeploymentInformer(kubectl.Clientset, kubectl.InformerFactory, exporter, handlerFactory)
+			kubernetes.RegisterDeploymentInformer(kubectl.Clientset, kubectl.InformerFactory, exporter, handlerFactory)
 
 			log.Info("Deamon started")
 

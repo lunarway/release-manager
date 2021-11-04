@@ -18,7 +18,7 @@ type DeploymentInformer struct {
 	exporter  Exporter
 }
 
-func NewDeploymentInformer(clientset *kubernetes.Clientset, informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory) *DeploymentInformer {
+func RegisterDeploymentInformer(clientset *kubernetes.Clientset, informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory) {
 	d := &DeploymentInformer{
 		clientset: clientset,
 		exporter:  exporter,
@@ -42,8 +42,6 @@ func NewDeploymentInformer(clientset *kubernetes.Clientset, informerFactory info
 				log.Infof("Got Delete: doing nothing: %+v", obj)
 			},
 		}))
-
-	return d
 }
 
 func (d *DeploymentInformer) handleDeployment(e interface{}) {
