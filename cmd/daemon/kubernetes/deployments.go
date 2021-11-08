@@ -97,15 +97,15 @@ func (d *DeploymentInformer) handleDeployment(e interface{}) {
 }
 
 func isDeploymentSuccessful(d *appsv1.Deployment) bool {
-	return DeploymentComplete(d, &d.Status)
+	return deploymentComplete(d, &d.Status)
 }
 
-// DeploymentComplete considers a deployment to be complete once all of its
+// deploymentComplete considers a deployment to be complete once all of its
 // desired replicas are updated and available, and no old pods are running.
 //
 // This function is copied from k8s.io/kubernetes/pkg/controller/deployment/util
 // to avoid depending on k8s.io/kubernetes directly.
-func DeploymentComplete(deployment *appsv1.Deployment, newStatus *appsv1.DeploymentStatus) bool {
+func deploymentComplete(deployment *appsv1.Deployment, newStatus *appsv1.DeploymentStatus) bool {
 	return newStatus.UpdatedReplicas == *(deployment.Spec.Replicas) &&
 		newStatus.Replicas == *(deployment.Spec.Replicas) &&
 		newStatus.AvailableReplicas == *(deployment.Spec.Replicas) &&
