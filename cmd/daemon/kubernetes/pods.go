@@ -13,103 +13,114 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
-func (c *Client) HandlePodErrors(ctx context.Context) error {
-	// TODO; See if it's possible to use FieldSelector to limit events received.
-	watcher, err := c.clientset.CoreV1().Pods("").Watch(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
+type PodInformer struct {
+	clientset              *kubernetes.Clientset
+	exporter               Exporter
+	moduloCrashReportNotif float64
+}
+
+func RegisterPodInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset, moduloCrashReportNotif float64) {
+	p := PodInformer{
+		clientset:              clientset,
+		exporter:               exporter,
+		moduloCrashReportNotif: moduloCrashReportNotif,
 	}
 
-	for {
-		select {
-		case <-ctx.Done():
-			watcher.Stop()
-		case e, ok := <-watcher.ResultChan():
-			if !ok {
-				return ErrWatcherClosed
-			}
-			if e.Object == nil {
-				continue
-			}
-			pod, ok := e.Object.(*corev1.Pod)
-			if !ok {
-				continue
-			}
-			// Is this a pod managed by the release manager - and does it contain the information needed?
-			if !isCorrectlyAnnotated(pod.Annotations) {
-				continue
-			}
-			// Avoid reporting on pods that has been marked for termination
-			if isPodMarkedForTermination(pod) {
-				continue
-			}
+	informerFactory.
+		Core().
+		V1().
+		Pods().
+		Informer().
+		AddEventHandler(handlerFactory(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				p.handle(obj)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				p.handle(newObj)
+			},
+		}))
+}
 
-			if isPodInCrashLoopBackOff(pod) {
-				log.Infof("Pod: %s is in CrashLoopBackOff", pod.Name)
-				restartCount := pod.Status.ContainerStatuses[0].RestartCount
-				if math.Mod(float64(restartCount), c.moduloCrashReportNotif) != 1 {
-					continue
-				}
-				var errorContainers []http.ContainerError
-				for _, cst := range pod.Status.ContainerStatuses {
-					if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CrashLoopBackOff" {
+func (p *PodInformer) handle(e interface{}) {
+	pod, ok := e.(*corev1.Pod)
+	if !ok {
+		return
+	}
+	// Is this a pod managed by the release manager - and does it contain the information needed?
+	if !isCorrectlyAnnotated(pod.Annotations) {
+		return
+	}
+	// Avoid reporting on pods that has been marked for termination
+	if isPodMarkedForTermination(pod) {
+		return
+	}
 
-						logs, err := getLogs(ctx, c.clientset, pod.Name, cst.Name, pod.Namespace)
-						if err != nil {
-							log.Errorf("Error retrieving logs from pod: %s, container: %s, namespace: %s: %v", pod.Name, cst.Name, pod.Namespace, err)
-						}
+	ctx := context.Background()
 
-						errorContainers = append(errorContainers, http.ContainerError{
-							Name:         cst.Name,
-							ErrorMessage: logs,
-							Type:         "CrashLoopBackOff",
-						})
-					}
-				}
+	if isPodInCrashLoopBackOff(pod) {
+		log.Infof("Pod: %s is in CrashLoopBackOff", pod.Name)
+		restartCount := pod.Status.ContainerStatuses[0].RestartCount
+		if math.Mod(float64(restartCount), p.moduloCrashReportNotif) != 1 {
+			return
+		}
+		var errorContainers []http.ContainerError
+		for _, cst := range pod.Status.ContainerStatuses {
+			if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CrashLoopBackOff" {
 
-				err = c.exporter.SendPodErrorEvent(ctx, http.PodErrorEvent{
-					PodName:     pod.Name,
-					Namespace:   pod.Namespace,
-					Errors:      errorContainers,
-					ArtifactID:  pod.Annotations["lunarway.com/artifact-id"],
-					AuthorEmail: pod.Annotations["lunarway.com/author"],
-				})
+				logs, err := getLogs(ctx, p.clientset, pod.Name, cst.Name, pod.Namespace)
 				if err != nil {
-					log.Errorf("Failed to send crash loop backoff event: %v", err)
-				}
-				continue
-			}
-
-			if isPodInCreateContainerConfigError(pod) {
-				log.Infof("Pod: %s is in CreateContainerConfigError", pod.Name)
-				// Determine which container of the deployment has CreateContainerConfigError
-				var errorContainers []http.ContainerError
-				for _, cst := range pod.Status.ContainerStatuses {
-					if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CreateContainerConfigError" {
-						errorContainers = append(errorContainers, http.ContainerError{
-							Name:         cst.Name,
-							ErrorMessage: cst.State.Waiting.Message,
-							Type:         "CreateContainerConfigError",
-						})
-					}
+					log.Errorf("Error retrieving logs from pod: %s, container: %s, namespace: %s: %v", pod.Name, cst.Name, pod.Namespace, err)
 				}
 
-				err = c.exporter.SendPodErrorEvent(ctx, http.PodErrorEvent{
-					PodName:     pod.Name,
-					Namespace:   pod.Namespace,
-					Errors:      errorContainers,
-					ArtifactID:  pod.Annotations["lunarway.com/artifact-id"],
-					AuthorEmail: pod.Annotations["lunarway.com/author"],
+				errorContainers = append(errorContainers, http.ContainerError{
+					Name:         cst.Name,
+					ErrorMessage: logs,
+					Type:         "CrashLoopBackOff",
 				})
-				if err != nil {
-					log.Errorf("Failed to send create container config error: %v", err)
-				}
-				continue
 			}
+		}
+
+		err := p.exporter.SendPodErrorEvent(ctx, http.PodErrorEvent{
+			PodName:     pod.Name,
+			Namespace:   pod.Namespace,
+			Errors:      errorContainers,
+			ArtifactID:  pod.Annotations["lunarway.com/artifact-id"],
+			AuthorEmail: pod.Annotations["lunarway.com/author"],
+		})
+		if err != nil {
+			log.Errorf("Failed to send crash loop backoff event: %v", err)
+		}
+		return
+	}
+
+	if isPodInCreateContainerConfigError(pod) {
+		log.Infof("Pod: %s is in CreateContainerConfigError", pod.Name)
+		// Determine which container of the deployment has CreateContainerConfigError
+		var errorContainers []http.ContainerError
+		for _, cst := range pod.Status.ContainerStatuses {
+			if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CreateContainerConfigError" {
+				errorContainers = append(errorContainers, http.ContainerError{
+					Name:         cst.Name,
+					ErrorMessage: cst.State.Waiting.Message,
+					Type:         "CreateContainerConfigError",
+				})
+			}
+		}
+
+		err := p.exporter.SendPodErrorEvent(ctx, http.PodErrorEvent{
+			PodName:     pod.Name,
+			Namespace:   pod.Namespace,
+			Errors:      errorContainers,
+			ArtifactID:  pod.Annotations["lunarway.com/artifact-id"],
+			AuthorEmail: pod.Annotations["lunarway.com/author"],
+		})
+		if err != nil {
+			log.Errorf("Failed to send create container config error: %v", err)
 		}
 	}
 }

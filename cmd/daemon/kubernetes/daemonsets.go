@@ -7,83 +7,92 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
-func (c *Client) HandleNewDaemonSets(ctx context.Context) error {
-	watcher, err := c.clientset.AppsV1().DaemonSets("").Watch(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
+type DaemonSetInformer struct {
+	clientset *kubernetes.Clientset
+	exporter  Exporter
+}
+
+func RegisterDaemonSetInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset) {
+	d := DaemonSetInformer{
+		clientset: clientset,
+		exporter:  exporter,
 	}
-	for {
-		select {
-		case <-ctx.Done():
-			watcher.Stop()
-		case e, ok := <-watcher.ResultChan():
-			if !ok {
-				return ErrWatcherClosed
-			}
-			if e.Object == nil {
-				continue
-			}
-			if e.Type == watch.Deleted {
-				continue
-			}
-			ds, ok := e.Object.(*appsv1.DaemonSet)
-			if !ok {
-				continue
-			}
 
-			// Check if we have all the annotations we need for the release-daemon
-			if !isCorrectlyAnnotated(ds.Annotations) {
-				continue
-			}
+	informerFactory.
+		Apps().
+		V1().
+		DaemonSets().
+		Informer().
+		AddEventHandler(handlerFactory(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				d.handle(obj)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				d.handle(newObj)
+			},
+		}))
+}
 
-			// Avoid reporting on pods that has been marked for termination
-			if isDaemonSetMarkedForTermination(ds) {
-				continue
-			}
+func (d *DaemonSetInformer) handle(e interface{}) {
+	ds, ok := e.(*appsv1.DaemonSet)
+	if !ok {
+		return
+	}
 
-			// Verify if the DaemonSet fulfills the criterias for a succesful release
-			if !isDaemonSetSuccessful(ds) {
-				continue
-			}
+	// Check if we have all the annotations we need for the release-daemon
+	if !isCorrectlyAnnotated(ds.Annotations) {
+		return
+	}
 
-			// In-order to minimize messages and only return events when new releases is detected, we add
-			// a new annotation to the DaemonSet.
-			// When we initially apply a DaemonSet the lunarway.com/artifact-id annotations SHOULD be set.
-			// Further the observed-artifact-id is an annotation managed by the daemon and will initially be "".
-			// In this state we annotate the DaemonSet with the current artifact-id as the observed.
-			// When we update a DaemonSet we also update the artifact-id, e.g. now observed and actual artifact id
-			// is different. In this case we want to notify, and update the observed with the current artifact id.
-			// This also eliminates messages when a pod is deleted. As the two annotations will be equal.
-			if ds.Annotations["lunarway.com/observed-artifact-id"] == ds.Annotations["lunarway.com/artifact-id"] {
-				continue
-			}
+	// Avoid reporting on pods that has been marked for termination
+	if isDaemonSetMarkedForTermination(ds) {
+		return
+	}
 
-			// Notify the release-manager with the successful deployment event.
-			err = c.exporter.SendSuccessfulReleaseEvent(ctx, http.ReleaseEvent{
-				Name:          ds.Name,
-				Namespace:     ds.Namespace,
-				ResourceType:  "DaemonSet",
-				ArtifactID:    ds.Annotations["lunarway.com/artifact-id"],
-				AuthorEmail:   ds.Annotations["lunarway.com/author"],
-				AvailablePods: ds.Status.NumberAvailable,
-				DesiredPods:   ds.Status.DesiredNumberScheduled,
-			})
-			if err != nil {
-				log.Errorf("Failed to send successful daemonset event: %v", err)
-				continue
-			}
+	// Verify if the DaemonSet fulfills the criterias for a succesful release
+	if !isDaemonSetSuccessful(ds) {
+		return
+	}
 
-			// Annotate the DaemonSet to be able to skip it next time
-			err = annotateDaemonSet(ctx, c.clientset, ds)
-			if err != nil {
-				log.Errorf("Unable to annotate DaemonSet: %v", err)
-				continue
-			}
-		}
+	// In-order to minimize messages and only return events when new releases is detected, we add
+	// a new annotation to the DaemonSet.
+	// When we initially apply a DaemonSet the lunarway.com/artifact-id annotations SHOULD be set.
+	// Further the observed-artifact-id is an annotation managed by the daemon and will initially be "".
+	// In this state we annotate the DaemonSet with the current artifact-id as the observed.
+	// When we update a DaemonSet we also update the artifact-id, e.g. now observed and actual artifact id
+	// is different. In this case we want to notify, and update the observed with the current artifact id.
+	// This also eliminates messages when a pod is deleted. As the two annotations will be equal.
+	if ds.Annotations["lunarway.com/observed-artifact-id"] == ds.Annotations["lunarway.com/artifact-id"] {
+		return
+	}
+
+	ctx := context.Background()
+
+	// Notify the release-manager with the successful deployment event.
+	err := d.exporter.SendSuccessfulReleaseEvent(ctx, http.ReleaseEvent{
+		Name:          ds.Name,
+		Namespace:     ds.Namespace,
+		ResourceType:  "DaemonSet",
+		ArtifactID:    ds.Annotations["lunarway.com/artifact-id"],
+		AuthorEmail:   ds.Annotations["lunarway.com/author"],
+		AvailablePods: ds.Status.NumberAvailable,
+		DesiredPods:   ds.Status.DesiredNumberScheduled,
+	})
+	if err != nil {
+		log.Errorf("Failed to send successful daemonset event: %v", err)
+		return
+	}
+
+	// Annotate the DaemonSet to be able to skip it next time
+	err = annotateDaemonSet(ctx, d.clientset, ds)
+	if err != nil {
+		log.Errorf("Unable to annotate DaemonSet: %v", err)
+		return
 	}
 }
 

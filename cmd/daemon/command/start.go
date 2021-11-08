@@ -1,7 +1,6 @@
 package command
 
 import (
-	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,6 +11,7 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/tools/cache"
 )
 
 // Release Daemon wathces for the following changes
@@ -33,66 +33,38 @@ func StartDaemon() *cobra.Command {
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 
-			kubectl, err := kubernetes.NewClient(kubeConfigPath, moduloCrashReportNotif, &kubernetes.ReleaseManagerExporter{
+			exporter := &kubernetes.ReleaseManagerExporter{
 				Log:         log.With("type", "k8s-exporter"),
 				Client:      client,
 				Environment: environment,
-			})
+			}
+
+			kubectl, err := kubernetes.NewClient(kubeConfigPath)
 			if err != nil {
 				return err
 			}
 
+			handlerFactory := func(handlers cache.ResourceEventHandlerFuncs) cache.ResourceEventHandler {
+				return kubernetes.ResourceEventHandlerFuncs{
+					ShouldProcess:             kubectl.HasSynced,
+					ResourceEventHandlerFuncs: handlers,
+				}
+			}
+
+			kubernetes.RegisterDeploymentInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
+			kubernetes.RegisterDaemonSetInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
+			kubernetes.RegisterJobInformer(kubectl.InformerFactory, exporter, handlerFactory)
+			kubernetes.RegisterJobInformer(kubectl.InformerFactory, exporter, handlerFactory)
+			kubernetes.RegisterPodInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset, moduloCrashReportNotif)
+			kubernetes.RegisterStatefulSetInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
+
 			log.Info("Deamon started")
 
-			go func() {
-				for {
-					err = kubectl.HandleNewDeployments(context.Background())
-					if err != nil && err != kubernetes.ErrWatcherClosed {
-						done <- errors.WithMessage(err, "kubectl handle new deployments: watcher closed")
-						return
-					}
-				}
-			}()
-
-			go func() {
-				for {
-					err = kubectl.HandleNewDaemonSets(context.Background())
-					if err != nil && err != kubernetes.ErrWatcherClosed {
-						done <- errors.WithMessage(err, "kubectl handle new daemonsets: watcher closed")
-						return
-					}
-				}
-			}()
-
-			go func() {
-				for {
-					err = kubectl.HandleNewStatefulSets(context.Background())
-					if err != nil && err != kubernetes.ErrWatcherClosed {
-						done <- errors.WithMessage(err, "kubectl handle new statefulsets: watcher closed")
-						return
-					}
-				}
-			}()
-
-			go func() {
-				for {
-					err = kubectl.HandlePodErrors(context.Background())
-					if err != nil && err != kubernetes.ErrWatcherClosed {
-						done <- errors.WithMessage(err, "kubectl handle pod errors: watcher closed")
-						return
-					}
-				}
-			}()
-
-			go func() {
-				for {
-					err = kubectl.HandleJobErrors(context.Background())
-					if err != nil && err != kubernetes.ErrWatcherClosed {
-						done <- errors.WithMessage(err, "kubectl handle job errors: watcher closed")
-						return
-					}
-				}
-			}()
+			stopCh := make(chan struct{})
+			err = kubectl.Start(stopCh)
+			if err != nil {
+				return errors.WithMessage(err, "could not start client")
+			}
 
 			sigs := make(chan os.Signal, 1)
 			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
