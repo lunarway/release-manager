@@ -67,7 +67,7 @@ func (s *StatefulSetInformer) handle(e interface{}) {
 	// When we update a StatefulSet we also update the artifact-id, e.g. now observed and actual artifact id
 	// is different. In this case we want to notify, and update the observed with the current artifact id.
 	// This also eliminates messages when a pod is deleted. As the two annotations will be equal.
-	if ss.Annotations["lunarway.com/observed-artifact-id"] == ss.Annotations["lunarway.com/artifact-id"] {
+	if isObserved(ss.Annotations) {
 		return
 	}
 
@@ -78,7 +78,7 @@ func (s *StatefulSetInformer) handle(e interface{}) {
 		Name:          ss.Name,
 		Namespace:     ss.Namespace,
 		ResourceType:  "StatefulSet",
-		ArtifactID:    ss.Annotations["lunarway.com/artifact-id"],
+		ArtifactID:    ss.Annotations[artifactIDAnnotationKey],
 		AuthorEmail:   ss.Annotations["lunarway.com/author"],
 		AvailablePods: ss.Status.ReadyReplicas,
 		DesiredPods:   ss.Status.Replicas,
@@ -109,7 +109,7 @@ func isStatefulSetSuccessful(ss *appsv1.StatefulSet) bool {
 }
 
 func annotateStatefulSet(ctx context.Context, c *kubernetes.Clientset, ss *appsv1.StatefulSet) error {
-	ss.Annotations["lunarway.com/observed-artifact-id"] = ss.Annotations["lunarway.com/artifact-id"]
+	observe(ss.Annotations)
 	_, err := c.AppsV1().StatefulSets(ss.Namespace).Update(ctx, ss, metav1.UpdateOptions{})
 	if err != nil {
 		return err

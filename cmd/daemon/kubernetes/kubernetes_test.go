@@ -1,8 +1,9 @@
 package kubernetes
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsCorrectlyAnnotated(t *testing.T) {
@@ -32,7 +33,7 @@ func TestIsCorrectlyAnnotated(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			correct := isCorrectlyAnnotated(map[string]string{
 				"lunarway.com/controlled-by-release-manager": tc.controlled,
-				"lunarway.com/artifact-id":                    tc.artifactID,
+				artifactIDAnnotationKey:                      tc.artifactID,
 				"lunarway.com/author":                        tc.author,
 			})
 
@@ -40,4 +41,3 @@ func TestIsCorrectlyAnnotated(t *testing.T) {
 		})
 	}
 }
-

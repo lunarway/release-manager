@@ -7,17 +7,21 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
 
 type JobInformer struct {
-	exporter Exporter
+	clientset *kubernetes.Clientset
+	exporter  Exporter
 }
 
-func RegisterJobInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory) {
+func RegisterJobInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset) {
 	j := JobInformer{
-		exporter: exporter,
+		clientset: clientset,
+		exporter:  exporter,
 	}
 
 	informerFactory.
@@ -46,6 +50,10 @@ func (j JobInformer) handle(e interface{}) {
 		return
 	}
 
+	if isObserved(job.Annotations) {
+		return
+	}
+
 	ctx := context.Background()
 
 	if isJobFailed(job) {
@@ -54,14 +62,30 @@ func (j JobInformer) handle(e interface{}) {
 			JobName:     job.Name,
 			Namespace:   job.Namespace,
 			Errors:      jobErrorMessages(job),
-			ArtifactID:  job.Annotations["lunarway.com/artifact-id"],
+			ArtifactID:  job.Annotations[artifactIDAnnotationKey],
 			AuthorEmail: job.Annotations["lunarway.com/author"],
 		})
 		if err != nil {
 			log.Errorf("Failed to send job error event: %v", err)
 			return
 		}
+		// Annotate the Deployment to be able to skip it next time
+		err = annotateJob(ctx, j.clientset, job)
+		if err != nil {
+			log.Errorf("Unable to annotate Job: %v", err)
+			return
+		}
 	}
+}
+
+// Annotates the Job with the observed-artifact-id.
+func annotateJob(ctx context.Context, c *kubernetes.Clientset, j *batchv1.Job) error {
+	observe(j.Annotations)
+	_, err := c.BatchV1().Jobs(j.Namespace).Update(ctx, j, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func isJobFailed(job *batchv1.Job) bool {
