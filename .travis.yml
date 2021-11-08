@@ -1,6 +1,6 @@
 language: go
 go:
-- "1.17"
+- 1.17.3
 script:
 - go build ./...
 - make integration-test VERBOSE=yes
