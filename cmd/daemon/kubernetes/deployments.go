@@ -10,7 +10,6 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	deploymentutil "k8s.io/kubernetes/pkg/controller/deployment/util"
 )
 
 type DeploymentInformer struct {
@@ -98,7 +97,19 @@ func (d *DeploymentInformer) handleDeployment(e interface{}) {
 }
 
 func isDeploymentSuccessful(d *appsv1.Deployment) bool {
-	return deploymentutil.DeploymentComplete(d, &d.Status)
+	return deploymentComplete(d, &d.Status)
+}
+
+// deploymentComplete considers a deployment to be complete once all of its
+// desired replicas are updated and available, and no old pods are running.
+//
+// This function is copied from k8s.io/kubernetes/pkg/controller/deployment/util
+// to avoid depending on k8s.io/kubernetes directly.
+func deploymentComplete(deployment *appsv1.Deployment, newStatus *appsv1.DeploymentStatus) bool {
+	return newStatus.UpdatedReplicas == *(deployment.Spec.Replicas) &&
+		newStatus.Replicas == *(deployment.Spec.Replicas) &&
+		newStatus.AvailableReplicas == *(deployment.Spec.Replicas) &&
+		newStatus.ObservedGeneration >= deployment.Generation
 }
 
 // Avoid reporting on pods that has been marked for termination
