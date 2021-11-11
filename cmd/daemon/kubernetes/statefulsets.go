@@ -79,7 +79,7 @@ func (s *StatefulSetInformer) handle(e interface{}) {
 		Namespace:     ss.Namespace,
 		ResourceType:  "StatefulSet",
 		ArtifactID:    ss.Annotations[artifactIDAnnotationKey],
-		AuthorEmail:   ss.Annotations["lunarway.com/author"],
+		AuthorEmail:   ss.Annotations[authorAnnotationKey],
 		AvailablePods: ss.Status.ReadyReplicas,
 		DesiredPods:   ss.Status.Replicas,
 	})

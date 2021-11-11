@@ -79,7 +79,7 @@ func (d *DeploymentInformer) handleDeployment(e interface{}) {
 		Namespace:     deploy.Namespace,
 		ResourceType:  "Deployment",
 		ArtifactID:    deploy.Annotations[artifactIDAnnotationKey],
-		AuthorEmail:   deploy.Annotations["lunarway.com/author"],
+		AuthorEmail:   deploy.Annotations[authorAnnotationKey],
 		AvailablePods: deploy.Status.AvailableReplicas,
 		DesiredPods:   *deploy.Spec.Replicas,
 	})

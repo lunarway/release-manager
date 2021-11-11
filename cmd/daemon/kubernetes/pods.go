@@ -90,7 +90,7 @@ func (p *PodInformer) handle(e interface{}) {
 			Namespace:   pod.Namespace,
 			Errors:      errorContainers,
 			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
-			AuthorEmail: pod.Annotations["lunarway.com/author"],
+			AuthorEmail: pod.Annotations[authorAnnotationKey],
 		})
 		if err != nil {
 			log.Errorf("Failed to send crash loop backoff event: %v", err)
@@ -117,7 +117,7 @@ func (p *PodInformer) handle(e interface{}) {
 			Namespace:   pod.Namespace,
 			Errors:      errorContainers,
 			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
-			AuthorEmail: pod.Annotations["lunarway.com/author"],
+			AuthorEmail: pod.Annotations[authorAnnotationKey],
 		})
 		if err != nil {
 			log.Errorf("Failed to send create container config error: %v", err)

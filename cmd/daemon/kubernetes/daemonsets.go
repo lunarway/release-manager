@@ -79,7 +79,7 @@ func (d *DaemonSetInformer) handle(e interface{}) {
 		Namespace:     ds.Namespace,
 		ResourceType:  "DaemonSet",
 		ArtifactID:    ds.Annotations[artifactIDAnnotationKey],
-		AuthorEmail:   ds.Annotations["lunarway.com/author"],
+		AuthorEmail:   ds.Annotations[authorAnnotationKey],
 		AvailablePods: ds.Status.NumberAvailable,
 		DesiredPods:   ds.Status.DesiredNumberScheduled,
 	})
