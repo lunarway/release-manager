@@ -69,7 +69,7 @@ func (d *DeploymentInformer) handleDeployment(e interface{}) {
 	// When we update a Deployment we also update the artifact-id, e.g. now observed and actual artifact id
 	// is different. In this case we want to notify, and update the observed with the current artifact id.
 	// This also eliminates messages when a pod is deleted. As the two annotations will be equal.
-	if deploy.Annotations["lunarway.com/observed-artifact-id"] == deploy.Annotations["lunarway.com/artifact-id"] {
+	if isObserved(deploy.Annotations) {
 		return
 	}
 
@@ -78,7 +78,7 @@ func (d *DeploymentInformer) handleDeployment(e interface{}) {
 		Name:          deploy.Name,
 		Namespace:     deploy.Namespace,
 		ResourceType:  "Deployment",
-		ArtifactID:    deploy.Annotations["lunarway.com/artifact-id"],
+		ArtifactID:    deploy.Annotations[artifactIDAnnotationKey],
 		AuthorEmail:   deploy.Annotations["lunarway.com/author"],
 		AvailablePods: deploy.Status.AvailableReplicas,
 		DesiredPods:   *deploy.Spec.Replicas,
@@ -119,7 +119,7 @@ func isDeploymentMarkedForTermination(deploy *appsv1.Deployment) bool {
 
 // Annotates the DaemonSet with the observed-artifact-id. This is used to differentiate new releases from pod deletion events.
 func annotateDeployment(ctx context.Context, c *kubernetes.Clientset, d *appsv1.Deployment) error {
-	d.Annotations["lunarway.com/observed-artifact-id"] = d.Annotations["lunarway.com/artifact-id"]
+	observe(d.Annotations)
 	_, err := c.AppsV1().Deployments(d.Namespace).Update(ctx, d, metav1.UpdateOptions{})
 	if err != nil {
 		return err

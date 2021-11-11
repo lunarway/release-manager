@@ -89,7 +89,7 @@ func (p *PodInformer) handle(e interface{}) {
 			PodName:     pod.Name,
 			Namespace:   pod.Namespace,
 			Errors:      errorContainers,
-			ArtifactID:  pod.Annotations["lunarway.com/artifact-id"],
+			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
 			AuthorEmail: pod.Annotations["lunarway.com/author"],
 		})
 		if err != nil {
@@ -116,7 +116,7 @@ func (p *PodInformer) handle(e interface{}) {
 			PodName:     pod.Name,
 			Namespace:   pod.Namespace,
 			Errors:      errorContainers,
-			ArtifactID:  pod.Annotations["lunarway.com/artifact-id"],
+			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
 			AuthorEmail: pod.Annotations["lunarway.com/author"],
 		})
 		if err != nil {

@@ -67,7 +67,7 @@ func (d *DaemonSetInformer) handle(e interface{}) {
 	// When we update a DaemonSet we also update the artifact-id, e.g. now observed and actual artifact id
 	// is different. In this case we want to notify, and update the observed with the current artifact id.
 	// This also eliminates messages when a pod is deleted. As the two annotations will be equal.
-	if ds.Annotations["lunarway.com/observed-artifact-id"] == ds.Annotations["lunarway.com/artifact-id"] {
+	if isObserved(ds.Annotations) {
 		return
 	}
 
@@ -78,7 +78,7 @@ func (d *DaemonSetInformer) handle(e interface{}) {
 		Name:          ds.Name,
 		Namespace:     ds.Namespace,
 		ResourceType:  "DaemonSet",
-		ArtifactID:    ds.Annotations["lunarway.com/artifact-id"],
+		ArtifactID:    ds.Annotations[artifactIDAnnotationKey],
 		AuthorEmail:   ds.Annotations["lunarway.com/author"],
 		AvailablePods: ds.Status.NumberAvailable,
 		DesiredPods:   ds.Status.DesiredNumberScheduled,
@@ -113,7 +113,7 @@ func isDaemonSetMarkedForTermination(ds *appsv1.DaemonSet) bool {
 
 // Annotates the DaemonSet with the observed-artifact-id. This is used to differentiate new releases from pod deletion events.
 func annotateDaemonSet(ctx context.Context, c *kubernetes.Clientset, ds *appsv1.DaemonSet) error {
-	ds.Annotations["lunarway.com/observed-artifact-id"] = ds.Annotations["lunarway.com/artifact-id"]
+	observe(ds.Annotations)
 	_, err := c.AppsV1().DaemonSets(ds.Namespace).Update(ctx, ds, metav1.UpdateOptions{})
 	if err != nil {
 		return err
