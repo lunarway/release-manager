@@ -68,9 +68,9 @@ func (c *Client) HasSynced() bool {
 }
 
 func isCorrectlyAnnotated(annotations map[string]string) bool {
-	if (annotations["lunarway.com/controlled-by-release-manager"] == "true") &&
+	if (annotations[controlledAnnotationKey] == "true") &&
 		annotations[artifactIDAnnotationKey] != "" &&
-		annotations["lunarway.com/author"] != "" {
+		annotations[authorAnnotationKey] != "" {
 		return true
 	}
 	return false
@@ -79,6 +79,8 @@ func isCorrectlyAnnotated(annotations map[string]string) bool {
 const (
 	observedAnnotationKey   = "lunarway.com/observed-artifact-id"
 	artifactIDAnnotationKey = "lunarway.com/artifact-id"
+	authorAnnotationKey     = "lunarway.com/author"
+	controlledAnnotationKey = "lunarway.com/controlled-by-release-manager"
 )
 
 func observe(annotations map[string]string) {

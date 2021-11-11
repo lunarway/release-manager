@@ -32,9 +32,9 @@ func TestIsCorrectlyAnnotated(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			correct := isCorrectlyAnnotated(map[string]string{
-				"lunarway.com/controlled-by-release-manager": tc.controlled,
-				artifactIDAnnotationKey:                      tc.artifactID,
-				"lunarway.com/author":                        tc.author,
+				controlledAnnotationKey: tc.controlled,
+				artifactIDAnnotationKey: tc.artifactID,
+				authorAnnotationKey:     tc.author,
 			})
 
 			assert.Equal(t, tc.correct, correct)

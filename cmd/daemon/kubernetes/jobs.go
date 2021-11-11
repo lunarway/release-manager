@@ -63,7 +63,7 @@ func (j JobInformer) handle(e interface{}) {
 			Namespace:   job.Namespace,
 			Errors:      jobErrorMessages(job),
 			ArtifactID:  job.Annotations[artifactIDAnnotationKey],
-			AuthorEmail: job.Annotations["lunarway.com/author"],
+			AuthorEmail: job.Annotations[authorAnnotationKey],
 		})
 		if err != nil {
 			log.Errorf("Failed to send job error event: %v", err)
