@@ -197,8 +197,8 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		logger.Infof("flow: ReleaseArtifactID: kustomization path '%s'", kustomizationPath)
 
 		if kustomizationPath != "" {
-			moveKustomizationToClustersSpan, _ := s.Tracer.FromCtx(ctx, "flow.moveKustomizationToClusters")
-			err := moveKustomizationToClusters(ctx, kustomizationPath, destinationConfigRepoPath, service, environment, namespace)
+			moveKustomizationToClustersSpan, moveKustomizationToClustersCtx := s.Tracer.FromCtx(ctx, "flow.moveKustomizationToClusters")
+			err := moveKustomizationToClusters(moveKustomizationToClustersCtx, kustomizationPath, destinationConfigRepoPath, service, environment, namespace)
 			moveKustomizationToClustersSpan.Finish()
 			if err != nil {
 				return true, errors.WithMessage(err, "move kustomization to clusters")
