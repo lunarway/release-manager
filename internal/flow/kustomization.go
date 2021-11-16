@@ -1,11 +1,16 @@
 package flow
 
 import (
+	"context"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
+	securejoin "github.com/cyphar/filepath-securejoin"
+	"github.com/lunarway/release-manager/internal/log"
+	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -54,4 +59,48 @@ func kustomizationExists(directory string) (string, error) {
 	}
 
 	return filePath, nil
+}
+
+func moveKustomizationToClusters(ctx context.Context, srcPath, root, service, env, namespace string) error {
+	destDir, err := kustomizationPath(root, env, namespace)
+	if err != nil {
+		return errors.WithMessage(err, "assemble kustomization path")
+	}
+
+	err = os.MkdirAll(destDir, os.ModePerm)
+	if err != nil {
+		return errors.WithMessagef(err, "create dest dir '%s'", destDir)
+	}
+
+	destPath, err := securejoin.SecureJoin(destDir, fmt.Sprintf("%s.yaml", service))
+	if err != nil {
+		return errors.WithMessage(err, "secure join destination path")
+	}
+
+	log.WithContext(ctx).Infof("moveKustomizationToClusters: destPath '%s'", destPath)
+
+	err = os.Rename(srcPath, destPath)
+	if err != nil {
+		return errors.WithMessagef(err, "move src '%s' to '%s'", srcPath, destPath)
+	}
+
+	return nil
+}
+
+func kustomizationPath(root, env, namespace string) (string, error) {
+	kustomizationPath := root // start with root
+	pathsToJoin := []string{
+		"clusters",
+		env,
+		namespace,
+	}
+	var err error
+	for _, p := range pathsToJoin {
+		kustomizationPath, err = securejoin.SecureJoin(kustomizationPath, p)
+		if err != nil {
+			return "", errors.WithMessagef(err, "join '%s' to path", p)
+		}
+	}
+
+	return kustomizationPath, nil
 }
