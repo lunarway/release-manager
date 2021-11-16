@@ -187,7 +187,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		}
 		sourceSpec, err := artifact.Get(artifactSourcePath)
 		if err != nil {
-			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
+			return true, errors.WithMessage(err, "locate source spec")
 		}
 		artifactAuthor := commitinfo.NewPersonInfo(sourceSpec.Application.AuthorName, sourceSpec.Application.AuthorEmail)
 		releaseAuthor := commitinfo.NewPersonInfo(actor.Name, actor.Email)
