@@ -55,6 +55,9 @@ func (s *Service) ExecNewArtifact(ctx context.Context, e NewArtifactEvent) error
 	logger := log.WithContext(ctx)
 
 	artifactSpec, err := s.Storage.ArtifactSpecification(ctx, e.Service, e.ArtifactID)
+	if err != nil {
+		return errors.WithMessagef(err, "fetch artifact specification for service '%s' artifactId '%s'", e.Service, e.ArtifactID)
+	}
 
 	logger = logger.WithFields("branch", artifactSpec.Application.Branch, "service", artifactSpec.Service, "commit", artifactSpec.Application.SHA)
 	// lookup policies for branch
