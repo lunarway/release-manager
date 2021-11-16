@@ -187,7 +187,9 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}
 
+		kustomizationExistsSpan, _ := s.Tracer.FromCtx(ctx, "flow.kustomizationExists")
 		kustomizationPath, err := kustomizationExists(destinationPath)
+		kustomizationExistsSpan.Finish()
 		if err != nil {
 			return true, errors.WithMessagef(err, "lookup kustomization in '%s'", destinationPath)
 		}
@@ -195,7 +197,9 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		logger.Infof("flow: ReleaseArtifactID: kustomization path '%s'", kustomizationPath)
 
 		if kustomizationPath != "" {
+			moveKustomizationToClustersSpan, _ := s.Tracer.FromCtx(ctx, "flow.moveKustomizationToClusters")
 			err := moveKustomizationToClusters(ctx, kustomizationPath, destinationConfigRepoPath, service, environment, namespace)
+			moveKustomizationToClustersSpan.Finish()
 			if err != nil {
 				return true, errors.WithMessage(err, "move kustomization to clusters")
 			}
