@@ -34,14 +34,18 @@ func TestKustomizationExists(t *testing.T) {
 			testDir: "no-kustomization",
 			path:    "",
 		},
+		{
+			name:    "empty-file",
+			testDir: "empty-file",
+			path:    "",
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			exists, err := kustomizationExists(path.Join("testdata", tc.testDir))
-
+			actual, err := kustomizationExists(path.Join("testdata", tc.testDir))
 			require.NoError(t, err)
 
-			assert.Equal(t, tc.path, exists)
+			assert.Equal(t, tc.path, actual)
 		})
 	}
 }

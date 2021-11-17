@@ -3,6 +3,7 @@ package flow
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -45,7 +46,9 @@ func kustomizationExists(directory string) (string, error) {
 		// no need to handle non-YAML files as the decoder does the right thing
 		err = yaml.NewDecoder(file).Decode(&spec)
 		if err != nil {
-			return err
+			if errors.Cause(err) != io.EOF {
+				return err
+			}
 		}
 		if strings.HasPrefix(spec.APIVersion, "kustomize.toolkit.fluxcd.io/") && spec.Kind == "Kustomization" {
 			filePath = path
