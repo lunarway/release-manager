@@ -79,11 +79,30 @@ data:
 endef
 export CONFIG_MAP
 
+define FLUX_KUSTOMIZATION
+apiVersion: kustomize.toolkit.fluxcd.io/v1beta1
+kind: Kustomization
+metadata:
+  name: product
+  namespace: dev
+spec:
+  interval: 5m0s
+  path: ./dev/releases/dev/product
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: k8s-cluster-config
+endef
+export FLUX_KUSTOMIZATION
+
 example_resources:
 	mkdir -p examples/{dev,staging,prod}
 	echo "$$CONFIG_MAP" > examples/dev/configmap.yaml
 	echo "$$CONFIG_MAP" > examples/staging/configmap.yaml
 	echo "$$CONFIG_MAP" > examples/prod/configmap.yaml
+	echo "$$FLUX_KUSTOMIZATION" > examples/dev/kustomization.yaml
+	echo "$$FLUX_KUSTOMIZATION" > examples/staging/kustomization.yaml
+	echo "$$FLUX_KUSTOMIZATION" > examples/prod/kustomization.yaml
 
 RELEASE_MANAGER_URL=http://localhost:8080
 RELEASE_MANAGER_AUTH_TOKEN=test

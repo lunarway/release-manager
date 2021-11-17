@@ -178,6 +178,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		if err != nil {
 			return true, errors.WithMessagef(err, "copy resources from '%s' to '%s'", sourcePath, destinationPath)
 		}
+
 		// copy artifact spec
 		artifactDestinationPath := path.Join(destinationPath, s.ArtifactFileName)
 		logger.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
@@ -185,6 +186,25 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}
+
+		kustomizationExistsSpan, _ := s.Tracer.FromCtx(ctx, "flow.kustomizationExists")
+		kustomizationPath, err := kustomizationExists(destinationPath)
+		kustomizationExistsSpan.Finish()
+		if err != nil {
+			return true, errors.WithMessagef(err, "lookup kustomization in '%s'", destinationPath)
+		}
+
+		logger.Infof("flow: ReleaseArtifactID: kustomization path '%s'", kustomizationPath)
+
+		if kustomizationPath != "" {
+			moveKustomizationToClustersSpan, moveKustomizationToClustersCtx := s.Tracer.FromCtx(ctx, "flow.moveKustomizationToClusters")
+			err := moveKustomizationToClusters(moveKustomizationToClustersCtx, kustomizationPath, destinationConfigRepoPath, service, environment, namespace)
+			moveKustomizationToClustersSpan.Finish()
+			if err != nil {
+				return true, errors.WithMessage(err, "move kustomization to clusters")
+			}
+		}
+
 		sourceSpec, err := artifact.Get(artifactSourcePath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("locate source spec"))
@@ -192,11 +212,8 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		artifactAuthor := commitinfo.NewPersonInfo(sourceSpec.Application.AuthorName, sourceSpec.Application.AuthorEmail)
 		releaseAuthor := commitinfo.NewPersonInfo(actor.Name, actor.Email)
 		releaseMessage := commitinfo.ReleaseCommitMessage(environment, service, artifactID, event.Intent, artifactAuthor, releaseAuthor)
-		commitPath, err := releasePath(".", service, environment, namespace)
-		if err != nil {
-			return true, errors.WithMessage(err, "get commit path")
-		}
-		err = s.Git.Commit(ctx, destinationConfigRepoPath, commitPath, releaseMessage)
+
+		err = s.Git.Commit(ctx, destinationConfigRepoPath, ".", releaseMessage)
 		if err != nil {
 			if errors.Cause(err) == git.ErrNothingToCommit {
 				logger.Infof("Environment is up to date: dropping event: %v", err)

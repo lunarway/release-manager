@@ -165,7 +165,8 @@ It is also not possible to overwrite them with custom policies, e.g. changing br
 Release files are structured as shown below.
 In the root are folders for each environment, e.g. `dev`, `prod`.
 These folders contain a `releases` directory with kubernetes resource definitions of each namespace and their running applications.
-Provisioning setup resources are like wise stored here, e.g. kops yaml resources.
+If an artifact contains a Flux `Kustomization` (`apiVersion: kustomize.toolkit.fluxcd.io/v1beta1` and `kind: Kustomization`) custom resource the release manager moves it into the `clusters` directory tree.
+This is tailored to support Flux2.
 
 A `policies` directory holds all recorded release policies.
 These are stored as JSON files for each service.
@@ -175,17 +176,22 @@ These are stored as JSON files for each service.
 ├── policies
 │   └── <service>.json
 ├── <environments>
-└── dev
-    ├── provisioning
-    └── releases
+├── dev
+│   └── releases
+│       ├── <namespaces>
+│       └── dev
+│           └── <service>
+│               ├── artifact.json
+│               ├── 01-configmap.yaml
+│               ├── 02-db-configmap.yaml
+│               ├── 40-deployment.yaml
+│               └── 50-service.yaml
+└── clusters
+    ├── <environments>
+    └── dev
         ├── <namespaces>
         └── dev
-            └── <service>
-                ├── artifact.json
-                ├── 01-configmap.yaml
-                ├── 02-db-configmap.yaml
-                ├── 40-deployment.yaml
-                └── 50-service.yaml
+            └── <service>.yaml
 ```
 
 When running `kubectl apply` files are applied to the cluster alphabetically so the following convention should be used by configuration generators.
