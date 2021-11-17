@@ -25,7 +25,7 @@ func kustomizationExists(directory string) (string, error) {
 
 	err := filepath.WalkDir(directory, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return err
+			return errors.WithMessagef(err, "walk dir '%s'", directory)
 		}
 
 		if filePath != "" {
@@ -38,7 +38,7 @@ func kustomizationExists(directory string) (string, error) {
 
 		file, err := os.OpenFile(path, os.O_RDWR, os.ModePerm)
 		if err != nil {
-			return err
+			return errors.WithMessagef(err, "open file '%s'", path)
 		}
 
 		var spec kustomizationSpec
@@ -47,7 +47,7 @@ func kustomizationExists(directory string) (string, error) {
 		err = yaml.NewDecoder(file).Decode(&spec)
 		if err != nil {
 			if errors.Cause(err) != io.EOF {
-				return err
+				return errors.WithMessagef(err, "decode '%s'", path)
 			}
 		}
 		if strings.HasPrefix(spec.APIVersion, "kustomize.toolkit.fluxcd.io/") && spec.Kind == "Kustomization" {
@@ -58,7 +58,7 @@ func kustomizationExists(directory string) (string, error) {
 	})
 
 	if err != nil {
-		return "", err
+		return "", errors.WithMessage(err, "walk directory")
 	}
 
 	return filePath, nil
