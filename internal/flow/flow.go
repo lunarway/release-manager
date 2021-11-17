@@ -301,7 +301,7 @@ func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *htt
 
 	log.WithFields("artifactID", artifactSpec.ID, "artifactFiles", files).Infof("calculated zip md5: %x", zipMD5s)
 
-	path, err := releaseManagerClient.URL(fmt.Sprintf("artifacts/create"))
+	path, err := releaseManagerClient.URL("artifacts/create")
 	if err != nil {
 		return "", errors.WithMessage(err, "push artifact URL generation failed")
 	}
