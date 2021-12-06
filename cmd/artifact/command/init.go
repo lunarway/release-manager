@@ -18,6 +18,7 @@ import (
 func initCommand(options *Options) *cobra.Command {
 	var s artifact.Spec
 	var users []string
+	var runningEmoji string
 
 	command := &cobra.Command{
 		Use:   "init",
@@ -79,7 +80,7 @@ func initCommand(options *Options) *cobra.Command {
 				}
 
 				// create and post the initial slack message
-				title := ":jenkins: Jenkins :sonic-running:"
+				title := fmt.Sprintf(":jenkins: Jenkins %s", runningEmoji)
 				titleLink := s.CI.JobURL
 				text := fmt.Sprintf("Build for: %s\nBranch: <%s|*%s*>\n", s.Application.Name, s.Application.URL, s.Application.Branch)
 				color := intslack.MsgColorYellow
@@ -114,8 +115,10 @@ func initCommand(options *Options) *cobra.Command {
 	command.Flags().StringVar(&s.Service, "service", "", "the service name")
 	command.Flags().StringVar(&s.Namespace, "namespace", "", "the namespace to deploy the service to")
 
+	command.Flags().StringVar(&runningEmoji, "emoji", ":sonic-running:", "the emoji to post to slack when the job is running")
+
 	// Init git data
-	command.Flags().StringVar(&s.Application.AuthorName, "git-author-name", "", "the commit author name")
+	command.Flags().StringVar(&s.Application.AuthorName, "git-author-name", ":sonic-running:", "the commit author name")
 	command.Flags().StringVar(&s.Application.AuthorEmail, "git-author-email", "", "the commit author email")
 	command.Flags().StringVar(&s.Application.Message, "git-message", "", "the commit message")
 	command.Flags().StringVar(&s.Application.CommitterName, "git-committer-name", "", "the commit committer name")
