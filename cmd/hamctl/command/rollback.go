@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	"github.com/lunarway/release-manager/cmd/hamctl/template"
@@ -54,8 +53,8 @@ has no effect.`,
 				}
 
 				funcMap := promptui.FuncMap
-				funcMap["humanizeTime"] = func(input time.Time) string {
-					return humanize.Time(input)
+				for name, f := range template.FuncMap() {
+					funcMap[name] = f
 				}
 				rollbackInteractiveTemplates.FuncMap = funcMap
 
