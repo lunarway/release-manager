@@ -17,7 +17,7 @@ var listPoliciesTemplate = `Policies for service {{ .Service }}
 
 {{ if ne (len .AutoReleases) 0 -}}
 Auto-releases:
-{{ $columnFormat := printf "%%-%ds     %%-%ds     %%-%ds" .AutoReleaseBranchMaxLen .AutoReleaseEnvMaxLen .AutoReleaseIDMaxLen }}
+{{ $columnFormat := printf "%%-%ds     %%-%ds     %%-%ds" .AutoReleaseEnvMaxLen .AutoReleaseBranchMaxLen .AutoReleaseIDMaxLen }}
 {{ printf $columnFormat "ENV" "BRANCH" "ID" }}
 {{ range $k, $v := .AutoReleases -}}
 {{ printf $columnFormat .Environment .Branch .ID }}
@@ -99,7 +99,7 @@ func mapListResponseToTemplate(resp httpinternal.ListPoliciesResponse) listPolic
 		autoReleases = append(autoReleases, listPoliciesDataAutoRelease{
 			ID:          r.ID,
 			Environment: r.Environment,
-			Branch:      r.Environment,
+			Branch:      r.Branch,
 		})
 	}
 
