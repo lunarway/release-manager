@@ -79,7 +79,7 @@ func initCommand(options *Options) *cobra.Command {
 				}
 
 				// create and post the initial slack message
-				title := ":jenkins: Jenkins :christmas_parrot:"
+				title := ":jenkins: Jenkins :sonic-running:"
 				titleLink := s.CI.JobURL
 				text := fmt.Sprintf("Build for: %s\nBranch: <%s|*%s*>\n", s.Application.Name, s.Application.URL, s.Application.Branch)
 				color := intslack.MsgColorYellow
