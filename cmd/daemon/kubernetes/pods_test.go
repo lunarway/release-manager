@@ -1,9 +1,13 @@
 package kubernetes
 
 import (
+	"testing"
+
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"testing"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestParseToJSONLogs(t *testing.T) {
@@ -43,6 +47,53 @@ func TestParseToJSONLogs(t *testing.T) {
 				assert.NoError(t, err, "no output error expected")
 			}
 			assert.Equal(t, tC.output, logs, "output logs not as expected")
+		})
+	}
+}
+
+func TestIsPodControlledByJob(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		pod      *corev1.Pod
+		expected bool
+	}{
+		{
+			desc:     "no owner reference",
+			pod:      &corev1.Pod{},
+			expected: false,
+		},
+		{
+			desc: "owner reference is not job",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind: "not-job",
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			desc: "owner reference is job",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind: "Job",
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			actual := isPodControlledByJob(tc.pod)
+
+			assert.Equal(t, tc.expected, actual, "output not as expected")
 		})
 	}
 }

@@ -63,6 +63,14 @@ func (p *PodInformer) handle(e interface{}) {
 	ctx := context.Background()
 
 	if isPodInCrashLoopBackOff(pod) {
+		if isPodControlledByJob(pod) {
+			log.Infof(
+				"Pod %s/%s is in CrashLoopBackOff and controlled by a Job. Will not notify user as job failures are reported separately.",
+				pod.Namespace,
+				pod.Name)
+			return
+		}
+
 		log.Infof("Pod: %s is in CrashLoopBackOff", pod.Name)
 		restartCount := pod.Status.ContainerStatuses[0].RestartCount
 		if math.Mod(float64(restartCount), p.moduloCrashReportNotif) != 1 {
@@ -150,6 +158,19 @@ func isPodInCreateContainerConfigError(pod *corev1.Pod) bool {
 	}
 	for _, cst := range pod.Status.ContainerStatuses {
 		if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CreateContainerConfigError" {
+			return true
+		}
+	}
+	return false
+}
+
+// isPodControlledByJob - check the PodStatus and indicates whether the Pod is controlled by a Job
+func isPodControlledByJob(pod *corev1.Pod) bool {
+	if pod.OwnerReferences == nil {
+		return false
+	}
+	for _, ownerRef := range pod.OwnerReferences {
+		if ownerRef.Kind == "Job" {
 			return true
 		}
 	}
