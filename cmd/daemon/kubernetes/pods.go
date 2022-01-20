@@ -151,14 +151,15 @@ func isPodInCrashLoopBackOff(pod *corev1.Pod) bool {
 	return false
 }
 
-// isPodInCreateContainerConfigError - check the PodStatus and indicates whether the Pod is in CreateContainerConfigError
+// isPodInCreateContainerConfigError - check the PodStatus and indicates whether the Pod is in CreateContainerConfigError.
+// "failed to sync configmap cache: timed out waiting for the condition" messages are ignored
 func isPodInCreateContainerConfigError(pod *corev1.Pod) bool {
 	if pod.Status.Phase != corev1.PodPending {
 		return false
 	}
 	for _, cst := range pod.Status.ContainerStatuses {
 		if cst.State.Waiting != nil && cst.State.Waiting.Reason == "CreateContainerConfigError" {
-			return true
+			return cst.State.Waiting.Message != "failed to sync configmap cache: timed out waiting for the condition"
 		}
 	}
 	return false

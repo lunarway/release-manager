@@ -97,3 +97,76 @@ func TestIsPodControlledByJob(t *testing.T) {
 		})
 	}
 }
+
+func TestIsPodInCreateContainerConfigError(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		pod      *corev1.Pod
+		expected bool
+	}{
+		{
+			desc:     "no container status",
+			pod:      &corev1.Pod{},
+			expected: false,
+		},
+		{
+			desc: "container status is not createConfigError",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							State: corev1.ContainerState{
+								Waiting: &corev1.ContainerStateWaiting{},
+							},
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			desc: "container status is CreateContainerConfigError",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					Phase: corev1.PodPending,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							State: corev1.ContainerState{
+								Waiting: &corev1.ContainerStateWaiting{
+									Reason:  "CreateContainerConfigError",
+									Message: "Missing secret",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			desc: "container status is CreateContainerConfigError with failed to sync configmap cache message ",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							State: corev1.ContainerState{
+								Waiting: &corev1.ContainerStateWaiting{
+									Reason:  "CreateContainerConfigError",
+									Message: "failed to sync configmap cache: timed out waiting for the condition",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			actual := isPodInCreateContainerConfigError(tc.pod)
+
+			assert.Equal(t, tc.expected, actual, "output not as expected")
+		})
+	}
+}
