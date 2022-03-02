@@ -2,6 +2,7 @@ package git
 
 import (
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -13,15 +14,27 @@ import (
 // Fetching the configuration values are delegated to the git CLI and follows
 // precedence rules defined by Git.
 func CommitterDetails() (string, string, error) {
-	name, err := getGitConfig("user.name")
+	name, err := getValue("user.name", "HAMCTL_USER_NAME")
 	if err != nil {
-		return "", "", errors.WithMessage(err, "Failed to get credentials with 'git config --get user.name'")
+		return "", "", err
 	}
-	email, err := getGitConfig("user.email")
+	email, err := getValue("user.email", "HAMCTL_USER_EMAIL")
 	if err != nil {
-		return "", "", errors.WithMessage(err, "Failed to get credentials with 'git config --get user.email'")
+		return "", "", err
 	}
 	return name, email, nil
+}
+
+func getValue(gitKey, envKey string) (string, error) {
+	v, ok := os.LookupEnv(envKey)
+	if ok {
+		return v, nil
+	}
+	v, err := getGitConfig(gitKey)
+	if err != nil {
+		return "", errors.WithMessagef(err, "Failed to get credentials with 'git config --get %s'", gitKey)
+	}
+	return v, nil
 }
 
 // getGitConfig reads a git configuration field and returns its value as a
