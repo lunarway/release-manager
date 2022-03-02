@@ -26,10 +26,8 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 				switch toEnvironment {
 				case "dev":
 					fromEnvironment = "master"
-				case "staging":
-					fromEnvironment = "dev"
 				case "prod":
-					fromEnvironment = "staging"
+					fromEnvironment = "dev"
 				}
 			}
 			var artifactID string

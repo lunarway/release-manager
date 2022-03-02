@@ -141,14 +141,14 @@ func TestPolicies_SetAutoRelease(t *testing.T) {
 			input: input{
 				policies: policy("master", "dev"),
 				branch:   "feature",
-				env:      "staging",
+				env:      "prod",
 			},
 			output: output{
 				policies: policy(
 					"master", "dev",
-					"feature", "staging",
+					"feature", "prod",
 				),
-				id: "auto-release-feature-staging",
+				id: "auto-release-feature-prod",
 			},
 		},
 	}
@@ -463,7 +463,7 @@ func TestMergeBranchRestrictions(t *testing.T) {
 				{
 					ID:          "global-2",
 					BranchRegex: "^master$",
-					Environment: "staging",
+					Environment: "preprod",
 				},
 			},
 			local: []BranchRestriction{
@@ -487,7 +487,7 @@ func TestMergeBranchRestrictions(t *testing.T) {
 				{
 					ID:          "global-2",
 					BranchRegex: "^master$",
-					Environment: "staging",
+					Environment: "preprod",
 				},
 				{
 					ID:          "local-1",

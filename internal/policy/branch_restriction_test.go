@@ -51,7 +51,7 @@ func TestCanRelease(t *testing.T) {
 					BranchRegex: "master",
 				},
 				{
-					Environment: "staging",
+					Environment: "preprod",
 					BranchRegex: "master",
 				},
 			},

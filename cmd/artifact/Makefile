@@ -96,12 +96,10 @@ endef
 export FLUX_KUSTOMIZATION
 
 example_resources:
-	mkdir -p examples/{dev,staging,prod}
+	mkdir -p examples/{dev,prod}
 	echo "$$CONFIG_MAP" > examples/dev/configmap.yaml
-	echo "$$CONFIG_MAP" > examples/staging/configmap.yaml
 	echo "$$CONFIG_MAP" > examples/prod/configmap.yaml
 	echo "$$FLUX_KUSTOMIZATION" > examples/dev/kustomization.yaml
-	echo "$$FLUX_KUSTOMIZATION" > examples/staging/kustomization.yaml
 	echo "$$FLUX_KUSTOMIZATION" > examples/prod/kustomization.yaml
 
 RELEASE_MANAGER_URL=http://localhost:8080

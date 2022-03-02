@@ -90,12 +90,12 @@ func TestRelease(t *testing.T) {
 			}, nil
 		}
 
-		output := runCommand(t, "--branch", branch, "--env", "dev,staging")
+		output := runCommand(t, "--branch", branch, "--env", "dev,prod")
 
 		assert.Equal(t, []string{
 			"Release of service service-name using branch master\n",
 			"[✓] Release of master-1-2 to dev initialized\n",
-			"[✓] Release of master-1-2 to staging initialized\n",
+			"[✓] Release of master-1-2 to prod initialized\n",
 		}, output)
 	})
 
@@ -110,18 +110,18 @@ func TestRelease(t *testing.T) {
 				ToEnvironment: req.Environment,
 				Tag:           artifactID,
 			}
-			if req.Environment == "staging" {
-				resp.Status = "Environment staging is already up-to-date"
+			if req.Environment == "prod" {
+				resp.Status = "Environment prod is already up-to-date"
 			}
 			return resp, nil
 		}
 
-		output := runCommand(t, "--branch", branch, "--env", "dev,staging")
+		output := runCommand(t, "--branch", branch, "--env", "dev,prod")
 
 		assert.Equal(t, []string{
 			"Release of service service-name using branch master\n",
 			"[✓] Release of master-1-2 to dev initialized\n",
-			"[✓] Environment staging is already up-to-date\n",
+			"[✓] Environment prod is already up-to-date\n",
 		}, output)
 	})
 
@@ -165,12 +165,12 @@ func TestRelease(t *testing.T) {
 			return resp, nil
 		}
 
-		output := runCommand(t, "--branch", branch, "--env", "dev,staging")
+		output := runCommand(t, "--branch", branch, "--env", "dev,prod")
 
 		assert.Equal(t, []string{
 			"Release of service service-name using branch master\n",
 			"[X] cannot release master-1-2 to environment dev due to branch restriction policy (reference: GUID)\n",
-			"[✓] Release of master-1-2 to staging initialized\n",
+			"[✓] Release of master-1-2 to prod initialized\n",
 		}, output)
 	})
 }
