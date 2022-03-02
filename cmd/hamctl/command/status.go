@@ -54,12 +54,11 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 
 func mapToStatusData(resp httpinternal.StatusResponse, service string) statusData {
 	return statusData{
-		EnvironmentsManaged:    someManaged(resp.Dev, resp.Staging, resp.Prod),
+		EnvironmentsManaged:    someManaged(resp.Dev, resp.Prod),
 		UsingDefaultNamespaces: resp.DefaultNamespaces,
 		Service:                service,
 		Environments: []statusDataEnvironment{
 			mapEnvironment(resp.Dev, "dev"),
-			mapEnvironment(resp.Staging, "staging"),
 			mapEnvironment(resp.Prod, "prod"),
 		},
 	}
@@ -71,7 +70,7 @@ var statusTemplate = `Status for service {{ .Service }}
 No environments managed by release-manager.
 
 {{ if .UsingDefaultNamespaces -}}
-Using environment specific namespace, ie. dev, staging, prod.
+Using environment specific namespace, ie. dev, prod.
 {{ end -}}
 Are you setting the right namespace?
 {{- end -}}

@@ -28,7 +28,7 @@ func TestParseCommitInfo(t *testing.T) {
 		{
 			name: "release commit with no spacing should match",
 			commitMessage: []string{
-				"[staging/test-service] release master-1234ds13g3-12s46g356g by hest@lunar.app",
+				"[prod/test-service] release master-1234ds13g3-12s46g356g by hest@lunar.app",
 				"Artifact-created-by: Foo Bar <test@lunar.app>",
 			},
 			commitInfo: CommitInfo{
@@ -36,14 +36,14 @@ func TestParseCommitInfo(t *testing.T) {
 				ArtifactCreatedBy: NewPersonInfo("Foo Bar", "test@lunar.app"),
 				ReleasedBy:        NewPersonInfo("", "hest@lunar.app"),
 				Service:           "test-service",
-				Environment:       "staging",
+				Environment:       "prod",
 				Intent:            intent.NewReleaseArtifact(),
 			},
 			correctCommitMessage: []string{
-				"[staging/test-service] release master-1234ds13g3-12s46g356g by hest@lunar.app",
+				"[prod/test-service] release master-1234ds13g3-12s46g356g by hest@lunar.app",
 				"",
 				"Service: test-service",
-				"Environment: staging",
+				"Environment: prod",
 				"Artifact-ID: master-1234ds13g3-12s46g356g",
 				"Artifact-released-by:  <hest@lunar.app>",
 				"Artifact-created-by: Foo Bar <test@lunar.app>",

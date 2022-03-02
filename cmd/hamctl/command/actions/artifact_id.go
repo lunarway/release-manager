@@ -27,8 +27,6 @@ func ArtifactIDFromEnvironment(client *httpinternal.Client, service, namespace, 
 	switch environment {
 	case "dev":
 		return statusResp.Dev.Tag, nil
-	case "staging":
-		return statusResp.Staging.Tag, nil
 	case "prod":
 		return statusResp.Prod.Tag, nil
 	}

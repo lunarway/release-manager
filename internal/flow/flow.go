@@ -108,7 +108,6 @@ type Environment struct {
 type StatusResponse struct {
 	DefaultNamespaces bool        `json:"defaultNamespaces,omitempty"`
 	Dev               Environment `json:"dev,omitempty"`
-	Staging           Environment `json:"staging,omitempty"`
 	Prod              Environment `json:"prod,omitempty"`
 }
 
@@ -144,21 +143,6 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	defer span.Finish()
 
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
-	span.SetTag("env", "staging")
-	stagingSpec, err := s.releaseSpecification(ctx, releaseLocation{
-		Environment: "staging",
-		Service:     service,
-		Namespace:   defaultNamespace("staging"),
-	})
-	if err != nil {
-		cause := errors.Cause(err)
-		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
-			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env staging")
-		}
-	}
-	defer span.Finish()
-
-	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "prod")
 	prodSpec, err := s.releaseSpecification(ctx, releaseLocation{
 		Environment: "prod",
@@ -176,7 +160,6 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	return StatusResponse{
 		DefaultNamespaces: defaultNamespaces,
 		Dev:               mapSpec(devSpec),
-		Staging:           mapSpec(stagingSpec),
 		Prod:              mapSpec(prodSpec),
 	}, nil
 }

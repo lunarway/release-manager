@@ -46,18 +46,6 @@ func status(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			LowVulnerabilities:    s.Dev.LowVulnerabilities,
 		}
 
-		staging := httpinternal.Environment{
-			Message:               s.Staging.Message,
-			Author:                s.Staging.Author,
-			Tag:                   s.Staging.Tag,
-			Committer:             s.Staging.Committer,
-			Date:                  convertTimeToEpoch(s.Staging.Date),
-			BuildUrl:              s.Staging.BuildURL,
-			HighVulnerabilities:   s.Staging.HighVulnerabilities,
-			MediumVulnerabilities: s.Staging.MediumVulnerabilities,
-			LowVulnerabilities:    s.Staging.LowVulnerabilities,
-		}
-
 		prod := httpinternal.Environment{
 			Message:               s.Prod.Message,
 			Author:                s.Prod.Author,
@@ -76,7 +64,6 @@ func status(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 		err = payload.encodeResponse(ctx, w, httpinternal.StatusResponse{
 			DefaultNamespaces: s.DefaultNamespaces,
 			Dev:               &dev,
-			Staging:           &staging,
 			Prod:              &prod,
 		})
 		if err != nil {

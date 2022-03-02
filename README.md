@@ -5,7 +5,7 @@
 
 GitOps release manager for kubernetes configuration repositories.
 
-This project is used as an internal project at Lunar and it therefore contains some assumptions on our setup. This includes environment naming (dev, staging, prod). Further it is build around assumptions made by our OSS project `shuttle`, and id's for releases are a combination of branch name, git-sha from source repo, and git-sha from shuttle plan repo. Our initial intent is not to support this as an open source project.
+This project is used as an internal project at Lunar and it therefore contains some assumptions on our setup. This includes environment naming (dev, prod). Further it is build around assumptions made by our OSS project `shuttle`, and id's for releases are a combination of branch name, git-sha from source repo, and git-sha from shuttle plan repo. Our initial intent is not to support this as an open source project.
 
 We will however, have it public available for reference. This might change over time.
 
@@ -34,16 +34,16 @@ The promotion flows, is a convetion based release process. It can be invoked by 
 hamctl promote --service example --env dev
 ```
 
-The convention follows the following flow: `master -> dev -> staging -> prod`
+The convention follows the following flow: `master -> dev -> prod`
 As seen in the example above, the `example` service will be promoted from the lastest available artifact from `master` to the `dev` environment.
 
-Another example, is a promotion of an artifact running in, e.g. staging, to the production environment. This can be achieved with the following command:
+Another example, is a promotion of an artifact running in, e.g. dev, to the production environment. This can be achieved with the following command:
 
 ```
 hamctl promote --service example --env prod
 ```
 
-The above locates what is running in the `staging` environment, and takes the necessary steps to run the same artifact in `prod`.
+The above locates what is running in the `dev` environment, and takes the necessary steps to run the same artifact in `prod`.
 
 ## Release
 
@@ -57,29 +57,20 @@ Example of a release of a feature branch to the `dev` environment:
 hamctl release --service example --branch "feature/new_feature" --env dev
 ```
 
-Example of a release of a specific artifact id to the `staging` environment:
+Example of a release of a specific artifact id to the `prod` environment:
 
 ```
-hamctl release --service example --artifact dev-0017d995e3-67e9d69164 --env staging
+hamctl release --service example --artifact main-0017d995e3-67e9d69164 --env prod
 ```
 
 ## Status
 
-Status is a convience flow to display currently released artifact to the three different environments; `dev`, `staging`,`prod`.
+Status is a convience flow to display currently released artifact to the three different environments; `dev`,`prod`.
 
 ```
 $ hamctl status --service example
 
 dev:
-  Tag: master-1c1508405e-67e9d69164
-  Author: Kasper Nissen
-  Committer: Peter Petersen
-  Message: empty-commit-to-test-flow
-  Date: 2019-04-01 11:14:26 +0200 CEST
-  Link: https://jenkins.example.lunar.app/job/github/job/example-service/job/master/132/display/redirect
-  Vulnerabilities: 0 high, 0 medium, 0 low
-
-staging:
   Tag: master-1c1508405e-67e9d69164
   Author: Kasper Nissen
   Committer: Peter Petersen
@@ -120,7 +111,7 @@ These cases are validated when applying either of them.
 
 An `auto-release` policy instructs the release manager to deploy new artifacts from a specific branch into an environment.
 
-Multiple policies can be applied for the same branch to different environments, e.g. release `master` artifacts to `dev` and `staging`.
+Multiple policies can be applied for the same branch to different environments, e.g. release `master` artifacts to `dev` and `prod`.
 
 This is an example of applying an auto-release policy for the product service for the `master` branch and `dev` environment.
 
@@ -154,7 +145,7 @@ The `server` can also enforce branch restrictions on all managed services by set
 It takes a comma seprated list of `<environment>=<branchRegex>` values.
 
 ```
-server start --policy-branch-restrictions 'production=^master$,staging=^staging$'
+server start --policy-branch-restrictions 'production=^master$,dev=^development$'
 ```
 
 They will be visible with `hamctl policy list` but cannot by removed with `hamctl`.

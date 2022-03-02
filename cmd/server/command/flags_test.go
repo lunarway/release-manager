@@ -40,12 +40,12 @@ func TestGrafanaOptions_String(t *testing.T) {
 					URL:    "localhost1",
 					APIKey: "key",
 				},
-				"staging": grafanaConfig{
+				"prod": grafanaConfig{
 					URL:    "localhost2",
 					APIKey: "key",
 				},
 			},
-			output: "dev=<redacted>=localhost1,staging=<redacted>=localhost2",
+			output: "dev=<redacted>=localhost1,prod=<redacted>=localhost2",
 		},
 	}
 	for _, tc := range tt {
@@ -89,13 +89,13 @@ func TestGrafanaOptions_Set(t *testing.T) {
 		},
 		{
 			name:  "multiple complete",
-			input: "dev=key1=localhost,staging=key2=anotherhost",
+			input: "dev=key1=localhost,prod=key2=anotherhost",
 			output: grafanaOptions{
 				"dev": grafanaConfig{
 					URL:    "localhost",
 					APIKey: "key1",
 				},
-				"staging": grafanaConfig{
+				"prod": grafanaConfig{
 					URL:    "anotherhost",
 					APIKey: "key2",
 				},
@@ -115,9 +115,9 @@ func TestGrafanaOptions_Set(t *testing.T) {
 		},
 		{
 			name:   "multiple values with one incomplete",
-			input:  "dev=key1=localhost,staging=key2",
+			input:  "dev=key1=localhost,prod=key2",
 			output: grafanaOptions{},
-			err:    errors.New("flag value 'staging=key2': value must be formatted as <env>=<api-key>=<url>"),
+			err:    errors.New("flag value 'prod=key2': value must be formatted as <env>=<api-key>=<url>"),
 		},
 	}
 	for _, tc := range tt {
@@ -167,14 +167,14 @@ func TestGrafanaOptions_GetSlice(t *testing.T) {
 					URL:    "localhost1",
 					APIKey: "a-key",
 				},
-				"staging": grafanaConfig{
+				"prod": grafanaConfig{
 					URL:    "localhost2",
 					APIKey: "another-key",
 				},
 			},
 			output: []string{
 				"dev=<redacted>=localhost1",
-				"staging=<redacted>=localhost2",
+				"prod=<redacted>=localhost2",
 			},
 		},
 	}
@@ -202,13 +202,13 @@ func TestGrafanaOptions_Append(t *testing.T) {
 					APIKey: "key",
 				},
 			},
-			input: "staging=key=localhost2",
+			input: "prod=key=localhost2",
 			output: grafanaOptions{
 				"dev": grafanaConfig{
 					URL:    "localhost",
 					APIKey: "key",
 				},
-				"staging": grafanaConfig{
+				"prod": grafanaConfig{
 					URL:    "localhost2",
 					APIKey: "key",
 				},
@@ -262,9 +262,9 @@ func TestGrafanaOptions_Replace(t *testing.T) {
 					APIKey: "key",
 				},
 			},
-			input: []string{"staging=key=localhost2"},
+			input: []string{"prod=key=localhost2"},
 			output: grafanaOptions{
-				"staging": grafanaConfig{
+				"prod": grafanaConfig{
 					URL:    "localhost2",
 					APIKey: "key",
 				},
@@ -278,13 +278,13 @@ func TestGrafanaOptions_Replace(t *testing.T) {
 					APIKey: "key",
 				},
 			},
-			input: []string{"dev=key=localhost", "staging=key=localhost2"},
+			input: []string{"dev=key=localhost", "prod=key=localhost2"},
 			output: grafanaOptions{
 				"dev": grafanaConfig{
 					URL:    "localhost",
 					APIKey: "key",
 				},
-				"staging": grafanaConfig{
+				"prod": grafanaConfig{
 					URL:    "localhost2",
 					APIKey: "key",
 				},
