@@ -1,6 +1,5 @@
 # Release Manager
 
-[![Build Status](https://travis-ci.com/lunarway/release-manager.svg?branch=master)](https://travis-ci.com/lunarway/release-manager)
 [![Go Report Card](https://goreportcard.com/badge/github.com/lunarway/release-manager)](https://goreportcard.com/report/github.com/lunarway/release-manager)
 
 GitOps release manager for kubernetes configuration repositories.
@@ -434,4 +433,4 @@ To use the e2e setup there are the following actions supported:
 ## Releasing
 
 This project is configured with `goreleaser` and releases all 4 applications at once.
-Push a new tag to the main branch and Travis will publish a new release and create the changelog.
+Push a new tag to the main branch and GitHub actions will publish a new release and create the changelog.
