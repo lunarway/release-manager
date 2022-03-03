@@ -63,7 +63,12 @@ func TestService_DescribeRelease_basicFlow(t *testing.T) {
 		},
 	}
 	for i := range commits {
-		hash, err := wt.Commit(commits[i].message, &git.CommitOptions{})
+		hash, err := wt.Commit(commits[i].message, &git.CommitOptions{
+			Author: &object.Signature{
+				Name:  "test",
+				Email: "test@example.com",
+			},
+		})
 		if err != nil {
 			t.Fatalf("failed to commit to worktree: %v", err)
 		}

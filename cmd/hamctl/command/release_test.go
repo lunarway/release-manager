@@ -22,6 +22,8 @@ func TestRelease(t *testing.T) {
 		branch      = "master"
 		artifactID  = "master-1-2"
 	)
+	t.Setenv("HAMCTL_USER_NAME", "test")
+	t.Setenv("HAMCTL_USER_EMAIL", "test@example.com")
 
 	// mocked manager server responding as configured in variables below
 	var (
