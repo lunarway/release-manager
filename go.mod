@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/johannesboyne/gofakes3 v0.0.0-20210819161434-5c8dfcfe5310
-	github.com/makasim/amqpextra v0.16.4
+	github.com/makasim/amqpextra v0.17.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/nlopes/slack v0.6.0
 	github.com/opentracing/opentracing-go v1.2.0
@@ -64,6 +64,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
+	github.com/rabbitmq/amqp091-go v1.3.4 // indirect
 	github.com/ryszard/goskiplist v0.0.0-20150312221310-2dfbae5fcf46 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shabbyrobe/gocovmerge v0.0.0-20180507124511-f6ea450bfb63 // indirect
