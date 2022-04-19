@@ -8,7 +8,7 @@ import (
 	"github.com/makasim/amqpextra"
 	"github.com/makasim/amqpextra/publisher"
 	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // Worker is an AMQP consumer and publisher implementation. It configures an

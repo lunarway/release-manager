@@ -6,7 +6,7 @@ import (
 
 	"github.com/makasim/amqpextra/consumer"
 	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // StartConsumer consumes messages from an AMQP queue. The method is blocking

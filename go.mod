@@ -11,15 +11,15 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/johannesboyne/gofakes3 v0.0.0-20210819161434-5c8dfcfe5310
-	github.com/makasim/amqpextra v0.16.4
+	github.com/makasim/amqpextra v0.17.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/nlopes/slack v0.6.0
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.1
+	github.com/rabbitmq/amqp091-go v1.3.4
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
-	github.com/streadway/amqp v1.0.1-0.20200716223359-e6b33f460591
 	github.com/stretchr/testify v1.7.1
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
 	github.com/uber/jaeger-lib v2.4.1+incompatible
