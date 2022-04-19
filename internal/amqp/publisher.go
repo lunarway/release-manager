@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/makasim/amqpextra/publisher"
 	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // Publish publishes a message over AMQP. It will block until the message

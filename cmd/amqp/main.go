@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"sync"
 
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // main is a CLI for publishing messages to a RabbitMQ cluster. It is used to

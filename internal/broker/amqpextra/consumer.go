@@ -5,7 +5,7 @@ import (
 
 	internalamqp "github.com/lunarway/release-manager/internal/amqp"
 	"github.com/lunarway/release-manager/internal/broker"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // StartConsumer consumes messages from an AMQP queue. The method is blocking

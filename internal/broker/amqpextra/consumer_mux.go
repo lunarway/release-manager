@@ -6,7 +6,7 @@ import (
 
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // mux implements interface amqpextra.Worker  and facilitates message

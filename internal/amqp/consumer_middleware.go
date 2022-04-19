@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/makasim/amqpextra/consumer"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func loggerMiddleware(logger Logger) consumer.Middleware {
