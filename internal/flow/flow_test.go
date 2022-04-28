@@ -24,7 +24,7 @@ func TestReleaseSpecification(t *testing.T) {
 				Service:     "a",
 			},
 			spec: artifact.Spec{
-				ID: "master-1234-5678",
+				ID: "master-default-5678",
 			},
 		},
 		{
@@ -65,22 +65,28 @@ func TestReleaseSpecifications(t *testing.T) {
 		name      string
 		namespace string
 		service   string
-		spec      artifact.Spec
+		release   ReleaseSpec
 	}{
 		{
 			name:      "default namespace",
 			namespace: "",
 			service:   "a",
-			spec: artifact.Spec{
-				ID: "master-default-5678",
+			release: ReleaseSpec{
+				Environment: "dev",
+				Spec: artifact.Spec{
+					ID: "master-default-5678",
+				},
 			},
 		},
 		{
 			name:      "specified namespace",
 			namespace: "other",
 			service:   "a",
-			spec: artifact.Spec{
-				ID: "master-other-5678",
+			release: ReleaseSpec{
+				Environment: "dev",
+				Spec: artifact.Spec{
+					ID: "master-other-5678",
+				},
 			},
 		},
 	}
@@ -95,10 +101,10 @@ func TestReleaseSpecifications(t *testing.T) {
 				ArtifactFileName: "artifact.json",
 			}
 
-			specs, err := s.releaseSpecifications(context.Background(), tc.namespace, tc.service)
+			releases, err := s.releaseSpecifications(context.Background(), tc.namespace, tc.service)
 
 			assert.NoError(t, err, "unexpected error")
-			assert.Equal(t, tc.spec, specs, "artifact spec not as expected")
+			assert.Equal(t, []ReleaseSpec{tc.release}, releases, "release specs not as expected")
 		})
 	}
 }
