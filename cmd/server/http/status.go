@@ -63,6 +63,7 @@ func status(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 
 		err = payload.encodeResponse(ctx, w, httpinternal.StatusResponse{
 			DefaultNamespaces: s.DefaultNamespaces,
+			Environments:      mapEnvironments(s.Environments),
 			Dev:               &dev,
 			Prod:              &prod,
 		})
@@ -70,6 +71,26 @@ func status(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			logger.Errorf("http: status: service '%s': marshal response failed: %v", service, err)
 		}
 	}
+}
+
+func mapEnvironments(envs []flow.Environment) []httpinternal.Environment {
+	var mapped []httpinternal.Environment
+	for _, env := range envs {
+		mapped = append(mapped, httpinternal.Environment{
+			Name:                  env.Name,
+			Message:               env.Message,
+			Author:                env.Author,
+			Tag:                   env.Tag,
+			Committer:             env.Committer,
+			Date:                  convertTimeToEpoch(env.Date),
+			BuildUrl:              env.BuildURL,
+			HighVulnerabilities:   env.HighVulnerabilities,
+			MediumVulnerabilities: env.MediumVulnerabilities,
+			LowVulnerabilities:    env.LowVulnerabilities,
+		})
+	}
+
+	return mapped
 }
 
 func convertTimeToEpoch(t time.Time) int64 {

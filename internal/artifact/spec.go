@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -166,6 +167,14 @@ func Get(path string) (Spec, error) {
 		if os.IsNotExist(err) {
 			return Spec{}, ErrFileNotFound
 		}
+
+		// handle "not a directory" errors that can be returned when looking into
+		// non-existing nested folders.
+		var pathErr *os.PathError
+		if errors.As(err, &pathErr) && pathErr.Err == syscall.ENOTDIR {
+			return Spec{}, ErrFileNotFound
+		}
+
 		return Spec{}, err
 	}
 	defer s.Close()

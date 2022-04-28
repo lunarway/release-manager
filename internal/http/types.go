@@ -13,12 +13,17 @@ type StatusRequest struct {
 }
 
 type StatusResponse struct {
-	DefaultNamespaces bool         `json:"defaultNamespaces,omitempty"`
-	Dev               *Environment `json:"dev,omitempty"`
-	Prod              *Environment `json:"prod,omitempty"`
+	DefaultNamespaces bool          `json:"defaultNamespaces,omitempty"`
+	Environments      []Environment `json:"environments,omitempty"`
+
+	// Deprecated: Use environments instead.
+	Dev *Environment `json:"dev,omitempty"`
+	// Deprecated: Use environments instead.
+	Prod *Environment `json:"prod,omitempty"`
 }
 
 type Environment struct {
+	Name                  string `json:"name,omitempty"`
 	Tag                   string `json:"tag,omitempty"`
 	Committer             string `json:"committer,omitempty"`
 	Author                string `json:"author,omitempty"`
