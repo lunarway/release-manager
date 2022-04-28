@@ -94,6 +94,7 @@ func (s *Service) retry(ctx context.Context, f func(context.Context, int) (bool,
 }
 
 type Environment struct {
+	Name                  string    `json:"name,omitempty"`
 	Tag                   string    `json:"tag,omitempty"`
 	Committer             string    `json:"committer,omitempty"`
 	Author                string    `json:"author,omitempty"`
@@ -106,9 +107,13 @@ type Environment struct {
 }
 
 type StatusResponse struct {
-	DefaultNamespaces bool        `json:"defaultNamespaces,omitempty"`
-	Dev               Environment `json:"dev,omitempty"`
-	Prod              Environment `json:"prod,omitempty"`
+	DefaultNamespaces bool          `json:"defaultNamespaces,omitempty"`
+	Environments      []Environment `json:"environments,omitempty"`
+
+	// Deprecated: Use environments instead.
+	Dev Environment `json:"dev,omitempty"`
+	// Deprecated: Use environments instead.
+	Prod Environment `json:"prod,omitempty"`
 }
 
 type Actor struct {
@@ -127,6 +132,20 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 		}
 		return namespace
 	}
+
+	span, _ = s.Tracer.FromCtx(ctx, "artifact specs for all environments")
+	specs, err := s.releaseSpecifications(ctx, namespace, service)
+	if err != nil {
+		span.Finish()
+		return StatusResponse{}, errors.WithMessagef(err, "locate source specs for all environments")
+	}
+	span.Finish()
+
+	var environments []Environment
+	for _, s := range specs {
+		environments = append(environments, mapSpec(s))
+	}
+
 	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
 	span.SetTag("env", "dev")
 	devSpec, err := s.releaseSpecification(ctx, releaseLocation{
@@ -159,22 +178,30 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 
 	return StatusResponse{
 		DefaultNamespaces: defaultNamespaces,
-		Dev:               mapSpec(devSpec),
-		Prod:              mapSpec(prodSpec),
+		Environments:      environments,
+		Dev: mapSpec(ReleaseSpec{
+			Spec:        devSpec,
+			Environment: "dev",
+		}),
+		Prod: mapSpec(ReleaseSpec{
+			Spec:        prodSpec,
+			Environment: "prod",
+		}),
 	}, nil
 }
 
-func mapSpec(spec artifact.Spec) Environment {
+func mapSpec(release ReleaseSpec) Environment {
 	return Environment{
-		Tag:                   spec.ID,
-		Committer:             spec.Application.CommitterName,
-		Author:                spec.Application.AuthorName,
-		Message:               spec.Application.Message,
-		Date:                  spec.CI.End,
-		BuildURL:              spec.CI.JobURL,
-		HighVulnerabilities:   calculateHighTotalVulnerabilties(spec),
-		MediumVulnerabilities: calculateMediumTotalVulnerabilties(spec),
-		LowVulnerabilities:    calculateLowTotalVulnerabilties(spec),
+		Name:                  release.Environment,
+		Tag:                   release.Spec.ID,
+		Committer:             release.Spec.Application.CommitterName,
+		Author:                release.Spec.Application.AuthorName,
+		Message:               release.Spec.Application.Message,
+		Date:                  release.Spec.CI.End,
+		BuildURL:              release.Spec.CI.JobURL,
+		HighVulnerabilities:   calculateHighTotalVulnerabilties(release.Spec),
+		MediumVulnerabilities: calculateMediumTotalVulnerabilties(release.Spec),
+		LowVulnerabilities:    calculateLowTotalVulnerabilties(release.Spec),
 	}
 }
 
@@ -217,6 +244,46 @@ type releaseLocation struct {
 	Environment string
 	Namespace   string
 	Service     string
+}
+
+type ReleaseSpec struct {
+	Spec        artifact.Spec
+	Environment string
+}
+
+func (s *Service) releaseSpecifications(ctx context.Context, configuredNamespace, service string) ([]ReleaseSpec, error) {
+	directories, err := os.ReadDir(s.Git.MasterPath())
+	if err != nil {
+		return nil, errors.WithMessagef(err, "read root directories")
+	}
+
+	var releases []ReleaseSpec
+	for _, dir := range directories {
+		// handle default namespaces
+		namespace := configuredNamespace
+		if namespace == "" {
+			namespace = dir.Name()
+		}
+
+		spec, err := s.releaseSpecification(ctx, releaseLocation{
+			Environment: dir.Name(),
+			Namespace:   namespace,
+			Service:     service,
+		})
+		if err != nil {
+			if errors.Is(err, artifact.ErrFileNotFound) {
+				continue
+			}
+			return nil, errors.WithMessagef(err, "read spec from '%s'", dir.Name())
+		}
+
+		releases = append(releases, ReleaseSpec{
+			Spec:        spec,
+			Environment: dir.Name(),
+		})
+	}
+
+	return releases, nil
 }
 
 func (s *Service) releaseSpecification(ctx context.Context, location releaseLocation) (artifact.Spec, error) {

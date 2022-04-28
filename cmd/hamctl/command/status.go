@@ -53,14 +53,15 @@ func NewStatus(client *httpinternal.Client, service *string) *cobra.Command {
 }
 
 func mapToStatusData(resp httpinternal.StatusResponse, service string) statusData {
+	var envs []statusDataEnvironment
+	for _, e := range resp.Environments {
+		envs = append(envs, mapEnvironment(&e, e.Name))
+	}
 	return statusData{
 		EnvironmentsManaged:    someManaged(resp.Dev, resp.Prod),
 		UsingDefaultNamespaces: resp.DefaultNamespaces,
 		Service:                service,
-		Environments: []statusDataEnvironment{
-			mapEnvironment(resp.Dev, "dev"),
-			mapEnvironment(resp.Prod, "prod"),
-		},
+		Environments:           envs,
 	}
 }
 

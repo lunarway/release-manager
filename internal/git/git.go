@@ -89,8 +89,9 @@ func (s *Service) clone(ctx context.Context, destination string) (*git.Repositor
 
 	span, _ = s.Tracer.FromCtx(ctx, "plain clone")
 	r, err := git.PlainCloneContext(ctx, destination, false, &git.CloneOptions{
-		URL:  s.ConfigRepoURL,
-		Auth: authSSH,
+		URL:   s.ConfigRepoURL,
+		Auth:  authSSH,
+		Depth: 1,
 	})
 	span.Finish()
 	if err != nil {

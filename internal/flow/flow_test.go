@@ -59,3 +59,46 @@ func TestReleaseSpecification(t *testing.T) {
 		})
 	}
 }
+
+func TestReleaseSpecifications(t *testing.T) {
+	tt := []struct {
+		name      string
+		namespace string
+		service   string
+		spec      artifact.Spec
+	}{
+		{
+			name:      "default namespace",
+			namespace: "",
+			service:   "a",
+			spec: artifact.Spec{
+				ID: "master-default-5678",
+			},
+		},
+		{
+			name:      "specified namespace",
+			namespace: "other",
+			service:   "a",
+			spec: artifact.Spec{
+				ID: "master-other-5678",
+			},
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			gitService := MockGitService{}
+			gitService.Test(t)
+			gitService.On("MasterPath").Return("testdata")
+
+			s := Service{
+				Git:              &gitService,
+				ArtifactFileName: "artifact.json",
+			}
+
+			specs, err := s.releaseSpecifications(context.Background(), tc.namespace, tc.service)
+
+			assert.NoError(t, err, "unexpected error")
+			assert.Equal(t, tc.spec, specs, "artifact spec not as expected")
+		})
+	}
+}
