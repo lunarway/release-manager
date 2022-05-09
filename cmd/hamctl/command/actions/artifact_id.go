@@ -24,11 +24,10 @@ func ArtifactIDFromEnvironment(client *httpinternal.Client, service, namespace, 
 		return "", err
 	}
 
-	switch environment {
-	case "dev":
-		return statusResp.Dev.Tag, nil
-	case "prod":
-		return statusResp.Prod.Tag, nil
+	for _, env := range statusResp.Environments {
+		if environment == env.Name {
+			return env.Tag, nil
+		}
 	}
 
 	return "", fmt.Errorf("unknown environment %s", environment)

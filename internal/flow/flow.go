@@ -109,11 +109,6 @@ type Environment struct {
 type StatusResponse struct {
 	DefaultNamespaces bool          `json:"defaultNamespaces,omitempty"`
 	Environments      []Environment `json:"environments,omitempty"`
-
-	// Deprecated: Use environments instead.
-	Dev Environment `json:"dev,omitempty"`
-	// Deprecated: Use environments instead.
-	Prod Environment `json:"prod,omitempty"`
 }
 
 type Actor struct {
@@ -126,12 +121,6 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 	defer span.Finish()
 
 	defaultNamespaces := namespace == ""
-	defaultNamespace := func(env string) string {
-		if defaultNamespaces {
-			return env
-		}
-		return namespace
-	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "artifact specs for all environments")
 	specs, err := s.releaseSpecifications(ctx, namespace, service)
@@ -146,47 +135,9 @@ func (s *Service) Status(ctx context.Context, namespace, service string) (Status
 		environments = append(environments, mapSpec(s))
 	}
 
-	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
-	span.SetTag("env", "dev")
-	devSpec, err := s.releaseSpecification(ctx, releaseLocation{
-		Environment: "dev",
-		Service:     service,
-		Namespace:   defaultNamespace("dev"),
-	})
-	if err != nil {
-		cause := errors.Cause(err)
-		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
-			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env dev")
-		}
-	}
-	defer span.Finish()
-
-	span, _ = s.Tracer.FromCtx(ctx, "artifact spec for environment")
-	span.SetTag("env", "prod")
-	prodSpec, err := s.releaseSpecification(ctx, releaseLocation{
-		Environment: "prod",
-		Service:     service,
-		Namespace:   defaultNamespace("prod"),
-	})
-	if err != nil {
-		cause := errors.Cause(err)
-		if cause != artifact.ErrFileNotFound && cause != artifact.ErrNotParsable && cause != artifact.ErrUnknownFields {
-			return StatusResponse{}, errors.WithMessage(err, "locate source spec for env prod")
-		}
-	}
-	defer span.Finish()
-
 	return StatusResponse{
 		DefaultNamespaces: defaultNamespaces,
 		Environments:      environments,
-		Dev: mapSpec(ReleaseSpec{
-			Spec:        devSpec,
-			Environment: "dev",
-		}),
-		Prod: mapSpec(ReleaseSpec{
-			Spec:        prodSpec,
-			Environment: "prod",
-		}),
 	}, nil
 }
 

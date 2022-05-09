@@ -15,11 +15,6 @@ type StatusRequest struct {
 type StatusResponse struct {
 	DefaultNamespaces bool          `json:"defaultNamespaces,omitempty"`
 	Environments      []Environment `json:"environments,omitempty"`
-
-	// Deprecated: Use environments instead.
-	Dev *Environment `json:"dev,omitempty"`
-	// Deprecated: Use environments instead.
-	Prod *Environment `json:"prod,omitempty"`
 }
 
 type Environment struct {
