@@ -34,38 +34,12 @@ func status(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			return
 		}
 
-		dev := httpinternal.Environment{
-			Message:               s.Dev.Message,
-			Author:                s.Dev.Author,
-			Tag:                   s.Dev.Tag,
-			Committer:             s.Dev.Committer,
-			Date:                  convertTimeToEpoch(s.Dev.Date),
-			BuildUrl:              s.Dev.BuildURL,
-			HighVulnerabilities:   s.Dev.HighVulnerabilities,
-			MediumVulnerabilities: s.Dev.MediumVulnerabilities,
-			LowVulnerabilities:    s.Dev.LowVulnerabilities,
-		}
-
-		prod := httpinternal.Environment{
-			Message:               s.Prod.Message,
-			Author:                s.Prod.Author,
-			Tag:                   s.Prod.Tag,
-			Committer:             s.Prod.Committer,
-			Date:                  convertTimeToEpoch(s.Prod.Date),
-			BuildUrl:              s.Prod.BuildURL,
-			HighVulnerabilities:   s.Prod.HighVulnerabilities,
-			MediumVulnerabilities: s.Prod.MediumVulnerabilities,
-			LowVulnerabilities:    s.Prod.LowVulnerabilities,
-		}
-
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
 		err = payload.encodeResponse(ctx, w, httpinternal.StatusResponse{
 			DefaultNamespaces: s.DefaultNamespaces,
 			Environments:      mapEnvironments(s.Environments),
-			Dev:               &dev,
-			Prod:              &prod,
 		})
 		if err != nil {
 			logger.Errorf("http: status: service '%s': marshal response failed: %v", service, err)

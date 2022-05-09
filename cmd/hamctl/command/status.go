@@ -58,7 +58,7 @@ func mapToStatusData(resp httpinternal.StatusResponse, service string) statusDat
 		envs = append(envs, mapEnvironment(&e, e.Name))
 	}
 	return statusData{
-		EnvironmentsManaged:    someManaged(resp.Dev, resp.Prod),
+		EnvironmentsManaged:    someManaged(resp.Environments...),
 		UsingDefaultNamespaces: resp.DefaultNamespaces,
 		Service:                service,
 		Environments:           envs,
@@ -124,9 +124,9 @@ func mapEnvironment(env *httpinternal.Environment, name string) statusDataEnviro
 }
 
 // someManaged returns true if any of provided environments are managed.
-func someManaged(envs ...*httpinternal.Environment) bool {
+func someManaged(envs ...httpinternal.Environment) bool {
 	for _, e := range envs {
-		if e != nil && e.Tag != "" {
+		if e.Tag != "" {
 			return true
 		}
 	}
