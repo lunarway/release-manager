@@ -1,6 +1,7 @@
 package template
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"text/template"
@@ -29,9 +30,40 @@ func tmplRightPad(s string, padding int) string {
 	return fmt.Sprintf(template, s)
 }
 
+func tmplMaxLength(list interface{}, key string) (int, error) {
+	// this is a poor mans generic implementation of finding the maximum length of
+	// a value based on a key. We change the type of the list to a
+	// map[string]interface{} which makes key lookups safe.
+	bytes, err := json.Marshal(list)
+	if err != nil {
+		return 0, err
+	}
+
+	var mapedList []map[string]interface{}
+	err = json.Unmarshal(bytes, &mapedList)
+	if err != nil {
+		return 0, err
+	}
+
+	var max int
+	for _, m := range mapedList {
+		if s, ok := m[key].(string); ok {
+			if len(s) > max {
+				max = len(s)
+			}
+		}
+	}
+
+	return max, nil
+}
+
 func FuncMap() template.FuncMap {
 	return template.FuncMap{
-		"rightPad": tmplRightPad,
+		"rightPad":  tmplRightPad,
+		"maxLength": tmplMaxLength,
+		"add": func(a, b int) int {
+			return a + b
+		},
 		"dateFormat": func() string {
 			return "2006-01-02 15:04:05"
 		},
