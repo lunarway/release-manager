@@ -75,21 +75,12 @@ Using environment specific namespace, ie. dev, prod.
 {{ end -}}
 Are you setting the right namespace?
 {{- end -}}
-
-{{ range .Environments }}
-
-{{ .Environment }}:
-{{- if eq (len .Tag) 0 }}
-  Not managed by the release-manager
-{{- else }}
-  Tag: {{ .Tag }}
-  Author: {{ .Author }}
-  Committer: {{ .Committer }}
-  Message: {{ .CommitMessage }}
-  Date: {{ .Date.Format dateFormat }}
-  Link: {{ .BuildURL }}
-  Vulnerabilities: {{ .HighVulnerabilities }} high, {{ .MediumVulnerabilities }} medium, {{ .LowVulnerabilities }} low
-{{- end -}}
+{{- if not (eq (len .Environments) 0) }}
+{{/* add 2 as we have ": " added to the environment column */ -}}
+{{ $columnWidth := add (maxLength .Environments "Environment") 2 -}}
+{{- range .Environments }}
+{{ rightPad (printf "%s:" .Environment) $columnWidth }}{{ .Date.Format dateFormat }} {{ .Tag }} by {{ .Committer }}: {{ .CommitMessage }}
+{{- end }}
 {{- end }}
 `
 
