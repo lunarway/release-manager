@@ -28,8 +28,19 @@ type Event struct {
 
 func HandleEventFromFlux2(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	body, _ := ioutil.ReadAll(r.Body) //TODO: log something
+	body, err := ioutil.ReadAll(r.Body) //TODO: log something
+	if err != nil {
+		log.Errorf("Failed to unmarshal alert from flux2-notification-controller: %v", err)
+		http.Error(w, "unknown error", http. StatusInternalServerError)
+		return
+	}
+	
 	var event Event
-	_ = json.Unmarshal(body, &event)
+	err = json.Unmarshal(body, &event)
+	if err != nil {
+		log.Errorf("Failed to unmarshal alert from flux2-notification-controller: %v", err)
+		http.Error(w, "unknown error", http. StatusInternalServerError)
+		return
+	}
 	log.Infof("Received alert from flux2-notification-controller: %s with msg: %s", event.InvolvedObject.Name, event.Message)
 }
