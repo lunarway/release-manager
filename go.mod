@@ -33,6 +33,11 @@ require (
 )
 
 require (
+	github.com/gorilla/mux v1.8.0
+	go.lunarway.com/zlog v1.0.3
+)
+
+require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
@@ -48,16 +53,15 @@ require (
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-openapi/errors v0.20.2 // indirect
-	github.com/gofrs/uuid v3.3.0+incompatible // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.14 // indirect
+	github.com/gofrs/uuid v3.3.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
-	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -82,7 +86,6 @@ require (
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	go.lunarway.com/correlation v1.0.0 // indirect
-	go.lunarway.com/zlog v1.0.3 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
