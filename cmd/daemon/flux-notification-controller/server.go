@@ -4,10 +4,12 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/lunarway/release-manager/internal/log"
 )
 
 func StartHttpServer() {
 	router := mux.NewRouter()
 	router.HandleFunc("/webhook/flux2-alerts", HandleEventFromFlux2).Methods(http.MethodPost)
-	_ = http.ListenAndServe(":3001", router) //TODO: log something
+	err := http.ListenAndServe(":3001", router)
+	log.Errorf("Error occurred starting daemon http server: %v", err)
 }
