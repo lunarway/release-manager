@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"go.lunarway.com/zlog"
+	"github.com/lunarway/release-manager/internal/log"
 )
 
 type Event struct {
@@ -31,5 +31,5 @@ func HandleEventFromFlux2(w http.ResponseWriter, r *http.Request) {
 	body, _ := ioutil.ReadAll(r.Body) //TODO: log something
 	var event Event
 	_ = json.Unmarshal(body, &event)
-	zlog.Infof("Received alert from flux2-notification-controller: %s with msg: %s", event.InvolvedObject.Name, event.Message)
+	log.Infof("Received alert from flux2-notification-controller: %s with msg: %s", event.InvolvedObject.Name, event.Message)
 }
