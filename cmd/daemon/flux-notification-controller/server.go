@@ -11,5 +11,5 @@ func StartHttpServer() {
 	router := mux.NewRouter()
 	router.HandleFunc("/webhook/flux2-alerts", HandleEventFromFlux2).Methods(http.MethodPost)
 	err := http.ListenAndServe(":3001", router)
-	log.Errorf("Error occurred starting daemon http server: %v", err)
+	log.Errorf("Failed to start daemon's HTTP server: %v", err)
 }

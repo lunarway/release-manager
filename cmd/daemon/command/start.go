@@ -6,7 +6,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lunarway/release-manager/cmd/daemon/flux-notification-controller"
+	flux_notification_controller "github.com/lunarway/release-manager/cmd/daemon/flux-notification-controller"
 	"github.com/lunarway/release-manager/cmd/daemon/kubernetes"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
@@ -57,6 +57,7 @@ func StartDaemon() *cobra.Command {
 			kubernetes.RegisterJobInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
 			kubernetes.RegisterPodInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset, moduloCrashReportNotif)
 			kubernetes.RegisterStatefulSetInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
+			flux_notification_controller.StartHttpServer()
 
 			log.Info("Deamon started")
 
@@ -94,7 +95,5 @@ func StartDaemon() *cobra.Command {
 	//nolint:errcheck
 	command.MarkFlagRequired("environment")
 	logConfiguration = log.RegisterFlags(command)
-
-	flux_notification_controller.StartHttpServer()
 	return command
 }
