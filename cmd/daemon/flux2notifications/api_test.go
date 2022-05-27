@@ -30,6 +30,7 @@ func TestWebhookForAlerts(t *testing.T) {
 
 	//assert
 	assert.NoError(t, err, "HandleEventFromFlux2 could not handle request")
+	assert.Equal(t, http.StatusOK, response.StatusCode)
 }
 
 func setupTest() {
