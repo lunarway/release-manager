@@ -24,11 +24,11 @@ func TestWebhookForAlerts(t *testing.T) {
 
 	//act
 	HandleEventFromFlux2(w, request)
-
-	//assert
 	response := w.Result()
 	defer response.Body.Close()
 	_, err := ioutil.ReadAll(response.Body)
+
+	//assert
 	assert.NoError(t, err, "HandleEventFromFlux2 could not handle request")
 }
 
