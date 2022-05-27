@@ -12,8 +12,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// TestPostAlert tests if /flux2-alerts can handle requests from flux2-notification-controller
-func TestPostAlert(t *testing.T) {
+// TestWebhookForAlerts tests if /flux2-alerts can handle requests from flux2-notification-controller
+func TestWebhookForAlerts(t *testing.T) {
 	//arrange
 	setupTest()
 	var (
