@@ -6,7 +6,7 @@ import (
 	"syscall"
 	"time"
 
-	flux_notification_controller "github.com/lunarway/release-manager/cmd/daemon/flux-notification-controller"
+	flux_notification_controller "github.com/lunarway/release-manager/cmd/daemon/flux2notifications"
 	"github.com/lunarway/release-manager/cmd/daemon/kubernetes"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"

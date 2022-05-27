@@ -1,4 +1,4 @@
-package flux_notification_controller
+package flux2notifications
 
 import (
 	"net/http"
