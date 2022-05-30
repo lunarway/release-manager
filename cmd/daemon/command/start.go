@@ -61,8 +61,7 @@ func StartDaemon() *cobra.Command {
 			go func() {
 				err := server.ListenAndServe()
 				if err != nil {
-					log.Errorf("Failed to start the notification server: %s", err)
-					os.Exit(1)
+					done <- errors.WithMessage(err, "start notification server")
 				}
 			}()
 
