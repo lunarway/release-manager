@@ -57,7 +57,14 @@ func StartDaemon() *cobra.Command {
 			kubernetes.RegisterJobInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
 			kubernetes.RegisterPodInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset, moduloCrashReportNotif)
 			kubernetes.RegisterStatefulSetInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
-			flux_notification_controller.StartHttpServer()
+			server := flux_notification_controller.NewHttpServer()
+			go func() {
+				err := server.ListenAndServe()
+				if err != nil {
+					log.Errorf("Failed to start the notification server: %s", err)
+					os.Exit(1)
+				}
+			}()
 
 			log.Info("Deamon started")
 
@@ -80,6 +87,13 @@ func StartDaemon() *cobra.Command {
 				log.Errorf("Exited unknown error: %v", err)
 				os.Exit(1)
 			}
+
+			err = server.Close()
+			if err != nil {
+				log.Errorf("Failed to close the notification server: %s", err)
+				os.Exit(1)
+			}
+
 			log.Infof("Program ended")
 			return nil
 		},
