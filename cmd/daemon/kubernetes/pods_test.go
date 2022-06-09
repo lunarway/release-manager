@@ -170,3 +170,57 @@ func TestIsPodInCreateContainerConfigError(t *testing.T) {
 		})
 	}
 }
+
+func TestIsPodOOMKilled(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		pod      *corev1.Pod
+		expected bool
+	}{
+		{
+			desc:     "no container status",
+			pod:      &corev1.Pod{},
+			expected: false,
+		},
+		{
+			desc: "container status is not OOMKilled",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							State: corev1.ContainerState{
+								Terminated: &corev1.ContainerStateTerminated{},
+							},
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			desc: "container status is OOMKilled",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					Phase: corev1.PodFailed,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							State: corev1.ContainerState{
+								Terminated: &corev1.ContainerStateTerminated{
+									Reason: "OOMKilled",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			actual := isPodOOMKilled(tc.pod)
+
+			assert.Equal(t, tc.expected, actual, "output not as expected")
+		})
+	}
+}
