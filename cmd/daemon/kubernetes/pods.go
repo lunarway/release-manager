@@ -131,6 +131,32 @@ func (p *PodInformer) handle(e interface{}) {
 			log.Errorf("Failed to send create container config error: %v", err)
 		}
 	}
+
+	if isPodOOMKilled(pod) {
+		log.Infof("Pod: %s was OOMKilled", pod.Name)
+
+		var errorContainers []http.ContainerError
+		for _, cst := range pod.Status.ContainerStatuses {
+			if isContainerOOMKilled(cst) {
+				errorContainers = append(errorContainers, http.ContainerError{
+					Name:         cst.Name,
+					ErrorMessage: cst.State.Terminated.Message,
+					Type:         "OOMKilled",
+				})
+			}
+		}
+
+		err := p.exporter.SendPodErrorEvent(ctx, http.PodErrorEvent{
+			PodName:     pod.Name,
+			Namespace:   pod.Namespace,
+			Errors:      errorContainers,
+			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
+			AuthorEmail: pod.Annotations[authorAnnotationKey],
+		})
+		if err != nil {
+			log.Errorf("Failed to send create container config error: %v", err)
+		}
+	}
 }
 
 // Avoid reporting on pods that has been marked for termination
@@ -162,6 +188,25 @@ func isPodInCreateContainerConfigError(pod *corev1.Pod) bool {
 			return cst.State.Waiting.Message != "failed to sync configmap cache: timed out waiting for the condition"
 		}
 	}
+	return false
+}
+
+func isPodOOMKilled(pod *corev1.Pod) bool {
+	if pod.Status.Phase != corev1.PodFailed {
+		return false
+	}
+
+	for _, cst := range pod.Status.ContainerStatuses {
+		return isContainerOOMKilled(cst)
+	}
+	return false
+}
+
+func isContainerOOMKilled(containerStatus corev1.ContainerStatus) bool {
+	if containerStatus.State.Terminated != nil && containerStatus.State.Terminated.Reason == "OOMKilled" {
+		return true
+	}
+
 	return false
 }
 
