@@ -239,6 +239,14 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 						logger.Errorf("flow.NotifyReleaseHook: failed to post releases slack message: %v", err)
 					}
 
+					// We should probably take some input whether the team actually has a release channel
+					span, _ = tracer.FromCtx(ctx, "notify squad release channel")
+					err = slackClient.NotifySquadSlackReleasesChannel(ctx, releaseOptions)
+					span.Finish()
+					if err != nil {
+						logger.Errorf("flow.NotifyReleaseHook: failed to post squad releases slack message: %v", err)
+					}
+
 					span, _ = tracer.FromCtx(ctx, "notify author")
 					err = slackClient.NotifyAuthorEventProcessed(ctx, releaseOptions)
 					span.Finish()

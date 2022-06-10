@@ -146,6 +146,7 @@ type ReleaseOptions struct {
 	CommitAuthorEmail string
 	Releaser          string
 	Environment       string
+	Squad             string
 }
 
 func (c *Client) NotifySlackReleasesChannel(ctx context.Context, options ReleaseOptions) error {
@@ -162,6 +163,26 @@ func (c *Client) NotifySlackReleasesChannel(ctx context.Context, options Release
 		MarkdownIn: []string{"text", "fields"},
 	})
 	_, _, err := c.client.PostMessageContext(ctx, fmt.Sprintf("#releases-%s", options.Environment), asUser, attachments)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+func (c *Client) NotifySquadSlackReleasesChannel(ctx context.Context, options ReleaseOptions) error {
+	if c.muteOptions.Releases {
+		return nil
+	}
+
+	asUser := slack.MsgOptionAsUser(true)
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      fmt.Sprintf("%s: %s (%s)", options.Environment, options.Service, options.ArtifactID),
+		TitleLink:  options.CommitLink,
+		Color:      MsgColorGreen,
+		Text:       fmt.Sprintf("*Author:* %s, *Releaser:* %s\n*Message:* _%s_ \n*Commit:* %s", options.CommitAuthor, options.Releaser, options.CommitMessage, options.CommitLink),
+		MarkdownIn: []string{"text", "fields"},
+	})
+	_, _, err := c.client.PostMessageContext(ctx, fmt.Sprintf("#%s-releases", options.Squad), asUser, attachments)
 	if err != nil {
 		return err
 	}
