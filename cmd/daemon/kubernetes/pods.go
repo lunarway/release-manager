@@ -192,10 +192,6 @@ func isPodInCreateContainerConfigError(pod *corev1.Pod) bool {
 }
 
 func isPodOOMKilled(pod *corev1.Pod) bool {
-	if pod.Status.Phase != corev1.PodFailed {
-		return false
-	}
-
 	for _, cst := range pod.Status.ContainerStatuses {
 		return isContainerOOMKilled(cst)
 	}
