@@ -201,7 +201,7 @@ func TestIsPodOOMKilled(t *testing.T) {
 			desc: "container status is OOMKilled",
 			pod: &corev1.Pod{
 				Status: corev1.PodStatus{
-					Phase: corev1.PodFailed,
+					Phase: corev1.PodRunning,
 					ContainerStatuses: []corev1.ContainerStatus{
 						{
 							State: corev1.ContainerState{
