@@ -121,13 +121,16 @@ func (w *Worker) initializeConsumer(c ConsumerConfig) error {
 	}
 
 	w.logger.Infof("[amqp] Declaring queue '%s'", prefixedQueue)
+	queueArgs := amqp.Table{
+		"x-queue-type": "quorum",
+	}
 	_, err = channel.QueueDeclare(
 		prefixedQueue,   // name
 		c.DurableQueue,  // durable
 		!c.DurableQueue, // delete when unused. We set this to the negation of DurableQueue: either our queues are durable or they live and die with the service creating them
 		false,           // exclusive
 		false,           // no-wait
-		nil,             // arguments
+		queueArgs,       // arguments
 	)
 	if err != nil {
 		return errors.WithMessagef(err, "declare queue '%s'", prefixedQueue)
