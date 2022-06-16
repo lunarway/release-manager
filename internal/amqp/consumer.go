@@ -122,7 +122,8 @@ func (w *Worker) initializeConsumer(c ConsumerConfig) error {
 
 	w.logger.Infof("[amqp] Declaring queue '%s'", prefixedQueue)
 	queueArgs := amqp.Table{
-		"x-queue-type": "quorum",
+		"x-queue-type":             "quorum",
+		"x-single-active-consumer": true,
 	}
 	_, err = channel.QueueDeclare(
 		prefixedQueue,   // name
