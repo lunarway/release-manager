@@ -2,11 +2,14 @@ package amqp
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/makasim/amqpextra/consumer"
 	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"k8s.io/utils/strings"
 )
 
 // StartConsumer consumes messages from an AMQP queue. The method is blocking
@@ -143,6 +146,35 @@ func (w *Worker) initializeConsumer(c ConsumerConfig) error {
 		if err != nil {
 			return errors.WithMessagef(err, "bind queue '%s' to exchange '%s'", prefixedQueue, prefixedExchange)
 		}
+	}
+
+	// Configure Github webhook exchange
+	webhookExchange := fmt.Sprintf("%s-github-webhook", prefixedExchange)
+	err = channel.ExchangeDeclare(
+		webhookExchange,
+		amqp.ExchangeFanout,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		return errors.WithMessagef(err, "declare github webhook exchange '%s'", webhookExchange)
+	}
+
+	// Configure Github webhook queue
+	uuid := strings.ShortenString(uuid.NewString(), 5)
+	webhookQueue := fmt.Sprintf("%s-github-webhook-%s", prefixedQueue, uuid)
+	_, err = channel.QueueDeclare(
+		webhookQueue,
+		true,
+		true,
+		true,
+		false,
+		nil)
+	if err != nil {
+		return errors.WithMessagef(err, "declare github webhook queue '%s'", webhookQueue)
 	}
 
 	return nil
