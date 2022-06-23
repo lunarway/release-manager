@@ -296,6 +296,10 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				},
 			}
 
+			fanoutHandlers := map[string]func([]byte) error{
+				"github-sync": gitSyncHandler,
+			}
+
 			errorHandler := func(msgType string, msgBody []byte, err error) {
 				var event flow.GenericEvent
 				unmarshalErr := event.Unmarshal(msgBody)
@@ -334,7 +338,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				}
 			}()
 			go func() {
-				err := brokerImpl.StartConsumer(eventHandlers, errorHandler)
+				err := brokerImpl.StartConsumer(eventHandlers, fanoutHandlers, errorHandler)
 				done <- errors.WithMessage(err, "broker")
 			}()
 

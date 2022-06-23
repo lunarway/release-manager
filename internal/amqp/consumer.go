@@ -193,12 +193,21 @@ func (handler handlerFunc) Handle(ctx context.Context, msg amqp.Delivery) interf
 
 // ConsumerConf is the configuration struct for a RabbitMQ consumer
 type ConsumerConfig struct {
-	// the exchange
-	Exchange string
-	// the queue to bind to the exchange
+	// Exhange configuration
+
+	Exchange            string
+	DurableExchange     bool
+	AutoDeletedExchange bool
+
+	// Queue configuration
+
+	// The queue to bind to the exchange
 	Queue string
-	// whether to create the queue as a durable queue. Non durable queues will be deleted and the binding removed when the last consumer unsubscribes
+	// Whether to create the queue as a durable queue. Non durable queues will be deleted and the binding removed when the last consumer unsubscribes
 	DurableQueue bool
+	// Exclusive queues are only accessible by the connection that declares them and will be deleted when the connection closes.
+	// Channels on other connections will receive an error when attempting to declare, bind, consume, purge or delete a queue with the same name.
+	ExclusiveQueue bool
 	// the routing patterns to bind to
 	RoutingPatterns []string
 	// the prefetch size, i.e. the limit on the number of unacknowledged messages can be received at once. Set to 0 to disable.

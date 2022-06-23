@@ -41,7 +41,7 @@ func (b *Broker) Publish(ctx context.Context, event broker.Publishable) error {
 	return nil
 }
 
-func (b *Broker) StartConsumer(handlers map[string]func([]byte) error, errorHandler func(msgType string, msgBody []byte, err error)) error {
+func (b *Broker) StartConsumer(handlers map[string]func([]byte) error, fanoutHandlers map[string]func([]byte) error, errorHandler func(msgType string, msgBody []byte, err error)) error {
 	for msg := range b.queue {
 		logger := b.logger.With(
 			"eventType", msg.Type(),

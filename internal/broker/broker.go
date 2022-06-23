@@ -11,7 +11,7 @@ type Broker interface {
 	Publish(ctx context.Context, message Publishable) error
 	// StartConsumer consumes messages on a broker. This method is blocking and
 	// will always return with ErrBrokerClosed after calls to Close.
-	StartConsumer(handlers map[string]func([]byte) error, errorHandler func(msgType string, msgBody []byte, err error)) error
+	StartConsumer(handlers map[string]func([]byte) error, fanoutHandlers map[string]func([]byte) error, errorHandler func(msgType string, msgBody []byte, err error)) error
 	// Close closes the broker.
 	Close() error
 }
