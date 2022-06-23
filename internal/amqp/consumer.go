@@ -177,6 +177,11 @@ func (w *Worker) initializeConsumer(c ConsumerConfig) error {
 		return errors.WithMessagef(err, "declare github webhook queue '%s'", webhookQueue)
 	}
 
+	err = channel.QueueBind(webhookQueue, "", webhookExchange, false, nil)
+	if err != nil {
+		return errors.WithMessagef(err, "bind github webhook queue '%s' to exchange '%s'", webhookQueue, webhookExchange)
+	}
+
 	return nil
 }
 
