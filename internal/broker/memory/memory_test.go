@@ -67,7 +67,7 @@ func TestBroker_PublishAndConsumer(t *testing.T) {
 				logger.Infof("Received %s", msg.Message)
 				return nil
 			},
-		}, func(msgType string, msgBody []byte, err error) {})
+		}, map[string]func([]byte) error{}, func(msgType string, msgBody []byte, err error) {})
 		assert.EqualError(t, err, broker.ErrBrokerClosed.Error(), "unexpected consumer error")
 	}()
 

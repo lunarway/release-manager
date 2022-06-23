@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/lunarway/release-manager/cmd/server/gpg"
 	"github.com/lunarway/release-manager/cmd/server/http"
+	"github.com/lunarway/release-manager/cmd/server/webhook"
 	"github.com/lunarway/release-manager/internal/broker"
 	"github.com/lunarway/release-manager/internal/broker/amqpextra"
 	"github.com/lunarway/release-manager/internal/broker/memory"
@@ -297,7 +298,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			}
 
 			fanoutHandlers := map[string]func([]byte) error{
-				"github-sync": gitSyncHandler,
+				"github-sync": webhook.GitSyncHandler(&gitSvc, startOptions.http.GithubWebhookSecret),
 			}
 
 			errorHandler := func(msgType string, msgBody []byte, err error) {

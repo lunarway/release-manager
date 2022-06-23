@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
@@ -28,17 +27,8 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 		}
 		switch payload := payload.(type) {
 		case github.PushPayload:
-			if !isBranchPush(payload.Ref) {
-				logger.Infof("http: github webhook: ref '%s' is not a branch push", payload.Ref)
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-			err := gitSvc.SyncMaster(ctx)
-			if err != nil {
-				logger.Errorf("http: github webhook: failed to sync master: %v", err)
-				w.WriteHeader(http.StatusOK)
-				return
-			}
+			//TODO: Publish payload to fanout exchangge
+
 			w.WriteHeader(http.StatusOK)
 			return
 		default:
@@ -47,8 +37,4 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 			return
 		}
 	}
-}
-
-func isBranchPush(ref string) bool {
-	return strings.HasPrefix(ref, "refs/heads/")
 }
