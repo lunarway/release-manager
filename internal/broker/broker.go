@@ -22,6 +22,9 @@ type Publishable interface {
 	Type() string
 	Marshal() ([]byte, error)
 	Unmarshal([]byte) error
+
+	Exchange() string
+	RoutingKey() string
 }
 
 // ErrBrokerClosed indicates that the broker was closed by a call to Close.

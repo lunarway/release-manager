@@ -8,6 +8,7 @@ import (
 	"path"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/broker/amqpextra"
 	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/git"
@@ -50,6 +51,14 @@ func (p ReleaseArtifactIDEvent) Marshal() ([]byte, error) {
 
 func (p *ReleaseArtifactIDEvent) Unmarshal(data []byte) error {
 	return json.Unmarshal(data, p)
+}
+
+func (p *ReleaseArtifactIDEvent) Exchange() string {
+	return amqpextra.Exchange
+}
+
+func (p *ReleaseArtifactIDEvent) RoutingKey() string {
+	return amqpextra.RoutingKey
 }
 
 // ReleaseArtifactID releases a specific artifact to environment env.

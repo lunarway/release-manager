@@ -18,8 +18,8 @@ func (w *Worker) Publish(ctx context.Context, message broker.Publishable) error 
 	correlationID := tracing.RequestIDFromContext(ctx)
 
 	err := w.worker.Publish(ctx, amqp.PublishDto{
-		Exchange:      w.config.Exchange,
-		RoutingKey:    w.config.RoutingKey,
+		Exchange:      message.Exchange(),
+		RoutingKey:    message.RoutingKey(),
 		MessageType:   message.Type(),
 		CorrelationID: correlationID,
 		Message:       message,

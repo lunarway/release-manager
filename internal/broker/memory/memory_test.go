@@ -34,6 +34,14 @@ func (t *testEvent) Unmarshal(d []byte) error {
 	return json.Unmarshal(d, t)
 }
 
+func (t testEvent) Exchange() string {
+	return ""
+}
+
+func (t testEvent) RoutingKey() string {
+	return ""
+}
+
 // TestBroker_PublishAndConsumer tests that we can publish and receive messages
 // with a Broker.
 func TestBroker_PublishAndConsumer(t *testing.T) {

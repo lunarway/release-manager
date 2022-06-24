@@ -43,7 +43,7 @@ func (w *Worker) StartConsumer(handlers map[string]func([]byte) error, fanoutHan
 			WorkerCount: 1,
 		},
 		{
-			Exchange:            fmt.Sprintf("%s-git-fanout", w.config.Exchange),
+			Exchange:            ExchangeFanout,
 			DurableExchange:     false,
 			AutoDeletedExchange: true,
 			Queue:               fmt.Sprintf("%s-git-fanout-%s", w.config.Queue, fanoutID),

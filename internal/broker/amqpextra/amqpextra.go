@@ -1,6 +1,8 @@
 package amqpextra
 
 import (
+	"fmt"
+
 	"github.com/lunarway/release-manager/internal/amqp"
 )
 
@@ -45,6 +47,9 @@ func New(c Config) (*Worker, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	Exchange = c.Exchange
+	ExchangeFanout = fmt.Sprintf("%s-git-fanout", c.Exchange)
 
 	return &Worker{
 		worker: worker,

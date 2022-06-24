@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/lunarway/release-manager/internal/broker/amqpextra"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/log"
@@ -45,6 +46,14 @@ func (p NewArtifactEvent) Marshal() ([]byte, error) {
 
 func (p *NewArtifactEvent) Unmarshal(data []byte) error {
 	return json.Unmarshal(data, p)
+}
+
+func (p *NewArtifactEvent) Exchange() string {
+	return amqpextra.Exchange
+}
+
+func (p *NewArtifactEvent) RoutingKey() string {
+	return amqpextra.RoutingKey
 }
 
 // ExecNewArtifact is handling behavior of release manager when new artifacts are generated and ready

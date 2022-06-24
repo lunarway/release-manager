@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lunarway/release-manager/cmd/server/webhook"
+	"github.com/lunarway/release-manager/internal/broker"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
@@ -29,7 +31,15 @@ type Options struct {
 	S3WebhookSecret     string
 }
 
-func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, artifactWriteStorage ArtifactWriteStorage, tracer tracing.Tracer) error {
+func NewServer(
+	opts *Options,
+	slackClient *slack.Client,
+	flowSvc *flow.Service,
+	policySvc *policyinternal.Service,
+	gitSvc *git.Service,
+	artifactWriteStorage ArtifactWriteStorage,
+	tracer tracing.Tracer,
+	broker broker.Broker) error {
 	payloader := payload{
 		tracer: tracer,
 	}
@@ -41,7 +51,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	mux.HandleFunc("/policies", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(&payloader, policySvc))))
 	mux.HandleFunc("/policies/", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(&payloader, policySvc))))
 	mux.HandleFunc("/describe/", trace(tracer, authenticate(opts.HamCtlAuthToken, describe(&payloader, flowSvc))))
-	mux.HandleFunc("/webhook/github", trace(tracer, githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret)))
+	mux.HandleFunc("/webhook/github", trace(tracer, githubWebhook(opts.GithubWebhookSecret, webhook.Publisher(broker))))
 	mux.HandleFunc("/webhook/daemon/k8s/deploy", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sDeployWebhook(&payloader, flowSvc))))
 	mux.HandleFunc("/webhook/daemon/k8s/error", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sPodErrorWebhook(&payloader, flowSvc))))
 	mux.HandleFunc("/webhook/daemon/k8s/joberror", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sJobErrorWebhook(&payloader, flowSvc))))

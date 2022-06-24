@@ -4,16 +4,12 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/lunarway/release-manager/internal/flow"
-	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
-	policyinternal "github.com/lunarway/release-manager/internal/policy"
-	"github.com/lunarway/release-manager/internal/slack"
 	opentracing "github.com/opentracing/opentracing-go"
 	"gopkg.in/go-playground/webhooks.v5/github"
 )
 
-func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
+func githubWebhook(githubWebhookSecret string, publisher func(ctx context.Context, payload github.PushPayload) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
 		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
@@ -27,7 +23,11 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 		}
 		switch payload := payload.(type) {
 		case github.PushPayload:
-			//TODO: Publish payload to fanout exchangge
+			err = publisher(ctx, payload)
+			if err != nil {
+				logger.Errorf("http: github webhook: publish payload failed: %v", err)
+				unknownError(w)
+			}
 
 			w.WriteHeader(http.StatusOK)
 			return
