@@ -211,8 +211,6 @@ func (c *Client) NotifySlackPolicyFailed(ctx context.Context, email, title, erro
 		Text:       FormatErrorMessage(errorMessage),
 		MarkdownIn: []string{"text", "fields"},
 	})
-	log.Infof("errormsg = %s", FormatErrorMessage(errorMessage))
-	fmt.Println(FormatErrorMessage(errorMessage))
 	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
 	if err != nil {
 		return err
