@@ -208,7 +208,7 @@ func (c *Client) NotifySlackPolicyFailed(ctx context.Context, email, title, erro
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      title,
 		Color:      MsgColorRed,
-		Text:       FormatErrorMessage(errorMessage),
+		Text:       formatErrorMessage(errorMessage),
 		MarkdownIn: []string{"text", "fields"},
 	})
 	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
@@ -298,7 +298,7 @@ func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErro
 	for _, container := range event.Errors {
 		fields = append(fields, slack.AttachmentField{
 			Title: fmt.Sprintf("Container: %s (%s)", container.Name, container.Type),
-			Value: fmt.Sprintf("```%s```", container.ErrorMessage),
+			Value: formatErrorMessage(container.ErrorMessage),
 			Short: false,
 		})
 	}
@@ -329,7 +329,7 @@ func (c *Client) NotifyK8SJobErrorEvent(ctx context.Context, event *http.JobErro
 	for _, condition := range event.Errors {
 		fields = append(fields, slack.AttachmentField{
 			Title: fmt.Sprintf("Reason: %s", condition.Reason),
-			Value: fmt.Sprintf("```%s```", condition.Message),
+			Value: formatErrorMessage(condition.Message),
 			Short: false,
 		})
 	}
@@ -383,7 +383,7 @@ func generateSlackMessage(msgType, service, environment, branch, namespace strin
 	}
 }
 
-func FormatErrorMessage(errorMessage string) string {
+func formatErrorMessage(errorMessage string) string {
 	if errorMessage == "" { //error message is only formatted if there is one
 		return errorMessage
 	}
