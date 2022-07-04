@@ -36,21 +36,23 @@ func TestNewMutableClient_mapping(t *testing.T) {
 		}
 	)
 
-	slackClient := intslack.MockSlackClient{}
-	slackClient.Test(t)
-	slackClient.On("PostMessage", slackUser.ID, mock.Anything, mock.Anything).Return("", "", nil)
-	// return error when looking up non-corp email
-	slackClient.On("GetUserByEmailContext", mock.Anything, email).Return(&slack.User{}, errors.New("users_not_found"))
-	// return slack user on anything else
-	slackClient.On("GetUserByEmailContext", mock.Anything, mock.Anything).Return(slackUser, nil)
+	t.Run("domain verification", func(t *testing.T) {
+		slackClient := intslack.MockSlackClient{}
+		slackClient.Test(t)
+		slackClient.On("PostMessage", slackUser.ID, mock.Anything, mock.Anything).Return("", "", nil)
+		// return error when looking up non-corp email
+		slackClient.On("GetUserByEmailContext", mock.Anything, email).Return(&slack.User{}, errors.New("users_not_found"))
+		// return slack user on anything else
+		slackClient.On("GetUserByEmailContext", mock.Anything, mock.Anything).Return(slackUser, nil)
 
-	client, err := intslack.NewMuteableClient(&slackClient, mapping, emailDomain, intslack.MuteOptions{})
-	if !assert.NoError(t, err, "unexpected instantiation error") {
-		return
-	}
+		client, err := intslack.NewMuteableClient(&slackClient, mapping, emailDomain, intslack.MuteOptions{})
+		if !assert.NoError(t, err, "unexpected instantiation error") {
+			return
+		}
 
-	_, _, err = client.PostSlackBuildStarted(email, "title", "titleLink", "text", "color")
-	if !assert.NoError(t, err, "unexpected instantiation error") {
-		return
-	}
+		_, _, err = client.PostSlackBuildStarted(email, "title", "titleLink", "text", "color")
+		if !assert.NoError(t, err, "unexpected instantiation error") {
+			return
+		}
+	})
 }
