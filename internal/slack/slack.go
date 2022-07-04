@@ -208,10 +208,11 @@ func (c *Client) NotifySlackPolicyFailed(ctx context.Context, email, title, erro
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      title,
 		Color:      MsgColorRed,
-		Text:       fmt.Sprintf("```%s```", errorMessage),
+		Text:       FormatErrorMessage(errorMessage),
 		MarkdownIn: []string{"text", "fields"},
 	})
-
+	log.Infof("errormsg = %s", FormatErrorMessage(errorMessage))
+	fmt.Println(FormatErrorMessage(errorMessage))
 	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
 	if err != nil {
 		return err
@@ -382,4 +383,11 @@ func generateSlackMessage(msgType, service, environment, branch, namespace strin
 	default:
 		return fmt.Sprintf("Failed handling event in release manager for:\nEvent: %s\nService: %s\nEnvironment: %s\nBranch: %s\nNamespace: %s\nError: %s", msgType, service, environment, branch, namespace, err)
 	}
+}
+
+func FormatErrorMessage(errorMessage string) string {
+	if errorMessage == "" { //error message is only formatted if there is one
+		return errorMessage
+	}
+	return fmt.Sprintf("```%s```", errorMessage)
 }
