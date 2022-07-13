@@ -71,7 +71,7 @@ func (p *PodInformer) handle(e interface{}) {
 			return
 		}
 
-		log.Infof("Pod: %s is in CrashLoopBackOff", pod.Name)
+		log.Infof("Pod: %s is in CrashLoopBackOff owned by squad %s", pod.Name, pod.Labels[squadLabelKey])
 		restartCount := pod.Status.ContainerStatuses[0].RestartCount
 		if math.Mod(float64(restartCount), p.moduloCrashReportNotif) != 1 {
 			return
@@ -99,6 +99,7 @@ func (p *PodInformer) handle(e interface{}) {
 			Errors:      errorContainers,
 			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
 			AuthorEmail: pod.Annotations[authorAnnotationKey],
+			Squad:       pod.Annotations[squadLabelKey],
 		})
 		if err != nil {
 			log.Errorf("Failed to send crash loop backoff event: %v", err)
