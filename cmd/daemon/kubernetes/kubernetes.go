@@ -81,6 +81,7 @@ const (
 	artifactIDAnnotationKey = "lunarway.com/artifact-id"
 	authorAnnotationKey     = "lunarway.com/author"
 	controlledAnnotationKey = "lunarway.com/controlled-by-release-manager"
+	squadLabelKey           = "squad"
 )
 
 func observe(annotations map[string]string) {

@@ -70,8 +70,7 @@ func (p *PodInformer) handle(e interface{}) {
 				pod.Name)
 			return
 		}
-
-		log.Infof("Pod: %s is in CrashLoopBackOff", pod.Name)
+		log.Infof("Pod: %s is in CrashLoopBackOff owned by squad %s", pod.Name, getCodeOwnerSquad)
 		restartCount := pod.Status.ContainerStatuses[0].RestartCount
 		if math.Mod(float64(restartCount), p.moduloCrashReportNotif) != 1 {
 			return
@@ -99,6 +98,7 @@ func (p *PodInformer) handle(e interface{}) {
 			Errors:      errorContainers,
 			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
 			AuthorEmail: pod.Annotations[authorAnnotationKey],
+			Squad:       getCodeOwnerSquad(pod.Annotations),
 		})
 		if err != nil {
 			log.Errorf("Failed to send crash loop backoff event: %v", err)
@@ -264,4 +264,11 @@ func parseToJSONAray(str string) ([]ContainerLog, error) {
 		return nil, errors.WithMessage(err, "unmarshal")
 	}
 	return logs, nil
+}
+
+func getCodeOwnerSquad(annotations map[string]string) string {
+	if squad, ok := annotations[squadLabelKey]; ok {
+		return squad
+	}
+	return "no-one"
 }
