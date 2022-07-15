@@ -313,6 +313,9 @@ func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErro
 	if err != nil {
 		return err
 	}
+	if event.Squad == "aura" || event.Squad == "odyssey" {
+		_, _, err = c.client.PostMessageContext(ctx, fmt.Sprintf("#squad-%s-alerts", event.Squad), asUser, attachments)
+	}
 	return err
 }
 
