@@ -70,7 +70,7 @@ func (p *PodInformer) handle(e interface{}) {
 				pod.Name)
 			return
 		}
-		log.Infof("Pod: %s is in CrashLoopBackOff owned by squad %s", pod.Name, getCodeOwnerSquad)
+		log.Infof("Pod: %s is in CrashLoopBackOff owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
 		restartCount := pod.Status.ContainerStatuses[0].RestartCount
 		if math.Mod(float64(restartCount), p.moduloCrashReportNotif) != 1 {
 			return
@@ -266,8 +266,8 @@ func parseToJSONAray(str string) ([]ContainerLog, error) {
 	return logs, nil
 }
 
-func getCodeOwnerSquad(annotations map[string]string) string {
-	if squad, ok := annotations[squadLabelKey]; ok {
+func getCodeOwnerSquad(labels map[string]string) string {
+	if squad, ok := labels[squadLabelKey]; ok {
 		return squad
 	}
 	return "no-one"
