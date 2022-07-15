@@ -98,7 +98,7 @@ func (p *PodInformer) handle(e interface{}) {
 			Errors:      errorContainers,
 			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
 			AuthorEmail: pod.Annotations[authorAnnotationKey],
-			Squad:       getCodeOwnerSquad(pod.Annotations),
+			Squad:       getCodeOwnerSquad(pod.Labels),
 		})
 		if err != nil {
 			log.Errorf("Failed to send crash loop backoff event: %v", err)
@@ -107,7 +107,7 @@ func (p *PodInformer) handle(e interface{}) {
 	}
 
 	if isPodInCreateContainerConfigError(pod) {
-		log.Infof("Pod: %s is in CreateContainerConfigError", pod.Name)
+		log.Infof("Pod: %s is in CreateContainerConfigError owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
 		// Determine which container of the deployment has CreateContainerConfigError
 		var errorContainers []http.ContainerError
 		for _, cst := range pod.Status.ContainerStatuses {
@@ -126,6 +126,7 @@ func (p *PodInformer) handle(e interface{}) {
 			Errors:      errorContainers,
 			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
 			AuthorEmail: pod.Annotations[authorAnnotationKey],
+			Squad:       getCodeOwnerSquad(pod.Labels),
 		})
 		if err != nil {
 			log.Errorf("Failed to send create container config error: %v", err)
@@ -133,7 +134,7 @@ func (p *PodInformer) handle(e interface{}) {
 	}
 
 	if isPodOOMKilled(pod) {
-		log.Infof("Pod: %s was OOMKilled", pod.Name)
+		log.Infof("Pod: %s was OOMKilled owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
 
 		var errorContainers []http.ContainerError
 		for _, cst := range pod.Status.ContainerStatuses {
@@ -152,6 +153,7 @@ func (p *PodInformer) handle(e interface{}) {
 			Errors:      errorContainers,
 			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
 			AuthorEmail: pod.Annotations[authorAnnotationKey],
+			Squad:       getCodeOwnerSquad(pod.Labels),
 		})
 		if err != nil {
 			log.Errorf("Failed to send create container config error: %v", err)
