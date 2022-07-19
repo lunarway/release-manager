@@ -64,15 +64,16 @@ func NewRoot(version *string) (*cobra.Command, error) {
 			c.HelpFunc()(c, args)
 		},
 	}
+	loggerFunc := func(f string, args ...interface{}) {
+		fmt.Printf(f, args...)
+	}
 	command.AddCommand(
 		NewCompletion(command),
 		NewDescribe(&client, &service),
 		NewPolicy(&client, &service),
 		NewPromote(&client, &service),
-		NewRelease(&client, &service, func(f string, args ...interface{}) {
-			fmt.Printf(f, args...)
-		}),
-		NewRollback(&client, &service),
+		NewRelease(&client, &service, loggerFunc),
+		NewRollback(&client, &service, loggerFunc, SelectRollbackReleaseFunc),
 		NewStatus(&client, &service),
 		NewVersion(*version),
 	)

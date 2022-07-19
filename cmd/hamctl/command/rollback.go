@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -15,9 +14,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewRollback(client *httpinternal.Client, service *string) *cobra.Command {
+func NewRollback(
+	client *httpinternal.Client,
+	service *string,
+	logger LoggerFunc,
+	selectReleaseUI SelectRollbackRelease,
+) *cobra.Command {
 	var environment, namespace, artifactID string
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "rollback",
 		Short: `Rollback to the previous artifact in an environment.`,
 		Long: `Rollback to the previous artifact in an environment.
@@ -42,7 +46,6 @@ has no effect.`,
 			var rollbackTo *httpinternal.DescribeReleaseResponseRelease
 
 			if artifactID == "" {
-
 				releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, 3)
 				if err != nil {
 					return err
@@ -52,36 +55,10 @@ has no effect.`,
 					return fmt.Errorf("can't do rollback, because there isn't a release to rollback to")
 				}
 
-				funcMap := promptui.FuncMap
-				for name, f := range template.FuncMap() {
-					funcMap[name] = f
-				}
-				rollbackInteractiveTemplates.FuncMap = funcMap
-
-				items := mapToRollbackInteractiveTemplateData(releasesResponse.Releases)
-
-				searcher := func(input string, index int) bool {
-					release := items[index]
-					name := strings.ToLower(fmt.Sprintf("#%v %s", release.ReleaseIndex, release.ArtifactID))
-					input = strings.ToLower(input)
-
-					return strings.Contains(name, input)
-				}
-
-				prompt := promptui.Select{
-					Label:             fmt.Sprintf("Which release to rollback '%s' to?", environment),
-					Items:             items,
-					Templates:         &rollbackInteractiveTemplates,
-					Size:              10,
-					Searcher:          searcher,
-					StartInSearchMode: true,
-				}
-
-				index, _, err := prompt.Run()
-
+				index, err := selectReleaseUI(environment, releasesResponse.Releases)
 				if err != nil {
-					fmt.Printf("Rollback cancelled: %v\n", err)
-					os.Exit(1)
+					logger("something went wrong select release a release")
+					return err
 				}
 
 				currentRelease = releasesResponse.Releases[0]
@@ -101,22 +78,28 @@ has no effect.`,
 				}
 
 				if rollbackTo == nil {
-					return fmt.Errorf("can't do rollback, because the artifact '%s' ins't found in the last 10 releases", artifactID)
+					return fmt.Errorf("can't do rollback, because the artifact '%s' isn't found in the last 10 releases", artifactID)
 				}
 				currentRelease = releasesResponse.Releases[0]
 			}
-			fmt.Printf("[✓] Starting rollback of service %s to %s\n", *service, rollbackTo.Artifact.ID)
+			logger("[✓] Starting rollback of service %s to %s\n", *service, rollbackTo.Artifact.ID)
 
-			resp, err := actions.ReleaseArtifactID(client, *service, environment, rollbackTo.Artifact.ID, intent.NewRollback(currentRelease.Artifact.ID))
+			resp, err := actions.ReleaseArtifactID(
+				client,
+				*service,
+				environment,
+				rollbackTo.Artifact.ID,
+				intent.NewRollback(currentRelease.Artifact.ID),
+			)
 			if err != nil {
-				fmt.Printf("[X] Rollback of artifact '%s' failed\n", currentRelease.Artifact.ID)
-				fmt.Printf("    Error:\n")
-				fmt.Printf("    %s\n", err)
+				logger("[X] Rollback of artifact '%s' failed\n", currentRelease.Artifact.ID)
+				logger("    Error:\n")
+				logger("    %s\n", err)
 				return err
 			}
 
 			printReleaseResponse(func(s string, i ...interface{}) {
-				fmt.Printf(s, i...)
+				logger(s, i...)
 			}, resp)
 			return nil
 		},
@@ -129,8 +112,48 @@ has no effect.`,
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
 	command.Flags().StringVarP(&namespace, "namespace", "n", "", "namespace the service is deployed to (defaults to env)")
 	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")
-	command.Flags().StringVarP(&artifactID, "artifact", "", "", "artifact to roll back to. Defaults to previously released artifact for the environment")
+	command.Flags().
+		StringVarP(&artifactID, "artifact", "", "", "artifact to roll back to. Defaults to previously released artifact for the environment")
 	return command
+}
+
+type SelectRollbackRelease func(environment string, releases []httpinternal.DescribeReleaseResponseRelease) (int, error)
+
+func SelectRollbackReleaseFunc(
+	environment string,
+	releases []httpinternal.DescribeReleaseResponseRelease,
+) (int, error) {
+	funcMap := promptui.FuncMap
+	for name, f := range template.FuncMap() {
+		funcMap[name] = f
+	}
+	rollbackInteractiveTemplates.FuncMap = funcMap
+
+	items := mapToRollbackInteractiveTemplateData(releases)
+
+	searcher := func(input string, index int) bool {
+		release := items[index]
+		name := strings.ToLower(fmt.Sprintf("#%d %s", release.ReleaseIndex, release.ArtifactID))
+		input = strings.ToLower(input)
+
+		return strings.Contains(name, input)
+	}
+
+	prompt := promptui.Select{
+		Label:             fmt.Sprintf("Which release to rollback '%s' to?", environment),
+		Items:             items,
+		Templates:         &rollbackInteractiveTemplates,
+		Size:              10,
+		Searcher:          searcher,
+		StartInSearchMode: true,
+	}
+
+	index, _, err := prompt.Run()
+	if err != nil {
+		return 0, err
+	}
+
+	return index, nil
 }
 
 var (
@@ -174,7 +197,9 @@ type rollbackInteractiveTemplatesData struct {
 	CommitMessage   string
 }
 
-func mapToRollbackInteractiveTemplateData(resp []httpinternal.DescribeReleaseResponseRelease) []rollbackInteractiveTemplatesData {
+func mapToRollbackInteractiveTemplateData(
+	resp []httpinternal.DescribeReleaseResponseRelease,
+) []rollbackInteractiveTemplatesData {
 	var d []rollbackInteractiveTemplatesData
 	for _, r := range resp {
 		d = append(d, rollbackInteractiveTemplatesData{
