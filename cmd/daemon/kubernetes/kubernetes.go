@@ -77,11 +77,12 @@ func isCorrectlyAnnotated(annotations map[string]string) bool {
 }
 
 const (
-	observedAnnotationKey   = "lunarway.com/observed-artifact-id"
-	artifactIDAnnotationKey = "lunarway.com/artifact-id"
-	authorAnnotationKey     = "lunarway.com/author"
-	controlledAnnotationKey = "lunarway.com/controlled-by-release-manager"
-	squadLabelKey           = "squad"
+	observedAnnotationKey      = "lunarway.com/observed-artifact-id"
+	artifactIDAnnotationKey    = "lunarway.com/artifact-id"
+	authorAnnotationKey        = "lunarway.com/author"
+	controlledAnnotationKey    = "lunarway.com/controlled-by-release-manager"
+	runtimeAlertsAnnotationKey = "lunarway.com/runtimeAlerts"
+	squadLabelKey              = "squad"
 )
 
 func observe(annotations map[string]string) {

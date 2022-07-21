@@ -99,6 +99,7 @@ func (p *PodInformer) handle(e interface{}) {
 			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
 			AuthorEmail: pod.Annotations[authorAnnotationKey],
 			Squad:       getCodeOwnerSquad(pod.Labels),
+			AlertSquad:  shouldSquadBeAlerted(getCodeOwnerSquad(pod.Labels), pod.Annotations),
 		})
 		if err != nil {
 			log.Errorf("Failed to send crash loop backoff event: %v", err)
@@ -127,6 +128,7 @@ func (p *PodInformer) handle(e interface{}) {
 			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
 			AuthorEmail: pod.Annotations[authorAnnotationKey],
 			Squad:       getCodeOwnerSquad(pod.Labels),
+			AlertSquad:  shouldSquadBeAlerted(getCodeOwnerSquad(pod.Labels), pod.Annotations),
 		})
 		if err != nil {
 			log.Errorf("Failed to send create container config error: %v", err)
@@ -259,7 +261,6 @@ type ContainerLog struct {
 func parseToJSONAray(str string) ([]ContainerLog, error) {
 	str = strings.ReplaceAll(str, "}\n{", "},{")
 	str = fmt.Sprintf("[%s]", str)
-
 	var logs []ContainerLog
 	err := json.Unmarshal([]byte(str), &logs)
 	if err != nil {
@@ -273,4 +274,14 @@ func getCodeOwnerSquad(labels map[string]string) string {
 		return squad
 	}
 	return "no-one"
+}
+
+func shouldSquadBeAlerted(squad string, annotations map[string]string) (alertChannel string) {
+	if value, ok := annotations[runtimeAlertsAnnotationKey]; ok {
+		if value == "false" {
+			return "false"
+		}
+		return value
+	}
+	return fmt.Sprintf("#squad-%s-alerts", squad)
 }
