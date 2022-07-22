@@ -81,7 +81,7 @@ const (
 	artifactIDAnnotationKey    = "lunarway.com/artifact-id"
 	authorAnnotationKey        = "lunarway.com/author"
 	controlledAnnotationKey    = "lunarway.com/controlled-by-release-manager"
-	runtimeAlertsAnnotationKey = "lunarway.com/runtimeAlerts"
+	runtimeAlertsAnnotationKey = "lunarway.com/runtime-alerts"
 	squadLabelKey              = "squad"
 )
 
