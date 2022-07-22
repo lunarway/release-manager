@@ -262,6 +262,9 @@ func getCodeOwnerSquad(labels map[string]string) string {
 
 func alertSquad(squad string, annotations map[string]string) (alertChannel string) {
 	if value, ok := annotations[runtimeAlertsAnnotationKey]; ok {
+		if value == "false" {
+			return ""
+		}
 		return value
 	}
 	return fmt.Sprintf("#squad-%s-alerts", squad)

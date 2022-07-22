@@ -313,7 +313,7 @@ func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErro
 	if err != nil {
 		return err
 	}
-	if event.AlertSquad != "false" {
+	if event.AlertSquad != "" {
 		_, _, err = c.client.PostMessageContext(ctx, event.AlertSquad, asUser, attachments)
 	}
 	return err
