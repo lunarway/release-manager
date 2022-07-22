@@ -97,6 +97,7 @@ type PodErrorEvent struct {
 	Environment string           `json:"environment,omitempty"`
 	ArtifactID  string           `json:"artifactId,omitempty"`
 	Squad       string           `json:"squad,omitempty"`
+	AlertSquad  string           `json:"alertSquad,omitempty"`
 }
 
 type JobConditionError struct {
