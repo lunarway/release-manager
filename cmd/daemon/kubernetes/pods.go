@@ -61,6 +61,14 @@ func (p *PodInformer) handle(e interface{}) {
 	}
 
 	ctx := context.Background()
+	event := http.PodErrorEvent{
+		PodName:     pod.Name,
+		Namespace:   pod.Namespace,
+		ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
+		AuthorEmail: pod.Annotations[authorAnnotationKey],
+		Squad:       getCodeOwnerSquad(pod.Labels),
+		AlertSquad:  alertSquad(getCodeOwnerSquad(pod.Labels), pod.Annotations),
+	}
 
 	if isPodInCrashLoopBackOff(pod) {
 		if isPodControlledByJob(pod) {
@@ -70,8 +78,7 @@ func (p *PodInformer) handle(e interface{}) {
 				pod.Name)
 			return
 		}
-
-		log.Infof("Pod: %s is in CrashLoopBackOff", pod.Name)
+		log.Infof("Pod: %s is in CrashLoopBackOff owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
 		restartCount := pod.Status.ContainerStatuses[0].RestartCount
 		if math.Mod(float64(restartCount), p.moduloCrashReportNotif) != 1 {
 			return
@@ -92,14 +99,8 @@ func (p *PodInformer) handle(e interface{}) {
 				})
 			}
 		}
-
-		err := p.exporter.SendPodErrorEvent(ctx, http.PodErrorEvent{
-			PodName:     pod.Name,
-			Namespace:   pod.Namespace,
-			Errors:      errorContainers,
-			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
-			AuthorEmail: pod.Annotations[authorAnnotationKey],
-		})
+		event.Errors = errorContainers
+		err := p.exporter.SendPodErrorEvent(ctx, event)
 		if err != nil {
 			log.Errorf("Failed to send crash loop backoff event: %v", err)
 		}
@@ -107,7 +108,7 @@ func (p *PodInformer) handle(e interface{}) {
 	}
 
 	if isPodInCreateContainerConfigError(pod) {
-		log.Infof("Pod: %s is in CreateContainerConfigError", pod.Name)
+		log.Infof("Pod: %s is in CreateContainerConfigError owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
 		// Determine which container of the deployment has CreateContainerConfigError
 		var errorContainers []http.ContainerError
 		for _, cst := range pod.Status.ContainerStatuses {
@@ -119,22 +120,15 @@ func (p *PodInformer) handle(e interface{}) {
 				})
 			}
 		}
-
-		err := p.exporter.SendPodErrorEvent(ctx, http.PodErrorEvent{
-			PodName:     pod.Name,
-			Namespace:   pod.Namespace,
-			Errors:      errorContainers,
-			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
-			AuthorEmail: pod.Annotations[authorAnnotationKey],
-		})
+		event.Errors = errorContainers
+		err := p.exporter.SendPodErrorEvent(ctx, event)
 		if err != nil {
 			log.Errorf("Failed to send create container config error: %v", err)
 		}
 	}
 
 	if isPodOOMKilled(pod) {
-		log.Infof("Pod: %s was OOMKilled", pod.Name)
-
+		log.Infof("Pod: %s was OOMKilled owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
 		var errorContainers []http.ContainerError
 		for _, cst := range pod.Status.ContainerStatuses {
 			if isContainerOOMKilled(cst) {
@@ -145,14 +139,8 @@ func (p *PodInformer) handle(e interface{}) {
 				})
 			}
 		}
-
-		err := p.exporter.SendPodErrorEvent(ctx, http.PodErrorEvent{
-			PodName:     pod.Name,
-			Namespace:   pod.Namespace,
-			Errors:      errorContainers,
-			ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
-			AuthorEmail: pod.Annotations[authorAnnotationKey],
-		})
+		event.Errors = errorContainers
+		err := p.exporter.SendPodErrorEvent(ctx, event)
 		if err != nil {
 			log.Errorf("Failed to send create container config error: %v", err)
 		}
@@ -257,11 +245,27 @@ type ContainerLog struct {
 func parseToJSONAray(str string) ([]ContainerLog, error) {
 	str = strings.ReplaceAll(str, "}\n{", "},{")
 	str = fmt.Sprintf("[%s]", str)
-
 	var logs []ContainerLog
 	err := json.Unmarshal([]byte(str), &logs)
 	if err != nil {
 		return nil, errors.WithMessage(err, "unmarshal")
 	}
 	return logs, nil
+}
+
+func getCodeOwnerSquad(labels map[string]string) string {
+	if squad, ok := labels[squadLabelKey]; ok {
+		return squad
+	}
+	return "no-one"
+}
+
+func alertSquad(squad string, annotations map[string]string) (alertChannel string) {
+	if value, ok := annotations[runtimeAlertsAnnotationKey]; ok {
+		if value == "false" {
+			return ""
+		}
+		return value
+	}
+	return fmt.Sprintf("#squad-%s-alerts", squad)
 }
