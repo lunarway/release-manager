@@ -19,8 +19,14 @@ import (
 // The workers configured queue is declared on startup along with a binding to
 // the exchange with routing key.
 func (w *Worker) StartConsumer(handlers map[string]func([]byte) error, fanoutHandlers map[string]func([]byte) error, eventDropped func(msgType string, msgBody []byte, err error)) error {
-	m := &mux{
+	handlerMux := &mux{
 		handlers:     handlers,
+		log:          w.config.Logger,
+		eventDropped: eventDropped,
+	}
+
+	fanountHandlerMux := &mux{
+		handlers:     fanoutHandlers,
 		log:          w.config.Logger,
 		eventDropped: eventDropped,
 	}
@@ -38,7 +44,7 @@ func (w *Worker) StartConsumer(handlers map[string]func([]byte) error, fanoutHan
 			RoutingPatterns: []string{w.config.RoutingKey},
 			Prefetch:        0,
 			Handle: func(message *amqp.Delivery) error {
-				return m.ServeMsg(context.Background(), *message)
+				return handlerMux.ServeMsg(context.Background(), *message)
 			},
 			WorkerCount: 1,
 		},
@@ -46,13 +52,13 @@ func (w *Worker) StartConsumer(handlers map[string]func([]byte) error, fanoutHan
 			Exchange:            ExchangeFanout,
 			DurableExchange:     false,
 			AutoDeletedExchange: true,
-			Queue:               fmt.Sprintf("%s-git-fanout-%s", w.config.Queue, fanoutID),
+			Queue:               fmt.Sprintf("%s-github-fanout-%s", w.config.Queue, fanoutID),
 			ExclusiveQueue:      true,
 			DurableQueue:        false,
 			Prefetch:            0,
 			RoutingPatterns:     []string{"#"},
 			Handle: func(message *amqp.Delivery) error {
-				return nil
+				return fanountHandlerMux.ServeMsg(context.Background(), *message)
 			},
 			WorkerCount: 1,
 		},
