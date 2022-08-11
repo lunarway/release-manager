@@ -9,6 +9,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/google/uuid v1.3.0
+	github.com/gorilla/mux v1.8.0
 	github.com/johannesboyne/gofakes3 v0.0.0-20210819161434-5c8dfcfe5310
 	github.com/makasim/amqpextra v0.17.0
 	github.com/manifoldco/promptui v0.9.0
@@ -30,10 +31,6 @@ require (
 	k8s.io/api v0.24.3
 	k8s.io/apimachinery v0.24.3
 	k8s.io/client-go v0.24.3
-)
-
-require (
-	github.com/gorilla/mux v1.8.0
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 )
 
