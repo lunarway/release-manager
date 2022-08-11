@@ -49,7 +49,7 @@ func New(c Config) (*Worker, error) {
 	}
 
 	Exchange = c.Exchange
-	ExchangeFanout = fmt.Sprintf("%s-git-fanout", c.Exchange)
+	ExchangeFanout = fmt.Sprintf("%s-github-fanout", c.Exchange)
 
 	return &Worker{
 		worker: worker,
