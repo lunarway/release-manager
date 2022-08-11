@@ -35,11 +35,16 @@ func (w *Worker) StartConsumer(handlers map[string]func([]byte) error, fanoutHan
 	consumers := []internalamqp.ConsumerConfig{
 		{
 			Exchange:            w.config.Exchange,
+			ExchangeType:        amqp.ExchangeTopic,
 			DurableExchange:     true,
 			AutoDeletedExchange: false,
 
-			Queue:           w.config.Queue,
-			ExclusiveQueue:  false,
+			Queue:          w.config.Queue,
+			ExclusiveQueue: false,
+			QueueArgs: amqp.Table{
+				"x-queue-type":             "quorum",
+				"x-single-active-consumer": true,
+			},
 			DurableQueue:    true,
 			RoutingPatterns: []string{w.config.RoutingKey},
 			Prefetch:        0,
@@ -50,14 +55,17 @@ func (w *Worker) StartConsumer(handlers map[string]func([]byte) error, fanoutHan
 		},
 		{
 			Exchange:            ExchangeFanout,
-			DurableExchange:     false,
-			AutoDeletedExchange: true,
-			Queue:               fmt.Sprintf("%s-github-fanout-%s", w.config.Queue, fanoutID),
-			ExclusiveQueue:      true,
-			DurableQueue:        false,
-			Prefetch:            0,
-			RoutingPatterns:     []string{"#"},
+			ExchangeType:        amqp.ExchangeFanout,
+			DurableExchange:     true,
+			AutoDeletedExchange: false,
+
+			Queue:           fmt.Sprintf("%s-github-fanout-%s", w.config.Queue, fanoutID),
+			ExclusiveQueue:  true,
+			DurableQueue:    false,
+			Prefetch:        0,
+			RoutingPatterns: []string{"#"},
 			Handle: func(message *amqp.Delivery) error {
+				w.config.Logger.Info("Got fanout message", "message", message)
 				return fanountHandlerMux.ServeMsg(context.Background(), *message)
 			},
 			WorkerCount: 1,

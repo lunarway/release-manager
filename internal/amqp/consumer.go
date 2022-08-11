@@ -2,14 +2,11 @@ package amqp
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
-	"github.com/google/uuid"
 	"github.com/makasim/amqpextra/consumer"
 	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"k8s.io/utils/strings"
 )
 
 // StartConsumer consumes messages from an AMQP queue. The method is blocking
@@ -110,12 +107,12 @@ func (w *Worker) initializeConsumer(c ConsumerConfig) error {
 		return errors.WithMessage(err, "create channel")
 	}
 
-	w.logger.Infof("[amqp] Declaring consumer exchange '%s'", prefixedExchange)
+	w.logger.Infof("[amqp] Declaring exchange '%s'", prefixedExchange)
 	err = channel.ExchangeDeclare(
 		prefixedExchange,
-		amqp.ExchangeTopic,
-		true,
-		false,
+		c.ExchangeType,
+		c.DurableExchange,
+		c.AutoDeletedExchange,
 		false,
 		false,
 		nil)
@@ -124,17 +121,14 @@ func (w *Worker) initializeConsumer(c ConsumerConfig) error {
 	}
 
 	w.logger.Infof("[amqp] Declaring queue '%s'", prefixedQueue)
-	queueArgs := amqp.Table{
-		"x-queue-type":             "quorum",
-		"x-single-active-consumer": true,
-	}
+
 	_, err = channel.QueueDeclare(
 		prefixedQueue,   // name
 		c.DurableQueue,  // durable
 		!c.DurableQueue, // delete when unused. We set this to the negation of DurableQueue: either our queues are durable or they live and die with the service creating them
 		false,           // exclusive
 		false,           // no-wait
-		queueArgs,       // arguments
+		c.QueueArgs,     // arguments
 	)
 	if err != nil {
 		return errors.WithMessagef(err, "declare queue '%s'", prefixedQueue)
@@ -146,40 +140,6 @@ func (w *Worker) initializeConsumer(c ConsumerConfig) error {
 		if err != nil {
 			return errors.WithMessagef(err, "bind queue '%s' to exchange '%s'", prefixedQueue, prefixedExchange)
 		}
-	}
-
-	// Configure Github webhook exchange
-	webhookExchange := fmt.Sprintf("%s-github-webhook", prefixedExchange)
-	err = channel.ExchangeDeclare(
-		webhookExchange,
-		amqp.ExchangeFanout,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		return errors.WithMessagef(err, "declare github webhook exchange '%s'", webhookExchange)
-	}
-
-	// Configure Github webhook queue
-	uuid := strings.ShortenString(uuid.NewString(), 5)
-	webhookQueue := fmt.Sprintf("%s-github-webhook-%s", prefixedQueue, uuid)
-	_, err = channel.QueueDeclare(
-		webhookQueue,
-		true,
-		true,
-		true,
-		false,
-		nil)
-	if err != nil {
-		return errors.WithMessagef(err, "declare github webhook queue '%s'", webhookQueue)
-	}
-
-	err = channel.QueueBind(webhookQueue, "", webhookExchange, false, nil)
-	if err != nil {
-		return errors.WithMessagef(err, "bind github webhook queue '%s' to exchange '%s'", webhookQueue, webhookExchange)
 	}
 
 	return nil
@@ -196,6 +156,7 @@ type ConsumerConfig struct {
 	// Exhange configuration
 
 	Exchange            string
+	ExchangeType        string
 	DurableExchange     bool
 	AutoDeletedExchange bool
 
@@ -209,6 +170,7 @@ type ConsumerConfig struct {
 	// Channels on other connections will receive an error when attempting to declare, bind, consume, purge or delete a queue with the same name.
 	ExclusiveQueue bool
 	// the routing patterns to bind to
+	QueueArgs       amqp.Table
 	RoutingPatterns []string
 	// the prefetch size, i.e. the limit on the number of unacknowledged messages can be received at once. Set to 0 to disable.
 	Prefetch int
