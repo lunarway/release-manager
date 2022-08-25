@@ -14,54 +14,6 @@ import (
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
 )
 
-type policyPatchPath struct {
-	segments []string
-}
-
-func newPolicyPatchPath(r *http.Request) (policyPatchPath, bool) {
-	p := policyPatchPath{
-		segments: strings.Split(r.URL.Path, "/"),
-	}
-	if len(p.segments) < 3 {
-		return policyPatchPath{}, false
-	}
-	return p, true
-}
-
-func (p *policyPatchPath) PolicyType() string {
-	return p.segments[2]
-}
-
-func policy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPatch:
-			ctx := r.Context()
-			p, ok := newPolicyPatchPath(r)
-			if !ok {
-				log.WithContext(ctx).Errorf("Could not parse PATCH policy path: %s", r.URL.Path)
-				notFound(w)
-				return
-			}
-			switch p.PolicyType() {
-			case "auto-release":
-				applyAutoReleasePolicy(payload, policySvc)(w, r)
-			case "branch-restriction":
-				applyBranchRestrictionPolicy(payload, policySvc)(w, r)
-			default:
-				log.WithContext(ctx).Errorf("apply policy not found: %+v", p)
-				notFound(w)
-			}
-		case http.MethodGet:
-			listPolicies(payload, policySvc)(w, r)
-		case http.MethodDelete:
-			deletePolicies(payload, policySvc)(w, r)
-		default:
-			httpinternal.Error(w, "not found", http.StatusNotFound)
-		}
-	}
-}
-
 func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
