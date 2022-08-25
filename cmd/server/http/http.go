@@ -16,6 +16,7 @@ import (
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -33,6 +34,17 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	payloader := payload{
 		tracer: tracer,
 	}
+
+	duration := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "request_duration_milliseconds",
+			Help:    "A histogram of latencies for HTTP requests.",
+			Buckets: []float64{10, 25, 50, 100, 200, 400, 800, 1000, 1500, 2000, 5000, 10000},
+		},
+		[]string{"path", "method", "status_code"},
+	)
+	prometheus.MustRegister(duration)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
 	mux.HandleFunc("/release", trace(tracer, authenticate(opts.HamCtlAuthToken, release(&payloader, flowSvc))))
@@ -60,7 +72,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 
 	s := http.Server{
 		Addr:              fmt.Sprintf(":%d", opts.Port),
-		Handler:           reqrespLogger(mux),
+		Handler:           reqrespLogger(duration, mux),
 		ReadTimeout:       opts.Timeout,
 		WriteTimeout:      opts.Timeout,
 		IdleTimeout:       opts.Timeout,

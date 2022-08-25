@@ -2,10 +2,12 @@ package http
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type statusCodeResponseWriter struct {
@@ -20,7 +22,7 @@ func (w *statusCodeResponseWriter) WriteHeader(code int) {
 
 // reqrespLogger returns an http.Handler that logs request and response
 // details.
-func reqrespLogger(h http.Handler) http.Handler {
+func reqrespLogger(durationMetric *prometheus.HistogramVec, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		statusWriter := &statusCodeResponseWriter{w, http.StatusOK}
 		start := time.Now()
@@ -61,9 +63,20 @@ func reqrespLogger(h http.Handler) http.Handler {
 		logger := log.With(fields...)
 		if statusCode >= http.StatusInternalServerError {
 			logger.Errorf("[%d] %s %s", statusCode, r.Method, r.URL.Path)
-			return
+		} else {
+			logger.Infof("[%d] %s %s", statusCode, r.Method, r.URL.Path)
 		}
-		logger.Infof("[%d] %s %s", statusCode, r.Method, r.URL.Path)
+
+		metric, err := durationMetric.GetMetricWith(prometheus.Labels{
+			"path":        r.URL.Path, // this will give a very bad cardinality as we use <service> in HTTP paths
+			"method":      r.Method,
+			"status_code": strconv.Itoa(statusCode),
+		})
+		if err != nil {
+			logger.Errorf("Failed to record http duration metric: %v", err)
+		} else {
+			metric.Observe(float64(duration))
+		}
 	})
 }
 

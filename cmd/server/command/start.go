@@ -273,6 +273,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 						logger.Infof("Skipping GitHub repository tagging")
 					}
 
+					// increment release metric
 					logger.Infof("Release [%s]: %s (%s) by %s, author %s", opts.Environment, opts.Service, opts.Spec.ID, opts.Releaser, opts.Spec.Application.AuthorName)
 				},
 			}
