@@ -81,7 +81,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	m.HandleFunc("/webhook/github", githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret))
 
 	s := http.Server{
-		Addr:              fmt.Sprintf("localhost:%d", opts.Port),
+		Addr:              fmt.Sprintf(":%d", opts.Port),
 		Handler:           m,
 		ReadTimeout:       opts.Timeout,
 		WriteTimeout:      opts.Timeout,
