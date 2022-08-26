@@ -40,6 +40,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	})
 
 	m.Use(trace(tracer))
+	m.Use(prometheusMiddleware())
 	m.Use(reqrespLogger)
 
 	hamctlMux := m.NewRoute().Subrouter()
@@ -80,7 +81,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	m.HandleFunc("/webhook/github", githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret))
 
 	s := http.Server{
-		Addr:              fmt.Sprintf(":%d", opts.Port),
+		Addr:              fmt.Sprintf("localhost:%d", opts.Port),
 		Handler:           m,
 		ReadTimeout:       opts.Timeout,
 		WriteTimeout:      opts.Timeout,
