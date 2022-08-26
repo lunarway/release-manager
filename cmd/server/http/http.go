@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
@@ -33,34 +34,54 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	payloader := payload{
 		tracer: tracer,
 	}
-	mux := http.NewServeMux()
-	mux.HandleFunc("/ping", ping)
-	mux.HandleFunc("/release", trace(tracer, authenticate(opts.HamCtlAuthToken, release(&payloader, flowSvc))))
-	mux.HandleFunc("/status", trace(tracer, authenticate(opts.HamCtlAuthToken, status(&payloader, flowSvc))))
-	// register both a rooted and unrooted path to avoid a 301 redirect on /policies when only /policies/ is registered
-	mux.HandleFunc("/policies", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(&payloader, policySvc))))
-	mux.HandleFunc("/policies/", trace(tracer, authenticate(opts.HamCtlAuthToken, policy(&payloader, policySvc))))
-	mux.HandleFunc("/describe/", trace(tracer, authenticate(opts.HamCtlAuthToken, describe(&payloader, flowSvc))))
-	mux.HandleFunc("/webhook/github", trace(tracer, githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret)))
-	mux.HandleFunc("/webhook/daemon/k8s/deploy", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sDeployWebhook(&payloader, flowSvc))))
-	mux.HandleFunc("/webhook/daemon/k8s/error", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sPodErrorWebhook(&payloader, flowSvc))))
-	mux.HandleFunc("/webhook/daemon/k8s/joberror", trace(tracer, authenticate(opts.DaemonAuthToken, daemonk8sJobErrorWebhook(&payloader, flowSvc))))
+	m := mux.NewRouter()
+	m.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		notFound(w)
+	})
+
+	m.Use(trace(tracer))
+	m.Use(reqrespLogger)
+
+	hamctlMux := m.NewRoute().Subrouter()
+	hamctlMux.Use(authenticate(opts.HamCtlAuthToken))
+	hamctlMux.Methods(http.MethodPost).Path("/release").Handler(release(&payloader, flowSvc))
+	hamctlMux.Methods(http.MethodGet).Path("/status").Handler(status(&payloader, flowSvc))
+
+	policyMux := hamctlMux.PathPrefix("/policies").Subrouter()
+	policyMux.Methods(http.MethodGet).Handler(listPolicies(&payloader, policySvc))
+	policyMux.Methods(http.MethodDelete).Handler(deletePolicies(&payloader, policySvc))
+	policyMux.Methods(http.MethodPatch).Path("/auto-release").Handler(applyAutoReleasePolicy(&payloader, policySvc))
+	policyMux.Methods(http.MethodPatch).Path("/branch-restriction").Handler(applyBranchRestrictionPolicy(&payloader, policySvc))
+
+	hamctlMux.Methods(http.MethodGet).Path("/describe/release/{service}/{environment}").Handler(describeRelease(&payloader, flowSvc))
+	hamctlMux.Methods(http.MethodGet).Path("/describe/artifact/{service}").Handler(describeArtifact(&payloader, flowSvc))
+	hamctlMux.Methods(http.MethodGet).Path("/describe/latest-artifact/{service}").Handler(describeLatestArtifacts(&payloader, flowSvc))
+
+	daemonMux := m.NewRoute().Subrouter()
+	daemonMux.Use(authenticate(opts.DaemonAuthToken))
+	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/deploy").Handler(daemonk8sDeployWebhook(&payloader, flowSvc))
+	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/error").Handler(daemonk8sPodErrorWebhook(&payloader, flowSvc))
+	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/joberror").Handler(daemonk8sJobErrorWebhook(&payloader, flowSvc))
 
 	// s3 endpoints
-	mux.HandleFunc("/artifacts/create", trace(tracer, authenticate(opts.ArtifactAuthToken, createArtifact(&payloader, artifactWriteStorage))))
+	artifactMux := m.NewRoute().Subrouter()
+	artifactMux.Use(authenticate(opts.ArtifactAuthToken))
+	artifactMux.Methods(http.MethodPost).Path("/artifacts/create").Handler(createArtifact(&payloader, artifactWriteStorage))
 
 	// profiling endpoints
-	mux.HandleFunc("/debug/pprof/", pprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	m.HandleFunc("/debug/pprof/", pprof.Index)
+	m.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	m.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	m.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	m.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
-	mux.Handle("/metrics", promhttp.Handler())
+	m.HandleFunc("/ping", ping)
+	m.Handle("/metrics", promhttp.Handler())
+	m.HandleFunc("/webhook/github", githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret))
 
 	s := http.Server{
 		Addr:              fmt.Sprintf(":%d", opts.Port),
-		Handler:           reqrespLogger(mux),
+		Handler:           m,
 		ReadTimeout:       opts.Timeout,
 		WriteTimeout:      opts.Timeout,
 		IdleTimeout:       opts.Timeout,
@@ -90,45 +111,49 @@ func getRequestID(r *http.Request) string {
 }
 
 // trace adds an OpenTracing span to the request context.
-func trace(tracer tracing.Tracer, h http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		span, ctx := tracer.FromCtxf(ctx, "http %s %s", r.Method, r.URL.Path)
-		defer span.Finish()
-		requestID := getRequestID(r)
-		ctx = tracing.WithRequestID(ctx, requestID)
-		ctx = log.AddContext(ctx, "requestId", requestID)
-		*r = *r.WithContext(ctx)
-		statusWriter := &statusCodeResponseWriter{w, http.StatusOK}
-		h(statusWriter, r)
-		span.SetTag("request.id", requestID)
-		span.SetTag("http.status_code", statusWriter.statusCode)
-		span.SetTag("http.url", r.URL.RequestURI())
-		span.SetTag("http.method", r.Method)
-		if statusWriter.statusCode >= http.StatusInternalServerError {
-			span.SetTag("error", true)
-		}
-		err := ctx.Err()
-		if err != nil {
-			span.SetTag("error", true)
-			span.SetTag("error_message", err.Error())
-		}
-	})
+func trace(tracer tracing.Tracer) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			span, ctx := tracer.FromCtxf(ctx, "http %s %s", r.Method, r.URL.Path)
+			defer span.Finish()
+			requestID := getRequestID(r)
+			ctx = tracing.WithRequestID(ctx, requestID)
+			ctx = log.AddContext(ctx, "requestId", requestID)
+			*r = *r.WithContext(ctx)
+			statusWriter := &statusCodeResponseWriter{w, http.StatusOK}
+			h.ServeHTTP(statusWriter, r)
+			span.SetTag("request.id", requestID)
+			span.SetTag("http.status_code", statusWriter.statusCode)
+			span.SetTag("http.url", r.URL.RequestURI())
+			span.SetTag("http.method", r.Method)
+			if statusWriter.statusCode >= http.StatusInternalServerError {
+				span.SetTag("error", true)
+			}
+			err := ctx.Err()
+			if err != nil {
+				span.SetTag("error", true)
+				span.SetTag("error_message", err.Error())
+			}
+		})
+	}
 }
 
 // authenticate authenticates the handler against a Bearer token.
 //
 // If authentication fails a 401 Unauthorized HTTP status is returned with an
 // ErrorResponse body.
-func authenticate(token string, h http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authorization := r.Header.Get("Authorization")
-		t := strings.TrimPrefix(authorization, "Bearer ")
-		t = strings.TrimSpace(t)
-		if t != token {
-			httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
-			return
-		}
-		h(w, r)
-	})
+func authenticate(token string) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			authorization := r.Header.Get("Authorization")
+			t := strings.TrimPrefix(authorization, "Bearer ")
+			t = strings.TrimSpace(t)
+			if t != token {
+				httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
+				return
+			}
+			h.ServeHTTP(w, r)
+		})
+	}
 }

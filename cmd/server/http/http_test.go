@@ -60,13 +60,13 @@ func TestAuthenticate(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			handler := func(w http.ResponseWriter, r *http.Request) {
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-			}
+			})
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			req.Header.Set("Authorization", tc.authorization)
 			w := httptest.NewRecorder()
-			authenticate(tc.serverToken, handler)(w, req)
+			authenticate(tc.serverToken)(handler).ServeHTTP(w, req)
 
 			assert.Equal(t, tc.status, w.Result().StatusCode, "status code not as expected")
 		})

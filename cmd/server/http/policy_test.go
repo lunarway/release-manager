@@ -1,8 +1,6 @@
 package http
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -33,13 +31,13 @@ func TestFilterEmptyStrings(t *testing.T) {
 			output: nil,
 		},
 		{
-			name: "multiple whitespace strings",
-			input: strings("  ", "	"),
+			name:   "multiple whitespace strings",
+			input:  strings("  ", "	"),
 			output: nil,
 		},
 		{
-			name: "mixed whitespace and non-whitespace strings",
-			input: strings("  ", "hello", "	", "world"),
+			name:   "mixed whitespace and non-whitespace strings",
+			input:  strings("  ", "hello", "	", "world"),
 			output: strings("hello", "world"),
 		},
 		{
@@ -57,46 +55,6 @@ func TestFilterEmptyStrings(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			output := filterEmptyStrings(tc.input)
 			assert.Equal(t, tc.output, output, "output not as expected")
-		})
-	}
-}
-
-func TestPolicyPatchPath(t *testing.T) {
-	tt := []struct {
-		name       string
-		path       string
-		valid      bool
-		policyType string
-	}{
-		{
-			name:       "empty",
-			path:       "http://localhost",
-			valid:      false,
-			policyType: "",
-		},
-		{
-			name:       "no type",
-			path:       "http://localhost/policies",
-			valid:      false,
-			policyType: "",
-		},
-		{
-			name:       "with type",
-			path:       "http://localhost/policies/auto-release",
-			valid:      true,
-			policyType: "auto-release",
-		},
-	}
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			r := httptest.NewRequest(http.MethodPatch, tc.path, nil)
-			p, ok := newPolicyPatchPath(r)
-			assert.Equal(t, tc.valid, ok, "path not valid")
-			if !ok {
-				return
-			}
-			policyType := p.PolicyType()
-			assert.Equal(t, tc.policyType, policyType, "policy type not as expected")
 		})
 	}
 }

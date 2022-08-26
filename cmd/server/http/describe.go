@@ -5,89 +5,33 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
+	"github.com/gorilla/mux"
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/flow"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 )
 
-func describe(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
+func muxService(r *http.Request) string {
+	vars := mux.Vars(r)
+	return vars["service"]
+}
+
+func muxEnvironment(r *http.Request) string {
+	vars := mux.Vars(r)
+	return vars["environment"]
+}
+
+func describeRelease(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			notFound(w)
-			return
-		}
-		p, ok := newDescribePath(r)
-		if !ok {
-			notFound(w)
-			return
-		}
-		ctx := r.Context()
-		switch p.Resource() {
-		case "release":
-			describeRelease(ctx, payload, flowSvc, p.Namespace(), p.Environment(), p.Service())(w, r)
-		case "artifact":
-			describeArtifact(ctx, payload, flowSvc, p.Service())(w, r)
-		case "latest-artifact":
-			describeLatestArtifacts(ctx, payload, flowSvc, p.Service())(w, r)
-		default:
-			log.WithContext(ctx).Errorf("describe path not found: %+v", p)
-			notFound(w)
-		}
-	}
-}
+		service := muxService(r)
+		environment := muxEnvironment(r)
 
-type describePath struct {
-	r        *http.Request
-	segments []string
-}
-
-func newDescribePath(r *http.Request) (describePath, bool) {
-	p := describePath{
-		r:        r,
-		segments: strings.Split(r.URL.Path, "/"),
-	}
-	if len(p.segments) < 4 {
-		return describePath{}, false
-	}
-	return p, true
-}
-
-func (p *describePath) Resource() string {
-	return p.segments[2]
-}
-
-func (p *describePath) Service() string {
-	return p.segments[3]
-}
-
-func (p *describePath) Environment() string {
-	if len(p.segments) < 5 {
-		return ""
-	}
-	return p.segments[4]
-}
-
-func (p *describePath) Namespace() string {
-	values := p.r.URL.Query()
-	namespace := values.Get("namespace")
-	return namespace
-}
-
-func describeRelease(ctx context.Context, payload *payload, flowSvc *flow.Service, namespace, environment, service string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if emptyString(service) {
-			requiredFieldError(w, "service")
-			return
-		}
-		if emptyString(environment) {
-			requiredFieldError(w, "environment")
-			return
-		}
 		values := r.URL.Query()
+		namespace := values.Get("namespace")
 		countParam := values.Get("count")
+
 		if emptyString(countParam) {
 			countParam = "1"
 		}
@@ -96,8 +40,8 @@ func describeRelease(ctx context.Context, payload *payload, flowSvc *flow.Servic
 			httpinternal.Error(w, fmt.Sprintf("invalid value '%s' of count. Must be a positive integer.", countParam), http.StatusBadRequest)
 			return
 		}
-		logger := log.WithContext(ctx).WithFields("service", service, "environment", environment, "namespace", namespace)
 		ctx := r.Context()
+		logger := log.WithContext(ctx).WithFields("service", service, "environment", environment, "namespace", namespace)
 		resp, err := flowSvc.DescribeRelease(ctx, environment, service, count)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
@@ -141,12 +85,9 @@ func describeRelease(ctx context.Context, payload *payload, flowSvc *flow.Servic
 	}
 }
 
-func describeArtifact(ctx context.Context, payload *payload, flowSvc *flow.Service, service string) http.HandlerFunc {
+func describeArtifact(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if emptyString(service) {
-			requiredFieldError(w, "service")
-			return
-		}
+		service := muxService(r)
 		values := r.URL.Query()
 		countParam := values.Get("count")
 		if emptyString(countParam) {
@@ -158,8 +99,8 @@ func describeArtifact(ctx context.Context, payload *payload, flowSvc *flow.Servi
 			return
 		}
 		branch := values.Get("branch")
-		logger := log.WithContext(ctx).WithFields("service", service, "count", count, "branch", branch)
 		ctx := r.Context()
+		logger := log.WithContext(ctx).WithFields("service", service, "count", count, "branch", branch)
 		resp, err := flowSvc.DescribeArtifact(ctx, service, count, branch)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
@@ -190,12 +131,9 @@ func describeArtifact(ctx context.Context, payload *payload, flowSvc *flow.Servi
 	}
 }
 
-func describeLatestArtifacts(ctx context.Context, payload *payload, flowSvc *flow.Service, service string) http.HandlerFunc {
+func describeLatestArtifacts(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if emptyString(service) {
-			requiredFieldError(w, "service")
-			return
-		}
+		service := muxService(r)
 		values := r.URL.Query()
 		branch := values.Get("branch")
 		if emptyString(branch) {
@@ -203,8 +141,8 @@ func describeLatestArtifacts(ctx context.Context, payload *payload, flowSvc *flo
 			return
 		}
 
-		logger := log.WithContext(ctx).WithFields("service", service, "branch", branch)
 		ctx := r.Context()
+		logger := log.WithContext(ctx).WithFields("service", service, "branch", branch)
 		resp, err := flowSvc.DescribeLatestArtifact(ctx, service, branch)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
