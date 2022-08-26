@@ -186,6 +186,52 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				GlobalBranchRestrictionPolicies: *startOptions.branchRestrictionPolicies,
 			}
 
+			releaseNotifiers := map[string]func(ctx context.Context, opts flow.NotifyReleaseOptions){
+				"slack": func(ctx context.Context, opts flow.NotifyReleaseOptions) {
+					slackClient.NotifyRelease(ctx, intslack.ReleaseOptions{
+						Service:           opts.Service,
+						Environment:       opts.Environment,
+						ArtifactID:        opts.Spec.ID,
+						CommitMessage:     opts.Spec.Application.Message,
+						CommitAuthor:      opts.Spec.Application.AuthorName,
+						CommitAuthorEmail: opts.Spec.Application.AuthorEmail,
+						CommitLink:        opts.Spec.Application.URL,
+						CommitSHA:         opts.Spec.Application.SHA,
+						Releaser:          opts.Releaser,
+					})
+				},
+				"grafana-annotation": func(ctx context.Context, opts flow.NotifyReleaseOptions) {
+					err = grafanaSvc.Annotate(ctx, opts.Environment, grafana.AnnotateRequest{
+						What: fmt.Sprintf("Deployment: %s", opts.Service),
+						Data: fmt.Sprintf("Author: %s\nMessage: %s\nArtifactID: %s", opts.Spec.Application.AuthorName, opts.Spec.Application.Message, opts.Spec.ID),
+						Tags: []string{"deployment", opts.Service},
+					})
+					if err != nil {
+						if errors.Is(err, grafana.ErrEnvironmentNotConfigured) {
+							log.WithContext(ctx).Infof("flow.NotifyReleaseHook: skipped annotation in Grafana: %v", err)
+							return
+						}
+						log.WithContext(ctx).Errorf("flow.NotifyReleaseHook: failed to annotate Grafana: %v", err)
+					}
+				},
+				"github-tags": func(ctx context.Context, opts flow.NotifyReleaseOptions) {
+					logger := log.WithContext(ctx)
+					if strings.ToLower(opts.Spec.Application.Provider) == "github" && *startOptions.githubAPIToken != "" {
+						logger.Infof("Tagging GitHub repository '%s' with '%s' at '%s'", opts.Spec.Application.Name, opts.Environment, opts.Spec.Application.SHA)
+						span, _ := tracer.FromCtx(ctx, "tag source repository")
+						err = github.TagRepo(ctx, opts.Spec.Application.Name, opts.Environment, opts.Spec.Application.SHA)
+						span.Finish()
+						if err != nil {
+							logger.Errorf("flow.NotifyReleaseHook: failed to tag source repository: %v", err)
+						}
+					} else {
+						logger.Infof("Skipping GitHub repository tagging")
+					}
+				},
+				"log": func(ctx context.Context, opts flow.NotifyReleaseOptions) {
+					log.WithContext(ctx).Infof("Release [%s]: %s (%s) by %s, author %s", opts.Environment, opts.Service, opts.Spec.ID, opts.Releaser, opts.Spec.Application.AuthorName)
+				},
+			}
 			flowSvc := flow.Service{
 				ArtifactFileName: startOptions.configRepo.ArtifactFileName,
 				UserMappings:     *startOptions.userMappings,
@@ -207,7 +253,8 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				NotifyReleaseHook: func(ctx context.Context, opts flow.NotifyReleaseOptions) {
 					span, ctx := tracer.FromCtx(ctx, "flow.NotifyReleaseHook")
 					defer span.Finish()
-					logger := log.WithContext(ctx).WithFields("service", opts.Service,
+
+					ctx = log.AddContext(ctx, "service", opts.Service,
 						"environment", opts.Environment,
 						"namespace", opts.Namespace,
 						"artifact-id", opts.Spec.ID,
@@ -221,59 +268,11 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 						"releaser", opts.Releaser,
 						"type", "release")
 
-					releaseOptions := intslack.ReleaseOptions{
-						Service:           opts.Service,
-						Environment:       opts.Environment,
-						ArtifactID:        opts.Spec.ID,
-						CommitMessage:     opts.Spec.Application.Message,
-						CommitAuthor:      opts.Spec.Application.AuthorName,
-						CommitAuthorEmail: opts.Spec.Application.AuthorEmail,
-						CommitLink:        opts.Spec.Application.URL,
-						CommitSHA:         opts.Spec.Application.SHA,
-						Releaser:          opts.Releaser,
-					}
-					span, _ = tracer.FromCtx(ctx, "notify release channel")
-					err := slackClient.NotifySlackReleasesChannel(ctx, releaseOptions)
-					span.Finish()
-					if err != nil {
-						logger.Errorf("flow.NotifyReleaseHook: failed to post releases slack message: %v", err)
-					}
-
-					span, _ = tracer.FromCtx(ctx, "notify author")
-					err = slackClient.NotifyAuthorEventProcessed(ctx, releaseOptions)
-					span.Finish()
-					if err != nil {
-						logger.Errorf("flow.NotifyReleaseHook: failed to post slack event processed message to author: %v", err)
-					}
-
-					span, _ = tracer.FromCtx(ctx, "annotate grafana")
-					err = grafanaSvc.Annotate(ctx, opts.Environment, grafana.AnnotateRequest{
-						What: fmt.Sprintf("Deployment: %s", opts.Service),
-						Data: fmt.Sprintf("Author: %s\nMessage: %s\nArtifactID: %s", opts.Spec.Application.AuthorName, opts.Spec.Application.Message, opts.Spec.ID),
-						Tags: []string{"deployment", opts.Service},
-					})
-					span.Finish()
-					if err != nil {
-						if errors.Is(err, grafana.ErrEnvironmentNotConfigured) {
-							logger.Infof("flow.NotifyReleaseHook: skipped annotation in Grafana: %v", err)
-						} else {
-							logger.Errorf("flow.NotifyReleaseHook: failed to annotate Grafana: %v", err)
-						}
-					}
-
-					if strings.ToLower(opts.Spec.Application.Provider) == "github" && *startOptions.githubAPIToken != "" {
-						logger.Infof("Tagging GitHub repository '%s' with '%s' at '%s'", opts.Spec.Application.Name, opts.Environment, opts.Spec.Application.SHA)
-						span, _ = tracer.FromCtx(ctx, "tag source repository")
-						err = github.TagRepo(ctx, opts.Spec.Application.Name, opts.Environment, opts.Spec.Application.SHA)
+					for name, notifier := range releaseNotifiers {
+						span, ctx := tracer.FromCtx(ctx, fmt.Sprintf("notify %s", name))
+						notifier(ctx, opts)
 						span.Finish()
-						if err != nil {
-							logger.Errorf("flow.NotifyReleaseHook: failed to tag source repository: %v", err)
-						}
-					} else {
-						logger.Infof("Skipping GitHub repository tagging")
 					}
-
-					logger.Infof("Release [%s]: %s (%s) by %s, author %s", opts.Environment, opts.Service, opts.Spec.ID, opts.Releaser, opts.Spec.Application.AuthorName)
 				},
 			}
 

@@ -148,7 +148,19 @@ type ReleaseOptions struct {
 	Environment       string
 }
 
-func (c *Client) NotifySlackReleasesChannel(ctx context.Context, options ReleaseOptions) error {
+func (c *Client) NotifyRelease(ctx context.Context, releaseOptions ReleaseOptions) {
+	err := c.notifySlackReleasesChannel(ctx, releaseOptions)
+	if err != nil {
+		log.WithContext(ctx).Errorf("flow.NotifyReleaseHook: failed to post releases slack message: %v", err)
+	}
+
+	err = c.notifyAuthorEventProcessed(ctx, releaseOptions)
+	if err != nil {
+		log.WithContext(ctx).Errorf("flow.NotifyReleaseHook: failed to post slack event processed message to author: %v", err)
+	}
+}
+
+func (c *Client) notifySlackReleasesChannel(ctx context.Context, options ReleaseOptions) error {
 	if c.muteOptions.Releases {
 		return nil
 	}
@@ -241,7 +253,7 @@ func (c *Client) NotifySlackPolicySucceeded(ctx context.Context, email, title, m
 	return nil
 }
 
-func (c *Client) NotifyAuthorEventProcessed(ctx context.Context, options ReleaseOptions) error {
+func (c *Client) notifyAuthorEventProcessed(ctx context.Context, options ReleaseOptions) error {
 	if c.muteOptions.ReleaseProcessed {
 		return nil
 	}
