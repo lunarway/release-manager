@@ -40,6 +40,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	})
 
 	m.Use(trace(tracer))
+	m.Use(prometheusMiddleware())
 	m.Use(reqrespLogger)
 
 	hamctlMux := m.NewRoute().Subrouter()
