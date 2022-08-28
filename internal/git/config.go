@@ -1,7 +1,7 @@
 package git
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -49,7 +49,7 @@ func getGitConfig(field string) (string, error) {
 	if err != nil {
 		return "", errors.WithMessage(err, "start command")
 	}
-	stdoutData, err := ioutil.ReadAll(stdout)
+	stdoutData, err := io.ReadAll(stdout)
 	if err != nil {
 		return "", errors.WithMessage(err, "read stdout data of command")
 	}

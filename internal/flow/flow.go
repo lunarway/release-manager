@@ -7,6 +7,7 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -452,7 +453,7 @@ func uploadFile(url string, fileContent []byte, md5 string) error {
 
 	if resp.StatusCode != http.StatusOK {
 		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return fmt.Errorf("failed upload file to %s with status code %v and request id %v and and also got an error reading body %w", url, resp.StatusCode, resp.Header["X-Amz-Request-Id"], err)
 		}

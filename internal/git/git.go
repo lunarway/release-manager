@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -390,11 +389,11 @@ func execCommand(ctx context.Context, rootPath string, cmdName string, args ...s
 		return errors.WithMessage(err, "start command")
 	}
 
-	stdoutData, err := ioutil.ReadAll(stdout)
+	stdoutData, err := io.ReadAll(stdout)
 	if err != nil {
 		return errors.WithMessage(err, "read stdout data of command")
 	}
-	stderrData, err := ioutil.ReadAll(stderr)
+	stderrData, err := io.ReadAll(stderr)
 	if err != nil {
 		return errors.WithMessage(err, "read stderr data of command")
 	}
@@ -454,11 +453,11 @@ func checkStatus(ctx context.Context, rootPath string) error {
 		return errors.WithMessage(err, "start command")
 	}
 
-	stdoutData, err := ioutil.ReadAll(stdout)
+	stdoutData, err := io.ReadAll(stdout)
 	if err != nil {
 		return errors.WithMessage(err, "read stdout data of command")
 	}
-	stderrData, err := ioutil.ReadAll(stderr)
+	stderrData, err := io.ReadAll(stderr)
 	if err != nil {
 		return errors.WithMessage(err, "read stderr data of command")
 	}
@@ -495,11 +494,11 @@ func gitPush(ctx context.Context, rootPath string) error {
 		return errors.WithMessage(err, "start command")
 	}
 
-	stdoutData, err := ioutil.ReadAll(stdout)
+	stdoutData, err := io.ReadAll(stdout)
 	if err != nil {
 		return errors.WithMessage(err, "read stdout data of command")
 	}
-	stderrData, err := ioutil.ReadAll(stderr)
+	stderrData, err := io.ReadAll(stderr)
 	if err != nil {
 		return errors.WithMessage(err, "read stderr data of command")
 	}

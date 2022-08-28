@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -63,7 +63,7 @@ func (s *Service) Annotate(ctx context.Context, env string, body AnnotateRequest
 
 	logger := log.WithContext(ctx)
 	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		logger.Infof("grafana: response body: %s", body)
 		return errors.New("grafana: status code not ok")
 	}
