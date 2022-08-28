@@ -22,6 +22,7 @@ import (
 	"github.com/lunarway/release-manager/internal/copy"
 	internalgit "github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/slack"
@@ -64,6 +65,7 @@ type NotifyReleaseOptions struct {
 	Service     string
 	Releaser    string
 	Spec        artifact.Spec
+	Intent      intent.Intent
 }
 
 type GitService interface {

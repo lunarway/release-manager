@@ -23,6 +23,7 @@ import (
 	"github.com/lunarway/release-manager/internal/github"
 	"github.com/lunarway/release-manager/internal/grafana"
 	"github.com/lunarway/release-manager/internal/log"
+	"github.com/lunarway/release-manager/internal/metrics"
 	"github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/s3storage"
 	intslack "github.com/lunarway/release-manager/internal/slack"
@@ -122,6 +123,8 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				return err
 			}
 			defer tracer.Close()
+			metricsObserver := metrics.NewObserver()
+
 			grafanaSvc := grafana.Service{
 				Environments: mapGrafanaOptionsToEnvironment(startOptions.grafana),
 			}
@@ -230,6 +233,14 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				},
 				"log": func(ctx context.Context, opts flow.NotifyReleaseOptions) {
 					log.WithContext(ctx).Infof("Release [%s]: %s (%s) by %s, author %s", opts.Environment, opts.Service, opts.Spec.ID, opts.Releaser, opts.Spec.Application.AuthorName)
+				},
+				"prometheus": func(ctx context.Context, opts flow.NotifyReleaseOptions) {
+					metricsObserver.ObserveRelease(metrics.Release{
+						Environment: opts.Environment,
+						Service:     opts.Service,
+						Releaser:    opts.Releaser,
+						Intent:      opts.Intent.Type,
+					})
 				},
 			}
 			flowSvc := flow.Service{
