@@ -232,7 +232,20 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					}
 				},
 				"log": func(ctx context.Context, opts flow.NotifyReleaseOptions) {
-					log.WithContext(ctx).Infof("Release [%s]: %s (%s) by %s, author %s", opts.Environment, opts.Service, opts.Spec.ID, opts.Releaser, opts.Spec.Application.AuthorName)
+					logger := log.WithContext(ctx).WithFields("service", opts.Service,
+						"environment", opts.Environment,
+						"namespace", opts.Namespace,
+						"artifact-id", opts.Spec.ID,
+						"commit-message", opts.Spec.Application.Message,
+						"commit-author", opts.Spec.Application.AuthorName,
+						"commit-author-email", opts.Spec.Application.AuthorEmail,
+						"commit-comitter", opts.Spec.Application.CommitterName,
+						"commit-comitter-email", opts.Spec.Application.CommitterEmail,
+						"commit-link", opts.Spec.Application.URL,
+						"commit-sha", opts.Spec.Application.SHA,
+						"releaser", opts.Releaser,
+						"type", "release")
+					logger.Infof("Release [%s]: %s (%s) by %s, author %s", opts.Environment, opts.Service, opts.Spec.ID, opts.Releaser, opts.Spec.Application.AuthorName)
 				},
 				"prometheus": func(ctx context.Context, opts flow.NotifyReleaseOptions) {
 					metricsObserver.ObserveRelease(metrics.Release{
@@ -264,20 +277,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				NotifyReleaseHook: func(ctx context.Context, opts flow.NotifyReleaseOptions) {
 					span, ctx := tracer.FromCtx(ctx, "flow.NotifyReleaseHook")
 					defer span.Finish()
-
-					ctx = log.AddContext(ctx, "service", opts.Service,
-						"environment", opts.Environment,
-						"namespace", opts.Namespace,
-						"artifact-id", opts.Spec.ID,
-						"commit-message", opts.Spec.Application.Message,
-						"commit-author", opts.Spec.Application.AuthorName,
-						"commit-author-email", opts.Spec.Application.AuthorEmail,
-						"commit-comitter", opts.Spec.Application.CommitterName,
-						"commit-comitter-email", opts.Spec.Application.CommitterEmail,
-						"commit-link", opts.Spec.Application.URL,
-						"commit-sha", opts.Spec.Application.SHA,
-						"releaser", opts.Releaser,
-						"type", "release")
 
 					for name, notifier := range releaseNotifiers {
 						span, ctx := tracer.FromCtx(ctx, fmt.Sprintf("notify %s", name))
