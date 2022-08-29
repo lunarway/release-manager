@@ -1,7 +1,7 @@
 package flux2notifications
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -26,7 +26,7 @@ func TestWebhookForAlerts(t *testing.T) {
 	HandleEventFromFlux2(w, request)
 	response := w.Result()
 	defer response.Body.Close()
-	_, err := ioutil.ReadAll(response.Body)
+	_, err := io.ReadAll(response.Body)
 
 	//assert
 	assert.NoError(t, err, "HandleEventFromFlux2 could not handle request")

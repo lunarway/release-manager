@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -57,7 +56,7 @@ func (s *Service) TagRepo(ctx context.Context, repository, tag, sha string) erro
 	case http.StatusCreated:
 		return nil
 	case http.StatusUnprocessableEntity:
-		errorBody, err := ioutil.ReadAll(resp.Body)
+		errorBody, err := io.ReadAll(resp.Body)
 		if err != nil {
 			logger.Errorf("internal/github: failed too read error body of request")
 		}
@@ -68,7 +67,7 @@ func (s *Service) TagRepo(ctx context.Context, repository, tag, sha string) erro
 		}
 		return nil
 	default:
-		errorBody, err := ioutil.ReadAll(resp.Body)
+		errorBody, err := io.ReadAll(resp.Body)
 		if err != nil {
 			logger.Errorf("internal/github: failed too read error body of request")
 		}
@@ -95,7 +94,7 @@ func (s *Service) updateTag(ctx context.Context, repository, tag, sha string) er
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		errorBody, err := ioutil.ReadAll(resp.Body)
+		errorBody, err := io.ReadAll(resp.Body)
 		if err != nil {
 			log.WithContext(ctx).Errorf("internal/github: failed to read error body of request")
 		}
