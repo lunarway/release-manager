@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"math/rand"
@@ -52,7 +53,7 @@ func main() {
 	for i := 0; i < *count; i++ {
 		go func() {
 			defer wg.Done()
-			err = channel.Publish("amqp-load", "load", false, false, amqp.Publishing{
+			err = channel.PublishWithContext(context.Background(), "amqp-load", "load", false, false, amqp.Publishing{
 				Body: p,
 			})
 			if err != nil {
