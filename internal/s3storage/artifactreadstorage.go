@@ -3,7 +3,7 @@ package s3storage
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
+	"os"
 	"path"
 	"sort"
 
@@ -136,7 +136,7 @@ func (f *Service) getArtifactSpecFromObjectKey(ctx context.Context, objectKey st
 
 	subSpan, _ := f.tracer.FromCtx(ctx, "read json file")
 	defer subSpan.Finish()
-	jsonSpec, err := ioutil.ReadFile(path.Join(artifactPath, "artifact.json"))
+	jsonSpec, err := os.ReadFile(path.Join(artifactPath, "artifact.json"))
 	if err != nil {
 		return artifact.Spec{}, errors.WithMessage(err, "read artifact.json file")
 	}

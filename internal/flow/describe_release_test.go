@@ -2,7 +2,6 @@ package flow_test
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -23,7 +22,7 @@ import (
 // reported in the results due to how the flow was handling checkouts.
 func TestService_DescribeRelease_basicFlow(t *testing.T) {
 	// setup temporary repository
-	tmpDir, err := ioutil.TempDir("", "release-manager-test")
+	tmpDir, err := os.MkdirTemp("", "release-manager-test")
 	if err != nil {
 		t.Fatalf("failed to get temp dir: %v", err)
 	}
