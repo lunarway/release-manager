@@ -36,6 +36,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	}
 	m := mux.NewRouter()
 	m.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.WithContext(r.Context()).Infof("Unknown HTTP endpoint called: %s", r.URL.String())
 		notFound(w)
 	})
 
