@@ -263,7 +263,7 @@ func (c *Client) notifyAuthorEventProcessed(ctx context.Context, options Release
 	}
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":rocket: Release Manager :white_check_mark:"),
+		Title:      ":rocket: Release Manager :white_check_mark:",
 		Color:      MsgColorGreen,
 		Text:       fmt.Sprintf("Release for *%s* in %s processed\nArtifact: <%s|*%s*>", options.Service, options.Environment, options.CommitLink, options.ArtifactID),
 		MarkdownIn: []string{"text", "fields"},
@@ -375,7 +375,7 @@ func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service
 
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
-		Title:      fmt.Sprintf(":boom: Release Manager failed :x:"),
+		Title:      ":boom: Release Manager failed :x:",
 		Color:      MsgColorRed,
 		Text:       generateSlackMessage(msgType, service, environment, branch, namespace, inputErr),
 		MarkdownIn: []string{"text", "fields"},
