@@ -9,10 +9,9 @@ import (
 
 func TestParseConventionalCommit(t *testing.T) {
 	tt := []struct {
-		name                  string
-		commitMessage         []string
-		commitInfo            ConventionalCommitInfo
-		expectedCommitMessage []string
+		name          string
+		commitMessage []string
+		commitInfo    ConventionalCommitInfo
 	}{
 		{
 			name: "message with no description and field + no space",
@@ -183,10 +182,6 @@ func TestParseConventionalCommit(t *testing.T) {
 
 		t.Run(tc.name+" and back", func(t *testing.T) {
 			expectedCommitMessage := tc.commitMessage
-			if tc.expectedCommitMessage == nil {
-				expectedCommitMessage = tc.expectedCommitMessage
-				return
-			}
 			assert.Equal(t, strings.Join(expectedCommitMessage, "\n"), tc.commitInfo.String())
 		})
 	}
