@@ -109,11 +109,11 @@ func applyBranchRestrictionPolicy(payload *payload, policySvc *policyinternal.Se
 			switch errorCause(err) {
 			case policyinternal.ErrConflict:
 				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction rejected: conflicts with another policy: %v", req.Service, req.BranchRegex, req.Environment, err)
-				httpinternal.Error(w, fmt.Sprintf("policy conflicts with another policy"), http.StatusBadRequest)
+				httpinternal.Error(w, "policy conflicts with another policy", http.StatusBadRequest)
 				return
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction: %v", req.Service, req.BranchRegex, req.Environment, err)
-				httpinternal.Error(w, fmt.Sprintf("could not apply policy right now. Please try again in a moment."), http.StatusServiceUnavailable)
+				httpinternal.Error(w, "could not apply policy right now. Please try again in a moment.", http.StatusServiceUnavailable)
 				return
 			default:
 				logger.Errorf("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction failed: %v", req.Service, req.BranchRegex, req.Environment, err)
@@ -235,7 +235,7 @@ func deletePolicies(payload *payload, policySvc *policyinternal.Service) http.Ha
 				return
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: policy: delete: service '%s' ids %v: %v", req.Service, ids, err)
-				httpinternal.Error(w, fmt.Sprintf("could not delete policy right now. Please try again in a moment."), http.StatusServiceUnavailable)
+				httpinternal.Error(w, "could not delete policy right now. Please try again in a moment.", http.StatusServiceUnavailable)
 				return
 			default:
 				logger.Errorf("http: policy: delete: service '%s' ids %v: delete failed: %v", req.Service, ids, err)
