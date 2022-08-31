@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -422,7 +421,7 @@ func zipFiles(files []fileInfo) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		fileContent, err := ioutil.ReadFile(file.fullPath)
+		fileContent, err := os.ReadFile(file.fullPath)
 		if err != nil {
 			return nil, err
 		}

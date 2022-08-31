@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"context"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -26,7 +25,7 @@ func (f *Service) downloadArtifact(ctx context.Context, key string) (string, fun
 
 	logger := log.WithContext(ctx)
 	logger.WithFields("key", key).Infof("Downloading artifact from S3 key '%s'", key)
-	zipDest, err := ioutil.TempFile("", "s3-artifact-zip")
+	zipDest, err := os.CreateTemp("", "s3-artifact-zip")
 	if err != nil {
 		return "", nil, errors.WithMessage(err, "create temp file for zip")
 	}
@@ -77,7 +76,7 @@ func (f *Service) downloadArtifact(ctx context.Context, key string) (string, fun
 }
 
 func tempDir(prefix string) (string, func(context.Context), error) {
-	path, err := ioutil.TempDir("", prefix)
+	path, err := os.MkdirTemp("", prefix)
 	if err != nil {
 		return "", func(context.Context) {}, err
 	}

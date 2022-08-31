@@ -81,12 +81,9 @@ func (w *Worker) StartConsumer(consumerConfigs []ConsumerConfig, consumersStarte
 // waitForConsumerReady waits until the consumer state becomes Ready. It stops
 // only when the consumerState channel is closed.
 func waitForConsumerReady(consumerState chan consumer.State) {
-	for {
-		select {
-		case state := <-consumerState:
-			if state.Ready != nil {
-				return
-			}
+	for state := range consumerState {
+		if state.Ready != nil {
+			return
 		}
 	}
 }

@@ -2,7 +2,6 @@ package git
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 
 	"github.com/lunarway/release-manager/internal/log"
@@ -16,7 +15,7 @@ func TempDir(ctx context.Context, tracer tracing.Tracer, prefix string) (string,
 	span, _ := tracer.FromCtxf(ctx, "create temp dir")
 	span.SetTag("path_prefix", prefix)
 	defer span.Finish()
-	path, err := ioutil.TempDir("", prefix)
+	path, err := os.MkdirTemp("", prefix)
 	if err != nil {
 		return "", func(context.Context) {}, err
 	}
