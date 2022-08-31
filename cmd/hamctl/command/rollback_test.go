@@ -71,7 +71,14 @@ func TestRollback(t *testing.T) {
 	c := internalhttp.Client{
 		BaseURL: server.URL,
 	}
-	releaseClient := actions.NewReleaseHttpClient(git.NewLocalGitConfigAPI(), &c)
+
+	gitConfigAPI := git.GitConfigAPIMock{
+		CommitterDetailsFunc: func() (string, string, error) {
+			return "name", "email", nil
+		},
+	}
+
+	releaseClient := actions.NewReleaseHttpClient(&gitConfigAPI, &c)
 
 	runCommand := func(selectRollback command.SelectRollbackRelease, t *testing.T, args ...string) ([]string, error) {
 		var output []string
