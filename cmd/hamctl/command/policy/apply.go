@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewApply(client *httpinternal.Client, service *string) *cobra.Command {
+func NewApply(client *httpinternal.Client, service *string, gitConfigAPI git.GitConfigAPI) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "apply",
 		Short: "Apply a release policy for a service. See available commands for specific policies.",
@@ -32,19 +32,19 @@ func NewApply(client *httpinternal.Client, service *string) *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(autoRelease(client, service))
-	command.AddCommand(branchRestriction(client, service))
+	command.AddCommand(autoRelease(client, service, gitConfigAPI))
+	command.AddCommand(branchRestriction(client, service, gitConfigAPI))
 	return command
 }
 
-func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
+func autoRelease(client *httpinternal.Client, service *string, gitConfigAPI git.GitConfigAPI) *cobra.Command {
 	var branch, env string
 	var command = &cobra.Command{
 		Use:   "auto-release",
 		Short: "Auto-release policy for releasing branch artifacts to an environment",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(c *cobra.Command, args []string) error {
-			committerName, committerEmail, err := git.CommitterDetails()
+			committerName, committerEmail, err := gitConfigAPI.CommitterDetails()
 			if err != nil {
 				return err
 			}
@@ -82,7 +82,7 @@ func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 	return command
 }
 
-func branchRestriction(client *httpinternal.Client, service *string) *cobra.Command {
+func branchRestriction(client *httpinternal.Client, service *string, gitConfigAPI git.GitConfigAPI) *cobra.Command {
 	var branchRegex, env string
 	var command = &cobra.Command{
 		Use:   "branch-restriction",
@@ -90,7 +90,7 @@ func branchRestriction(client *httpinternal.Client, service *string) *cobra.Comm
 		Long:  "Branch restriction policy for limiting releases of artifacts by their origin branch to specific environments",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(c *cobra.Command, args []string) error {
-			committerName, committerEmail, err := git.CommitterDetails()
+			committerName, committerEmail, err := gitConfigAPI.CommitterDetails()
 			if err != nil {
 				return err
 			}

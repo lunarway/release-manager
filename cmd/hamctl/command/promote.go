@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
+func NewPromote(client *httpinternal.Client, service *string, releaseClient actions.ReleaseClient) *cobra.Command {
 	var toEnvironment, fromEnvironment, namespace string
 	var command = &cobra.Command{
 		Use:   "promote",
@@ -42,7 +42,7 @@ func NewPromote(client *httpinternal.Client, service *string) *cobra.Command {
 			}
 
 			fmt.Printf("Promote of service: %s\n", *service)
-			resp, err := actions.ReleaseArtifactID(client, *service, toEnvironment, artifactID, intent.NewPromoteEnvironment(fromEnvironment))
+			resp, err := releaseClient.ReleaseArtifactID(*service, toEnvironment, artifactID, intent.NewPromoteEnvironment(fromEnvironment))
 			if err != nil {
 				return err
 			}

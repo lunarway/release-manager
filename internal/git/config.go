@@ -9,16 +9,27 @@ import (
 	"github.com/pkg/errors"
 )
 
+type GitConfigAPI interface {
+	CommitterDetails() (name string, email string, err error)
+}
+
+type LocalGitConfigAPI struct {
+}
+
+func NewLocalGitConfigAPI() GitConfigAPI {
+	return &LocalGitConfigAPI{}
+}
+
 // CommitterDetails returns name and email read for a Git configuration file.
 //
 // Fetching the configuration values are delegated to the git CLI and follows
 // precedence rules defined by Git.
-func CommitterDetails() (string, string, error) {
-	name, err := getValue("user.name", "HAMCTL_USER_NAME")
+func (*LocalGitConfigAPI) CommitterDetails() (name string, email string, err error) {
+	name, err = getValue("user.name", "HAMCTL_USER_NAME")
 	if err != nil {
 		return "", "", err
 	}
-	email, err := getValue("user.email", "HAMCTL_USER_EMAIL")
+	email, err = getValue("user.email", "HAMCTL_USER_EMAIL")
 	if err != nil {
 		return "", "", err
 	}

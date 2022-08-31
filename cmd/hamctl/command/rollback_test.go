@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/lunarway/release-manager/cmd/hamctl/command"
+	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/git"
 	internalhttp "github.com/lunarway/release-manager/internal/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,12 +71,13 @@ func TestRollback(t *testing.T) {
 	c := internalhttp.Client{
 		BaseURL: server.URL,
 	}
+	releaseClient := actions.NewReleaseHttpClient(git.NewLocalGitConfigAPI(), &c)
 
 	runCommand := func(selectRollback command.SelectRollbackRelease, t *testing.T, args ...string) ([]string, error) {
 		var output []string
 		cmd := command.NewRollback(&c, &serviceName, func(f string, args ...interface{}) {
 			output = append(output, fmt.Sprintf(f, args))
-		}, selectRollback)
+		}, selectRollback, releaseClient)
 		cmd.SetArgs(args)
 		err := cmd.Execute()
 
@@ -82,9 +85,7 @@ func TestRollback(t *testing.T) {
 	}
 
 	t.Run("test rollback to previous commit with no artifacts specified", func(t *testing.T) {
-		describeReleaseResponse = func() []internalhttp.DescribeReleaseResponseRelease {
-			return provideArtifacts(3)
-		}
+		describeReleaseResponse = provideArtifacts(3)
 
 		var rollback command.SelectRollbackRelease = func(environment string, releases []internalhttp.DescribeReleaseResponseRelease) (int, error) {
 			return 1, nil
@@ -101,9 +102,7 @@ func TestRollback(t *testing.T) {
 	})
 
 	t.Run("test rollback to previous commit with no artifacts specified select index 0", func(t *testing.T) {
-		describeReleaseResponse = func() []internalhttp.DescribeReleaseResponseRelease {
-			return provideArtifacts(3)
-		}
+		describeReleaseResponse = provideArtifacts(3)
 		var rollback command.SelectRollbackRelease = func(environment string, releases []internalhttp.DescribeReleaseResponseRelease) (int, error) {
 			return 0, nil
 		}
@@ -119,9 +118,7 @@ func TestRollback(t *testing.T) {
 	})
 
 	t.Run("test rollback to previous commit with no artifacts not enough releases", func(t *testing.T) {
-		describeReleaseResponse = func() []internalhttp.DescribeReleaseResponseRelease {
-			return provideArtifacts(1)
-		}
+		describeReleaseResponse = provideArtifacts(1)
 		var rollback command.SelectRollbackRelease = func(environment string, releases []internalhttp.DescribeReleaseResponseRelease) (int, error) {
 			return 0, nil
 		}
@@ -132,9 +129,7 @@ func TestRollback(t *testing.T) {
 	})
 
 	t.Run("test rollback to previous commit with artifact specified", func(t *testing.T) {
-		describeReleaseResponse = func() []internalhttp.DescribeReleaseResponseRelease {
-			return provideArtifacts(3)
-		}
+		describeReleaseResponse = provideArtifacts(3)
 		var rollback command.SelectRollbackRelease = func(environment string, releases []internalhttp.DescribeReleaseResponseRelease) (int, error) {
 			return -1, nil
 		}
@@ -150,9 +145,7 @@ func TestRollback(t *testing.T) {
 	})
 
 	t.Run("test rollback to previous commit with artifact specified, but not found", func(t *testing.T) {
-		describeReleaseResponse = func() []internalhttp.DescribeReleaseResponseRelease {
-			return provideArtifacts(3)
-		}
+		describeReleaseResponse = provideArtifacts(3)
 		var rollback command.SelectRollbackRelease = func(environment string, releases []internalhttp.DescribeReleaseResponseRelease) (int, error) {
 			return -1, nil
 		}
@@ -163,7 +156,7 @@ func TestRollback(t *testing.T) {
 	})
 }
 
-func provideArtifacts(amount int) []internalhttp.DescribeReleaseResponseRelease {
+func provideArtifacts(amount int) func() []internalhttp.DescribeReleaseResponseRelease {
 	var releases = make([]internalhttp.DescribeReleaseResponseRelease, amount)
 
 	for i := 0; i < amount; i++ {
@@ -175,5 +168,7 @@ func provideArtifacts(amount int) []internalhttp.DescribeReleaseResponseRelease 
 		}
 	}
 
-	return releases
+	return func() []internalhttp.DescribeReleaseResponseRelease {
+		return releases
+	}
 }

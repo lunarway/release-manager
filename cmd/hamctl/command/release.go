@@ -13,7 +13,7 @@ import (
 
 type LoggerFunc = func(string, ...interface{})
 
-func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc) *cobra.Command {
+func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc, releaseClient actions.ReleaseClient) *cobra.Command {
 	var branch, artifact string
 	var environments []string
 	var command = &cobra.Command{
@@ -44,7 +44,7 @@ Release latest artifact from branch 'master' of service 'product' into environme
 					return err
 				}
 				logger("Release of service %s using branch %s\n", *service, branch)
-				resps, err := actions.ReleaseArtifactIDMultipleEnvironments(client, *service, environments, artifactID, intent.NewReleaseBranch(branch))
+				resps, err := releaseClient.ReleaseArtifactIDMultipleEnvironments(*service, environments, artifactID, intent.NewReleaseBranch(branch))
 				if err != nil {
 					return err
 				}
@@ -54,7 +54,7 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				return nil
 			case artifact != "":
 				logger("Release of service: %s\n", *service)
-				resps, err := actions.ReleaseArtifactIDMultipleEnvironments(client, *service, environments, artifact, intent.NewReleaseArtifact())
+				resps, err := releaseClient.ReleaseArtifactIDMultipleEnvironments(*service, environments, artifact, intent.NewReleaseArtifact())
 				if err != nil {
 					return err
 				}

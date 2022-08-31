@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/http"
@@ -22,6 +23,11 @@ func NewRoot(version *string) (*cobra.Command, error) {
 			CLIVersion: *version,
 		},
 	}
+
+	gitConfigAPI := git.NewLocalGitConfigAPI()
+
+	releaseClient := actions.NewReleaseHttpClient(gitConfigAPI, &client)
+
 	var command = &cobra.Command{
 		Use:                    "hamctl",
 		Short:                  "hamctl controls a release manager server",
@@ -49,7 +55,7 @@ func NewRoot(version *string) (*cobra.Command, error) {
 				missingFlags = append(missingFlags, "service")
 			}
 			if email == "" {
-				_, email, _ = git.CommitterDetails()
+				_, email, _ = gitConfigAPI.CommitterDetails()
 				if email == "" {
 					missingFlags = append(missingFlags, "user-email")
 				}
@@ -70,10 +76,10 @@ func NewRoot(version *string) (*cobra.Command, error) {
 	command.AddCommand(
 		NewCompletion(command),
 		NewDescribe(&client, &service),
-		NewPolicy(&client, &service),
-		NewPromote(&client, &service),
-		NewRelease(&client, &service, loggerFunc),
-		NewRollback(&client, &service, loggerFunc, SelectRollbackReleaseFunc),
+		NewPolicy(&client, &service, gitConfigAPI),
+		NewPromote(&client, &service, releaseClient),
+		NewRelease(&client, &service, loggerFunc, releaseClient),
+		NewRollback(&client, &service, loggerFunc, SelectRollbackReleaseFunc, releaseClient),
 		NewStatus(&client, &service),
 		NewVersion(*version),
 	)

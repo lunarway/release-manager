@@ -19,6 +19,7 @@ func NewRollback(
 	service *string,
 	logger LoggerFunc,
 	selectReleaseUI SelectRollbackRelease,
+	releaseClient actions.ReleaseClient,
 ) *cobra.Command {
 	var environment, namespace, artifactID string
 	command := &cobra.Command{
@@ -84,8 +85,7 @@ has no effect.`,
 			}
 			logger("[✓] Starting rollback of service %s to %s\n", *service, rollbackTo.Artifact.ID)
 
-			resp, err := actions.ReleaseArtifactID(
-				client,
+			resp, err := releaseClient.ReleaseArtifactID(
 				*service,
 				environment,
 				rollbackTo.Artifact.ID,
