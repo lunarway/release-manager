@@ -91,9 +91,7 @@ func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n 
 		MaxKeys: aws.Int64(1000),
 		Prefix:  aws.String(prefix),
 	}, func(p *s3.ListObjectsV2Output, lastPage bool) bool {
-		for _, object := range p.Contents {
-			list = append(list, object)
-		}
+		list = append(list, p.Contents...)
 		return true
 	})
 	if err != nil {
