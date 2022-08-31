@@ -3,7 +3,7 @@ package s3storage
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
+	"os"
 	"path"
 	"sort"
 
@@ -91,9 +91,7 @@ func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n 
 		MaxKeys: aws.Int64(1000),
 		Prefix:  aws.String(prefix),
 	}, func(p *s3.ListObjectsV2Output, lastPage bool) bool {
-		for _, object := range p.Contents {
-			list = append(list, object)
-		}
+		list = append(list, p.Contents...)
 		return true
 	})
 	if err != nil {
@@ -136,7 +134,7 @@ func (f *Service) getArtifactSpecFromObjectKey(ctx context.Context, objectKey st
 
 	subSpan, _ := f.tracer.FromCtx(ctx, "read json file")
 	defer subSpan.Finish()
-	jsonSpec, err := ioutil.ReadFile(path.Join(artifactPath, "artifact.json"))
+	jsonSpec, err := os.ReadFile(path.Join(artifactPath, "artifact.json"))
 	if err != nil {
 		return artifact.Spec{}, errors.WithMessage(err, "read artifact.json file")
 	}

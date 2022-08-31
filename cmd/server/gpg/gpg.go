@@ -6,7 +6,6 @@ package gpg
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,16 +24,17 @@ func ImportKeys(src string, trustImportedKeys bool) ([]string, error) {
 	case err != nil:
 		return nil, err
 	case info.IsDir():
-		infos, err := ioutil.ReadDir(src)
+		dirEntries, err := os.ReadDir(src)
 		if err != nil {
 			return nil, err
 		}
-		for _, f := range infos {
-			filepath := filepath.Join(src, f.Name())
-			if f, err = os.Stat(filepath); err != nil {
+		for _, dirEntry := range dirEntries {
+			filepath := filepath.Join(src, dirEntry.Name())
+			stat, err := os.Stat(filepath)
+			if err != nil {
 				continue
 			}
-			if f.Mode().IsRegular() {
+			if stat.Mode().IsRegular() {
 				files = append(files, filepath)
 			}
 		}
