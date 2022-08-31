@@ -16,9 +16,6 @@ import (
 func pushCommand(options *Options) *cobra.Command {
 	releaseManagerClient := httpinternal.Client{}
 
-	// retries for comitting changes into config repo
-	// can be required for racing writes
-	const maxRetries = 5
 	command := &cobra.Command{
 		Use:   "push",
 		Short: "push artifact to artifact repository",

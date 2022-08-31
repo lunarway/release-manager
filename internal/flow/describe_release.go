@@ -113,7 +113,7 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 }
 
 func findNamespaceFromCommit(ctx context.Context, commitObj *object.Commit, artifactFileName string) (string, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "flow.findNamespace")
+	span, _ := opentracing.StartSpanFromContext(ctx, "flow.findNamespace")
 	defer span.Finish()
 	span.SetTag("gitcommit", commitObj.Hash.String())
 
