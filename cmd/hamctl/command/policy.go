@@ -2,12 +2,13 @@ package command
 
 import (
 	"github.com/lunarway/release-manager/cmd/hamctl/command/policy"
+	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
-func NewPolicy(client *http.Client, service *string) *cobra.Command {
+func NewPolicy(client *http.Client, service *string, gitConfigAPI *git.LocalGitConfigAPI) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "policy",
 		Short: "Manage release policies for services.",
@@ -28,8 +29,8 @@ func NewPolicy(client *http.Client, service *string) *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(policy.NewApply(client, service))
+	command.AddCommand(policy.NewApply(client, service, gitConfigAPI))
 	command.AddCommand(policy.NewList(client, service))
-	command.AddCommand(policy.NewDelete(client, service))
+	command.AddCommand(policy.NewDelete(client, service, gitConfigAPI))
 	return command
 }
