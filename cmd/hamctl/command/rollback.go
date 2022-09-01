@@ -58,7 +58,7 @@ has no effect.`,
 
 				index, err := selectReleaseUI(environment, releasesResponse.Releases)
 				if err != nil {
-					logger("something went wrong select release a release")
+					logger("Rollback cancelled: %v\n", err)
 					return err
 				}
 
