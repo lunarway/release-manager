@@ -9,10 +9,6 @@ import (
 )
 
 //go:generate moq -rm -out config_mock.go . GitConfigAPI
-
-// GitConfigAPI is an interface to interact with a git config system
-// this makes it possible to extract information from the repository
-// or the local user
 type GitConfigAPI interface {
 	CommitterDetails() (*git.CommitterDetails, error)
 }

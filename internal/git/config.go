@@ -30,7 +30,9 @@ func NewCommitterDetails(name, email string) (*CommitterDetails, error) {
 
 type LocalGitConfigAPI struct{}
 
-// NewLocalGitConfigAPI provide a GitConfigAPI for a local repository
+// GitConfigAPI is an interface to interact with a git config system
+// this makes it possible to extract information from the repository
+// or the local user
 func NewLocalGitConfigAPI() *LocalGitConfigAPI {
 	return &LocalGitConfigAPI{}
 }
