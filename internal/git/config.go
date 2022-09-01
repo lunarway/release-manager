@@ -9,20 +9,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-//go:generate moq -out config_mock.go . GitConfigAPI
-
-// GitConfigAPI is an interface to interact with a git config system
-// this makes it possible to extract information from the repository
-// or the local user
-type GitConfigAPI interface {
-	CommitterDetails() (name string, email string, err error)
-}
-
 type LocalGitConfigAPI struct {
 }
 
 // NewLocalGitConfigAPI provide a GitConfigAPI for a local repository
-func NewLocalGitConfigAPI() GitConfigAPI {
+func NewLocalGitConfigAPI() *LocalGitConfigAPI {
 	return &LocalGitConfigAPI{}
 }
 

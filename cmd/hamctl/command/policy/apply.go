@@ -6,12 +6,20 @@ import (
 	"net/http"
 
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
-	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
 
-func NewApply(client *httpinternal.Client, service *string, gitConfigAPI git.GitConfigAPI) *cobra.Command {
+//go:generate moq -out config_mock.go . GitConfigAPI
+
+// GitConfigAPI is an interface to interact with a git config system
+// this makes it possible to extract information from the repository
+// or the local user
+type GitConfigAPI interface {
+	CommitterDetails() (name string, email string, err error)
+}
+
+func NewApply(client *httpinternal.Client, service *string, gitConfigAPI GitConfigAPI) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "apply",
 		Short: "Apply a release policy for a service. See available commands for specific policies.",
@@ -37,7 +45,7 @@ func NewApply(client *httpinternal.Client, service *string, gitConfigAPI git.Git
 	return command
 }
 
-func autoRelease(client *httpinternal.Client, service *string, gitConfigAPI git.GitConfigAPI) *cobra.Command {
+func autoRelease(client *httpinternal.Client, service *string, gitConfigAPI GitConfigAPI) *cobra.Command {
 	var branch, env string
 	var command = &cobra.Command{
 		Use:   "auto-release",
@@ -82,7 +90,7 @@ func autoRelease(client *httpinternal.Client, service *string, gitConfigAPI git.
 	return command
 }
 
-func branchRestriction(client *httpinternal.Client, service *string, gitConfigAPI git.GitConfigAPI) *cobra.Command {
+func branchRestriction(client *httpinternal.Client, service *string, gitConfigAPI GitConfigAPI) *cobra.Command {
 	var branchRegex, env string
 	var command = &cobra.Command{
 		Use:   "branch-restriction",

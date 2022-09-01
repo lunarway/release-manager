@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
 
-func NewDelete(client *httpinternal.Client, service *string, gitConfigAPI git.GitConfigAPI) *cobra.Command {
+func NewDelete(client *httpinternal.Client, service *string, gitConfigAPI GitConfigAPI) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "delete",
 		Short: "Delete one or more policies by their id.",

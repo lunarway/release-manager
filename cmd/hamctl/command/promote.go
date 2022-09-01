@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewPromote(client *httpinternal.Client, service *string, releaseClient actions.ReleaseClient) *cobra.Command {
+func NewPromote(client *httpinternal.Client, service *string, releaseClient ReleaseArtifact) *cobra.Command {
 	var toEnvironment, fromEnvironment, namespace string
 	var command = &cobra.Command{
 		Use:   "promote",

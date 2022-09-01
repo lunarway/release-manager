@@ -14,12 +14,25 @@ import (
 	"github.com/spf13/cobra"
 )
 
+//go:generate moq -out config_mock.go . GitConfigAPI
+
+// GitConfigAPI is an interface to interact with a git config system
+// this makes it possible to extract information from the repository
+// or the local user
+type GitConfigAPI interface {
+	CommitterDetails() (name string, email string, err error)
+}
+
+type ReleaseArtifact interface {
+	ReleaseArtifactID(service, environment string, artifactID string, intent intent.Intent) (actions.ReleaseResult, error)
+}
+
 func NewRollback(
 	client *httpinternal.Client,
 	service *string,
 	logger LoggerFunc,
 	selectReleaseUI SelectRollbackRelease,
-	releaseClient actions.ReleaseClient,
+	releaseClient ReleaseArtifact,
 ) *cobra.Command {
 	var environment, namespace, artifactID string
 	command := &cobra.Command{

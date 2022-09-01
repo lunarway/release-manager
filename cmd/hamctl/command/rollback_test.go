@@ -11,7 +11,6 @@ import (
 	"github.com/lunarway/release-manager/cmd/hamctl/command"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/internal/artifact"
-	"github.com/lunarway/release-manager/internal/git"
 	internalhttp "github.com/lunarway/release-manager/internal/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -72,7 +71,7 @@ func TestRollback(t *testing.T) {
 		BaseURL: server.URL,
 	}
 
-	gitConfigAPI := git.GitConfigAPIMock{
+	gitConfigAPI := command.GitConfigAPIMock{
 		CommitterDetailsFunc: func() (string, string, error) {
 			return "name", "email", nil
 		},

@@ -13,7 +13,11 @@ import (
 
 type LoggerFunc = func(string, ...interface{})
 
-func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc, releaseClient actions.ReleaseClient) *cobra.Command {
+type ReleaseArtifactMultipleEnvironments interface {
+	ReleaseArtifactIDMultipleEnvironments(service string, environments []string, artifactID string, intent intent.Intent) ([]actions.ReleaseResult, error)
+}
+
+func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc, releaseClient ReleaseArtifactMultipleEnvironments) *cobra.Command {
 	var branch, artifact string
 	var environments []string
 	var command = &cobra.Command{

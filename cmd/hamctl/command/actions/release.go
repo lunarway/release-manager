@@ -3,10 +3,18 @@ package actions
 import (
 	"net/http"
 
-	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/intent"
 )
+
+//go:generate moq -out config_mock.go . GitConfigAPI
+
+// GitConfigAPI is an interface to interact with a git config system
+// this makes it possible to extract information from the repository
+// or the local user
+type GitConfigAPI interface {
+	CommitterDetails() (name string, email string, err error)
+}
 
 type ReleaseResult struct {
 	Response    httpinternal.ReleaseResponse
@@ -14,17 +22,12 @@ type ReleaseResult struct {
 	Error       error
 }
 
-type ReleaseClient interface {
-	ReleaseArtifactID(service, environment string, artifactID string, intent intent.Intent) (ReleaseResult, error)
-	ReleaseArtifactIDMultipleEnvironments(service string, environments []string, artifactID string, intent intent.Intent) ([]ReleaseResult, error)
-}
-
 type ReleaseHttpClient struct {
-	gitConfigAPI git.GitConfigAPI
+	gitConfigAPI GitConfigAPI
 	client       *httpinternal.Client
 }
 
-func NewReleaseHttpClient(gitConfigAPI git.GitConfigAPI, client *httpinternal.Client) ReleaseClient {
+func NewReleaseHttpClient(gitConfigAPI GitConfigAPI, client *httpinternal.Client) *ReleaseHttpClient {
 	return &ReleaseHttpClient{
 		gitConfigAPI: gitConfigAPI,
 		client:       client,
