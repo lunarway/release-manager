@@ -66,7 +66,7 @@ func NewList(client *httpinternal.Client, service *string) *cobra.Command {
 		Use:   "list",
 		Short: "List current policies",
 		Args:  cobra.ExactArgs(0),
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			var resp httpinternal.ListPoliciesResponse
 			params := url.Values{}
 			params.Add("service", *service)

@@ -88,12 +88,12 @@ Format the output with a custom template:
 
 	hamctl describe release --service product --env dev --template '{{ .Service }}'`,
 		Args: cobra.ExactArgs(0),
-		PreRun: func(c *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, _ []string) {
 			defaultShuttleString(shuttleSpecFromFile, &namespace, func(s *shuttleSpec) string {
 				return s.Vars.K8S.Namespace
 			})
 		},
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, count)
 			if err != nil {
 				return err
@@ -189,7 +189,7 @@ Format the output with a custom template:
 
 	hamctl describe artifact --service product --template '{{ .Service }}'`,
 		Args: cobra.ExactArgs(0),
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			var resp httpinternal.DescribeArtifactResponse
 			params := url.Values{}
 			params.Add("count", fmt.Sprintf("%d", count))

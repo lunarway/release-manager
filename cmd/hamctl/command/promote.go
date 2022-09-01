@@ -16,12 +16,12 @@ func NewPromote(client *httpinternal.Client, service *string, releaseClient Rele
 		Use:   "promote",
 		Short: "Promote a service to a specific environment following promoting conventions.",
 		Args:  cobra.ExactArgs(0),
-		PreRun: func(c *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, _ []string) {
 			defaultShuttleString(shuttleSpecFromFile, &namespace, func(s *shuttleSpec) string {
 				return s.Vars.K8S.Namespace
 			})
 		},
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if fromEnvironment == "" {
 				switch toEnvironment {
 				case "dev":

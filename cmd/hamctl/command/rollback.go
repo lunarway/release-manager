@@ -48,12 +48,12 @@ has no effect.`,
 
   hamctl rollback --service product --env dev`,
 		Args: cobra.ExactArgs(0),
-		PreRun: func(c *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, _ []string) {
 			defaultShuttleString(shuttleSpecFromFile, &namespace, func(s *shuttleSpec) string {
 				return s.Vars.K8S.Namespace
 			})
 		},
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			var currentRelease httpinternal.DescribeReleaseResponseRelease
 			var rollbackTo *httpinternal.DescribeReleaseResponseRelease
 

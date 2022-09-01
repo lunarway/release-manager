@@ -32,7 +32,7 @@ func NewRoot(version *string) (*cobra.Command, error) {
 		Use:                    "hamctl",
 		Short:                  "hamctl controls a release manager server",
 		BashCompletionFunction: completion.Hamctl,
-		PersistentPreRunE: func(c *cobra.Command, args []string) error {
+		PersistentPreRunE: func(c *cobra.Command, _ []string) error {
 			// all commands but version and completion requires the "service" flag
 			// if this is one of them, skip the check
 			if c.Name() == "version" || c.Name() == "completion" {

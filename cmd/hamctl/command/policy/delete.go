@@ -16,7 +16,7 @@ func NewDelete(client *httpinternal.Client, service *string, gitConfigAPI GitCon
 		Args: func(c *cobra.Command, args []string) error {
 			err := cobra.MinimumNArgs(1)(c, args)
 			if err != nil {
-				return errors.New("at least one policy id must be specified.")
+				return errors.New("at least one policy id must be specified")
 			}
 			return nil
 		},
@@ -40,8 +40,8 @@ Delete multiple policies:
 
 	$ hamctl --service product policy delete auto-release-master-dev auto-release-master-prod
 `,
-		RunE: func(c *cobra.Command, args []string) error {
-			committer, err := gitConfigAPI.CommitterDetails()
+		RunE: func(_ *cobra.Command, args []string) error {
+			committerName, committerEmail, err := git.CommitterDetails()
 			if err != nil {
 				return err
 			}

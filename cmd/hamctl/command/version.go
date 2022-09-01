@@ -11,7 +11,7 @@ func NewVersion(version string) *cobra.Command {
 		Use:   "version",
 		Short: "Prints the version number of hamctl",
 		Args:  cobra.ExactArgs(0),
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			fmt.Println(version)
 		},
 	}

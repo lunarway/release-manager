@@ -28,7 +28,7 @@ func NewApply(client *httpinternal.Client, service *string, gitConfigAPI GitConf
 				return err
 			}
 			if len(args) == 0 {
-				return errors.New("please specify a policy.")
+				return errors.New("please specify a policy")
 			}
 			return nil
 		},
@@ -48,8 +48,8 @@ func autoRelease(client *httpinternal.Client, service *string, gitConfigAPI GitC
 		Use:   "auto-release",
 		Short: "Auto-release policy for releasing branch artifacts to an environment",
 		Args:  cobra.ExactArgs(0),
-		RunE: func(c *cobra.Command, args []string) error {
-			committer, err := gitConfigAPI.CommitterDetails()
+		RunE: func(_ *cobra.Command, _ []string) error {
+			committerName, committerEmail, err := git.CommitterDetails()
 			if err != nil {
 				return err
 			}

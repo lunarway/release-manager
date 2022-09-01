@@ -31,7 +31,7 @@ Release latest artifact from branch 'master' of service 'product' into environme
 
   hamctl release --service product --env dev --branch master`,
 		Args: cobra.ExactArgs(0),
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			environments = trimEmptyValues(environments)
 			if len(environments) == 0 {
 				return errors.New("--env must contain at least one value")
