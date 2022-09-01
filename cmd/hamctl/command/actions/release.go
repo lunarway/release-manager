@@ -3,17 +3,18 @@ package actions
 import (
 	"net/http"
 
+	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/intent"
 )
 
-//go:generate moq -out config_mock.go . GitConfigAPI
+//go:generate moq -rm -out config_mock.go . GitConfigAPI
 
 // GitConfigAPI is an interface to interact with a git config system
 // this makes it possible to extract information from the repository
 // or the local user
 type GitConfigAPI interface {
-	CommitterDetails() (name string, email string, err error)
+	CommitterDetails() (*git.CommitterDetails, error)
 }
 
 type ReleaseResult struct {
@@ -47,7 +48,7 @@ func (hc *ReleaseHttpClient) ReleaseArtifactID(service, environment string, arti
 // environments.
 func (hc *ReleaseHttpClient) ReleaseArtifactIDMultipleEnvironments(service string, environments []string, artifactID string, intent intent.Intent) ([]ReleaseResult, error) {
 	var results []ReleaseResult
-	committerName, committerEmail, err := hc.gitConfigAPI.CommitterDetails()
+	committer, err := hc.gitConfigAPI.CommitterDetails()
 	if err != nil {
 		return nil, err
 	}
@@ -61,8 +62,8 @@ func (hc *ReleaseHttpClient) ReleaseArtifactIDMultipleEnvironments(service strin
 			Service:        service,
 			Environment:    environment,
 			ArtifactID:     artifactID,
-			CommitterName:  committerName,
-			CommitterEmail: committerEmail,
+			CommitterName:  committer.Name,
+			CommitterEmail: committer.Email,
 			Intent:         intent,
 		}, &resp)
 

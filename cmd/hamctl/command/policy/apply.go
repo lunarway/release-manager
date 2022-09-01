@@ -6,17 +6,18 @@ import (
 	"net/http"
 
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
+	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/spf13/cobra"
 )
 
-//go:generate moq -out config_mock.go . GitConfigAPI
+//go:generate moq -rm -out config_mock.go . GitConfigAPI
 
 // GitConfigAPI is an interface to interact with a git config system
 // this makes it possible to extract information from the repository
 // or the local user
 type GitConfigAPI interface {
-	CommitterDetails() (name string, email string, err error)
+	CommitterDetails() (*git.CommitterDetails, error)
 }
 
 func NewApply(client *httpinternal.Client, service *string, gitConfigAPI GitConfigAPI) *cobra.Command {
@@ -52,7 +53,7 @@ func autoRelease(client *httpinternal.Client, service *string, gitConfigAPI GitC
 		Short: "Auto-release policy for releasing branch artifacts to an environment",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(c *cobra.Command, args []string) error {
-			committerName, committerEmail, err := gitConfigAPI.CommitterDetails()
+			committer, err := gitConfigAPI.CommitterDetails()
 			if err != nil {
 				return err
 			}
@@ -66,8 +67,8 @@ func autoRelease(client *httpinternal.Client, service *string, gitConfigAPI GitC
 				Service:        *service,
 				Branch:         branch,
 				Environment:    env,
-				CommitterEmail: committerEmail,
-				CommitterName:  committerName,
+				CommitterEmail: committer.Email,
+				CommitterName:  committer.Name,
 			}, &resp)
 			if err != nil {
 				return err
@@ -98,7 +99,7 @@ func branchRestriction(client *httpinternal.Client, service *string, gitConfigAP
 		Long:  "Branch restriction policy for limiting releases of artifacts by their origin branch to specific environments",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(c *cobra.Command, args []string) error {
-			committerName, committerEmail, err := gitConfigAPI.CommitterDetails()
+			committer, err := gitConfigAPI.CommitterDetails()
 			if err != nil {
 				return err
 			}
@@ -112,8 +113,8 @@ func branchRestriction(client *httpinternal.Client, service *string, gitConfigAP
 				Service:        *service,
 				BranchRegex:    branchRegex,
 				Environment:    env,
-				CommitterEmail: committerEmail,
-				CommitterName:  committerName,
+				CommitterEmail: committer.Email,
+				CommitterName:  committer.Name,
 			}, &resp)
 			if err != nil {
 				return err

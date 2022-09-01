@@ -11,6 +11,7 @@ import (
 	"github.com/lunarway/release-manager/cmd/hamctl/command"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/git"
 	internalhttp "github.com/lunarway/release-manager/internal/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -72,14 +73,14 @@ func TestRollback(t *testing.T) {
 	}
 
 	gitConfigAPI := command.GitConfigAPIMock{
-		CommitterDetailsFunc: func() (string, string, error) {
-			return "name", "email", nil
+		CommitterDetailsFunc: func() (*git.CommitterDetails, error) {
+			return &git.CommitterDetails{Name: "some-name", Email: "some-email"}, nil
 		},
 	}
 
 	releaseClient := actions.NewReleaseHttpClient(&gitConfigAPI, &c)
 
-	runCommand := func(t *testing.T, selectRollback command.SelectRollbackRelease, args ...string) ([]string, error) {
+	runCommand := func(selectRollback command.SelectRollbackRelease, args ...string) ([]string, error) {
 		var output []string
 		cmd := command.NewRollback(&c, &serviceName, func(f string, args ...interface{}) {
 			output = append(output, fmt.Sprintf(f, args...))
@@ -97,7 +98,7 @@ func TestRollback(t *testing.T) {
 			return 1, nil
 		}
 
-		output, err := runCommand(t, rollback, "--env", "dev")
+		output, err := runCommand(rollback, "--env", "dev")
 
 		require.NoError(t, err)
 		assert.Equal(
@@ -113,7 +114,7 @@ func TestRollback(t *testing.T) {
 			return 0, nil
 		}
 
-		output, err := runCommand(t, rollback, "--env", "dev")
+		output, err := runCommand(rollback, "--env", "dev")
 
 		require.NoError(t, err)
 		assert.Equal(
@@ -129,7 +130,7 @@ func TestRollback(t *testing.T) {
 			return 0, nil
 		}
 
-		_, err := runCommand(t, rollback, "--env", "dev")
+		_, err := runCommand(rollback, "--env", "dev")
 
 		require.ErrorContains(t, err, "can't do rollback")
 	})
@@ -140,7 +141,7 @@ func TestRollback(t *testing.T) {
 			return -1, nil
 		}
 
-		output, err := runCommand(t, rollback, "--env", "dev", "--artifact", "artifact-0")
+		output, err := runCommand(rollback, "--env", "dev", "--artifact", "artifact-0")
 
 		require.NoError(t, err)
 		assert.Equal(
@@ -156,7 +157,7 @@ func TestRollback(t *testing.T) {
 			return -1, nil
 		}
 
-		_, err := runCommand(t, rollback, "--env", "dev", "--artifact", "artifact-38")
+		_, err := runCommand(rollback, "--env", "dev", "--artifact", "artifact-38")
 
 		require.ErrorContains(t, err, "isn't found in the last 10")
 	})

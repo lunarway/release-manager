@@ -9,8 +9,26 @@ import (
 	"github.com/pkg/errors"
 )
 
-type LocalGitConfigAPI struct {
+type CommitterDetails struct {
+	Name  string
+	Email string
 }
+
+func NewCommitterDetails(name, email string) (*CommitterDetails, error) {
+	if name == "" {
+		return nil, errors.New("CommitterDetails.Name is required")
+	}
+	if email == "" {
+		return nil, errors.New("CommitterDetails.Email is required")
+	}
+
+	return &CommitterDetails{
+		Name:  name,
+		Email: email,
+	}, nil
+}
+
+type LocalGitConfigAPI struct{}
 
 // NewLocalGitConfigAPI provide a GitConfigAPI for a local repository
 func NewLocalGitConfigAPI() *LocalGitConfigAPI {
@@ -21,16 +39,17 @@ func NewLocalGitConfigAPI() *LocalGitConfigAPI {
 //
 // Fetching the configuration values are delegated to the git CLI and follows
 // precedence rules defined by Git.
-func (*LocalGitConfigAPI) CommitterDetails() (name string, email string, err error) {
-	name, err = getValue("user.name", "HAMCTL_USER_NAME")
+func (*LocalGitConfigAPI) CommitterDetails() (*CommitterDetails, error) {
+	name, err := getValue("user.name", "HAMCTL_USER_NAME")
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
-	email, err = getValue("user.email", "HAMCTL_USER_EMAIL")
+	email, err := getValue("user.email", "HAMCTL_USER_EMAIL")
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
-	return name, email, nil
+
+	return NewCommitterDetails(name, email)
 }
 
 func getValue(gitKey, envKey string) (string, error) {

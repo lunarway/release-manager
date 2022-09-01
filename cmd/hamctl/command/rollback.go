@@ -8,19 +8,20 @@ import (
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	"github.com/lunarway/release-manager/cmd/hamctl/template"
+	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
-//go:generate moq -out config_mock.go . GitConfigAPI
+//go:generate moq -rm -out config_mock.go . GitConfigAPI
 
 // GitConfigAPI is an interface to interact with a git config system
 // this makes it possible to extract information from the repository
 // or the local user
 type GitConfigAPI interface {
-	CommitterDetails() (name string, email string, err error)
+	CommitterDetails() (*git.CommitterDetails, error)
 }
 
 type ReleaseArtifact interface {

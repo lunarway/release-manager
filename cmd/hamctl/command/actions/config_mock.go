@@ -4,6 +4,7 @@
 package actions
 
 import (
+	"github.com/lunarway/release-manager/internal/git"
 	"sync"
 )
 
@@ -17,7 +18,7 @@ var _ GitConfigAPI = &GitConfigAPIMock{}
 //
 // 		// make and configure a mocked GitConfigAPI
 // 		mockedGitConfigAPI := &GitConfigAPIMock{
-// 			CommitterDetailsFunc: func() (string, string, error) {
+// 			CommitterDetailsFunc: func() (*git.CommitterDetails, error) {
 // 				panic("mock out the CommitterDetails method")
 // 			},
 // 		}
@@ -28,7 +29,7 @@ var _ GitConfigAPI = &GitConfigAPIMock{}
 // 	}
 type GitConfigAPIMock struct {
 	// CommitterDetailsFunc mocks the CommitterDetails method.
-	CommitterDetailsFunc func() (string, string, error)
+	CommitterDetailsFunc func() (*git.CommitterDetails, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -40,7 +41,7 @@ type GitConfigAPIMock struct {
 }
 
 // CommitterDetails calls CommitterDetailsFunc.
-func (mock *GitConfigAPIMock) CommitterDetails() (string, string, error) {
+func (mock *GitConfigAPIMock) CommitterDetails() (*git.CommitterDetails, error) {
 	if mock.CommitterDetailsFunc == nil {
 		panic("GitConfigAPIMock.CommitterDetailsFunc: method is nil but GitConfigAPI.CommitterDetails was just called")
 	}

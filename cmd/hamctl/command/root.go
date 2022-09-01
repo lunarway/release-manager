@@ -55,10 +55,11 @@ func NewRoot(version *string) (*cobra.Command, error) {
 				missingFlags = append(missingFlags, "service")
 			}
 			if email == "" {
-				_, email, _ = gitConfigAPI.CommitterDetails()
-				if email == "" {
+				committer, err := gitConfigAPI.CommitterDetails()
+				if err != nil {
 					missingFlags = append(missingFlags, "user-email")
 				}
+				email = committer.Email
 			}
 			client.Metadata.CallerEmail = email
 			if len(missingFlags) != 0 {
