@@ -5,6 +5,9 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Compile takes a regular expression and a custom lookup struct that should match the named groups
@@ -25,7 +28,7 @@ func Compile(re string, lookup interface{}) (*regexp.Regexp, error) {
 		if name == "" {
 			continue
 		}
-		if strings.Title(name) != name {
+		if cases.Title(language.English, cases.NoLower).String(name) != name {
 			return nil, fmt.Errorf("field '%s' in regexp `%s` is not capitalized", name, re)
 		}
 		subexpNames[name] = i
