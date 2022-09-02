@@ -14,9 +14,9 @@ type Options struct {
 }
 
 // NewRoot returns a new instance of an artifact command.
-func NewRoot(version string) (*cobra.Command, error) {
+func NewRoot(version string) *cobra.Command {
 	var options Options
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "artifact",
 		Short: "generates a artifact.json with build status",
 		Run: func(c *cobra.Command, args []string) {
@@ -39,5 +39,5 @@ func NewRoot(version string) (*cobra.Command, error) {
 		versionCommand(version),
 	)
 	command.MarkFlagRequired("email-suffix")
-	return command, nil
+	return command
 }

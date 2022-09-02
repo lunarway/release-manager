@@ -24,11 +24,13 @@ func addCommand(options *Options) *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(appendTestSubCommand(options))
-	command.AddCommand(appendBuildSubCommand(options))
-	command.AddCommand(appendPushSubCommand(options))
-	command.AddCommand(appendSnykCodeSubCommand(options))
-	command.AddCommand(appendSnykDockerSubCommand(options))
+	command.AddCommand(
+		appendTestSubCommand(options),
+		appendBuildSubCommand(options),
+		appendPushSubCommand(options),
+		appendSnykCodeSubCommand(options),
+		appendSnykDockerSubCommand(options),
+	)
 	return command
 }
 

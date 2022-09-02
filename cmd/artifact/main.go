@@ -19,12 +19,7 @@ func main() {
 		},
 		Development: false,
 	})
-	c, err := command.NewRoot(version)
-	if err != nil {
-		log.Errorf("Error: %v", err)
-		os.Exit(1)
-	}
-	err = c.Execute()
+	err := command.NewRoot(version).Execute()
 	if err != nil {
 		log.Errorf("Error: %v", err)
 		os.Exit(1)
