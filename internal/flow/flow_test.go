@@ -5,8 +5,11 @@ import (
 	"testing"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/copy"
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestReleaseSpecification(t *testing.T) {
@@ -44,7 +47,15 @@ func TestReleaseSpecification(t *testing.T) {
 			gitService.Test(t)
 			gitService.On("MasterPath").Return("testdata")
 
+			logger := log.New(&log.Configuration{
+				Level: log.Level{
+					Level: zapcore.DebugLevel,
+				},
+				Development: true,
+			})
+
 			s := Service{
+				Copier:           copy.New(logger),
 				Git:              &gitService,
 				ArtifactFileName: "artifact.json",
 			}
@@ -96,7 +107,15 @@ func TestReleaseSpecifications(t *testing.T) {
 			gitService.Test(t)
 			gitService.On("MasterPath").Return("testdata")
 
+			logger := log.New(&log.Configuration{
+				Level: log.Level{
+					Level: zapcore.DebugLevel,
+				},
+				Development: true,
+			})
+
 			s := Service{
+				Copier:           copy.New(logger),
 				Git:              &gitService,
 				ArtifactFileName: "artifact.json",
 			}

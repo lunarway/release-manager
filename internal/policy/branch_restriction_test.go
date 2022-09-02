@@ -246,6 +246,7 @@ func TestService_ApplyBranchRestriction(t *testing.T) {
 				},
 				Development: true,
 			})
+			logger := log.With() // bad way to get the global logger for now
 			gitService := MockGitService{}
 			var destinationPath string
 			gitService.On("MasterPath").Return(func() string {
@@ -259,7 +260,7 @@ func TestService_ApplyBranchRestriction(t *testing.T) {
 				// need it to later inspect the results of the operation
 				destinationPath = path
 				// copy testdata into path faking a master clone
-				err := copy.CopyDir(ctx, "testdata", path)
+				err := copy.New(logger).CopyDir(ctx, "testdata", path)
 				assert.NoError(t, err, "unexpected error when copying in Clone")
 				return nil
 			}, nil)

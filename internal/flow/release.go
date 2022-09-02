@@ -9,7 +9,6 @@ import (
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/commitinfo"
-	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/log"
@@ -54,7 +53,7 @@ func (p *ReleaseArtifactIDEvent) Unmarshal(data []byte) error {
 
 // ReleaseArtifactID releases a specific artifact to environment env.
 //
-// Flow
+// # Flow
 //
 // Locate the commit of the artifact ID and checkout the config repository at
 // this point.
@@ -182,7 +181,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		// copy artifact spec
 		artifactDestinationPath := path.Join(destinationPath, s.ArtifactFileName)
 		logger.Infof("flow: ReleaseArtifactID: copy artifact from %s to %s", artifactSourcePath, artifactDestinationPath)
-		err = copy.CopyFile(ctx, artifactSourcePath, artifactDestinationPath)
+		err = s.Copier.CopyFile(ctx, artifactSourcePath, artifactDestinationPath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("copy artifact spec from '%s' to '%s'", artifactSourcePath, artifactDestinationPath))
 		}
