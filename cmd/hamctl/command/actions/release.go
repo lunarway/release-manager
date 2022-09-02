@@ -8,15 +8,32 @@ import (
 	"github.com/lunarway/release-manager/internal/intent"
 )
 
+//go:generate moq -rm -out config_mock.go . GitConfigAPI
+type GitConfigAPI interface {
+	CommitterDetails() (*git.CommitterDetails, error)
+}
+
 type ReleaseResult struct {
 	Response    httpinternal.ReleaseResponse
 	Environment string
 	Error       error
 }
 
+type ReleaseHttpClient struct {
+	gitConfigAPI GitConfigAPI
+	client       *httpinternal.Client
+}
+
+func NewReleaseHttpClient(gitConfigAPI GitConfigAPI, client *httpinternal.Client) *ReleaseHttpClient {
+	return &ReleaseHttpClient{
+		gitConfigAPI: gitConfigAPI,
+		client:       client,
+	}
+}
+
 // ReleaseArtifactID issues a release request to a single environment.
-func ReleaseArtifactID(client *httpinternal.Client, service, environment string, artifactID string, intent intent.Intent) (ReleaseResult, error) {
-	resps, err := ReleaseArtifactIDMultipleEnvironments(client, service, []string{environment}, artifactID, intent)
+func (hc *ReleaseHttpClient) ReleaseArtifactID(service, environment string, artifactID string, intent intent.Intent) (ReleaseResult, error) {
+	resps, err := hc.ReleaseArtifactIDMultipleEnvironments(service, []string{environment}, artifactID, intent)
 	if err != nil {
 		return ReleaseResult{}, err
 	}
@@ -25,24 +42,24 @@ func ReleaseArtifactID(client *httpinternal.Client, service, environment string,
 
 // ReleaseArtifactIDMultipleEnvironments issues a release request to multiple
 // environments.
-func ReleaseArtifactIDMultipleEnvironments(client *httpinternal.Client, service string, environments []string, artifactID string, intent intent.Intent) ([]ReleaseResult, error) {
+func (hc *ReleaseHttpClient) ReleaseArtifactIDMultipleEnvironments(service string, environments []string, artifactID string, intent intent.Intent) ([]ReleaseResult, error) {
 	var results []ReleaseResult
-	committerName, committerEmail, err := git.CommitterDetails()
+	committer, err := hc.gitConfigAPI.CommitterDetails()
 	if err != nil {
 		return nil, err
 	}
-	path, err := client.URL("release")
+	path, err := hc.client.URL("release")
 	if err != nil {
 		return nil, err
 	}
 	for _, environment := range environments {
 		var resp httpinternal.ReleaseResponse
-		err = client.Do(http.MethodPost, path, httpinternal.ReleaseRequest{
+		err = hc.client.Do(http.MethodPost, path, httpinternal.ReleaseRequest{
 			Service:        service,
 			Environment:    environment,
 			ArtifactID:     artifactID,
-			CommitterName:  committerName,
-			CommitterEmail: committerEmail,
+			CommitterName:  committer.Name,
+			CommitterEmail: committer.Email,
 			Intent:         intent,
 		}, &resp)
 
