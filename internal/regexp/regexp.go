@@ -28,7 +28,7 @@ func Compile(re string, lookup interface{}) (*regexp.Regexp, error) {
 		if name == "" {
 			continue
 		}
-		if cases.Title(language.English).String(name) != name {
+		if cases.Title(language.English, cases.NoLower).String(name) != name {
 			return nil, fmt.Errorf("field '%s' in regexp `%s` is not capitalized", name, re)
 		}
 		subexpNames[name] = i
