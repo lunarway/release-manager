@@ -11,7 +11,6 @@ import (
 	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/intent"
-	"github.com/lunarway/release-manager/internal/log"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
@@ -36,13 +35,13 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 	span.SetBaggageItem("count", fmt.Sprintf("%v", count))
 
 	defer span.Finish()
-	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-describe-release")
+	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Logger, s.Tracer, "k8s-config-describe-release")
 	if err != nil {
 		return DescribeReleaseResponse{}, err
 	}
 	defer close(ctx)
 
-	log.WithContext(ctx).Debugf("Cloning source config repo into %s", sourceConfigRepoPath)
+	s.Logger.WithContext(ctx).Debugf("Cloning source config repo into %s", sourceConfigRepoPath)
 	sourceRepo, err := s.Git.Clone(ctx, sourceConfigRepoPath)
 	if err != nil {
 		return DescribeReleaseResponse{}, errors.WithMessagef(err, "clone into '%s'", sourceConfigRepoPath)

@@ -8,12 +8,13 @@ import (
 
 	"github.com/lunarway/release-manager/internal/flow"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/log"
 	intslack "github.com/lunarway/release-manager/internal/slack"
 	"github.com/nlopes/slack"
 	"github.com/spf13/cobra"
 )
 
-func pushCommand(options *Options) *cobra.Command {
+func pushCommand(options *Options, logger *log.Logger) *cobra.Command {
 	releaseManagerClient := httpinternal.Client{}
 
 	command := &cobra.Command{
@@ -25,12 +26,12 @@ func pushCommand(options *Options) *cobra.Command {
 			ctx := context.Background()
 
 			if releaseManagerClient.Metadata.AuthToken != "" {
-				artifactID, err = flow.PushArtifactToReleaseManager(ctx, &releaseManagerClient, options.FileName, options.RootPath)
+				artifactID, err = flow.PushArtifactToReleaseManager(ctx, logger, &releaseManagerClient, options.FileName, options.RootPath)
 				if err != nil {
 					return err
 				}
 			}
-			client, err := intslack.NewClient(slack.New(options.SlackToken), options.UserMappings, options.EmailSuffix)
+			client, err := intslack.NewClient(slack.New(options.SlackToken), logger, options.UserMappings, options.EmailSuffix)
 			if err != nil {
 				fmt.Printf("Error, not able to create Slack client in successful command: %v", err)
 				return nil

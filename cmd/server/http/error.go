@@ -5,33 +5,34 @@ import (
 	"net/http"
 
 	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/try"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 )
 
-func unknownError(w http.ResponseWriter) {
-	httpinternal.Error(w, "unknown error", http.StatusInternalServerError)
+func unknownError(w http.ResponseWriter, logger *log.Logger) {
+	httpinternal.Error(w, logger, "unknown error", http.StatusInternalServerError)
 }
 
-func invalidBodyError(w http.ResponseWriter) {
-	httpinternal.Error(w, "invalid body", http.StatusBadRequest)
+func invalidBodyError(w http.ResponseWriter, logger *log.Logger) {
+	httpinternal.Error(w, logger, "invalid body", http.StatusBadRequest)
 }
 
-func cancelled(w http.ResponseWriter) {
-	httpinternal.Error(w, "request cancelled", http.StatusBadRequest)
+func cancelled(w http.ResponseWriter, logger *log.Logger) {
+	httpinternal.Error(w, logger, "request cancelled", http.StatusBadRequest)
 }
 
-func requiredFieldError(w http.ResponseWriter, field string) {
-	httpinternal.Error(w, fmt.Sprintf("field %s required but was empty", field), http.StatusBadRequest)
+func requiredFieldError(w http.ResponseWriter, logger *log.Logger, field string) {
+	httpinternal.Error(w, logger, fmt.Sprintf("field %s required but was empty", field), http.StatusBadRequest)
 }
 
-func requiredQueryError(w http.ResponseWriter, field string) {
-	httpinternal.Error(w, fmt.Sprintf("query param %s required but was empty", field), http.StatusBadRequest)
+func requiredQueryError(w http.ResponseWriter, logger *log.Logger, field string) {
+	httpinternal.Error(w, logger, fmt.Sprintf("query param %s required but was empty", field), http.StatusBadRequest)
 }
 
-func notFound(w http.ResponseWriter) {
-	httpinternal.Error(w, "not found", http.StatusNotFound)
+func notFound(w http.ResponseWriter, logger *log.Logger) {
+	httpinternal.Error(w, logger, "not found", http.StatusNotFound)
 }
 
 // errorCause unwraps err from pkg/errors messages and if err contains a

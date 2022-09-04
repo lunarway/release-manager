@@ -20,51 +20,53 @@ func (w *statusCodeResponseWriter) WriteHeader(code int) {
 
 // reqrespLogger returns an http.Handler that logs request and response
 // details.
-func reqrespLogger(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		statusWriter := &statusCodeResponseWriter{w, http.StatusOK}
-		start := time.Now()
-		h.ServeHTTP(statusWriter, r)
-		if r.URL.Path == "/ping" {
-			return
-		}
-		// request duration in miliseconds
-		duration := time.Since(start).Nanoseconds() / 1e6
-		statusCode := statusWriter.statusCode
-		requestID := getRequestID(r)
-		fields := []interface{}{
-			"requestId", requestID,
-			"req", struct {
-				ID      string            `json:"id,omitempty"`
-				URL     string            `json:"url,omitempty"`
-				Method  string            `json:"method,omitempty"`
-				Path    string            `json:"path,omitempty"`
-				Headers map[string]string `json:"headers,omitempty"`
-			}{
-				ID:      requestID,
-				URL:     r.URL.RequestURI(),
-				Method:  r.Method,
-				Path:    r.URL.Path,
-				Headers: secureHeaders(flattenHeaders(r.Header)),
-			},
-			"res", struct {
-				StatusCode int `json:"statusCode,omitempty"`
-			}{
-				StatusCode: statusCode,
-			},
-			"responseTime", duration,
-		}
-		err := r.Context().Err()
-		if err != nil {
-			fields = append(fields, "error", err)
-		}
-		logger := log.With(fields...)
-		if statusCode >= http.StatusInternalServerError {
-			logger.Errorf("[%d] %s %s", statusCode, r.Method, r.URL.Path)
-			return
-		}
-		logger.Infof("[%d] %s %s", statusCode, r.Method, r.URL.Path)
-	})
+func reqrespLogger(logger *log.Logger) func(h http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			statusWriter := &statusCodeResponseWriter{w, http.StatusOK}
+			start := time.Now()
+			h.ServeHTTP(statusWriter, r)
+			if r.URL.Path == "/ping" {
+				return
+			}
+			// request duration in miliseconds
+			duration := time.Since(start).Nanoseconds() / 1e6
+			statusCode := statusWriter.statusCode
+			requestID := getRequestID(r)
+			fields := []interface{}{
+				"requestId", requestID,
+				"req", struct {
+					ID      string            `json:"id,omitempty"`
+					URL     string            `json:"url,omitempty"`
+					Method  string            `json:"method,omitempty"`
+					Path    string            `json:"path,omitempty"`
+					Headers map[string]string `json:"headers,omitempty"`
+				}{
+					ID:      requestID,
+					URL:     r.URL.RequestURI(),
+					Method:  r.Method,
+					Path:    r.URL.Path,
+					Headers: secureHeaders(flattenHeaders(r.Header)),
+				},
+				"res", struct {
+					StatusCode int `json:"statusCode,omitempty"`
+				}{
+					StatusCode: statusCode,
+				},
+				"responseTime", duration,
+			}
+			err := r.Context().Err()
+			if err != nil {
+				fields = append(fields, "error", err)
+			}
+			fieldsLogger := logger.With(fields...)
+			if statusCode >= http.StatusInternalServerError {
+				fieldsLogger.Errorf("[%d] %s %s", statusCode, r.Method, r.URL.Path)
+				return
+			}
+			fieldsLogger.Infof("[%d] %s %s", statusCode, r.Method, r.URL.Path)
+		})
+	}
 }
 
 // flattenHeaders flattens an http.Header map into a string map.

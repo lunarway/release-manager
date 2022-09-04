@@ -12,16 +12,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-func daemonk8sPodErrorWebhook(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
+func daemonk8sPodErrorWebhook(payload *payload, flowSvc *flow.Service, logger *log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
 		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
-		logger := log.WithContext(ctx)
+		logger := logger.WithContext(ctx)
 		var event httpinternal.PodErrorEvent
 		err := payload.decodeResponse(ctx, r.Body, &event)
 		if err != nil {
 			logger.Errorf("http: daemon k8s pod error webhook: decode request body failed: %v", err)
-			invalidBodyError(w)
+			invalidBodyError(w, logger)
 			return
 		}
 		logger = logger.WithFields("event", event)

@@ -13,15 +13,15 @@ var (
 )
 
 func main() {
-	log.Init(&log.Configuration{
+	logger := log.New(&log.Configuration{
 		Level: log.Level{
 			Level: zapcore.DebugLevel,
 		},
 		Development: false,
 	})
-	err := command.NewRoot(version).Execute()
+	err := command.NewRoot(logger, version).Execute()
 	if err != nil {
-		log.Errorf("Error: %v", err)
+		logger.Errorf("Error: %v", err)
 		os.Exit(1)
 	}
 }

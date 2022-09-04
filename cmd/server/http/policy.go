@@ -14,19 +14,19 @@ import (
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
 )
 
-func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
+func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service, logger *log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		logger := log.WithContext(ctx)
+		logger := logger.WithContext(ctx)
 		var req httpinternal.ApplyAutoReleasePolicyRequest
 		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
 			logger.Errorf("http: policy: apply auto-release: decode request body failed: %v", err)
-			invalidBodyError(w)
+			invalidBodyError(w, logger)
 			return
 		}
 
-		if !req.Validate(w) {
+		if !req.Validate(w, logger) {
 			return
 		}
 
@@ -39,21 +39,21 @@ func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release cancelled", req.Service, req.Branch, req.Environment)
-				cancelled(w)
+				cancelled(w, logger)
 				return
 			}
 			switch errorCause(err) {
 			case policyinternal.ErrConflict:
 				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release rejected: conflicts with another policy: %v", req.Service, req.Branch, req.Environment, err)
-				httpinternal.Error(w, "policy conflicts with another policy", http.StatusBadRequest)
+				httpinternal.Error(w, logger, "policy conflicts with another policy", http.StatusBadRequest)
 				return
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': %v", req.Service, req.Branch, req.Environment, err)
-				httpinternal.Error(w, "could not apply policy right now. Please try again in a moment.", http.StatusServiceUnavailable)
+				httpinternal.Error(w, logger, "could not apply policy right now. Please try again in a moment.", http.StatusServiceUnavailable)
 				return
 			default:
 				logger.Errorf("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release failed: %v", req.Service, req.Branch, req.Environment, err)
-				unknownError(w)
+				unknownError(w, logger)
 				return
 			}
 		}
@@ -72,19 +72,19 @@ func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service)
 	}
 }
 
-func applyBranchRestrictionPolicy(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
+func applyBranchRestrictionPolicy(payload *payload, policySvc *policyinternal.Service, logger *log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		logger := log.WithContext(ctx)
+		logger := logger.WithContext(ctx)
 		var req httpinternal.ApplyBranchRestrictionPolicyRequest
 		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
 			logger.Errorf("http: policy: apply: branch-restriction: decode request body failed: %v", err)
-			invalidBodyError(w)
+			invalidBodyError(w, logger)
 			return
 		}
 
-		if !req.Validate(w) {
+		if !req.Validate(w, logger) {
 			return
 		}
 
@@ -97,27 +97,27 @@ func applyBranchRestrictionPolicy(payload *payload, policySvc *policyinternal.Se
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction cancelled", req.Service, req.BranchRegex, req.Environment)
-				cancelled(w)
+				cancelled(w, logger)
 				return
 			}
 			var regexErr *syntax.Error
 			if errors.As(err, &regexErr) {
 				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction: invalid branch regex: %v", req.Service, req.BranchRegex, req.Environment, err)
-				httpinternal.Error(w, fmt.Sprintf("branch regex not valid: %v", regexErr), http.StatusBadRequest)
+				httpinternal.Error(w, logger, fmt.Sprintf("branch regex not valid: %v", regexErr), http.StatusBadRequest)
 				return
 			}
 			switch errorCause(err) {
 			case policyinternal.ErrConflict:
 				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction rejected: conflicts with another policy: %v", req.Service, req.BranchRegex, req.Environment, err)
-				httpinternal.Error(w, "policy conflicts with another policy", http.StatusBadRequest)
+				httpinternal.Error(w, logger, "policy conflicts with another policy", http.StatusBadRequest)
 				return
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction: %v", req.Service, req.BranchRegex, req.Environment, err)
-				httpinternal.Error(w, "could not apply policy right now. Please try again in a moment.", http.StatusServiceUnavailable)
+				httpinternal.Error(w, logger, "could not apply policy right now. Please try again in a moment.", http.StatusServiceUnavailable)
 				return
 			default:
 				logger.Errorf("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction failed: %v", req.Service, req.BranchRegex, req.Environment, err)
-				unknownError(w)
+				unknownError(w, logger)
 				return
 			}
 		}
@@ -136,30 +136,30 @@ func applyBranchRestrictionPolicy(payload *payload, policySvc *policyinternal.Se
 	}
 }
 
-func listPolicies(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
+func listPolicies(payload *payload, policySvc *policyinternal.Service, logger *log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		values := r.URL.Query()
 		service := values.Get("service")
 		if emptyString(service) {
-			requiredQueryError(w, "service")
+			requiredQueryError(w, logger, "service")
 			return
 		}
 
 		ctx := r.Context()
-		logger := log.WithContext(ctx).WithFields("service", service)
+		logger := logger.WithContext(ctx).WithFields("service", service)
 		policies, err := policySvc.Get(ctx, service)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Infof("http: policy: list: service '%s': get policies cancelled", service)
-				cancelled(w)
+				cancelled(w, logger)
 				return
 			}
 			if errorCause(err) == policyinternal.ErrNotFound {
-				httpinternal.Error(w, "no policies exist", http.StatusNotFound)
+				httpinternal.Error(w, logger, "no policies exist", http.StatusNotFound)
 				return
 			}
 			logger.Errorf("http: policy: list: service '%s': get policies failed: %v", service, err)
-			unknownError(w)
+			unknownError(w, logger)
 			return
 		}
 
@@ -200,19 +200,19 @@ func mapBranchRestrictionPolicies(policies []policyinternal.BranchRestriction) [
 	return h
 }
 
-func deletePolicies(payload *payload, policySvc *policyinternal.Service) http.HandlerFunc {
+func deletePolicies(payload *payload, policySvc *policyinternal.Service, logger *log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		logger := log.WithContext(ctx)
+		logger := logger.WithContext(ctx)
 		var req httpinternal.DeletePolicyRequest
 		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
 			logger.Errorf("http: policy: delete: decode request body failed: %v", err)
-			invalidBodyError(w)
+			invalidBodyError(w, logger)
 			return
 		}
 
-		if !req.Validate(w) {
+		if !req.Validate(w, logger) {
 			return
 		}
 
@@ -226,20 +226,20 @@ func deletePolicies(payload *payload, policySvc *policyinternal.Service) http.Ha
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Errorf("http: policy: delete: service '%s' ids %v: delete cancelled", req.Service, ids)
-				cancelled(w)
+				cancelled(w, logger)
 				return
 			}
 			switch errorCause(err) {
 			case policyinternal.ErrNotFound:
-				httpinternal.Error(w, "no policies exist", http.StatusNotFound)
+				httpinternal.Error(w, logger, "no policies exist", http.StatusNotFound)
 				return
 			case git.ErrBranchBehindOrigin:
 				logger.Infof("http: policy: delete: service '%s' ids %v: %v", req.Service, ids, err)
-				httpinternal.Error(w, "could not delete policy right now. Please try again in a moment.", http.StatusServiceUnavailable)
+				httpinternal.Error(w, logger, "could not delete policy right now. Please try again in a moment.", http.StatusServiceUnavailable)
 				return
 			default:
 				logger.Errorf("http: policy: delete: service '%s' ids %v: delete failed: %v", req.Service, ids, err)
-				unknownError(w)
+				unknownError(w, logger)
 				return
 			}
 		}

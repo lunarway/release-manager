@@ -15,7 +15,7 @@ import (
 )
 
 // NewRoot returns a new instance of a hamctl command.
-func NewRoot(version string) (*cobra.Command, error) {
+func NewRoot(logger *log.Logger, version string) (*cobra.Command, error) {
 	var brokerOpts brokerOptions
 	var httpOpts http.Options
 	grafanaOpts := grafanaOptions{}
@@ -28,7 +28,6 @@ func NewRoot(version string) (*cobra.Command, error) {
 	var userMappings map[string]string
 	var branchRestrictionsList []string
 	var branchRestrictions []policy.BranchRestriction
-	var logConfiguration *log.Configuration
 	var slackMuteOpts slack.MuteOptions
 	var s3storageOpts s3storageOptions
 	var emailSuffix string
@@ -46,13 +45,11 @@ func NewRoot(version string) (*cobra.Command, error) {
 			if err != nil {
 				return errors.WithMessage(err, "user mappings")
 			}
-			branchRestrictions, err = parseBranchRestrictions(branchRestrictionsList)
+			branchRestrictions, err = parseBranchRestrictions(logger, branchRestrictionsList)
 			if err != nil {
 				return errors.WithMessage(err, "branch restrictions")
 			}
 
-			logConfiguration.ParseFromEnvironmnet()
-			log.Init(logConfiguration)
 			return nil
 		},
 		Run: func(c *cobra.Command, args []string) {
@@ -60,7 +57,7 @@ func NewRoot(version string) (*cobra.Command, error) {
 		},
 	}
 	command.AddCommand(
-		NewStart(&startOptions{
+		NewStart(logger, &startOptions{
 			grafana:                   &grafanaOpts,
 			slackAuthToken:            &slackAuthToken,
 			githubAPIToken:            &githubAPIToken,
@@ -98,7 +95,6 @@ func NewRoot(version string) (*cobra.Command, error) {
 	registerSlackNotificationFlags(command, &slackMuteOpts)
 	registerGitFlags(command, &gitConfigOpts)
 	registerS3Flags(command, &s3storageOpts)
-	logConfiguration = log.RegisterFlags(command)
 
 	return command, nil
 }
@@ -143,7 +139,7 @@ func registerS3Flags(cmd *cobra.Command, opts *s3storageOptions) {
 // <environment>=<branchRegex>. It will return an error if the format is invalid
 // and if multiple retrictions conflict, ie. multiple restrictions on one
 // environment.
-func parseBranchRestrictions(list []string) ([]policy.BranchRestriction, error) {
+func parseBranchRestrictions(logger *log.Logger, list []string) ([]policy.BranchRestriction, error) {
 	// use a map to detect conflicting restrictions on environment
 	m := make(map[string]policy.BranchRestriction)
 	for _, item := range list {
@@ -176,6 +172,6 @@ func parseBranchRestrictions(list []string) ([]policy.BranchRestriction, error) 
 	for _, r := range m {
 		restrictions = append(restrictions, r)
 	}
-	log.Infof("Parsed %d global branch restriction policies", len(restrictions))
+	logger.Infof("Parsed %d global branch restriction policies", len(restrictions))
 	return restrictions, nil
 }

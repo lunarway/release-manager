@@ -44,7 +44,7 @@ type jaegerTracer struct {
 // It reads configuration from the environment and defaults to reporting spans
 // to agents on localhost:6831. All spans are logged and Promethues metrics are
 // registered on prometheus.DefaultRegisterer.
-func NewJaeger() (Tracer, error) {
+func NewJaeger(logger *log.Logger) (Tracer, error) {
 	cfg, err := config.FromEnv()
 	if err != nil {
 		return nil, err
@@ -55,11 +55,11 @@ func NewJaeger() (Tracer, error) {
 		Param: 1,
 	}
 	cfg.Reporter.LogSpans = false
-	log.WithFields("config", cfg).Infof("Tracing spans reported to '%s'", cfg.Reporter.LocalAgentHostPort)
+	logger.WithFields("config", cfg).Infof("Tracing spans reported to '%s'", cfg.Reporter.LocalAgentHostPort)
 
 	tracer, closer, err := cfg.NewTracer(
 		config.Logger(&jaegerLogger{
-			l: log.With("system", "jaeger"),
+			l: logger.With("system", "jaeger"),
 		}),
 		config.Metrics(prometheus.New()),
 	)

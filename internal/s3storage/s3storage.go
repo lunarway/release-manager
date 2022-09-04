@@ -21,18 +21,20 @@ type Service struct {
 	s3client               s3iface.S3API
 	sqsClient              sqsiface.SQSAPI
 	tracer                 tracing.Tracer
+	logger                 *log.Logger
 	sqsQueueURL            string
 	sqsQueueARN            string
 	sqsHandlerQuitChannel  chan struct{}
 	sqsHandlerErrorChannel chan error
 }
 
-func New(bucketName string, s3client s3iface.S3API, sqsClient sqsiface.SQSAPI, tracer tracing.Tracer) (*Service, error) {
+func New(bucketName string, s3client s3iface.S3API, sqsClient sqsiface.SQSAPI, tracer tracing.Tracer, logger *log.Logger) (*Service, error) {
 	return &Service{
 		bucketName: bucketName,
 		s3client:   s3client,
 		sqsClient:  sqsClient,
 		tracer:     tracer,
+		logger:     logger,
 	}, nil
 }
 
@@ -40,8 +42,9 @@ func New(bucketName string, s3client s3iface.S3API, sqsClient sqsiface.SQSAPI, t
 //
 // Note on S3 notifications:
 // There are 2 ways to get S3 notifications into SQS:
-//  - Directly from S3 Notification to SQS Queue
-//  - From S3 Notification to SNS Topic to SQS Queue
+//   - Directly from S3 Notification to SQS Queue
+//   - From S3 Notification to SNS Topic to SQS Queue
+//
 // Using a SNS Topic should be more powerful, since it fx can send to multiple SQS Queues, but it requires more configuration
 // and moving parts. The simpler model should suffice, therefore we connect it directly.k
 func (s *Service) InitializeSQS(handler func(msg string) error) error {
@@ -52,7 +55,7 @@ func (s *Service) InitializeSQS(handler func(msg string) error) error {
 	if err != nil {
 		return errors.Wrap(err, "create sqs queue")
 	}
-	log.Infof("Created queue with url: %s", *queue.QueueUrl)
+	s.logger.Infof("Created queue with url: %s", *queue.QueueUrl)
 	s.sqsQueueURL = *queue.QueueUrl
 
 	queueAttributes, err := s.sqsClient.GetQueueAttributes(&sqs.GetQueueAttributesInput{
@@ -63,7 +66,7 @@ func (s *Service) InitializeSQS(handler func(msg string) error) error {
 		return errors.Wrap(err, "get sqs queue ARN")
 	}
 	s.sqsQueueARN = *queueAttributes.Attributes[sqs.QueueAttributeNameQueueArn]
-	log.Infof("SQS queue arn acquired: %s", s.sqsQueueARN)
+	s.logger.Infof("SQS queue arn acquired: %s", s.sqsQueueARN)
 
 	policy := `{
 		"Version": "2012-10-17",
@@ -93,10 +96,10 @@ func (s *Service) InitializeSQS(handler func(msg string) error) error {
 		}),
 	})
 	if err != nil {
-		log.With("policy", policy, "bucketName", s.bucketName, "Error", err).Errorf("Failed update policy: %s", err)
+		s.logger.With("policy", policy, "bucketName", s.bucketName, "Error", err).Errorf("Failed update policy: %s", err)
 		return errors.Wrap(err, "update sqs permission")
 	}
-	log.Infof("SQS policy updated for s3 bucket %s to SQS %s", s.bucketName, s.sqsQueueARN)
+	s.logger.Infof("SQS policy updated for s3 bucket %s to SQS %s", s.bucketName, s.sqsQueueARN)
 
 	_, err = s.s3client.PutBucketNotificationConfiguration(&s3.PutBucketNotificationConfigurationInput{
 		Bucket: aws.String(s.bucketName),
@@ -114,7 +117,7 @@ func (s *Service) InitializeSQS(handler func(msg string) error) error {
 	if err != nil {
 		return errors.Wrap(err, "update bucket notifications")
 	}
-	log.WithFields("type", "s3storage").Info("s3 bucket notifications updated")
+	s.logger.WithFields("type", "s3storage").Info("s3 bucket notifications updated")
 
 	s.startSQSHandler(handler)
 
@@ -127,11 +130,11 @@ func (s *Service) InitializeBucket() error {
 	})
 	aerr, isAwsErr := err.(awserr.Error)
 	if isAwsErr && (aerr.Code() == s3.ErrCodeBucketAlreadyOwnedByYou || aerr.Code() == s3.ErrCodeBucketAlreadyExists) {
-		log.WithFields("type", "s3storage").Info("s3 bucket already exists")
+		s.logger.WithFields("type", "s3storage").Info("s3 bucket already exists")
 	} else if err != nil {
 		return errors.Wrap(err, "create bucket")
 	}
-	log.WithFields("type", "s3storage").Info("s3 bucket ensured")
+	s.logger.WithFields("type", "s3storage").Info("s3 bucket ensured")
 	return nil
 }
 
@@ -165,7 +168,7 @@ func (s *Service) Close() error {
 }
 
 func (s *Service) startSQSHandler(handler func(msg string) error) {
-	log.Infof("starting SQS handler")
+	s.logger.Infof("starting SQS handler")
 	s.sqsHandlerQuitChannel = make(chan struct{})
 	s.sqsHandlerErrorChannel = make(chan error, 1)
 	go func() {
@@ -187,17 +190,17 @@ func (s *Service) startSQSHandler(handler func(msg string) error) {
 			})
 
 			if err != nil {
-				log.Errorf("failed to fetch sqs messages %v", err)
+				s.logger.Errorf("failed to fetch sqs messages %v", err)
 				continue
 			}
 
 			for _, message := range output.Messages {
 				err := handler(*message.Body)
 				if err != nil {
-					log.With("messageID", *message.MessageId, "messageBody", *message.Body).Errorf("Failed handling SQS message. Error: %s", err)
+					s.logger.With("messageID", *message.MessageId, "messageBody", *message.Body).Errorf("Failed handling SQS message. Error: %s", err)
 					continue
 				} else {
-					log.With("messageID", *message.MessageId, "messageBody", *message.Body).Infof("Handled SQS message %s", *message.MessageId)
+					s.logger.With("messageID", *message.MessageId, "messageBody", *message.Body).Infof("Handled SQS message %s", *message.MessageId)
 				}
 
 				_, err = s.sqsClient.DeleteMessage(&sqs.DeleteMessageInput{
@@ -205,7 +208,7 @@ func (s *Service) startSQSHandler(handler func(msg string) error) {
 					ReceiptHandle: message.ReceiptHandle,
 				})
 				if err != nil {
-					log.Errorf("Failed deleting SQS message %s. Error: %s", *message.ReceiptHandle, err)
+					s.logger.Errorf("Failed deleting SQS message %s. Error: %s", *message.ReceiptHandle, err)
 				}
 			}
 		}

@@ -19,10 +19,9 @@ import (
 // 1. Successful release of a new deployment
 // 2. Detects CrashLoopBackOff, fetches the specific pods log
 // 3. Detects CreateContainerConfigError, and fetches the message about the wrong config.
-func StartDaemon() *cobra.Command {
+func StartDaemon(logger *log.Logger) *cobra.Command {
 	var environment, kubeConfigPath string
 	var moduloCrashReportNotif float64
-	var logConfiguration *log.Configuration
 
 	client := httpinternal.Client{}
 	var command = &cobra.Command{
@@ -31,16 +30,13 @@ func StartDaemon() *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			done := make(chan error, 1)
 
-			logConfiguration.ParseFromEnvironmnet()
-			log.Init(logConfiguration)
-
 			exporter := &kubernetes.ReleaseManagerExporter{
-				Log:         log.With("type", "k8s-exporter"),
+				Log:         logger.With("type", "k8s-exporter"),
 				Client:      client,
 				Environment: environment,
 			}
 
-			kubectl, err := kubernetes.NewClient(kubeConfigPath)
+			kubectl, err := kubernetes.NewClient(logger, kubeConfigPath)
 			if err != nil {
 				return err
 			}
@@ -52,12 +48,12 @@ func StartDaemon() *cobra.Command {
 				}
 			}
 
-			kubernetes.RegisterDeploymentInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
-			kubernetes.RegisterDaemonSetInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
-			kubernetes.RegisterJobInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
-			kubernetes.RegisterPodInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset, moduloCrashReportNotif)
-			kubernetes.RegisterStatefulSetInformer(kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
-			server := flux_notification_controller.NewHttpServer()
+			kubernetes.RegisterDeploymentInformer(logger, kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
+			kubernetes.RegisterDaemonSetInformer(logger, kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
+			kubernetes.RegisterJobInformer(logger, kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
+			kubernetes.RegisterPodInformer(logger, kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset, moduloCrashReportNotif)
+			kubernetes.RegisterStatefulSetInformer(logger, kubectl.InformerFactory, exporter, handlerFactory, kubectl.Clientset)
+			server := flux_notification_controller.NewHttpServer(logger)
 			go func() {
 				err := server.ListenAndServe()
 				if err != nil {
@@ -65,7 +61,7 @@ func StartDaemon() *cobra.Command {
 				}
 			}()
 
-			log.Info("Deamon started")
+			logger.Info("Deamon started")
 
 			stopCh := make(chan struct{})
 			err = kubectl.Start(stopCh)
@@ -77,23 +73,23 @@ func StartDaemon() *cobra.Command {
 			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 			go func() {
 				sig := <-sigs
-				log.Infof("received os signal '%s'", sig)
+				logger.Infof("received os signal '%s'", sig)
 				done <- nil
 			}()
 
 			err = <-done
 			if err != nil {
-				log.Errorf("Exited unknown error: %v", err)
+				logger.Errorf("Exited unknown error: %v", err)
 				os.Exit(1)
 			}
 
 			err = server.Close()
 			if err != nil {
-				log.Errorf("Failed to close the notification server: %s", err)
+				logger.Errorf("Failed to close the notification server: %s", err)
 				os.Exit(1)
 			}
 
-			log.Infof("Program ended")
+			logger.Infof("Program ended")
 			return nil
 		},
 	}
@@ -107,6 +103,5 @@ func StartDaemon() *cobra.Command {
 	// does not exist on the command.
 	//nolint:errcheck
 	command.MarkFlagRequired("environment")
-	logConfiguration = log.RegisterFlags(command)
 	return command
 }

@@ -19,7 +19,7 @@ type ArtifactReadStorage interface {
 	// (specPath) and yaml resources directory (resourcesPath) available on the
 	// file system for copying to releases. The returned close function is
 	// responsible for clean up of the persisted files.
-	ArtifactPaths(ctx context.Context, service, environment, branch, artifactID string) (specPath, resourcesPath string, close func(context.Context), err error)
+	ArtifactPaths(ctx context.Context, service, environment, branch, artifactID string) (specPath, resourcesPath string, close func(context.Context) error, err error)
 
 	// LatestArtifactSpecification returns the latest artifact specification for a
 	// given service and branch.
@@ -30,7 +30,7 @@ type ArtifactReadStorage interface {
 	// available on the file system for copying to releases of the latest artifact
 	// for provided service and branch. The returned close function is responsible
 	// for clean up of the persisted files.
-	LatestArtifactPaths(ctx context.Context, service, environment, branch string) (specPath, resourcesPath string, close func(context.Context), err error)
+	LatestArtifactPaths(ctx context.Context, service, environment, branch string) (specPath, resourcesPath string, close func(context.Context) error, err error)
 
 	// ArtifactSpecifications returns a list of n newest artifact specifications
 	// for service. They should be ordered by newest first.

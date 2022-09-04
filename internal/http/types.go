@@ -6,6 +6,7 @@ import (
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/intent"
+	"github.com/lunarway/release-manager/internal/log"
 )
 
 type StatusRequest struct {
@@ -39,7 +40,7 @@ type ReleaseRequest struct {
 	Intent         intent.Intent `json:"intent,omitempty"`
 }
 
-func (r ReleaseRequest) Validate(w http.ResponseWriter) bool {
+func (r ReleaseRequest) Validate(w http.ResponseWriter, logger *log.Logger) bool {
 	var errs validationErrors
 	if emptyString(r.Service) {
 		errs.Append(requiredField("service"))
@@ -62,7 +63,7 @@ func (r ReleaseRequest) Validate(w http.ResponseWriter) bool {
 	if !r.Intent.Valid() {
 		errs.Append("required intent is not valid")
 	}
-	return errs.Evaluate(w)
+	return errs.Evaluate(w, logger)
 }
 
 type ReleaseResponse struct {
@@ -143,7 +144,7 @@ type ApplyBranchRestrictionPolicyRequest struct {
 	CommitterEmail string `json:"committerEmail,omitempty"`
 }
 
-func (r ApplyBranchRestrictionPolicyRequest) Validate(w http.ResponseWriter) bool {
+func (r ApplyBranchRestrictionPolicyRequest) Validate(w http.ResponseWriter, logger *log.Logger) bool {
 	var errs validationErrors
 	if emptyString(r.Service) {
 		errs.Append(requiredField("service"))
@@ -160,7 +161,7 @@ func (r ApplyBranchRestrictionPolicyRequest) Validate(w http.ResponseWriter) boo
 	if emptyString(r.CommitterEmail) {
 		errs.Append(requiredField("committerEmail"))
 	}
-	return errs.Evaluate(w)
+	return errs.Evaluate(w, logger)
 }
 
 type ApplyBranchRestrictionPolicyResponse struct {
@@ -178,7 +179,7 @@ type ApplyAutoReleasePolicyRequest struct {
 	CommitterEmail string `json:"committerEmail,omitempty"`
 }
 
-func (r ApplyAutoReleasePolicyRequest) Validate(w http.ResponseWriter) bool {
+func (r ApplyAutoReleasePolicyRequest) Validate(w http.ResponseWriter, logger *log.Logger) bool {
 	var errs validationErrors
 	if emptyString(r.Service) {
 		errs.Append(requiredField("service"))
@@ -195,7 +196,7 @@ func (r ApplyAutoReleasePolicyRequest) Validate(w http.ResponseWriter) bool {
 	if emptyString(r.CommitterEmail) {
 		errs.Append(requiredField("committerEmail"))
 	}
-	return errs.Evaluate(w)
+	return errs.Evaluate(w, logger)
 }
 
 type ApplyPolicyResponse struct {
@@ -212,7 +213,7 @@ type DeletePolicyRequest struct {
 	CommitterEmail string   `json:"committerEmail,omitempty"`
 }
 
-func (r DeletePolicyRequest) Validate(w http.ResponseWriter) bool {
+func (r DeletePolicyRequest) Validate(w http.ResponseWriter, logger *log.Logger) bool {
 	var errs validationErrors
 	if emptyString(r.Service) {
 		errs.Append(requiredField("service"))
@@ -227,7 +228,7 @@ func (r DeletePolicyRequest) Validate(w http.ResponseWriter) bool {
 	if len(ids) == 0 {
 		errs.Append("no policy ids suplied")
 	}
-	return errs.Evaluate(w)
+	return errs.Evaluate(w, logger)
 }
 
 type DeletePolicyResponse struct {
@@ -262,7 +263,7 @@ type ArtifactUploadRequest struct {
 	MD5      string        `json:"md5,omitempty"`
 }
 
-func (r ArtifactUploadRequest) Validate(w http.ResponseWriter) bool {
+func (r ArtifactUploadRequest) Validate(w http.ResponseWriter, logger *log.Logger) bool {
 	var errs validationErrors
 	if emptyString(r.MD5) {
 		errs.Append(requiredField("md5"))
@@ -273,7 +274,7 @@ func (r ArtifactUploadRequest) Validate(w http.ResponseWriter) bool {
 	if emptyString(r.Artifact.Service) {
 		errs.Append(requiredField("artifact.service"))
 	}
-	return errs.Evaluate(w)
+	return errs.Evaluate(w, logger)
 }
 
 type ArtifactUploadResponse struct {

@@ -362,7 +362,7 @@ func TestService_Get(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			log.Init(&log.Configuration{
+			logger := log.New(&log.Configuration{
 				Level: log.Level{
 					Level: zapcore.DebugLevel,
 				},
@@ -371,6 +371,7 @@ func TestService_Get(t *testing.T) {
 			gitService := MockGitService{}
 			gitService.On("MasterPath").Return("testdata")
 			s := Service{
+				Logger:                          logger,
 				Tracer:                          tracing.NewNoop(),
 				Git:                             &gitService,
 				GlobalBranchRestrictionPolicies: tc.globalPolicies,
@@ -391,7 +392,7 @@ func TestService_Get(t *testing.T) {
 }
 
 func TestNoPoliciesDirectoryReturnsNotFound(t *testing.T) {
-	log.Init(&log.Configuration{
+	logger := log.New(&log.Configuration{
 		Level: log.Level{
 			Level: zapcore.DebugLevel,
 		},
@@ -400,6 +401,7 @@ func TestNoPoliciesDirectoryReturnsNotFound(t *testing.T) {
 	gitService := MockGitService{}
 	gitService.On("MasterPath").Return("no-testdata")
 	s := Service{
+		Logger:     logger,
 		Tracer:     tracing.NewNoop(),
 		Git:        &gitService,
 		MaxRetries: 1,
@@ -528,14 +530,14 @@ func TestMergeBranchRestrictions(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			log.Init(&log.Configuration{
+			logger := log.New(&log.Configuration{
 				Level: log.Level{
 					Level: zapcore.DebugLevel,
 				},
 				Development: true,
 			})
 
-			output := mergeBranchRestrictions(context.Background(), tc.name, tc.global, tc.local)
+			output := mergeBranchRestrictions(context.Background(), logger, tc.name, tc.global, tc.local)
 			sort.Slice(output, func(i, j int) bool {
 				return output[i].ID < output[j].ID
 			})

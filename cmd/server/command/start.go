@@ -109,17 +109,17 @@ type startOptions struct {
 	emailSuffix               *string
 }
 
-func NewStart(startOptions *startOptions) *cobra.Command {
+func NewStart(logger *log.Logger, startOptions *startOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "start the release-manager",
 		RunE: func(c *cobra.Command, args []string) error {
 			done := make(chan error, 1)
-			slackClient, err := intslack.NewMuteableClient(slack.New(*startOptions.slackAuthToken), *startOptions.userMappings, *startOptions.emailSuffix, *startOptions.slackMutes)
+			slackClient, err := intslack.NewMuteableClient(slack.New(*startOptions.slackAuthToken), logger, *startOptions.userMappings, *startOptions.emailSuffix, *startOptions.slackMutes)
 			if err != nil {
 				return err
 			}
-			tracer, err := tracing.NewJaeger()
+			tracer, err := tracing.NewJaeger(logger)
 			if err != nil {
 				return err
 			}
@@ -127,6 +127,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			metricsObserver := metrics.NewObserver()
 
 			grafanaSvc := grafana.Service{
+				Logger:       logger,
 				Environments: mapGrafanaOptionsToEnvironment(startOptions.grafana),
 			}
 			// Import GPG Keys
@@ -141,12 +142,12 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 						return fmt.Errorf("failed to import GPG key(s) from %s", p)
 					}
 					if keyfiles != nil {
-						log.Infof("imported GPG key(s) from %s files %v", p, keyfiles)
+						logger.Infof("imported GPG key(s) from %s files %v", p, keyfiles)
 					}
 				}
 			}
 
-			copier := copy.New(log.With("system", "copier"))
+			copier := copy.New(logger.With("system", "copier"))
 
 			gitSvc := git.Service{
 				Tracer:            tracer,
@@ -170,14 +171,15 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				s3client := s3.New(sess)
 				sqsClient := sqs.New(sess)
 
-				s3storageSvc, err = s3storage.New(startOptions.s3storage.S3BucketName, s3client, sqsClient, tracer)
+				s3storageSvc, err = s3storage.New(startOptions.s3storage.S3BucketName, s3client, sqsClient, tracer, logger)
 				if err != nil {
 					return err
 				}
 			}
 
 			github := github.Service{
-				Token: *startOptions.githubAPIToken,
+				Logger: logger,
+				Token:  *startOptions.githubAPIToken,
 			}
 			ctx := context.Background()
 			close, err := gitSvc.InitMasterRepo(ctx)
@@ -186,6 +188,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			}
 			defer close(ctx)
 			policySvc := policy.Service{
+				Logger: logger,
 				Tracer: tracer,
 				Git:    &gitSvc,
 				// retries for comitting changes into config repo
@@ -216,14 +219,14 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					})
 					if err != nil {
 						if errors.Is(err, grafana.ErrEnvironmentNotConfigured) {
-							log.WithContext(ctx).Infof("flow.NotifyReleaseHook: skipped annotation in Grafana: %v", err)
+							logger.WithContext(ctx).Infof("flow.NotifyReleaseHook: skipped annotation in Grafana: %v", err)
 							return
 						}
-						log.WithContext(ctx).Errorf("flow.NotifyReleaseHook: failed to annotate Grafana: %v", err)
+						logger.WithContext(ctx).Errorf("flow.NotifyReleaseHook: failed to annotate Grafana: %v", err)
 					}
 				},
 				"github-tags": func(ctx context.Context, opts flow.NotifyReleaseOptions) {
-					logger := log.WithContext(ctx)
+					logger := logger.WithContext(ctx)
 					if strings.ToLower(opts.Spec.Application.Provider) == "github" && *startOptions.githubAPIToken != "" {
 						logger.Infof("Tagging GitHub repository '%s' with '%s' at '%s'", opts.Spec.Application.Name, opts.Environment, opts.Spec.Application.SHA)
 						span, _ := tracer.FromCtx(ctx, "tag source repository")
@@ -237,7 +240,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					}
 				},
 				"log": func(ctx context.Context, opts flow.NotifyReleaseOptions) {
-					logger := log.WithContext(ctx).WithFields("service", opts.Service,
+					logger := logger.WithContext(ctx).WithFields("service", opts.Service,
 						"environment", opts.Environment,
 						"namespace", opts.Namespace,
 						"artifact-id", opts.Spec.ID,
@@ -261,6 +264,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					})
 				},
 			}
+
 			flowSvc := flow.Service{
 				ArtifactFileName: startOptions.configRepo.ArtifactFileName,
 				UserMappings:     *startOptions.userMappings,
@@ -270,6 +274,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				Storage:          s3storageSvc,
 				Policy:           &policySvc,
 				Tracer:           tracer,
+				Logger:           logger,
 				Copier:           copier,
 				// TODO: figure out a better way of splitting the consumer and publisher
 				// to avoid this chicken and egg issue. It is not a real problem as the
@@ -315,16 +320,16 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				var event flow.GenericEvent
 				unmarshalErr := event.Unmarshal(msgBody)
 				if unmarshalErr != nil {
-					log.Errorf("errorhandling could not unmarshal event of type %s to generic event with error: %s", msgType, unmarshalErr)
+					logger.Errorf("errorhandling could not unmarshal event of type %s to generic event with error: %s", msgType, unmarshalErr)
 					return
 				}
 				slackErr := slackClient.NotifyReleaseManagerError(ctx, msgType, event.Service, event.Environment, event.Branch, event.Namespace, event.Actor.Email, err)
 				if slackErr != nil {
-					log.Errorf("slack notification failed with error %s", slackErr)
+					logger.Errorf("slack notification failed with error %s", slackErr)
 				}
 			}
 
-			brokerImpl, err := getBroker(startOptions.broker)
+			brokerImpl, err := getBroker(logger, startOptions.broker)
 			if err != nil {
 				return errors.WithMessage(err, "setup broker")
 			}
@@ -338,11 +343,11 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			defer func() {
 				err := brokerImpl.Close()
 				if err != nil {
-					log.Errorf("Failed to close broker: %v", err)
+					logger.Errorf("Failed to close broker: %v", err)
 				}
 			}()
 			go func() {
-				err := http.NewServer(startOptions.http, slackClient, &flowSvc, &policySvc, &gitSvc, s3storageSvc, tracer)
+				err := http.NewServer(startOptions.http, slackClient, &flowSvc, &policySvc, &gitSvc, s3storageSvc, logger, tracer)
 				if err != nil {
 					done <- errors.WithMessage(err, "new http server")
 					return
@@ -362,14 +367,14 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					}
 
 					if len(s3event.Records) == 0 {
-						log.With("sqsMessage", msg).Infof("Skipping SQS message because it does not look like S3 notification")
+						logger.With("sqsMessage", msg).Infof("Skipping SQS message because it does not look like S3 notification")
 						return nil
 					}
 
 					for _, record := range s3event.Records {
 						parts := strings.Split(record.S3.Object.Key, "/")
 						if len(parts) != 2 {
-							log.With("s3event", s3event).Infof("Got s3 object creation event on %s which can't be parsed to service and artifact id", record.S3.Object.Key)
+							logger.With("s3event", s3event).Infof("Got s3 object creation event on %s which can't be parsed to service and artifact id", record.S3.Object.Key)
 							continue
 						}
 						service := parts[0]
@@ -393,7 +398,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				defer func() {
 					err := s3storageSvc.Close()
 					if err != nil {
-						log.Errorf("Failed to close s3 storage: %v", err)
+						logger.Errorf("Failed to close s3 storage: %v", err)
 					}
 				}()
 			}
@@ -402,27 +407,27 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 			go func() {
 				sig := <-sigs
-				log.Infof("received os signal '%s'", sig)
+				logger.Infof("received os signal '%s'", sig)
 				done <- nil
 			}()
 
 			err = <-done
 			if err != nil {
-				log.Errorf("Exited unknown error: %v", err)
+				logger.Errorf("Exited unknown error: %v", err)
 				os.Exit(1)
 			}
-			log.Infof("Program ended")
+			logger.Infof("Program ended")
 			return nil
 		},
 	}
 	return command
 }
 
-func getBroker(c *brokerOptions) (broker.Broker, error) {
+func getBroker(logger *log.Logger, c *brokerOptions) (broker.Broker, error) {
 	switch c.Type {
 	case BrokerTypeAMQP:
 		amqpOptions := c.AMQP
-		log.Info("Using an AMQP broker")
+		logger.Info("Using an AMQP broker")
 		return amqpextra.New(amqpextra.Config{
 			Connection: amqpextra.ConnectionConfig{
 				Host:        amqpOptions.Host,
@@ -438,15 +443,15 @@ func getBroker(c *brokerOptions) (broker.Broker, error) {
 			Queue:               amqpOptions.Queue,
 			RoutingKey:          "#",
 			Prefetch:            amqpOptions.Prefetch,
-			Logger:              log.With("system", "amqp"),
+			Logger:              logger.With("system", "amqp"),
 		})
 	case BrokerTypeMemory:
 		queueSize := c.Memory.QueueSize
 		if queueSize <= 0 {
 			queueSize = 5
 		}
-		log.Infof("Using an in-memory broker with queue size %d", queueSize)
-		return memory.New(log.With("system", "memory"), queueSize), nil
+		logger.Infof("Using an in-memory broker with queue size %d", queueSize)
+		return memory.New(logger.With("system", "memory"), queueSize), nil
 	default:
 		// this should never happen as the flags are validated against available
 		// values

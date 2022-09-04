@@ -13,6 +13,7 @@ import (
 )
 
 type Service struct {
+	Logger       *log.Logger
 	Environments map[string]Environment
 }
 
@@ -61,7 +62,7 @@ func (s *Service) Annotate(ctx context.Context, env string, body AnnotateRequest
 		return err
 	}
 
-	logger := log.WithContext(ctx)
+	logger := s.Logger.WithContext(ctx)
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		logger.Infof("grafana: response body: %s", body)

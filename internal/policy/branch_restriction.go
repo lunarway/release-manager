@@ -6,7 +6,6 @@ import (
 	"regexp"
 
 	"github.com/lunarway/release-manager/internal/commitinfo"
-	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 )
 
@@ -40,7 +39,7 @@ func (s *Service) ApplyBranchRestriction(ctx context.Context, actor Actor, svc, 
 	}
 
 	// check that it does not conflict with a global policy
-	if conflictingBranchRestriction(ctx, svc, s.GlobalBranchRestrictionPolicies, BranchRestriction{
+	if conflictingBranchRestriction(ctx, s.Logger, svc, s.GlobalBranchRestrictionPolicies, BranchRestriction{
 		BranchRegex: branchRegex,
 		Environment: env,
 	}) {
@@ -60,7 +59,7 @@ func (s *Service) ApplyBranchRestriction(ctx context.Context, actor Actor, svc, 
 
 // CanRelease returns whether service svc's branch can be released to env.
 func (s *Service) CanRelease(ctx context.Context, svc, branch, env string) (bool, error) {
-	log.WithContext(ctx).Infof("Verifying whether %s on branch %s can be released to %s", svc, branch, env)
+	s.Logger.WithContext(ctx).Infof("Verifying whether %s on branch %s can be released to %s", svc, branch, env)
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.CanRelease")
 	defer span.Finish()
 	policies, err := s.Get(ctx, svc)
@@ -70,7 +69,7 @@ func (s *Service) CanRelease(ctx context.Context, svc, branch, env string) (bool
 		}
 		return false, err
 	}
-	log.WithContext(ctx).WithFields("policies", policies).Infof("Found %d restrictions", len(policies.BranchRestrictions))
+	s.Logger.WithContext(ctx).WithFields("policies", policies).Infof("Found %d restrictions", len(policies.BranchRestrictions))
 	span, _ = s.Tracer.FromCtx(ctx, "policy.canRelease")
 	defer span.Finish()
 	return canRelease(ctx, policies, branch, env)

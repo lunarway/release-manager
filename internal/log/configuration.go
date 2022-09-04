@@ -46,13 +46,6 @@ func New(c *Configuration) *Logger {
 	return &Logger{sugar: zapLogger.Sugar()}
 }
 
-// Init initializes the global logger with provided level.
-//
-// Default level is zapcore.InfoLevel and non-development.
-func Init(c *Configuration) {
-	logger = New(c)
-}
-
 // Configuration represents a log configuration.
 type Configuration struct {
 	Level       Level

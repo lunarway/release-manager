@@ -12,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/lunarway/release-manager/internal/artifact"
-	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 )
 
@@ -35,7 +34,7 @@ func (f *Service) ArtifactSpecification(ctx context.Context, service string, art
 	return f.getArtifactSpecFromObjectKey(ctx, getObjectKeyName(service, artifactID))
 }
 
-func (f *Service) ArtifactPaths(ctx context.Context, service string, environment string, branch string, artifactID string) (specPath string, resourcesPath string, close func(context.Context), err error) {
+func (f *Service) ArtifactPaths(ctx context.Context, service string, environment string, branch string, artifactID string) (specPath string, resourcesPath string, close func(context.Context) error, err error) {
 	key := getObjectKeyName(service, artifactID)
 	artifact, close, err := f.downloadArtifact(ctx, key)
 	if err != nil {
@@ -54,11 +53,11 @@ func (f *Service) LatestArtifactSpecification(ctx context.Context, service strin
 	if err != nil {
 		return artifact.Spec{}, errors.WithMessage(err, "get latest object key")
 	}
-	log.WithContext(ctx).WithFields("key", key).Infof("Latest artifact for service '%s' and branch '%s' is at key '%s'", service, branch, key)
+	f.logger.WithContext(ctx).WithFields("key", key).Infof("Latest artifact for service '%s' and branch '%s' is at key '%s'", service, branch, key)
 	return f.getArtifactSpecFromObjectKey(ctx, key)
 }
 
-func (f *Service) LatestArtifactPaths(ctx context.Context, service string, environment string, branch string) (specPath string, resourcesPath string, close func(context.Context), err error) {
+func (f *Service) LatestArtifactPaths(ctx context.Context, service string, environment string, branch string) (specPath string, resourcesPath string, close func(context.Context) error, err error) {
 	key, err := f.getLatestObjectKey(ctx, service, branch)
 	if err != nil {
 		return "", "", nil, errors.WithMessage(err, "get latest artifact key")
@@ -98,7 +97,7 @@ func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n 
 		return nil, errors.Wrapf(err, "list objects with prefix '%s'", prefix)
 	}
 
-	log.WithContext(ctx).WithFields("service", service, "count", n).Infof("Found %d artifacts for service '%s'", len(list), service)
+	f.logger.WithContext(ctx).WithFields("service", service, "count", n).Infof("Found %d artifacts for service '%s'", len(list), service)
 
 	sort.Slice(list, func(i, j int) bool {
 		return list[i].LastModified.After(*list[j].LastModified)

@@ -47,6 +47,7 @@ type Service struct {
 	CanRelease       func(ctx context.Context, svc, branch, env string) (bool, error)
 	Storage          ArtifactReadStorage
 	Policy           *policy.Service
+	Logger           *log.Logger
 	Copier           *copy.Copier
 
 	PublishReleaseArtifactID func(context.Context, ReleaseArtifactIDEvent) error
@@ -85,7 +86,7 @@ func (s *Service) retry(ctx context.Context, f func(context.Context, int) (bool,
 		stop, err := f(ctx, attempt)
 		if err != nil {
 			if errors.Cause(err) == internalgit.ErrBranchBehindOrigin {
-				log.WithContext(ctx).Infof("flow/retry: master repo not aligned with origin. Syncing and retrying")
+				s.Logger.WithContext(ctx).Infof("flow/retry: master repo not aligned with origin. Syncing and retrying")
 				err := s.Git.SyncMaster(ctx)
 				if err != nil {
 					return false, errors.WithMessage(err, "sync master")
@@ -281,7 +282,7 @@ func releasePath(root, service, env, namespace string) (string, error) {
 }
 
 // PushArtifactToReleaseManager pushes an artifact to the release manager
-func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *httpinternal.Client, artifactFileName, resourceRoot string) (string, error) {
+func PushArtifactToReleaseManager(ctx context.Context, logger *log.Logger, releaseManagerClient *httpinternal.Client, artifactFileName, resourceRoot string) (string, error) {
 	artifactSpecPath := path.Join(resourceRoot, artifactFileName)
 	artifactSpec, err := artifact.Get(artifactSpecPath)
 	if err != nil {
@@ -294,7 +295,7 @@ func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *htt
 	if err != nil {
 		return "", errors.WithMessage(err, "zip artifact failed")
 	}
-	log.WithFields("artifactID", artifactSpec.ID, "artifactFiles", files).Infof("artifact zip created for %s", artifactSpec.ID)
+	logger.WithFields("artifactID", artifactSpec.ID, "artifactFiles", files).Infof("artifact zip created for %s", artifactSpec.ID)
 
 	zipMD5 := md5.New()
 	_, err = zipMD5.Write(zipContent)
@@ -303,7 +304,7 @@ func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *htt
 	}
 	zipMD5s := base64.StdEncoding.EncodeToString(zipMD5.Sum(nil))
 
-	log.WithFields("artifactID", artifactSpec.ID, "artifactFiles", files).Infof("calculated zip md5: %x", zipMD5s)
+	logger.WithFields("artifactID", artifactSpec.ID, "artifactFiles", files).Infof("calculated zip md5: %x", zipMD5s)
 
 	path, err := releaseManagerClient.URL("artifacts/create")
 	if err != nil {
@@ -318,14 +319,14 @@ func PushArtifactToReleaseManager(ctx context.Context, releaseManagerClient *htt
 	if err != nil {
 		return "", errors.WithMessage(err, "create artifact request failed")
 	}
-	log.WithFields("artifactID", artifactSpec.ID, "uploadURL", resp.ArtifactUploadURL).Infof("artifact upload URL created for %s", artifactSpec.ID)
+	logger.WithFields("artifactID", artifactSpec.ID, "uploadURL", resp.ArtifactUploadURL).Infof("artifact upload URL created for %s", artifactSpec.ID)
 
 	err = uploadFile(resp.ArtifactUploadURL, zipContent, string(zipMD5s))
 	if err != nil {
 		return "", errors.WithMessage(err, "upload artifact failed")
 	}
 
-	log.WithFields("artifactID", artifactSpec.ID).Infof("uploaded artifact %s", artifactSpec.ID)
+	logger.WithFields("artifactID", artifactSpec.ID).Infof("uploaded artifact %s", artifactSpec.ID)
 
 	return artifactSpec.ID, nil
 }

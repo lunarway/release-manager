@@ -48,7 +48,7 @@ func TestService_ArtifactPaths(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			log.Init(&log.Configuration{
+			logger := log.New(&log.Configuration{
 				Level: log.Level{
 					Level: zapcore.DebugLevel,
 				},
@@ -57,7 +57,7 @@ func TestService_ArtifactPaths(t *testing.T) {
 			bucket := "a-bucket"
 			s3Client, s3Close := setupS3(t, bucket, tc.storedArtifacts...)
 			defer s3Close()
-			svc, err := s3storage.New(bucket, s3Client, nil, tracing.NewNoop())
+			svc, err := s3storage.New(bucket, s3Client, nil, tracing.NewNoop(), logger)
 			if !assert.NoError(t, err, "initialization error") {
 				return
 			}
@@ -160,7 +160,7 @@ func TestService_ArtifactSpecifications(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			log.Init(&log.Configuration{
+			logger := log.New(&log.Configuration{
 				Level: log.Level{
 					Level: zapcore.DebugLevel,
 				},
@@ -171,7 +171,7 @@ func TestService_ArtifactSpecifications(t *testing.T) {
 			s3Mock, close := setupS3(t, bucketName, tc.objects...)
 			defer close()
 
-			svc, err := s3storage.New(bucketName, s3Mock, nil, tracing.NewNoop())
+			svc, err := s3storage.New(bucketName, s3Mock, nil, tracing.NewNoop(), logger)
 			require.NoError(t, err, "initialization error")
 
 			artifacts, err := svc.ArtifactSpecifications(context.Background(), tc.service, tc.count, tc.branch)
@@ -210,7 +210,7 @@ func TestService_ArtifactSpecification(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			log.Init(&log.Configuration{
+			logger := log.New(&log.Configuration{
 				Level: log.Level{
 					Level: zapcore.DebugLevel,
 				},
@@ -219,7 +219,7 @@ func TestService_ArtifactSpecification(t *testing.T) {
 			bucket := "a-bucket"
 			s3Client, close := setupS3(t, bucket, tc.storedArtifacts...)
 			defer close()
-			svc, err := s3storage.New(bucket, s3Client, nil, tracing.NewNoop())
+			svc, err := s3storage.New(bucket, s3Client, nil, tracing.NewNoop(), logger)
 			if !assert.NoError(t, err, "initialization error") {
 				return
 			}
@@ -280,7 +280,7 @@ func TestService_LatestArtifactSpecification(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			log.Init(&log.Configuration{
+			logger := log.New(&log.Configuration{
 				Level: log.Level{
 					Level: zapcore.DebugLevel,
 				},
@@ -289,7 +289,7 @@ func TestService_LatestArtifactSpecification(t *testing.T) {
 			bucket := "a-bucket"
 			s3Client, close := setupS3(t, bucket, tc.storedArtifacts...)
 			defer close()
-			svc, err := s3storage.New(bucket, s3Client, nil, tracing.NewNoop())
+			svc, err := s3storage.New(bucket, s3Client, nil, tracing.NewNoop(), logger)
 			if !assert.NoError(t, err, "initialization error") {
 				return
 			}

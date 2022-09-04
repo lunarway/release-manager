@@ -19,7 +19,7 @@ import (
 // (non mutable) which made the server unable to send messages to emails to
 // non-slack emails.
 func TestNewMutableClient_mapping(t *testing.T) {
-	log.Init(&log.Configuration{
+	logger := log.New(&log.Configuration{
 		Level: log.Level{
 			Level: zapcore.DebugLevel,
 		},
@@ -45,7 +45,7 @@ func TestNewMutableClient_mapping(t *testing.T) {
 		// return slack user on anything else
 		slackClient.On("GetUserByEmailContext", mock.Anything, mock.Anything).Return(slackUser, nil)
 
-		client, err := intslack.NewMuteableClient(&slackClient, mapping, emailDomain, intslack.MuteOptions{})
+		client, err := intslack.NewMuteableClient(&slackClient, logger, mapping, emailDomain, intslack.MuteOptions{})
 		if !assert.NoError(t, err, "unexpected instantiation error") {
 			return
 		}

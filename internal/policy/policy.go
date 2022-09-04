@@ -32,6 +32,7 @@ var (
 )
 
 type Service struct {
+	Logger *log.Logger
 	Tracer tracing.Tracer
 	Git    GitService
 
@@ -91,8 +92,8 @@ func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 	}
 
 	// merge global policies with local ones where globals take precedence
-	policies.BranchRestrictions = mergeBranchRestrictions(ctx, svc, s.GlobalBranchRestrictionPolicies, policies.BranchRestrictions)
-	log.WithContext(ctx).WithFields("globalPolicies", s.GlobalBranchRestrictionPolicies, "localPolicies", policies).Infof("Found %d policies", len(policies.BranchRestrictions)+len(policies.AutoReleases))
+	policies.BranchRestrictions = mergeBranchRestrictions(ctx, s.Logger, svc, s.GlobalBranchRestrictionPolicies, policies.BranchRestrictions)
+	s.Logger.WithContext(ctx).WithFields("globalPolicies", s.GlobalBranchRestrictionPolicies, "localPolicies", policies).Infof("Found %d policies", len(policies.BranchRestrictions)+len(policies.AutoReleases))
 
 	// a policy file might exist, but if all policies have been removed from it
 	// we can just act as if it didn't exist
@@ -127,7 +128,7 @@ func (s *Service) servicePolicies(svc string) (Policies, error) {
 	return policies, nil
 }
 
-func mergeBranchRestrictions(ctx context.Context, svc string, global, local []BranchRestriction) []BranchRestriction {
+func mergeBranchRestrictions(ctx context.Context, logger *log.Logger, svc string, global, local []BranchRestriction) []BranchRestriction {
 	if len(global) == 0 {
 		return local
 	}
@@ -136,7 +137,7 @@ func mergeBranchRestrictions(ctx context.Context, svc string, global, local []Br
 	// copy all local restrictions over that does not conflict with the global
 	// one
 	for _, localRestriction := range local {
-		if conflictingBranchRestriction(ctx, svc, global, localRestriction) {
+		if conflictingBranchRestriction(ctx, logger, svc, global, localRestriction) {
 			continue
 		}
 		branchRestrictions = append(branchRestrictions, localRestriction)
@@ -144,10 +145,10 @@ func mergeBranchRestrictions(ctx context.Context, svc string, global, local []Br
 	return branchRestrictions
 }
 
-func conflictingBranchRestriction(ctx context.Context, svc string, global []BranchRestriction, localRestriction BranchRestriction) bool {
+func conflictingBranchRestriction(ctx context.Context, logger *log.Logger, svc string, global []BranchRestriction, localRestriction BranchRestriction) bool {
 	for _, globalRestriction := range global {
 		if globalRestriction.Environment == localRestriction.Environment && globalRestriction.BranchRegex != localRestriction.BranchRegex {
-			log.WithContext(ctx).WithFields("global", globalRestriction, "local", localRestriction).Errorf("Global and local branch restriction policies conflict for service '%s': local policy dropped", svc)
+			logger.WithContext(ctx).WithFields("global", globalRestriction, "local", localRestriction).Errorf("Global and local branch restriction policies conflict for service '%s': local policy dropped", svc)
 			return true
 		}
 	}
@@ -198,13 +199,13 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.updatePolicies")
 	defer span.Finish()
 	return try.Do(ctx, s.Tracer, s.MaxRetries, func(ctx context.Context, attempt int) (bool, error) {
-		configRepoPath, close, err := internalgit.TempDirAsync(ctx, s.Tracer, "k8s-config-notify")
+		logger := s.Logger.WithContext(ctx)
+
+		configRepoPath, close, err := internalgit.TempDirAsync(ctx, logger, s.Tracer, "k8s-config-notify")
 		if err != nil {
 			return true, err
 		}
 		defer close(ctx)
-
-		logger := log.WithContext(ctx)
 
 		// read part of this code is the same as the Get function but differs in the
 		// file flags used. This is to avoid opening and closing to file multiple

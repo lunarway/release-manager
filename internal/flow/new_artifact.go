@@ -7,7 +7,6 @@ import (
 
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/intent"
-	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/slack"
 	"github.com/lunarway/release-manager/internal/try"
 	"github.com/pkg/errors"
@@ -52,7 +51,7 @@ func (s *Service) ExecNewArtifact(ctx context.Context, e NewArtifactEvent) error
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ExecNewArtifact")
 	defer span.Finish()
 
-	logger := log.WithContext(ctx)
+	logger := s.Logger.WithContext(ctx)
 
 	artifactSpec, err := s.Storage.ArtifactSpecification(ctx, e.Service, e.ArtifactID)
 	if err != nil {

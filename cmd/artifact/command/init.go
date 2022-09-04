@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/log"
 	intslack "github.com/lunarway/release-manager/internal/slack"
 	"github.com/nlopes/slack"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
-// NewCommand sets up the move command
-func initCommand(options *Options) *cobra.Command {
+func initCommand(logger *log.Logger, options *Options) *cobra.Command {
 	var s artifact.Spec
 	var users []string
 
@@ -72,7 +72,7 @@ func initCommand(options *Options) *cobra.Command {
 			// If we have an email to use for slack, lets inform
 			if s.Application.AuthorEmail != "" {
 				// Setup Slack client
-				client, err := intslack.NewClient(slack.New(options.SlackToken), options.UserMappings, options.EmailSuffix)
+				client, err := intslack.NewClient(slack.New(options.SlackToken), logger, options.UserMappings, options.EmailSuffix)
 				if err != nil {
 					fmt.Printf("Error creating Slack client")
 					return nil

@@ -14,7 +14,8 @@ import (
 )
 
 type Service struct {
-	Token string
+	Logger *log.Logger
+	Token  string
 }
 
 func (s *Service) req(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
@@ -51,7 +52,7 @@ func (s *Service) TagRepo(ctx context.Context, repository, tag, sha string) erro
 	}
 	defer resp.Body.Close()
 
-	logger := log.WithContext(ctx)
+	logger := s.Logger.WithContext(ctx)
 	switch resp.StatusCode {
 	case http.StatusCreated:
 		return nil
@@ -96,7 +97,7 @@ func (s *Service) updateTag(ctx context.Context, repository, tag, sha string) er
 	if resp.StatusCode != http.StatusOK {
 		errorBody, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.WithContext(ctx).Errorf("internal/github: failed to read error body of request")
+			s.Logger.WithContext(ctx).Errorf("internal/github: failed to read error body of request")
 		}
 		return fmt.Errorf("internal/github: http request failed: %s %s: status %v: body: %s", req.Method, req.URL, resp.Status, errorBody)
 	}

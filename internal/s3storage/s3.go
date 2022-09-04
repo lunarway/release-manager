@@ -19,11 +19,11 @@ import (
 
 // downloadArtifact downloads an artifact from its AWS S3 key. The returned
 // string is a file system path to a raw artifact, ie. unzipped.
-func (f *Service) downloadArtifact(ctx context.Context, key string) (string, func(context.Context), error) {
+func (f *Service) downloadArtifact(ctx context.Context, key string) (string, func(context.Context) error, error) {
 	span, ctx := f.tracer.FromCtx(ctx, "s3storage.downloadArtifact")
 	defer span.Finish()
 
-	logger := log.WithContext(ctx)
+	logger := f.logger.WithContext(ctx)
 	logger.WithFields("key", key).Infof("Downloading artifact from S3 key '%s'", key)
 	zipDest, err := os.CreateTemp("", "s3-artifact-zip")
 	if err != nil {
@@ -63,7 +63,7 @@ func (f *Service) downloadArtifact(ctx context.Context, key string) (string, fun
 	logger.Infof("Artifact destination: %s", destPath)
 
 	span, _ = f.tracer.FromCtx(ctx, "unzip artifact")
-	files, err := unzipFile(zipDest.Name(), destPath)
+	files, err := unzipFile(logger, zipDest.Name(), destPath)
 	defer span.Finish()
 	if err != nil {
 		// manually close destination directory here as we must allow callers to
@@ -75,27 +75,24 @@ func (f *Service) downloadArtifact(ctx context.Context, key string) (string, fun
 	return destPath, closeSource, nil
 }
 
-func tempDir(prefix string) (string, func(context.Context), error) {
+func tempDir(prefix string) (string, func(context.Context) error, error) {
 	path, err := os.MkdirTemp("", prefix)
 	if err != nil {
-		return "", func(context.Context) {}, err
+		return "", func(context.Context) error { return nil }, err
 	}
-	return path, func(ctx context.Context) {
-		err := os.RemoveAll(path)
-		if err != nil {
-			log.WithContext(ctx).Errorf("Removing temporary directory failed: path '%s': %v", path, err)
-		}
+	return path, func(ctx context.Context) error {
+		return os.RemoveAll(path)
 	}, nil
 }
 
-func unzipFile(src, destination string) (filenames []string, err error) {
+func unzipFile(logger *log.Logger, src, destination string) (filenames []string, err error) {
 	var r *zip.ReadCloser
 	r, err = zip.OpenReader(src)
 	if err != nil {
 		err = errors.WithMessagef(err, "open zip '%s'", src)
 		return
 	}
-	defer checkClose(r, &err, "zip reader")
+	defer checkClose(r, logger, &err, "zip reader")
 
 	for _, f := range r.File {
 		var rc io.ReadCloser
@@ -104,7 +101,7 @@ func unzipFile(src, destination string) (filenames []string, err error) {
 			err = errors.WithMessagef(err, "open file '%s'", f.Name)
 			return
 		}
-		defer checkClose(rc, &err, "source file")
+		defer checkClose(rc, logger, &err, "source file")
 
 		var fpath string
 		fpath, err = securejoin.SecureJoin(destination, f.Name)
@@ -134,7 +131,7 @@ func unzipFile(src, destination string) (filenames []string, err error) {
 			err = errors.WithMessagef(err, "open file '%s'", fpath)
 			return
 		}
-		defer checkClose(file, &err, "destination file")
+		defer checkClose(file, logger, &err, "destination file")
 
 		_, err = io.Copy(file, rc)
 		if err != nil {
@@ -146,13 +143,13 @@ func unzipFile(src, destination string) (filenames []string, err error) {
 	return filenames, nil
 }
 
-func checkClose(c io.Closer, err *error, action string) {
+func checkClose(c io.Closer, logger *log.Logger, err *error, action string) {
 	cerr := c.Close()
 	if cerr != nil {
 		if err == nil {
 			err = &cerr
 			return
 		}
-		log.Errorf("unzipper: %s: close failed: %v", action, cerr)
+		logger.Errorf("unzipper: %s: close failed: %v", action, cerr)
 	}
 }

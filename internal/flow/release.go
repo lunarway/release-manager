@@ -11,7 +11,6 @@ import (
 	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/intent"
-	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 )
 
@@ -78,7 +77,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		return "", ErrReleaseProhibited
 	}
 
-	logger := log.WithContext(ctx)
+	logger := s.Logger.WithContext(ctx)
 	logger.Infof("flow: ReleaseArtifactID: id '%s'", sourceSpec.ID)
 
 	_, resourcePath, close, err := s.Storage.LatestArtifactPaths(ctx, service, environment, branch)
@@ -103,7 +102,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	// environment. If there is no artifact released to the target environment an
 	// artifact.ErrFileNotFound error is returned. This is OK as the currentSpec
 	// will then be the default value and this its ID will be the empty string.
-	destinationConfigRepoPath, closeDestinationSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-artifact-destination")
+	destinationConfigRepoPath, closeDestinationSource, err := git.TempDirAsync(ctx, s.Logger, s.Tracer, "k8s-config-release-artifact-destination")
 	if err != nil {
 		return "", err
 	}
@@ -147,7 +146,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		actor := event.Actor
 		artifactID := event.ArtifactID
 
-		logger := log.WithContext(ctx)
+		logger := s.Logger.WithContext(ctx)
 
 		artifactSourcePath, sourcePath, closeSource, err := s.Storage.ArtifactPaths(ctx, service, environment, branch, artifactID)
 		if err != nil {
@@ -155,7 +154,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		}
 		defer closeSource(ctx)
 
-		destinationConfigRepoPath, closeDestination, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-artifact-destination")
+		destinationConfigRepoPath, closeDestination, err := git.TempDirAsync(ctx, s.Logger, s.Tracer, "k8s-config-release-artifact-destination")
 		if err != nil {
 			return true, err
 		}
@@ -197,7 +196,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 
 		if kustomizationPath != "" {
 			moveKustomizationToClustersSpan, moveKustomizationToClustersCtx := s.Tracer.FromCtx(ctx, "flow.moveKustomizationToClusters")
-			err := moveKustomizationToClusters(moveKustomizationToClustersCtx, kustomizationPath, destinationConfigRepoPath, service, environment, namespace)
+			err := moveKustomizationToClusters(moveKustomizationToClustersCtx, logger, kustomizationPath, destinationConfigRepoPath, service, environment, namespace)
 			moveKustomizationToClustersSpan.Finish()
 			if err != nil {
 				return true, errors.WithMessage(err, "move kustomization to clusters")

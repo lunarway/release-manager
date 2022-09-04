@@ -15,12 +15,14 @@ import (
 type StatefulSetInformer struct {
 	clientset *kubernetes.Clientset
 	exporter  Exporter
+	logger    *log.Logger
 }
 
-func RegisterStatefulSetInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset) {
+func RegisterStatefulSetInformer(logger *log.Logger, informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset) {
 	s := StatefulSetInformer{
 		clientset: clientset,
 		exporter:  exporter,
+		logger:    logger,
 	}
 
 	informerFactory.
@@ -84,14 +86,14 @@ func (s *StatefulSetInformer) handle(e interface{}) {
 		DesiredPods:   ss.Status.Replicas,
 	})
 	if err != nil {
-		log.Errorf("Failed to send successful statefulset event: %v", err)
+		s.logger.Errorf("Failed to send successful statefulset event: %v", err)
 		return
 	}
 
 	// Annotate the StatefulSet to be able to skip it next time
 	err = annotateStatefulSet(ctx, s.clientset, ss)
 	if err != nil {
-		log.Errorf("Unable to annotate StatefulSet: %v", err)
+		s.logger.Errorf("Unable to annotate StatefulSet: %v", err)
 		return
 	}
 }

@@ -30,45 +30,45 @@ type Options struct {
 	S3WebhookSecret     string
 }
 
-func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, artifactWriteStorage ArtifactWriteStorage, tracer tracing.Tracer) error {
+func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, artifactWriteStorage ArtifactWriteStorage, logger *log.Logger, tracer tracing.Tracer) error {
 	payloader := payload{
 		tracer: tracer,
 	}
 	m := mux.NewRouter()
 	m.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.WithContext(r.Context()).Infof("Unknown HTTP endpoint called: %s", r.URL.String())
-		notFound(w)
+		logger.WithContext(r.Context()).Infof("Unknown HTTP endpoint called: %s", r.URL.String())
+		notFound(w, logger)
 	})
 
 	m.Use(trace(tracer))
 	m.Use(prometheusMiddleware())
-	m.Use(reqrespLogger)
+	m.Use(reqrespLogger(logger))
 
 	hamctlMux := m.NewRoute().Subrouter()
-	hamctlMux.Use(authenticate(opts.HamCtlAuthToken))
-	hamctlMux.Methods(http.MethodPost).Path("/release").Handler(release(&payloader, flowSvc))
-	hamctlMux.Methods(http.MethodGet).Path("/status").Handler(status(&payloader, flowSvc))
+	hamctlMux.Use(authenticate(logger, opts.HamCtlAuthToken))
+	hamctlMux.Methods(http.MethodPost).Path("/release").Handler(release(&payloader, flowSvc, logger))
+	hamctlMux.Methods(http.MethodGet).Path("/status").Handler(status(&payloader, flowSvc, logger))
 
 	policyMux := hamctlMux.PathPrefix("/policies").Subrouter()
-	policyMux.Methods(http.MethodGet).Handler(listPolicies(&payloader, policySvc))
-	policyMux.Methods(http.MethodDelete).Handler(deletePolicies(&payloader, policySvc))
-	policyMux.Methods(http.MethodPatch).Path("/auto-release").Handler(applyAutoReleasePolicy(&payloader, policySvc))
-	policyMux.Methods(http.MethodPatch).Path("/branch-restriction").Handler(applyBranchRestrictionPolicy(&payloader, policySvc))
+	policyMux.Methods(http.MethodGet).Handler(listPolicies(&payloader, policySvc, logger))
+	policyMux.Methods(http.MethodDelete).Handler(deletePolicies(&payloader, policySvc, logger))
+	policyMux.Methods(http.MethodPatch).Path("/auto-release").Handler(applyAutoReleasePolicy(&payloader, policySvc, logger))
+	policyMux.Methods(http.MethodPatch).Path("/branch-restriction").Handler(applyBranchRestrictionPolicy(&payloader, policySvc, logger))
 
-	hamctlMux.Methods(http.MethodGet).Path("/describe/release/{service}/{environment}").Handler(describeRelease(&payloader, flowSvc))
-	hamctlMux.Methods(http.MethodGet).Path("/describe/artifact/{service}").Handler(describeArtifact(&payloader, flowSvc))
-	hamctlMux.Methods(http.MethodGet).Path("/describe/latest-artifact/{service}").Handler(describeLatestArtifacts(&payloader, flowSvc))
+	hamctlMux.Methods(http.MethodGet).Path("/describe/release/{service}/{environment}").Handler(describeRelease(&payloader, flowSvc, logger))
+	hamctlMux.Methods(http.MethodGet).Path("/describe/artifact/{service}").Handler(describeArtifact(&payloader, flowSvc, logger))
+	hamctlMux.Methods(http.MethodGet).Path("/describe/latest-artifact/{service}").Handler(describeLatestArtifacts(&payloader, flowSvc, logger))
 
 	daemonMux := m.NewRoute().Subrouter()
-	daemonMux.Use(authenticate(opts.DaemonAuthToken))
-	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/deploy").Handler(daemonk8sDeployWebhook(&payloader, flowSvc))
-	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/error").Handler(daemonk8sPodErrorWebhook(&payloader, flowSvc))
-	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/joberror").Handler(daemonk8sJobErrorWebhook(&payloader, flowSvc))
+	daemonMux.Use(authenticate(logger, opts.DaemonAuthToken))
+	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/deploy").Handler(daemonk8sDeployWebhook(&payloader, flowSvc, logger))
+	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/error").Handler(daemonk8sPodErrorWebhook(&payloader, flowSvc, logger))
+	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/joberror").Handler(daemonk8sJobErrorWebhook(&payloader, flowSvc, logger))
 
 	// s3 endpoints
 	artifactMux := m.NewRoute().Subrouter()
-	artifactMux.Use(authenticate(opts.ArtifactAuthToken))
-	artifactMux.Methods(http.MethodPost).Path("/artifacts/create").Handler(createArtifact(&payloader, artifactWriteStorage))
+	artifactMux.Use(authenticate(logger, opts.ArtifactAuthToken))
+	artifactMux.Methods(http.MethodPost).Path("/artifacts/create").Handler(createArtifact(&payloader, artifactWriteStorage, logger))
 
 	// profiling endpoints
 	m.HandleFunc("/debug/pprof/", pprof.Index)
@@ -79,7 +79,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 
 	m.HandleFunc("/ping", ping)
 	m.Handle("/metrics", promhttp.Handler())
-	m.HandleFunc("/webhook/github", githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret))
+	m.HandleFunc("/webhook/github", githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, logger, opts.GithubWebhookSecret))
 
 	s := http.Server{
 		Addr:              fmt.Sprintf(":%d", opts.Port),
@@ -89,7 +89,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 		IdleTimeout:       opts.Timeout,
 		ReadHeaderTimeout: opts.Timeout,
 	}
-	log.Infof("Initializing HTTP Server on port %d", opts.Port)
+	logger.Infof("Initializing HTTP Server on port %d", opts.Port)
 	err := s.ListenAndServe()
 	if err != nil {
 		return errors.WithMessage(err, "listen and server")
@@ -145,14 +145,14 @@ func trace(tracer tracing.Tracer) func(http.Handler) http.Handler {
 //
 // If authentication fails a 401 Unauthorized HTTP status is returned with an
 // ErrorResponse body.
-func authenticate(token string) func(http.Handler) http.Handler {
+func authenticate(logger *log.Logger, token string) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authorization := r.Header.Get("Authorization")
 			t := strings.TrimPrefix(authorization, "Bearer ")
 			t = strings.TrimSpace(t)
 			if t != token {
-				httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
+				httpinternal.Error(w, logger, "please provide a valid authentication token", http.StatusUnauthorized)
 				return
 			}
 			h.ServeHTTP(w, r)

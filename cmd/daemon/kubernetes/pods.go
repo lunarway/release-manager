@@ -22,13 +22,15 @@ type PodInformer struct {
 	clientset              *kubernetes.Clientset
 	exporter               Exporter
 	moduloCrashReportNotif float64
+	logger                 *log.Logger
 }
 
-func RegisterPodInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset, moduloCrashReportNotif float64) {
+func RegisterPodInformer(logger *log.Logger, informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset, moduloCrashReportNotif float64) {
 	p := PodInformer{
 		clientset:              clientset,
 		exporter:               exporter,
 		moduloCrashReportNotif: moduloCrashReportNotif,
+		logger:                 logger,
 	}
 
 	informerFactory.
@@ -72,13 +74,13 @@ func (p *PodInformer) handle(e interface{}) {
 
 	if isPodInCrashLoopBackOff(pod) {
 		if isPodControlledByJob(pod) {
-			log.Infof(
+			p.logger.Infof(
 				"Pod %s/%s is in CrashLoopBackOff and controlled by a Job. Will not notify user as job failures are reported separately.",
 				pod.Namespace,
 				pod.Name)
 			return
 		}
-		log.Infof("Pod: %s is in CrashLoopBackOff owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
+		p.logger.Infof("Pod: %s is in CrashLoopBackOff owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
 		restartCount := pod.Status.ContainerStatuses[0].RestartCount
 		if math.Mod(float64(restartCount), p.moduloCrashReportNotif) != 1 {
 			return
@@ -89,7 +91,7 @@ func (p *PodInformer) handle(e interface{}) {
 
 				logs, err := getLogs(ctx, p.clientset, pod.Name, cst.Name, pod.Namespace)
 				if err != nil {
-					log.Errorf("Error retrieving logs from pod: %s, container: %s, namespace: %s: %v", pod.Name, cst.Name, pod.Namespace, err)
+					p.logger.Errorf("Error retrieving logs from pod: %s, container: %s, namespace: %s: %v", pod.Name, cst.Name, pod.Namespace, err)
 				}
 
 				errorContainers = append(errorContainers, http.ContainerError{
@@ -102,13 +104,13 @@ func (p *PodInformer) handle(e interface{}) {
 		event.Errors = errorContainers
 		err := p.exporter.SendPodErrorEvent(ctx, event)
 		if err != nil {
-			log.Errorf("Failed to send crash loop backoff event: %v", err)
+			p.logger.Errorf("Failed to send crash loop backoff event: %v", err)
 		}
 		return
 	}
 
 	if isPodInCreateContainerConfigError(pod) {
-		log.Infof("Pod: %s is in CreateContainerConfigError owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
+		p.logger.Infof("Pod: %s is in CreateContainerConfigError owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
 		// Determine which container of the deployment has CreateContainerConfigError
 		var errorContainers []http.ContainerError
 		for _, cst := range pod.Status.ContainerStatuses {
@@ -123,12 +125,12 @@ func (p *PodInformer) handle(e interface{}) {
 		event.Errors = errorContainers
 		err := p.exporter.SendPodErrorEvent(ctx, event)
 		if err != nil {
-			log.Errorf("Failed to send create container config error: %v", err)
+			p.logger.Errorf("Failed to send create container config error: %v", err)
 		}
 	}
 
 	if isPodOOMKilled(pod) {
-		log.Infof("Pod: %s was OOMKilled owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
+		p.logger.Infof("Pod: %s was OOMKilled owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
 		var errorContainers []http.ContainerError
 		for _, cst := range pod.Status.ContainerStatuses {
 			if isContainerOOMKilled(cst) {
@@ -142,7 +144,7 @@ func (p *PodInformer) handle(e interface{}) {
 		event.Errors = errorContainers
 		err := p.exporter.SendPodErrorEvent(ctx, event)
 		if err != nil {
-			log.Errorf("Failed to send create container config error: %v", err)
+			p.logger.Errorf("Failed to send create container config error: %v", err)
 		}
 	}
 }

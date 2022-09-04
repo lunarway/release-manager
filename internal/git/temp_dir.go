@@ -11,7 +11,7 @@ import (
 // TempDir returns a temporary directory with provided prefix.
 // The first return argument is the path. The second is a close function to
 // remove the path.
-func TempDir(ctx context.Context, tracer tracing.Tracer, prefix string) (string, func(context.Context), error) {
+func TempDir(ctx context.Context, logger *log.Logger, tracer tracing.Tracer, prefix string) (string, func(context.Context), error) {
 	span, _ := tracer.FromCtxf(ctx, "create temp dir")
 	span.SetTag("path_prefix", prefix)
 	defer span.Finish()
@@ -25,7 +25,7 @@ func TempDir(ctx context.Context, tracer tracing.Tracer, prefix string) (string,
 		defer span.Finish()
 		err := os.RemoveAll(path)
 		if err != nil {
-			log.WithContext(ctx).Errorf("Removing temporary directory failed: path '%s': %v", path, err)
+			logger.WithContext(ctx).Errorf("Removing temporary directory failed: path '%s': %v", path, err)
 		}
 	}, nil
 }
@@ -33,8 +33,8 @@ func TempDir(ctx context.Context, tracer tracing.Tracer, prefix string) (string,
 // TempDirSync returns a temporary directory with provided prefix.
 // The first return argument is the path. The second is a close function to
 // remove the path asynchronously.
-func TempDirAsync(ctx context.Context, tracer tracing.Tracer, prefix string) (string, func(context.Context), error) {
-	path, close, err := TempDir(ctx, tracer, prefix)
+func TempDirAsync(ctx context.Context, logger *log.Logger, tracer tracing.Tracer, prefix string) (string, func(context.Context), error) {
+	path, close, err := TempDir(ctx, logger, tracer, prefix)
 	if err != nil {
 		return "", func(context.Context) {}, err
 	}

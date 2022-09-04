@@ -5,18 +5,19 @@ import (
 	"path"
 
 	"github.com/lunarway/release-manager/internal/artifact"
+	"github.com/lunarway/release-manager/internal/log"
 	intslack "github.com/lunarway/release-manager/internal/slack"
 	"github.com/nlopes/slack"
 	"github.com/spf13/cobra"
 )
 
-func failureCommand(options *Options) *cobra.Command {
+func failureCommand(logger *log.Logger, options *Options) *cobra.Command {
 	var errorMessage string
 	command := &cobra.Command{
 		Use:   "failure",
 		Short: "report failure in the pipeline",
 		RunE: func(c *cobra.Command, args []string) error {
-			client, err := intslack.NewClient(slack.New(options.SlackToken), options.UserMappings, options.EmailSuffix)
+			client, err := intslack.NewClient(slack.New(options.SlackToken), logger, options.UserMappings, options.EmailSuffix)
 			if err != nil {
 				fmt.Printf("Error, not able to create Slack client in failure command: %v", err)
 				return nil

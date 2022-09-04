@@ -16,12 +16,14 @@ import (
 type JobInformer struct {
 	clientset *kubernetes.Clientset
 	exporter  Exporter
+	logger    *log.Logger
 }
 
-func RegisterJobInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset) {
+func RegisterJobInformer(logger *log.Logger, informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset) {
 	j := JobInformer{
 		clientset: clientset,
 		exporter:  exporter,
+		logger:    logger,
 	}
 
 	informerFactory.
@@ -66,13 +68,13 @@ func (j JobInformer) handle(e interface{}) {
 			AuthorEmail: job.Annotations[authorAnnotationKey],
 		})
 		if err != nil {
-			log.Errorf("Failed to send job error event: %v", err)
+			j.logger.Errorf("Failed to send job error event: %v", err)
 			return
 		}
 		// Annotate the Deployment to be able to skip it next time
 		err = annotateJob(ctx, j.clientset, job)
 		if err != nil {
-			log.Errorf("Unable to annotate Job: %v", err)
+			j.logger.Errorf("Unable to annotate Job: %v", err)
 			return
 		}
 	}

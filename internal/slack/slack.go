@@ -20,6 +20,7 @@ type SlackClient interface {
 
 type Client struct {
 	client        SlackClient
+	logger        *log.Logger
 	emailMappings map[string]string
 	muteOptions   MuteOptions
 	emailSuffix   string
@@ -40,9 +41,9 @@ var (
 	ErrUnknownEmail = errors.New("not an accepted email domain")
 )
 
-func NewClient(slackClient SlackClient, emailMappings map[string]string, emailSuffix string) (*Client, error) {
+func NewClient(slackClient SlackClient, logger *log.Logger, emailMappings map[string]string, emailSuffix string) (*Client, error) {
 	if slackClient == nil {
-		log.Infof("slack: skipping: no token, so no slack notification")
+		logger.Infof("slack: skipping: no token, so no slack notification")
 		return &Client{
 			muteOptions: MuteOptions{
 				Kubernetes:          true,
@@ -55,9 +56,10 @@ func NewClient(slackClient SlackClient, emailMappings map[string]string, emailSu
 		}, nil
 	}
 
-	log.Infof("slack: new client: initialized with emailMappings: %+v", emailMappings)
+	logger.Infof("slack: new client: initialized with emailMappings: %+v", emailMappings)
 	client := Client{
 		client:        slackClient,
+		logger:        logger,
 		emailMappings: emailMappings,
 		muteOptions:   MuteOptions{},
 		emailSuffix:   emailSuffix,
@@ -65,8 +67,8 @@ func NewClient(slackClient SlackClient, emailMappings map[string]string, emailSu
 	return &client, nil
 }
 
-func NewMuteableClient(slackClient SlackClient, emailMappings map[string]string, emailSuffix string, muteOptions MuteOptions) (*Client, error) {
-	client, err := NewClient(slackClient, emailMappings, emailSuffix)
+func NewMuteableClient(slackClient SlackClient, logger *log.Logger, emailMappings map[string]string, emailSuffix string, muteOptions MuteOptions) (*Client, error) {
+	client, err := NewClient(slackClient, logger, emailMappings, emailSuffix)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +81,7 @@ func (c *Client) getIdByEmail(ctx context.Context, email string) (string, error)
 		// check for fallback emails
 		companyEmail, ok := c.emailMappings[email]
 		if !ok {
-			log.WithContext(ctx).Errorf("%s is not a %s email and no mapping exist", email, c.emailSuffix) // todo: what is this and why log + return err
+			c.logger.WithContext(ctx).Errorf("%s is not a %s email and no mapping exist", email, c.emailSuffix) // todo: what is this and why log + return err
 			return "", ErrUnknownEmail
 		}
 		email = companyEmail
@@ -151,12 +153,12 @@ type ReleaseOptions struct {
 func (c *Client) NotifyRelease(ctx context.Context, releaseOptions ReleaseOptions) {
 	err := c.notifySlackReleasesChannel(ctx, releaseOptions)
 	if err != nil {
-		log.WithContext(ctx).Errorf("flow.NotifyReleaseHook: failed to post releases slack message: %v", err)
+		c.logger.WithContext(ctx).Errorf("flow.NotifyReleaseHook: failed to post releases slack message: %v", err)
 	}
 
 	err = c.notifyAuthorEventProcessed(ctx, releaseOptions)
 	if err != nil {
-		log.WithContext(ctx).Errorf("flow.NotifyReleaseHook: failed to post slack event processed message to author: %v", err)
+		c.logger.WithContext(ctx).Errorf("flow.NotifyReleaseHook: failed to post slack event processed message to author: %v", err)
 	}
 }
 
@@ -369,7 +371,7 @@ func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service
 	userID, err := c.getIdByEmail(ctx, actorEmail)
 	if err != nil {
 		// If user id somehow couldn't be found, post the message to fallback channel
-		log.With("actorEmail", actorEmail).Infof("slack: skipping: no user id found, so no slack notification")
+		c.logger.With("actorEmail", actorEmail).Infof("slack: skipping: no user id found, so no slack notification")
 		return nil
 	}
 

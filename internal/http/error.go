@@ -24,7 +24,8 @@ func (e *ErrorResponse) Error() string {
 	return e.Message
 }
 
-func Error(w http.ResponseWriter, message string, statusCode int) {
+// FIXME: maybe just return an error instead. This feels wrong.
+func Error(w http.ResponseWriter, logger *log.Logger, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	err := json.NewEncoder(w).Encode(ErrorResponse{
@@ -32,7 +33,7 @@ func Error(w http.ResponseWriter, message string, statusCode int) {
 		Message: message,
 	})
 	if err != nil {
-		log.Errorf("json encoding failed in error response: %v", err)
+		logger.Errorf("json encoding failed in error response: %v", err)
 	}
 }
 
@@ -44,9 +45,9 @@ func (v *validationErrors) Append(err string) {
 	v.errs = append(v.errs, err)
 }
 
-func (v *validationErrors) Evaluate(w http.ResponseWriter) bool {
+func (v *validationErrors) Evaluate(w http.ResponseWriter, logger *log.Logger) bool {
 	if len(v.errs) != 0 {
-		Error(w, v.String(), http.StatusBadRequest)
+		Error(w, logger, v.String(), http.StatusBadRequest)
 		return false
 	}
 	return true

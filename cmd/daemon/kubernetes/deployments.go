@@ -15,12 +15,14 @@ import (
 type DeploymentInformer struct {
 	clientset *kubernetes.Clientset
 	exporter  Exporter
+	logger    *log.Logger
 }
 
-func RegisterDeploymentInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset) {
+func RegisterDeploymentInformer(logger *log.Logger, informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset) {
 	d := DeploymentInformer{
 		clientset: clientset,
 		exporter:  exporter,
+		logger:    logger,
 	}
 
 	informerFactory.
@@ -84,14 +86,14 @@ func (d *DeploymentInformer) handleDeployment(e interface{}) {
 		DesiredPods:   *deploy.Spec.Replicas,
 	})
 	if err != nil {
-		log.Errorf("Failed to send successful deployment event: %v", err)
+		d.logger.Errorf("Failed to send successful deployment event: %v", err)
 		return
 	}
 
 	// Annotate the Deployment to be able to skip it next time
 	err = annotateDeployment(ctx, d.clientset, deploy)
 	if err != nil {
-		log.Errorf("Unable to annotate Deployment: %v", err)
+		d.logger.Errorf("Unable to annotate Deployment: %v", err)
 		return
 	}
 }

@@ -5,7 +5,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestAuthenticate(t *testing.T) {
@@ -60,13 +62,19 @@ func TestAuthenticate(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			logger := log.New(&log.Configuration{
+				Level: log.Level{
+					Level: zapcore.DebugLevel,
+				},
+				Development: true,
+			})
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			})
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			req.Header.Set("Authorization", tc.authorization)
 			w := httptest.NewRecorder()
-			authenticate(tc.serverToken)(handler).ServeHTTP(w, req)
+			authenticate(logger, tc.serverToken)(handler).ServeHTTP(w, req)
 
 			assert.Equal(t, tc.status, w.Result().StatusCode, "status code not as expected")
 		})

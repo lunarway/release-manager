@@ -15,12 +15,14 @@ import (
 type DaemonSetInformer struct {
 	clientset *kubernetes.Clientset
 	exporter  Exporter
+	logger    *log.Logger
 }
 
-func RegisterDaemonSetInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset) {
+func RegisterDaemonSetInformer(logger *log.Logger, informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset) {
 	d := DaemonSetInformer{
 		clientset: clientset,
 		exporter:  exporter,
+		logger:    logger,
 	}
 
 	informerFactory.
@@ -84,14 +86,14 @@ func (d *DaemonSetInformer) handle(e interface{}) {
 		DesiredPods:   ds.Status.DesiredNumberScheduled,
 	})
 	if err != nil {
-		log.Errorf("Failed to send successful daemonset event: %v", err)
+		d.logger.Errorf("Failed to send successful daemonset event: %v", err)
 		return
 	}
 
 	// Annotate the DaemonSet to be able to skip it next time
 	err = annotateDaemonSet(ctx, d.clientset, ds)
 	if err != nil {
-		log.Errorf("Unable to annotate DaemonSet: %v", err)
+		d.logger.Errorf("Unable to annotate DaemonSet: %v", err)
 		return
 	}
 }

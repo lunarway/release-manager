@@ -12,14 +12,19 @@ var (
 )
 
 func main() {
-	c, err := command.NewRoot(version)
+	var logConfiguration *log.Configuration
+	logConfiguration.ParseFromEnvironmnet()
+	logger := log.New(logConfiguration)
+
+	c, err := command.NewRoot(logger, version)
 	if err != nil {
-		log.Errorf("Error: %v", err)
+		logger.Errorf("Error: %v", err)
 		os.Exit(1)
 	}
+	logConfiguration = log.RegisterFlags(c)
+
 	err = c.Execute()
 	if err != nil {
-		log.Errorf("Error: %v", err)
 		os.Exit(1)
 	}
 }

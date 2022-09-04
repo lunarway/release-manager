@@ -1,6 +1,7 @@
 package command
 
 import (
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +15,7 @@ type Options struct {
 }
 
 // NewRoot returns a new instance of an artifact command.
-func NewRoot(version string) *cobra.Command {
+func NewRoot(logger *log.Logger, version string) *cobra.Command {
 	var options Options
 	command := &cobra.Command{
 		Use:   "artifact",
@@ -30,12 +31,12 @@ func NewRoot(version string) *cobra.Command {
 	command.PersistentFlags().StringVar(&options.MessageFileName, "message-file", "message.json", "file to store intermediate slack messages")
 	command.PersistentFlags().StringVar(&options.EmailSuffix, "email-suffix", "", "company email suffix to expect. E.g.: '@example.com'")
 	command.AddCommand(
-		addCommand(&options),
+		addCommand(logger, &options),
 		endCommand(&options),
-		failureCommand(&options),
-		initCommand(&options),
-		pushCommand(&options),
-		successfulCommand(&options),
+		failureCommand(logger, &options),
+		initCommand(logger, &options),
+		pushCommand(&options, logger),
+		successfulCommand(logger, &options),
 		versionCommand(version),
 	)
 	command.MarkFlagRequired("email-suffix")

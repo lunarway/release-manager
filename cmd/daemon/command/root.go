@@ -1,11 +1,12 @@
 package command
 
 import (
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/spf13/cobra"
 )
 
 // NewRoot returns a new instance of a daemon command.
-func NewRoot(version string) (*cobra.Command, error) {
+func NewRoot(logger *log.Logger, version string) (*cobra.Command, error) {
 	var command = &cobra.Command{
 		Use:   "daemon",
 		Short: "daemon",
@@ -14,7 +15,7 @@ func NewRoot(version string) (*cobra.Command, error) {
 		},
 	}
 	command.AddCommand(
-		StartDaemon(),
+		StartDaemon(logger),
 		NewVersion(version),
 	)
 	return command, nil

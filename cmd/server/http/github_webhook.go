@@ -14,16 +14,16 @@ import (
 	"gopkg.in/go-playground/webhooks.v5/github"
 )
 
-func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
+func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, logger *log.Logger, githubWebhookSecret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
 		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
-		logger := log.WithContext(ctx)
+		logger := logger.WithContext(ctx)
 		hook, _ := github.New(github.Options.Secret(githubWebhookSecret))
 		payload, err := hook.Parse(r, github.PushEvent)
 		if err != nil {
 			logger.Errorf("http: github webhook: decode request body failed: %v", err)
-			invalidBodyError(w)
+			invalidBodyError(w, logger)
 			return
 		}
 		switch payload := payload.(type) {

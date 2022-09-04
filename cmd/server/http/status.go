@@ -10,27 +10,27 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 )
 
-func status(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
+func status(payload *payload, flowSvc *flow.Service, logger *log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		values := r.URL.Query()
 		namespace := values.Get("namespace")
 		service := values.Get("service")
 		if emptyString(service) {
-			requiredQueryError(w, "service")
+			requiredQueryError(w, logger, "service")
 			return
 		}
 
 		ctx := r.Context()
-		logger := log.WithContext(ctx).WithFields("service", service, "namespace", namespace)
+		logger := logger.WithContext(ctx).WithFields("service", service, "namespace", namespace)
 		s, err := flowSvc.Status(ctx, namespace, service)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Infof("http: status: get status cancelled: service '%s'", service)
-				cancelled(w)
+				cancelled(w, logger)
 				return
 			}
 			logger.Errorf("http: status: get status failed: service '%s': %v", service, err)
-			unknownError(w)
+			unknownError(w, logger)
 			return
 		}
 

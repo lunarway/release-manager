@@ -26,21 +26,23 @@ type Event struct {
 	ReportingInstance   string    `json:"reportingInstance"`
 }
 
-func HandleEventFromFlux2(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		log.Errorf("Failed to unmarshal alert from flux2-notification-controller: %v", err)
-		http.Error(w, "unknown error", http.StatusInternalServerError)
-		return
-	}
+func HandleEventFromFlux2(logger *log.Logger) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			logger.Errorf("Failed to unmarshal alert from flux2-notification-controller: %v", err)
+			http.Error(w, "unknown error", http.StatusInternalServerError)
+			return
+		}
 
-	var event Event
-	err = json.Unmarshal(body, &event)
-	if err != nil {
-		log.Errorf("Failed to unmarshal alert from flux2-notification-controller: %v", err)
-		http.Error(w, "unknown error", http.StatusInternalServerError)
-		return
+		var event Event
+		err = json.Unmarshal(body, &event)
+		if err != nil {
+			logger.Errorf("Failed to unmarshal alert from flux2-notification-controller: %v", err)
+			http.Error(w, "unknown error", http.StatusInternalServerError)
+			return
+		}
+		logger.Infof("Received alert from flux2-notification-controller: %s with msg: %s", event.InvolvedObject.Name, event.Message)
 	}
-	log.Infof("Received alert from flux2-notification-controller: %s with msg: %s", event.InvolvedObject.Name, event.Message)
 }

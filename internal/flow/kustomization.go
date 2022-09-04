@@ -64,7 +64,7 @@ func kustomizationExists(directory string) (string, error) {
 	return filePath, nil
 }
 
-func moveKustomizationToClusters(ctx context.Context, srcPath, root, service, env, namespace string) error {
+func moveKustomizationToClusters(ctx context.Context, logger *log.Logger, srcPath, root, service, env, namespace string) error {
 	destDir, err := kustomizationPath(root, env, namespace)
 	if err != nil {
 		return errors.WithMessage(err, "assemble kustomization path")
@@ -80,7 +80,7 @@ func moveKustomizationToClusters(ctx context.Context, srcPath, root, service, en
 		return errors.WithMessage(err, "secure join destination path")
 	}
 
-	log.WithContext(ctx).Infof("moveKustomizationToClusters: destPath '%s'", destPath)
+	logger.WithContext(ctx).Infof("moveKustomizationToClusters: destPath '%s'", destPath)
 
 	err = os.Rename(srcPath, destPath)
 	if err != nil {

@@ -8,20 +8,20 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 )
 
-func createArtifact(payload *payload, artifactWriteStorage ArtifactWriteStorage) http.HandlerFunc {
+func createArtifact(payload *payload, artifactWriteStorage ArtifactWriteStorage, logger *log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		logger := log.WithContext(ctx)
+		logger := logger.WithContext(ctx)
 
 		var req httpinternal.ArtifactUploadRequest
 		err := payload.decodeResponse(ctx, r.Body, &req)
 		if err != nil {
 			logger.Errorf("http: artifact: create: decode request body failed: %v", err)
-			invalidBodyError(w)
+			invalidBodyError(w, logger)
 			return
 		}
 
-		if !req.Validate(w) {
+		if !req.Validate(w, logger) {
 			return
 		}
 
@@ -29,7 +29,7 @@ func createArtifact(payload *payload, artifactWriteStorage ArtifactWriteStorage)
 		uploadURL, err := artifactWriteStorage.CreateArtifact(req.Artifact, req.MD5)
 		if err != nil {
 			logger.Errorf("http: artifact: create: storage failed failed creating artifact: %v", err)
-			unknownError(w)
+			unknownError(w, logger)
 			return
 		}
 

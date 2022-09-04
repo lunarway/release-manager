@@ -13,6 +13,7 @@ import (
 type Client struct {
 	Clientset       *kubernetes.Clientset
 	InformerFactory informers.SharedInformerFactory
+	logger          *log.Logger
 
 	hasSynced chan struct{}
 }
@@ -21,7 +22,7 @@ var (
 	ErrWatcherClosed = errors.New("channel closed")
 )
 
-func NewClient(kubeConfigPath string) (*Client, error) {
+func NewClient(logger *log.Logger, kubeConfigPath string) (*Client, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
 		return nil, err
@@ -37,6 +38,7 @@ func NewClient(kubeConfigPath string) (*Client, error) {
 	return &Client{
 		Clientset:       clientset,
 		InformerFactory: factory,
+		logger:          logger,
 
 		hasSynced: make(chan struct{}),
 	}, nil
@@ -50,7 +52,7 @@ func (c *Client) Start(stopCh chan struct{}) error {
 		if !synced {
 			return fmt.Errorf("failed to sync informer '%v'", informer)
 		}
-		log.Infof("Synced informer '%v'", informer)
+		c.logger.Infof("Synced informer '%v'", informer)
 	}
 
 	close(c.hasSynced)

@@ -240,13 +240,12 @@ func TestService_ApplyBranchRestriction(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			log.Init(&log.Configuration{
+			logger := log.New(&log.Configuration{
 				Level: log.Level{
 					Level: zapcore.DebugLevel,
 				},
 				Development: true,
 			})
-			logger := log.With() // bad way to get the global logger for now
 			gitService := MockGitService{}
 			var destinationPath string
 			gitService.On("MasterPath").Return(func() string {
@@ -266,6 +265,7 @@ func TestService_ApplyBranchRestriction(t *testing.T) {
 			}, nil)
 			gitService.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			s := Service{
+				Logger:                          logger,
 				Tracer:                          tracing.NewNoop(),
 				Git:                             &gitService,
 				GlobalBranchRestrictionPolicies: tc.globalPolicies,

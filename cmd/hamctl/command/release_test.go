@@ -14,8 +14,10 @@ import (
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/git"
 	internalhttp "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestRelease(t *testing.T) {
@@ -26,6 +28,13 @@ func TestRelease(t *testing.T) {
 	)
 	t.Setenv("HAMCTL_USER_NAME", "test")
 	t.Setenv("HAMCTL_USER_EMAIL", "test@example.com")
+
+	logger := log.New(&log.Configuration{
+		Level: log.Level{
+			Level: zapcore.DebugLevel,
+		},
+		Development: true,
+	})
 
 	// mocked manager server responding as configured in variables below
 	var (
@@ -49,7 +58,7 @@ func TestRelease(t *testing.T) {
 
 			resp, errorResponse := releaseResponse(req)
 			if errorResponse != nil {
-				internalhttp.Error(rw, errorResponse.Error(), errorResponse.Status)
+				internalhttp.Error(rw, logger, errorResponse.Error(), errorResponse.Status)
 				return
 			}
 			err = json.NewEncoder(rw).Encode(resp)

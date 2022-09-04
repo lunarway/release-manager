@@ -35,6 +35,7 @@ type GitConfig struct {
 
 type Service struct {
 	Tracer            tracing.Tracer
+	Logger            *log.Logger
 	Copier            *copy.Copier
 	SSHPrivateKeyPath string
 	ConfigRepoURL     string
@@ -54,7 +55,7 @@ func (s *Service) MasterPath() string {
 func (s *Service) InitMasterRepo(ctx context.Context) (func(context.Context), error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.InitMasterRepo")
 	defer span.Finish()
-	path, close, err := TempDir(ctx, s.Tracer, "k8s-master-clone")
+	path, close, err := TempDir(ctx, s.Logger, s.Tracer, "k8s-master-clone")
 	if err != nil {
 		close(ctx)
 		return nil, errors.WithMessage(err, "get temporary directory")
@@ -68,7 +69,7 @@ func (s *Service) InitMasterRepo(ctx context.Context) (func(context.Context), er
 	defer s.masterMutex.Unlock()
 	s.master = repo
 	s.masterPath = path
-	log.WithContext(ctx).Infof("Master repo cloned into '%s'", path)
+	s.Logger.WithContext(ctx).Infof("Master repo cloned into '%s'", path)
 	return close, nil
 }
 
@@ -109,13 +110,13 @@ func (s *Service) SyncMaster(ctx context.Context) error {
 	span.Finish()
 
 	span, _ = s.Tracer.FromCtx(ctx, "fetch")
-	err := execCommand(ctx, s.MasterPath(), "git", "fetch", "origin", "master")
+	err := execCommand(ctx, s.Logger, s.MasterPath(), "git", "fetch", "origin", "master")
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "fetch changes")
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "pull")
-	err = execCommand(ctx, s.MasterPath(), "git", "pull")
+	err = execCommand(ctx, s.Logger, s.MasterPath(), "git", "pull")
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "pull latest")
@@ -161,7 +162,7 @@ func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repo
 func (s *Service) Checkout(ctx context.Context, rootPath string, hash plumbing.Hash) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Checkout")
 	defer span.Finish()
-	err := execCommand(ctx, rootPath, "git", "checkout", hash.String())
+	err := execCommand(ctx, s.Logger, rootPath, "git", "checkout", hash.String())
 	if err != nil {
 		return errors.WithMessage(err, "checkout hash")
 	}
@@ -303,14 +304,14 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 	defer span.Finish()
 
 	span, _ = s.Tracer.FromCtx(ctx, "add changes")
-	err := execCommand(ctx, rootPath, "git", "add", ".")
+	err := execCommand(ctx, s.Logger, rootPath, "git", "add", ".")
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "add changes")
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "check for changes")
-	err = checkStatus(ctx, rootPath)
+	err = checkStatus(ctx, s.Logger, rootPath)
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "check for changes")
@@ -327,7 +328,7 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 	args = append(args, fmt.Sprintf(`-m%s`, msg))
 
 	span, _ = s.Tracer.FromCtx(ctx, "commit")
-	err = execCommand(ctx, rootPath, "git", args...)
+	err = execCommand(ctx, s.Logger, rootPath, "git", args...)
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "commit")
@@ -335,7 +336,7 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 
 	span, _ = s.Tracer.FromCtx(ctx, "push")
 	defer span.Finish()
-	return gitPush(ctx, rootPath)
+	return gitPush(ctx, s.Logger, rootPath)
 }
 
 func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, msg string) error {
@@ -343,21 +344,21 @@ func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, autho
 	defer span.Finish()
 
 	span, _ = s.Tracer.FromCtx(ctx, "add changes")
-	err := execCommand(ctx, rootPath, "git", "add", ".")
+	err := execCommand(ctx, s.Logger, rootPath, "git", "add", ".")
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "add changes")
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "check for changes")
-	err = checkStatus(ctx, rootPath)
+	err = checkStatus(ctx, s.Logger, rootPath)
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "check for changes")
 	}
 	fullCommitMsg := fmt.Sprintf("%s\nArtifact-created-by: %s <%s>", msg, authorName, authorEmail)
 	span, _ = s.Tracer.FromCtx(ctx, "commit")
-	err = execCommand(ctx, rootPath,
+	err = execCommand(ctx, s.Logger, rootPath,
 		"git",
 		"commit",
 		fmt.Sprintf(`-m%s`, fullCommitMsg),
@@ -369,11 +370,11 @@ func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, autho
 
 	span, _ = s.Tracer.FromCtx(ctx, "push")
 	defer span.Finish()
-	return gitPush(ctx, rootPath)
+	return gitPush(ctx, s.Logger, rootPath)
 }
 
-func execCommand(ctx context.Context, rootPath string, cmdName string, args ...string) error {
-	logger := log.WithContext(ctx).WithFields("root", rootPath)
+func execCommand(ctx context.Context, logger *log.Logger, rootPath string, cmdName string, args ...string) error {
+	logger = logger.WithContext(ctx).WithFields("root", rootPath)
 	logger.Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, cmdName, args...)
 	cmd.Dir = rootPath
@@ -434,10 +435,10 @@ func isKnownGitError(stderrData []byte) error {
 	return nil
 }
 
-func checkStatus(ctx context.Context, rootPath string) error {
+func checkStatus(ctx context.Context, logger *log.Logger, rootPath string) error {
 	cmdName := "git"
 	args := []string{"status", "--porcelain"}
-	logger := log.WithContext(ctx).WithFields("root", rootPath)
+	logger = logger.WithContext(ctx).WithFields("root", rootPath)
 	logger.Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, cmdName, args...)
 	cmd.Dir = rootPath
@@ -475,10 +476,10 @@ func checkStatus(ctx context.Context, rootPath string) error {
 	return nil
 }
 
-func gitPush(ctx context.Context, rootPath string) error {
+func gitPush(ctx context.Context, logger *log.Logger, rootPath string) error {
 	cmdName := "git"
 	args := []string{"push", "origin", "master", "--porcelain"}
-	logger := log.WithContext(ctx).WithFields("root", rootPath)
+	logger = logger.WithContext(ctx).WithFields("root", rootPath)
 	logger.Infof("git/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, cmdName, args...)
 	cmd.Dir = rootPath

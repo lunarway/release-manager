@@ -4,9 +4,6 @@ import (
 	"context"
 	"os"
 	"testing"
-
-	"github.com/lunarway/release-manager/internal/log"
-	"go.uber.org/zap/zapcore"
 )
 
 func TestService_TagRepo(t *testing.T) {
@@ -14,12 +11,6 @@ func TestService_TagRepo(t *testing.T) {
 	if token == "" {
 		t.Skip("GITHUB_API_TOKEN not supplied")
 	}
-	log.Init(&log.Configuration{
-		Level: log.Level{
-			Level: zapcore.DebugLevel,
-		},
-		Development: true,
-	})
 	s := Service{
 		Token: token,
 	}
