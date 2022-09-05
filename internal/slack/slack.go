@@ -79,7 +79,12 @@ func (c *Client) getIdByEmail(ctx context.Context, email string) (string, error)
 		// check for fallback emails
 		companyEmail, ok := c.emailMappings[email]
 		if !ok {
-			log.WithContext(ctx).Errorf("%s is not a %s email and no mapping exist", email, c.emailSuffix) // todo: what is this and why log + return err
+			// we log this error up front as it is a signal to operators that emails
+			// cannot be mapped to slack IDs. This should be fixed by either user
+			// using a valid email for commits for the slack space or by adding a
+			// mapping to a valid email. We still return the error to let the caller
+			// take appropriate action, eg. retries.
+			log.WithContext(ctx).Errorf("%s is not a %s email and no mapping exist", email, c.emailSuffix)
 			return "", ErrUnknownEmail
 		}
 		email = companyEmail
