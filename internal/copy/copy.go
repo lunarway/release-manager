@@ -18,19 +18,29 @@ var (
 	ErrUnknownSource = errors.New("copy: unknown source")
 )
 
-func CopyDir(ctx context.Context, src, dest string) error {
+type Copier struct {
+	logger *log.Logger
+}
+
+func New(logger *log.Logger) *Copier {
+	return &Copier{
+		logger: logger,
+	}
+}
+
+func (c *Copier) CopyDir(ctx context.Context, src, dest string) error {
 	if !strings.HasSuffix(src, string(os.PathSeparator)) {
 		src = fmt.Sprintf("%s/.", src)
 	}
-	return execCommand(ctx, ".", "cp", "-a", src, dest)
+	return c.execCommand(ctx, ".", "cp", "-a", src, dest)
 }
 
-func CopyFile(ctx context.Context, src, dest string) error {
-	return execCommand(ctx, ".", "cp", "-a", src, dest)
+func (c *Copier) CopyFile(ctx context.Context, src, dest string) error {
+	return c.execCommand(ctx, ".", "cp", "-a", src, dest)
 }
 
-func execCommand(ctx context.Context, rootPath string, cmdName string, args ...string) error {
-	logger := log.WithContext(ctx).WithFields("root", rootPath)
+func (c *Copier) execCommand(ctx context.Context, rootPath string, cmdName string, args ...string) error {
+	logger := c.logger.WithContext(ctx).WithFields("root", rootPath)
 	logger.Infof("copy/execCommand: running: %s %s", cmdName, strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, cmdName, args...)
 	cmd.Dir = rootPath

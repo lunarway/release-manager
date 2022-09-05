@@ -35,6 +35,7 @@ type GitConfig struct {
 
 type Service struct {
 	Tracer            tracing.Tracer
+	Copier            *copy.Copier
 	SSHPrivateKeyPath string
 	ConfigRepoURL     string
 	Config            *GitConfig
@@ -143,7 +144,7 @@ func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repo
 	defer s.masterMutex.RUnlock()
 	span.Finish()
 	span, _ = s.Tracer.FromCtx(ctx, "copy to destination")
-	err = copy.CopyDir(ctx, s.MasterPath(), destination)
+	err = s.Copier.CopyDir(ctx, s.MasterPath(), destination)
 	span.Finish()
 	if err != nil {
 		return nil, errors.WithMessagef(err, "copy master from '%s'", s.MasterPath())

@@ -18,6 +18,7 @@ import (
 	"github.com/lunarway/release-manager/internal/broker"
 	"github.com/lunarway/release-manager/internal/broker/amqpextra"
 	"github.com/lunarway/release-manager/internal/broker/memory"
+	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/github"
@@ -144,8 +145,12 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					}
 				}
 			}
+
+			copier := copy.New(log.With("system", "copier"))
+
 			gitSvc := git.Service{
 				Tracer:            tracer,
+				Copier:            copier,
 				SSHPrivateKeyPath: startOptions.configRepo.SSHPrivateKeyPath,
 				ConfigRepoURL:     startOptions.configRepo.ConfigRepo,
 				Config:            startOptions.gitConfigOpts,
@@ -265,6 +270,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				Storage:          s3storageSvc,
 				Policy:           &policySvc,
 				Tracer:           tracer,
+				Copier:           copier,
 				// TODO: figure out a better way of splitting the consumer and publisher
 				// to avoid this chicken and egg issue. It is not a real problem as the
 				// consumer is started later on and this we are sure this gets set, it

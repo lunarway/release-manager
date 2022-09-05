@@ -47,6 +47,7 @@ type Service struct {
 	CanRelease       func(ctx context.Context, svc, branch, env string) (bool, error)
 	Storage          ArtifactReadStorage
 	Policy           *policy.Service
+	Copier           *copy.Copier
 
 	PublishReleaseArtifactID func(context.Context, ReleaseArtifactIDEvent) error
 	PublishNewArtifact       func(context.Context, NewArtifactEvent) error
@@ -403,7 +404,7 @@ func (s *Service) cleanCopy(ctx context.Context, src, dest string) error {
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "copy files")
 	span.Finish()
-	err = copy.CopyDir(ctx, src, dest)
+	err = s.Copier.CopyDir(ctx, src, dest)
 	if err != nil {
 		if errors.Cause(err) == copy.ErrUnknownSource {
 			return ErrUnknownConfiguration
