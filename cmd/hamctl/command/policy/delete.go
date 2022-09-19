@@ -41,7 +41,7 @@ Delete multiple policies:
 	$ hamctl --service product policy delete auto-release-master-dev auto-release-master-prod
 `,
 		RunE: func(_ *cobra.Command, args []string) error {
-			committerName, committerEmail, err := git.CommitterDetails()
+			committer, err := gitConfigAPI.CommitterDetails()
 			if err != nil {
 				return err
 			}

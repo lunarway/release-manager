@@ -49,7 +49,7 @@ func autoRelease(client *httpinternal.Client, service *string, gitConfigAPI GitC
 		Short: "Auto-release policy for releasing branch artifacts to an environment",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(_ *cobra.Command, _ []string) error {
-			committerName, committerEmail, err := git.CommitterDetails()
+			committer, err := gitConfigAPI.CommitterDetails()
 			if err != nil {
 				return err
 			}
