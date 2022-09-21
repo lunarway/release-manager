@@ -2,6 +2,9 @@ package flow
 
 import (
 	"context"
+	"encoding/json"
+	httppackage "net/http"
+	"strings"
 
 	"github.com/lunarway/release-manager/internal/http"
 
@@ -13,6 +16,10 @@ func (s *Service) NotifyK8SDeployEvent(ctx context.Context, event *http.ReleaseE
 	defer span.Finish()
 	span, _ = s.Tracer.FromCtx(ctx, "post k8s deploy slack message")
 	err := s.Slack.NotifyK8SDeployEvent(ctx, event)
+	notifyDevelopmentMetrics(event)
+	if err != nil {
+		errors.WithMessage(err, "post k8s deploy development metrics")
+	}
 	span.Finish()
 	if err != nil {
 		return errors.WithMessage(err, "post k8s deploy slack message")
@@ -42,4 +49,16 @@ func (s *Service) NotifyK8SJobErrorEvent(ctx context.Context, event *http.JobErr
 		return errors.WithMessage(err, "post k8s NotifyK8SJobErrorEvent slack message")
 	}
 	return nil
+}
+
+func notifyDevelopmentMetrics(k8sReleaseEvent *http.ReleaseEvent) error {
+	marshal, err := json.Marshal(k8sReleaseEvent)
+	if err != nil {
+		return err
+	}
+	post, err := httppackage.Post("http://development-metrics-service:3000/release-manager", "application/json", strings.NewReader(string(marshal)))
+	if post.StatusCode != 200 || err != nil {
+		return err
+	}
+	return err
 }
