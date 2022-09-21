@@ -16,7 +16,7 @@ func (s *Service) NotifyK8SDeployEvent(ctx context.Context, event *http.ReleaseE
 	defer span.Finish()
 	span, _ = s.Tracer.FromCtx(ctx, "post k8s deploy slack message")
 	err := s.Slack.NotifyK8SDeployEvent(ctx, event)
-	notifyDevelopmentMetrics(event)
+	err = notifyDevelopmentMetrics(event)
 	if err != nil {
 		errors.WithMessage(err, "post k8s deploy development metrics")
 	}
