@@ -70,7 +70,7 @@ func New(c Config) (*Worker, error) {
 		amqpextra.WithNotify(dialerState),
 		amqpextra.WithAMQPDial(func(url string, amqpConf amqp.Config) (connection amqpextra.AMQPConnection, err error) {
 			amqpConf.Dial = amqp.DefaultDial(c.ConnectTimeout)
-			//TODO if we want to, we can actually set the Heartbeat here:
+			//TODO: if we want to, we can actually set the Heartbeat here:
 			//amqpConf.Heartbeat = c.Heartbeat
 			dialAttempt++
 			conn, connErr := amqp.DialConfig(url, amqpConf)
