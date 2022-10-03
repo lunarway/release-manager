@@ -37,7 +37,7 @@ func ArtifactIDFromBranch(client *httpinternal.Client, service string, branch st
 	var describeResp httpinternal.DescribeArtifactResponse
 	params := url.Values{}
 	params.Add("branch", branch)
-	path, err := client.URLWithQuery(fmt.Sprintf("describe/latest-artifact/%s", service), params)
+	path, err := client.URLWithQuery(fmt.Sprintf("describe/latest-artifact/%s/%s", service, branch), params)
 	if err != nil {
 		return "", err
 	}
