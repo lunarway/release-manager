@@ -173,7 +173,7 @@ daemon-webhook-success:
 		{ "name": "container2", "state": "Ready" } \
 	  ] \
 	}' \
-	$(URL)/webhook/daemon
+	$(URL)/webhook/daemon/k8s/deploy
 
 daemon-webhook-crashloop:
 	curl -X POST \
