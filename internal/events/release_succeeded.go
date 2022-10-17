@@ -12,7 +12,7 @@ type ReleaseSucceeded struct {
 	ResourceType  string `json:"resourceType,omitempty"`
 	AvailablePods int32  `json:"availablePods,omitempty"`
 	DesiredPods   int32  `json:"desiredPods,omitempty"`
-	ArtifactID    string `json:"artifactID,omitempty"`
+	ArtifactID    string `json:"artifactId,omitempty"`
 	AuthorEmail   string `json:"authorEmail,omitempty"`
 	Environment   string `json:"environment,omitempty"`
 }
