@@ -57,6 +57,11 @@ type Service struct {
 	// NotifyReleaseHook is triggered in a Go routine when a release is completed.
 	// The context.Context is cancelled if the originating flow call is cancelled.
 	NotifyReleaseHook func(ctx context.Context, options NotifyReleaseOptions)
+
+	// NotifyReleaseSucceededHook is triggered in a Go routine when a release has
+	// succeeded. The context.Context is cancelled if the originating flow call is
+	// cancelled.
+	NotifyReleaseSucceededHook func(ctx context.Context, options NotifyReleaseSucceededOptions)
 }
 
 type NotifyReleaseOptions struct {
@@ -66,6 +71,17 @@ type NotifyReleaseOptions struct {
 	Releaser    string
 	Spec        artifact.Spec
 	Intent      intent.Intent
+}
+
+type NotifyReleaseSucceededOptions struct {
+	Name          string
+	Namespace     string
+	ResourceType  string
+	AvailablePods int32
+	DesiredPods   int32
+	ArtifactID    string
+	AuthorEmail   string
+	Environment   string
 }
 
 type GitService interface {

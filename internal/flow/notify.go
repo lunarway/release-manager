@@ -11,12 +11,19 @@ import (
 func (s *Service) NotifyK8SDeployEvent(ctx context.Context, event *http.ReleaseEvent) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyK8SDeployment")
 	defer span.Finish()
-	span, _ = s.Tracer.FromCtx(ctx, "post k8s deploy slack message")
-	err := s.Slack.NotifyK8SDeployEvent(ctx, event)
-	span.Finish()
-	if err != nil {
-		return errors.WithMessage(err, "post k8s deploy slack message")
+	if s.NotifyReleaseSucceededHook != nil {
+		go s.NotifyReleaseSucceededHook(noCancel{ctx: ctx}, NotifyReleaseSucceededOptions{
+			Name:          event.Name,
+			Namespace:     event.Namespace,
+			ResourceType:  event.ResourceType,
+			AvailablePods: event.AvailablePods,
+			DesiredPods:   event.DesiredPods,
+			ArtifactID:    event.ArtifactID,
+			AuthorEmail:   event.AuthorEmail,
+			Environment:   event.Environment,
+		})
 	}
+
 	return nil
 }
 

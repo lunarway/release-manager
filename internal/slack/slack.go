@@ -280,7 +280,17 @@ func (c *Client) notifyAuthorEventProcessed(ctx context.Context, options Release
 	return err
 }
 
-func (c *Client) NotifyK8SDeployEvent(ctx context.Context, event *http.ReleaseEvent) error {
+type NotifyK8sDeployOptions struct {
+	AuthorEmail   string
+	Environment   string
+	Name          string
+	AvailablePods int32
+	DesiredPods   int32
+	ResourceType  string
+	ArtifactID    string
+}
+
+func (c *Client) NotifyK8SDeployEvent(ctx context.Context, event NotifyK8sDeployOptions) error {
 	if c.muteOptions.Kubernetes {
 		return nil
 	}

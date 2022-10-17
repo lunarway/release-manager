@@ -322,6 +322,43 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				},
 			}
 
+			releaseSucceededNotifiers := map[string]func(context.Context, flow.NotifyReleaseSucceededOptions){
+				"slack": func(ctx context.Context, opts flow.NotifyReleaseSucceededOptions) {
+					logger := log.WithContext(ctx)
+					err := slackClient.NotifyK8SDeployEvent(ctx, intslack.NotifyK8sDeployOptions{
+						AuthorEmail:   opts.AuthorEmail,
+						Environment:   opts.Environment,
+						Name:          opts.Name,
+						AvailablePods: opts.AvailablePods,
+						DesiredPods:   opts.DesiredPods,
+						ResourceType:  opts.ResourceType,
+						ArtifactID:    opts.ArtifactID,
+					})
+					if err != nil {
+						logger.Errorf("post k8s deploy slack message failed: %v", err)
+					}
+				},
+				"event": func(ctx context.Context, opts flow.NotifyReleaseSucceededOptions) {
+					logger := log.WithContext(ctx)
+					err = brokerImpl.Publish(ctx, &events.ReleaseSucceeded{
+						Name:          opts.Name,
+						Namespace:     opts.Namespace,
+						ResourceType:  opts.ResourceType,
+						AvailablePods: opts.AvailablePods,
+						DesiredPods:   opts.DesiredPods,
+						ArtifactID:    opts.ArtifactID,
+						AuthorEmail:   opts.AuthorEmail,
+						Environment:   opts.Environment,
+					})
+
+					if err != nil {
+						logger.Errorf("could not publish release_succeeded_event. Error: %w", err)
+						return
+					}
+					logger.Debugf("published release_succeeded_event for artifactId: %s", opts.ArtifactID)
+				},
+			}
+
 			// TODO: figure out a better way of splitting the consumer and publisher
 			// to avoid this chicken and egg issue. It is not a real problem as the
 			// consumer is started later on and this we are sure this gets set, it
@@ -349,6 +386,16 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 						span.Finish()
 					}
 				},
+				NotifyReleaseSucceededHook: func(ctx context.Context, opts flow.NotifyReleaseSucceededOptions) {
+					span, ctx := tracer.FromCtx(ctx, "flow.NotifyReleaseSucceededHook")
+					defer span.Finish()
+
+					for name, notifier := range releaseSucceededNotifiers {
+						span, ctx := tracer.FromCtx(ctx, fmt.Sprintf("notify %s", name))
+						notifier(ctx, opts)
+						span.Finish()
+					}
+				},
 			}
 			eventHandlers := map[string]func([]byte) error{
 				flow.ReleaseArtifactIDEvent{}.Type(): func(d []byte) error {
@@ -369,6 +416,14 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				},
 				events.ReleasedEvent{}.Type(): func(d []byte) error {
 					var event events.ReleasedEvent
+					err := event.Unmarshal(d)
+					if err != nil {
+						return errors.WithMessage(err, "unmarshal event")
+					}
+					return nil
+				},
+				events.ReleaseSucceeded{}.Type(): func(d []byte) error {
+					var event events.ReleaseSucceeded
 					err := event.Unmarshal(d)
 					if err != nil {
 						return errors.WithMessage(err, "unmarshal event")
