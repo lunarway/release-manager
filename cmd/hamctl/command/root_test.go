@@ -74,10 +74,11 @@ func TestSetCallerEmailFromCommitter(t *testing.T) {
 	tt := []struct {
 		name             string
 		gitConfigApiMock GitConfigAPI
+		email            string
 		expectedEmail    string
 	}{
 		{
-			name: "with valid email",
+			name: "with valid email from committer",
 			gitConfigApiMock: &GitConfigAPIMock{
 				CommitterDetailsFunc: func() (*git.CommitterDetails, error) {
 					return &git.CommitterDetails{Email: "some@email"}, nil
@@ -94,13 +95,17 @@ func TestSetCallerEmailFromCommitter(t *testing.T) {
 			},
 			expectedEmail: "",
 		},
+		{
+			name:          "with valid email",
+			email:         "some@email",
+			expectedEmail: "some@email",
+		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			client := &http.Client{}
-			setCallerEmailFromCommitter(tc.gitConfigApiMock, client)
-
+			_ = setCallerEmailFromCommitter(tc.gitConfigApiMock, client, tc.email)
 			assert.Equal(t, tc.expectedEmail, client.Metadata.CallerEmail)
 		})
 	}
@@ -110,6 +115,7 @@ func TestSetCallerEmailFromCommitterReturnsError(t *testing.T) {
 	tt := []struct {
 		name             string
 		gitConfigApiMock GitConfigAPI
+		email            string
 		expectedError    error
 	}{
 		{
@@ -126,7 +132,7 @@ func TestSetCallerEmailFromCommitterReturnsError(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			client := &http.Client{}
-			err := setCallerEmailFromCommitter(tc.gitConfigApiMock, client)
+			err := setCallerEmailFromCommitter(tc.gitConfigApiMock, client, tc.email)
 			assert.ErrorContains(t, err, tc.expectedError.Error())
 			assert.Equal(t, "", client.Metadata.CallerEmail)
 		})

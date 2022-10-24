@@ -53,7 +53,7 @@ func NewRoot(version *string) (*cobra.Command, error) {
 			if service == "" {
 				missingFlags = append(missingFlags, "service")
 			}
-			if err := setCallerEmailFromCommitter(gitConfigAPI, &client); err != nil {
+			if err := setCallerEmailFromCommitter(gitConfigAPI, &client, email); err != nil {
 				missingFlags = append(missingFlags, "user-email")
 			}
 
@@ -134,11 +134,16 @@ func defaultShuttleString(shuttleLocator func() (shuttleSpec, bool), flagValue *
 	}
 }
 
-func setCallerEmailFromCommitter(gitConfigAPI GitConfigAPI, client *http.Client) error {
-	committer, err := gitConfigAPI.CommitterDetails()
-	if err != nil {
-		return fmt.Errorf("could not get committer from git: %w", err)
+func setCallerEmailFromCommitter(gitConfigAPI GitConfigAPI, client *http.Client, email string) error {
+	if email != "" {
+		client.Metadata.CallerEmail = email
+	} else {
+		committer, err := gitConfigAPI.CommitterDetails()
+		if err != nil {
+			return fmt.Errorf("could not get committer from git: %w", err)
+		}
+		client.Metadata.CallerEmail = committer.Email
 	}
-	client.Metadata.CallerEmail = committer.Email
+
 	return nil
 }
