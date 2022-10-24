@@ -70,7 +70,7 @@ func TestDefaultShuttleString_noSpec(t *testing.T) {
 	assert.Equal(t, "", flagValue, "flag value not as expected")
 }
 
-func TestSetCallerEmailFromCommitter(t *testing.T) {
+func TestSetCallerEmail(t *testing.T) {
 	tt := []struct {
 		name             string
 		gitConfigApiMock GitConfigAPI
@@ -105,13 +105,13 @@ func TestSetCallerEmailFromCommitter(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			client := &http.Client{}
-			_ = setCallerEmailFromCommitter(tc.gitConfigApiMock, client, tc.email)
+			_ = setCallerEmail(tc.gitConfigApiMock, client, tc.email)
 			assert.Equal(t, tc.expectedEmail, client.Metadata.CallerEmail)
 		})
 	}
 }
 
-func TestSetCallerEmailFromCommitterReturnsError(t *testing.T) {
+func TestSetCallerEmailReturnsError(t *testing.T) {
 	tt := []struct {
 		name             string
 		gitConfigApiMock GitConfigAPI
@@ -132,7 +132,7 @@ func TestSetCallerEmailFromCommitterReturnsError(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			client := &http.Client{}
-			err := setCallerEmailFromCommitter(tc.gitConfigApiMock, client, tc.email)
+			err := setCallerEmail(tc.gitConfigApiMock, client, tc.email)
 			assert.ErrorContains(t, err, tc.expectedError.Error())
 			assert.Equal(t, "", client.Metadata.CallerEmail)
 		})
