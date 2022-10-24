@@ -25,7 +25,6 @@ func NewRoot(version *string) (*cobra.Command, error) {
 	}
 
 	gitConfigAPI := git.NewLocalGitConfigAPI()
-
 	releaseClient := actions.NewReleaseHttpClient(gitConfigAPI, &client)
 
 	var command = &cobra.Command{
@@ -54,15 +53,10 @@ func NewRoot(version *string) (*cobra.Command, error) {
 			if service == "" {
 				missingFlags = append(missingFlags, "service")
 			}
-			if email == "" {
-				committer, err := gitConfigAPI.CommitterDetails()
-				if err != nil {
-					missingFlags = append(missingFlags, "user-email")
-				} else {
-					email = committer.Email
-				}
+			if err := setCallerEmailFromCommitter(gitConfigAPI, &client); err != nil {
+				missingFlags = append(missingFlags, "user-email")
 			}
-			client.Metadata.CallerEmail = email
+
 			if len(missingFlags) != 0 {
 				return errors.Errorf(`required flag(s) "%s" not set`, strings.Join(missingFlags, `", "`))
 			}
@@ -138,4 +132,13 @@ func defaultShuttleString(shuttleLocator func() (shuttleSpec, bool), flagValue *
 	if t != "" {
 		*flagValue = t
 	}
+}
+
+func setCallerEmailFromCommitter(gitConfigAPI GitConfigAPI, client *http.Client) error {
+	committer, err := gitConfigAPI.CommitterDetails()
+	if err != nil {
+		return fmt.Errorf("could not get committer from git: %w", err)
+	}
+	client.Metadata.CallerEmail = committer.Email
+	return nil
 }
