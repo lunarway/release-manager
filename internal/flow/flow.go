@@ -62,6 +62,9 @@ type Service struct {
 	// succeeded. The context.Context is cancelled if the originating flow call is
 	// cancelled.
 	NotifyReleaseSucceededHook func(ctx context.Context, options NotifyReleaseSucceededOptions)
+
+	// NotifyReleaseFailedHook is trigger in a Go routine when a release has failed.
+	NotifyReleaseFailedHook func(ctx context.Context, options NotifyReleaseFailedOptions)
 }
 
 type NotifyReleaseOptions struct {
@@ -82,6 +85,17 @@ type NotifyReleaseSucceededOptions struct {
 	ArtifactID    string
 	AuthorEmail   string
 	Environment   string
+}
+
+type NotifyReleaseFailedOptions struct {
+	PodName     string   `json:"podName,omitempty"`
+	Namespace   string   `json:"namespace,omitempty"`
+	Errors      []string `json:"errors,omitempty"`
+	AuthorEmail string   `json:"authorEmail,omitempty"`
+	Environment string   `json:"environment,omitempty"`
+	ArtifactID  string   `json:"artifactId,omitempty"`
+	Squad       string   `json:"squad,omitempty"`
+	AlertSquad  string   `json:"alertSquad,omitempty"`
 }
 
 type GitService interface {

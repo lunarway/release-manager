@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -98,6 +99,21 @@ type PodErrorEvent struct {
 	ArtifactID  string           `json:"artifactId,omitempty"`
 	Squad       string           `json:"squad,omitempty"`
 	AlertSquad  string           `json:"alertSquad,omitempty"`
+}
+
+func (pee *PodErrorEvent) ErrorStrings() []string {
+	errors := make([]string, 0)
+	for _, errMsg := range pee.Errors {
+		errors = append(
+			errors,
+			fmt.Sprintf(
+				"pod: %s\n type: %s\n msg: %s\n",
+				errMsg.Name, errMsg.Type, errMsg.ErrorMessage,
+			),
+		)
+	}
+
+	return errors
 }
 
 type JobConditionError struct {
