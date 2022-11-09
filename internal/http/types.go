@@ -3,7 +3,6 @@ package http
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
