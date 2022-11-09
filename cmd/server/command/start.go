@@ -359,6 +359,28 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				},
 			}
 
+			releaseFailedNotifiers := map[string]func(context.Context, flow.NotifyReleaseFailedOptions){
+				"event": func(ctx context.Context, opts flow.NotifyReleaseFailedOptions) {
+					logger := log.WithContext(ctx)
+					err = brokerImpl.Publish(ctx, &events.ReleaseFailed{
+						PodName:     opts.PodName,
+						Namespace:   opts.Namespace,
+						Errors:      opts.Errors,
+						AuthorEmail: opts.AuthorEmail,
+						Environment: opts.Environment,
+						ArtifactID:  opts.ArtifactID,
+						Squad:       opts.Squad,
+						AlertSquad:  opts.AlertSquad,
+					})
+
+					if err != nil {
+						logger.Errorf("could not publish release_failed_event. Error: %w", err)
+						return
+					}
+					logger.Debugf("published release_failed_event for artifactId: %s", opts.ArtifactID)
+				},
+			}
+
 			// TODO: figure out a better way of splitting the consumer and publisher
 			// to avoid this chicken and egg issue. It is not a real problem as the
 			// consumer is started later on and this we are sure this gets set, it
@@ -396,6 +418,16 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 						span.Finish()
 					}
 				},
+				NotifyReleaseFailedHook: func(ctx context.Context, opts flow.NotifyReleaseFailedOptions) {
+					span, ctx := tracer.FromCtx(ctx, "flow.NotifyReleaseFailedHook")
+					defer span.Finish()
+
+					for name, notifier := range releaseFailedNotifiers {
+						span, ctx := tracer.FromCtx(ctx, fmt.Sprintf("notify %s", name))
+						notifier(ctx, opts)
+						span.Finish()
+					}
+				},
 			}
 			eventHandlers := map[string]func([]byte) error{
 				flow.ReleaseArtifactIDEvent{}.Type(): func(d []byte) error {
@@ -424,6 +456,14 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				},
 				events.ReleaseSucceeded{}.Type(): func(d []byte) error {
 					var event events.ReleaseSucceeded
+					err := event.Unmarshal(d)
+					if err != nil {
+						return errors.WithMessage(err, "unmarshal event")
+					}
+					return nil
+				},
+				events.ReleaseFailed{}.Type(): func(d []byte) error {
+					var event events.ReleaseFailed
 					err := event.Unmarshal(d)
 					if err != nil {
 						return errors.WithMessage(err, "unmarshal event")

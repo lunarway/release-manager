@@ -312,6 +312,47 @@ func (c *Client) NotifyK8SDeployEvent(ctx context.Context, event NotifyK8sDeploy
 	return err
 }
 
+type NotifyReleaseFailedOptions struct {
+	PodName     string
+	Namespace   string
+	Errors      []string
+	AuthorEmail string
+	Environment string
+	ArtifactID  string
+	Squad       string
+	AlertSquad  string
+}
+
+func (c *Client) NotifyReleaseFailedEvent(ctx context.Context, event NotifyReleaseFailedOptions) error {
+	userID, err := c.getIdByEmail(ctx, event.AuthorEmail)
+	if err != nil {
+		return err
+	}
+	asUser := slack.MsgOptionAsUser(true)
+	fields := make([]slack.AttachmentField, 0)
+	for _, errMsg := range event.Errors {
+		fields = append(fields, slack.AttachmentField{
+
+			Title: fmt.Sprintf("Fail reason"),
+			Value: formatErrorMessage(errMsg),
+			Short: false,
+		})
+	}
+
+	attachments := slack.MsgOptionAttachments(slack.Attachment{
+		Title:      fmt.Sprintf("release (%s) :no_entry:", event.Environment),
+		Color:      MsgColorRed,
+		Text:       fmt.Sprintf("artifact: %s", event.ArtifactID),
+		MarkdownIn: []string{"text", "fields"},
+		Fields:     fields,
+	})
+	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErrorEvent) error {
 	if c.muteOptions.Kubernetes {
 		return nil
