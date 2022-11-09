@@ -38,21 +38,11 @@ func (s *Service) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErr
 		return errors.WithMessage(err, "post k8s NotifyK8SPodErrorEvent slack message")
 	}
 	if s.NotifyReleaseFailedHook != nil {
-		errors := make([]string, 0)
-		for _, errMsg := range event.Errors {
-			errors = append(
-				errors,
-				fmt.Sprintf(
-					"pod: %s\n type: %s\n msg: %s\n",
-					errMsg.Name, errMsg.Type, errMsg.ErrorMessage,
-				),
-			)
-		}
 
 		go s.NotifyReleaseFailedHook(noCancel{ctx: ctx}, NotifyReleaseFailedOptions{
 			PodName:     event.PodName,
 			Namespace:   event.Namespace,
-			Errors:      errors,
+			Errors:      event.ErrorStrings(),
 			AuthorEmail: event.AuthorEmail,
 			Environment: event.Environment,
 			ArtifactID:  event.ArtifactID,
