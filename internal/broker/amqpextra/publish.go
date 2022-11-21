@@ -2,7 +2,7 @@ package amqpextra
 
 import (
 	"context"
-	"strings"
+	"fmt"
 
 	"github.com/lunarway/release-manager/internal/amqp"
 	"github.com/lunarway/release-manager/internal/broker"
