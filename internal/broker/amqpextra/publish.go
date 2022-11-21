@@ -20,7 +20,7 @@ func (w *Worker) Publish(ctx context.Context, message broker.Publishable) error 
 
 	err := w.worker.Publish(ctx, amqp.PublishDto{
 		Exchange:      w.config.Exchange,
-		RoutingKey:    strings.Join([]string{w.config.RoutingKey, message.Type()}, "."),
+		RoutingKey:    fmt.Sprintf("%s.%s", w.config.RoutingKey, message.Type()),
 		MessageType:   message.Type(),
 		CorrelationID: correlationID,
 		Message:       message,
