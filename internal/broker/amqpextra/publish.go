@@ -2,6 +2,7 @@ package amqpextra
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/lunarway/release-manager/internal/amqp"
 	"github.com/lunarway/release-manager/internal/broker"
@@ -19,7 +20,7 @@ func (w *Worker) Publish(ctx context.Context, message broker.Publishable) error 
 
 	err := w.worker.Publish(ctx, amqp.PublishDto{
 		Exchange:      w.config.Exchange,
-		RoutingKey:    w.config.RoutingKey,
+		RoutingKey:    fmt.Sprintf("%s.%s", w.config.RoutingKey, message.Type()),
 		MessageType:   message.Type(),
 		CorrelationID: correlationID,
 		Message:       message,
