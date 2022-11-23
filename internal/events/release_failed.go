@@ -30,5 +30,5 @@ func (re ReleaseFailed) Unmarshal(data []byte) error {
 var _ broker.Publishable = &ReleaseFailed{}
 
 func (re ReleaseFailed) Type() string {
-	return "release_succeeded_event"
+	return "releaseFailed"
 }
