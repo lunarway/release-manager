@@ -612,7 +612,7 @@ func getBroker(c *brokerOptions) (broker.Broker, error) {
 			InitTimeout:         amqpOptions.InitTimeout,
 			Exchange:            amqpOptions.Exchange,
 			Queue:               amqpOptions.Queue,
-			RoutingKey:          "release-manager.#",
+			RoutingKey:          "release-manager",
 			Prefetch:            amqpOptions.Prefetch,
 			Logger:              log.With("system", "amqp"),
 		})
