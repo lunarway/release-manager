@@ -303,7 +303,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				},
 				"events": func(ctx context.Context, opts flow.NotifyReleaseOptions) {
 					logger := log.WithContext(ctx)
-					err = publish(ctx, brokerImpl, &events.ReleasedEvent{
+					err = brokerImpl.Publish(ctx, &events.ReleasedEvent{
 						Service:     opts.Service,
 						Namespace:   opts.Namespace,
 						ArtifactID:  opts.Spec.ID,
@@ -340,7 +340,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				},
 				"event": func(ctx context.Context, opts flow.NotifyReleaseSucceededOptions) {
 					logger := log.WithContext(ctx)
-					err = publish(ctx, brokerImpl, &events.ReleaseSucceeded{
+					err = brokerImpl.Publish(ctx, &events.ReleaseSucceeded{
 						Name:          opts.Name,
 						Namespace:     opts.Namespace,
 						ResourceType:  opts.ResourceType,
@@ -362,7 +362,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			releaseFailedNotifiers := map[string]func(context.Context, flow.NotifyReleaseFailedOptions){
 				"event": func(ctx context.Context, opts flow.NotifyReleaseFailedOptions) {
 					logger := log.WithContext(ctx)
-					err = publish(ctx, brokerImpl, &events.ReleaseFailed{
+					err = brokerImpl.Publish(ctx, &events.ReleaseFailed{
 						PodName:     opts.PodName,
 						Namespace:   opts.Namespace,
 						Errors:      opts.Errors,
@@ -497,10 +497,10 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				}
 			}
 			flowSvc.PublishReleaseArtifactID = func(ctx context.Context, event flow.ReleaseArtifactIDEvent) error {
-				return publish(ctx, brokerImpl, &event)
+				return brokerImpl.Publish(ctx, &event)
 			}
 			flowSvc.PublishNewArtifact = func(ctx context.Context, event flow.NewArtifactEvent) error {
-				return publish(ctx, brokerImpl, &event)
+				return brokerImpl.Publish(ctx, &event)
 			}
 			defer func() {
 				err := brokerImpl.Close()
@@ -628,16 +628,4 @@ func getBroker(c *brokerOptions) (broker.Broker, error) {
 		// values
 		return nil, errors.New("no broker selected")
 	}
-}
-
-func publish(ctx context.Context, broker broker.Broker, message broker.Publishable) error {
-	bytes, err := message.Marshal()
-	if err != nil {
-		return err
-	}
-
-	return broker.Publish(ctx, events.Envelope{
-		EventName: message.Type(),
-		Content:   bytes,
-	})
 }
