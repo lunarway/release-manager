@@ -10,7 +10,7 @@ require (
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/google/uuid v1.3.0
 	github.com/johannesboyne/gofakes3 v0.0.0-20221110173912-32fb85c5aed6
-	github.com/makasim/amqpextra v0.17.0
+	github.com/makasim/amqpextra v1.1.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/nlopes/slack v0.6.0
 	github.com/opentracing/opentracing-go v1.2.0
