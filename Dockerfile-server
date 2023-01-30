@@ -13,7 +13,7 @@ COPY cmd/server/ ./cmd/server/
 
 RUN go build -o server cmd/server/main.go
 
-FROM alpine:3.17.0
+FROM alpine:3.17.1
 RUN apk update && \
   apk add --no-cache \
   openssh-keygen bash openssh-client git ca-certificates gnupg
