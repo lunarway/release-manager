@@ -270,14 +270,15 @@ func (c *Client) notifyAuthorEventProcessed(ctx context.Context, options Release
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
 		Title:      ":rocket: Release Manager :white_check_mark:",
 		Color:      MsgColorGreen,
-		Text:       fmt.Sprintf("Release for *%s* in %s processed\nArtifact: <%s|*%s*>", options.Service, options.Environment, options.CommitLink, options.ArtifactID),
+		Text:       fmt.Sprintf("Release for *%s* in %s processed\n*Message*: %s \n*Commit URL*: %s\n*Artifact ID*: %s", options.Service, options.Environment, options.CommitMessage, options.CommitLink, options.ArtifactID),
 		MarkdownIn: []string{"text", "fields"},
 	})
 	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
 	if err != nil {
 		return err
 	}
-	return err
+
+	return nil
 }
 
 type NotifyK8sDeployOptions struct {
