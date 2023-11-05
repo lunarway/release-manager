@@ -28,33 +28,27 @@ func TestAuthenticate(t *testing.T) {
 			status:        http.StatusUnauthorized,
 		},
 		{
-			name:          "non-bearer authorization",
-			serverToken:   "token",
-			authorization: "non-bearer-token",
-			status:        http.StatusUnauthorized,
-		},
-		{
 			name:          "empty bearer authorization",
 			serverToken:   "token",
-			authorization: "Bearer ",
+			authorization: " ",
 			status:        http.StatusUnauthorized,
 		},
 		{
 			name:          "whitespace bearer authorization",
 			serverToken:   "token",
-			authorization: "Bearer      ",
+			authorization: "      ",
 			status:        http.StatusUnauthorized,
 		},
 		{
 			name:          "wrong bearer authorization",
 			serverToken:   "token",
-			authorization: "Bearer another-token",
+			authorization: "another-token",
 			status:        http.StatusUnauthorized,
 		},
 		{
 			name:          "correct bearer authorization",
 			serverToken:   "token",
-			authorization: "Bearer token",
+			authorization: "token",
 			status:        http.StatusOK,
 		},
 	}
@@ -64,7 +58,7 @@ func TestAuthenticate(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			})
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
-			req.Header.Set("Authorization", tc.authorization)
+			req.Header.Set("X-HAM-TOKEN", tc.authorization)
 			w := httptest.NewRecorder()
 			authenticate(tc.serverToken)(handler).ServeHTTP(w, req)
 
