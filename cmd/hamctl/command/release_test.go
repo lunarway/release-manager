@@ -1,6 +1,7 @@
 package command_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,6 +18,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type NoAuthClient struct{}
+
+func (NoAuthClient) AuthenticatedClient(ctx context.Context) (*http.Client, error) {
+	return &http.Client{}, nil
+}
 
 func TestRelease(t *testing.T) {
 	var (
@@ -61,6 +68,7 @@ func TestRelease(t *testing.T) {
 
 	c := internalhttp.Client{
 		BaseURL: server.URL,
+		Auth:    NoAuthClient{},
 	}
 
 	releaseClient := actions.NewReleaseHttpClient(git.NewLocalGitConfigAPI(), &c)
@@ -194,7 +202,7 @@ func maskGUID(output []string) []string {
 
 func TestRelease_emptyEnvValue(t *testing.T) {
 	serviceName := "service-name"
-	c := internalhttp.Client{}
+	c := internalhttp.Client{Auth: NoAuthClient{}}
 	releaseClient := actions.NewReleaseHttpClient(git.NewLocalGitConfigAPI(), &c)
 
 	cmd := command.NewRelease(&c, &serviceName, func(f string, args ...interface{}) {
