@@ -21,7 +21,7 @@ import (
 
 type NoAuthClient struct{}
 
-func (NoAuthClient) AuthenticatedClient(ctx context.Context) (*http.Client, error) {
+func (NoAuthClient) Access(ctx context.Context) (*http.Client, error) {
 	return &http.Client{}, nil
 }
 

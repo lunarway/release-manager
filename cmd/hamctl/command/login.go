@@ -5,13 +5,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func Login(gate http.Gate) *cobra.Command {
+func Login(authenticator http.UserAuthenticator) *cobra.Command {
 	return &cobra.Command{
 		Use:   "login",
 		Short: `Log into the configured IdP`,
 		Args:  cobra.ExactArgs(0),
 		RunE: func(c *cobra.Command, args []string) error {
-			return gate.Authenticate()
+			return authenticator.Login()
 		},
 	}
 }

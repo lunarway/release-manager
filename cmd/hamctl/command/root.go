@@ -26,7 +26,7 @@ func NewRoot(version *string) (*cobra.Command, error) {
 		return nil, errors.New("no HAMCTL_OAUTH_CLIENT_ID env var set")
 	}
 
-	gate := http.NewGate(clientID, idpURL)
+	authenticator := http.NewUserAuthenticator(clientID, idpURL)
 
 	var service string
 	client := http.Client{
@@ -82,7 +82,7 @@ func NewRoot(version *string) (*cobra.Command, error) {
 		NewRollback(&client, &service, loggerFunc, SelectRollbackReleaseFunc, releaseClient),
 		NewStatus(&client, &service),
 		NewVersion(*version),
-		Login(gate),
+		Login(authenticator),
 	)
 	command.PersistentFlags().DurationVar(&client.Timeout, "http-timeout", 120*time.Second, "HTTP request timeout")
 	command.PersistentFlags().StringVar(&client.BaseURL, "http-base-url", "", "address of the http release manager server")

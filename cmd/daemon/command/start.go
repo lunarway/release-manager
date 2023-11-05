@@ -47,8 +47,8 @@ func StartDaemon() *cobra.Command {
 				return errors.New("no HAMCTL_OAUTH_CLIENT_SECRET env var set")
 			}
 
-			daemonGate := httpinternal.NewDaemonGate(clientID, clientSecret, idpURL)
-			client.Auth = &daemonGate
+			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL)
+			client.Auth = &authenticator
 
 			exporter := &kubernetes.ReleaseManagerExporter{
 				Log:         log.With("type", "k8s-exporter"),

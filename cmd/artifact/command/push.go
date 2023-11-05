@@ -37,8 +37,8 @@ func pushCommand(options *Options) *cobra.Command {
 			if clientID == "" {
 				return errors.New("no HAMCTL_OAUTH_CLIENT_SECRET env var set")
 			}
-			daemonGate := httpinternal.NewDaemonGate(clientID, clientSecret, idpURL)
-			releaseManagerClient.Auth = &daemonGate
+			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL)
+			releaseManagerClient.Auth = &authenticator
 
 			artifactID, err = flow.PushArtifactToReleaseManager(ctx, &releaseManagerClient, options.FileName, options.RootPath)
 			if err != nil {

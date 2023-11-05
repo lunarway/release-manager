@@ -13,11 +13,11 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
-type Gate struct {
+type UserAuthenticator struct {
 	conf *oauth2.Config
 }
 
-func NewGate(clientID, idpURL string) Gate {
+func NewUserAuthenticator(clientID, idpURL string) UserAuthenticator {
 	conf := &oauth2.Config{
 		ClientID: clientID,
 		Endpoint: oauth2.Endpoint{
@@ -26,12 +26,12 @@ func NewGate(clientID, idpURL string) Gate {
 		},
 		Scopes: []string{"openid profile"},
 	}
-	return Gate{
+	return UserAuthenticator{
 		conf: conf,
 	}
 }
 
-func (g *Gate) Authenticate() error {
+func (g *UserAuthenticator) Login() error {
 	ctx := context.Background()
 	response, err := g.conf.DeviceAuth(ctx)
 	if err != nil {
@@ -50,7 +50,7 @@ func (g *Gate) Authenticate() error {
 	return storeAccessToken(token)
 }
 
-func (g *Gate) AuthenticatedClient(ctx context.Context) (*http.Client, error) {
+func (g *UserAuthenticator) Access(ctx context.Context) (*http.Client, error) {
 	token, err := readAccessToken()
 	if err != nil {
 		return nil, err
@@ -99,22 +99,22 @@ func storeAccessToken(token *oauth2.Token) error {
 	return nil
 }
 
-type DaemonGate struct {
+type ClientAuthenticator struct {
 	conf *clientcredentials.Config
 }
 
-func NewDaemonGate(clientID, clientSecret, idpURL string) DaemonGate {
+func NewClientAuthenticator(clientID, clientSecret, idpURL string) ClientAuthenticator {
 	conf := &clientcredentials.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		TokenURL:     fmt.Sprintf("%s/v1/token", idpURL),
 		Scopes:       []string{""},
 	}
-	return DaemonGate{
+	return ClientAuthenticator{
 		conf: conf,
 	}
 }
 
-func (g *DaemonGate) AuthenticatedClient(ctx context.Context) (*http.Client, error) {
+func (g *ClientAuthenticator) Access(ctx context.Context) (*http.Client, error) {
 	return g.conf.Client(ctx), nil
 }

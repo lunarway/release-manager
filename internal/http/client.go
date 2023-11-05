@@ -17,7 +17,7 @@ import (
 )
 
 type Authenticator interface {
-	AuthenticatedClient(context context.Context) (*http.Client, error)
+	Access(context context.Context) (*http.Client, error)
 }
 
 type Client struct {
@@ -57,7 +57,7 @@ func (c *Client) URLWithQuery(path string, queryParams url.Values) (string, erro
 // ErrorResponse object and returned as the error.
 func (c *Client) Do(method string, path string, requestBody, responseBody interface{}) error {
 	ctx := context.Background()
-	client, err := c.Auth.AuthenticatedClient(ctx)
+	client, err := c.Auth.Access(ctx)
 	if err != nil {
 		return errors.Wrap(err, "please log in again to refresh the token")
 	}
