@@ -148,9 +148,8 @@ func trace(tracer tracing.Tracer) func(http.Handler) http.Handler {
 func authenticate(token string) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authorization := r.Header.Get("Authorization")
-			t := strings.TrimPrefix(authorization, "Bearer ")
-			t = strings.TrimSpace(t)
+			authorization := r.Header.Get("X-HAM-TOKEN")
+			t := strings.TrimSpace(authorization)
 			if t != token {
 				httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
 				return
