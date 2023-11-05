@@ -17,7 +17,18 @@ import (
 
 // NewRoot returns a new instance of a hamctl command.
 func NewRoot(version *string) (*cobra.Command, error) {
-	var service, email string
+	idpURL := os.Getenv("HAMCTL_OAUTH_IDP_URL")
+	if idpURL == "" {
+		return nil, errors.New("no HAMCTL_OAUTH_IDP_URL env var set")
+	}
+	clientID := os.Getenv("HAMCTL_OAUTH_CLIENT_ID")
+	if clientID == "" {
+		return nil, errors.New("no HAMCTL_OAUTH_CLIENT_ID env var set")
+	}
+
+	gate := http.NewGate(clientID, idpURL)
+
+	var service string
 	client := http.Client{
 		Metadata: http.Metadata{
 			CLIVersion: *version,
@@ -34,7 +45,7 @@ func NewRoot(version *string) (*cobra.Command, error) {
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			// all commands but version and completion requires the "service" flag
 			// if this is one of them, skip the check
-			if c.Name() == "version" || c.Name() == "completion" {
+			if c.Name() == "version" || c.Name() == "completion" || c.Name() == "login" {
 				return nil
 			}
 			defaultShuttleString(shuttleSpecFromFile, &service, func(s *shuttleSpec) string {
@@ -45,16 +56,9 @@ func NewRoot(version *string) (*cobra.Command, error) {
 				client.BaseURL = os.Getenv("HAMCTL_URL")
 			}
 
-			if client.Metadata.AuthToken == "" {
-				client.Metadata.AuthToken = os.Getenv("HAMCTL_AUTH_TOKEN")
-			}
-
 			var missingFlags []string
 			if service == "" {
 				missingFlags = append(missingFlags, "service")
-			}
-			if err := setCallerEmail(gitConfigAPI, &client, email); err != nil {
-				missingFlags = append(missingFlags, "user-email")
 			}
 
 			if len(missingFlags) != 0 {
@@ -78,12 +82,11 @@ func NewRoot(version *string) (*cobra.Command, error) {
 		NewRollback(&client, &service, loggerFunc, SelectRollbackReleaseFunc, releaseClient),
 		NewStatus(&client, &service),
 		NewVersion(*version),
+		Login(gate),
 	)
 	command.PersistentFlags().DurationVar(&client.Timeout, "http-timeout", 120*time.Second, "HTTP request timeout")
 	command.PersistentFlags().StringVar(&client.BaseURL, "http-base-url", "", "address of the http release manager server")
-	command.PersistentFlags().StringVar(&client.Metadata.AuthToken, "http-auth-token", "", "auth token for the http service")
 	command.PersistentFlags().StringVar(&service, "service", "", "service name to execute commands for")
-	command.PersistentFlags().StringVar(&email, "user-email", "", "email of user performing the command (defaults to Git configurated user.email)")
 
 	return command, nil
 }
@@ -132,18 +135,4 @@ func defaultShuttleString(shuttleLocator func() (shuttleSpec, bool), flagValue *
 	if t != "" {
 		*flagValue = t
 	}
-}
-
-func setCallerEmail(gitConfigAPI GitConfigAPI, client *http.Client, email string) error {
-	if email != "" {
-		client.Metadata.CallerEmail = email
-	} else {
-		committer, err := gitConfigAPI.CommitterDetails()
-		if err != nil {
-			return fmt.Errorf("could not get committer from git: %w", err)
-		}
-		client.Metadata.CallerEmail = committer.Email
-	}
-
-	return nil
 }

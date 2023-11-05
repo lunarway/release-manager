@@ -10,6 +10,7 @@ import (
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	intslack "github.com/lunarway/release-manager/internal/slack"
 	"github.com/nlopes/slack"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -24,12 +25,26 @@ func pushCommand(options *Options) *cobra.Command {
 			var err error
 			ctx := context.Background()
 
-			if releaseManagerClient.Metadata.AuthToken != "" {
-				artifactID, err = flow.PushArtifactToReleaseManager(ctx, &releaseManagerClient, options.FileName, options.RootPath)
-				if err != nil {
-					return err
-				}
+			idpURL := os.Getenv("HAMCTL_OAUTH_IDP_URL")
+			if idpURL == "" {
+				return errors.New("no HAMCTL_OAUTH_IDP_URL env var set")
 			}
+			clientID := os.Getenv("HAMCTL_OAUTH_CLIENT_ID")
+			if clientID == "" {
+				return errors.New("no HAMCTL_OAUTH_CLIENT_ID env var set")
+			}
+			clientSecret := os.Getenv("HAMCTL_OAUTH_CLIENT_SECRET")
+			if clientID == "" {
+				return errors.New("no HAMCTL_OAUTH_CLIENT_SECRET env var set")
+			}
+			daemonGate := httpinternal.NewDaemonGate(clientID, clientSecret, idpURL)
+			releaseManagerClient.Auth = &daemonGate
+
+			artifactID, err = flow.PushArtifactToReleaseManager(ctx, &releaseManagerClient, options.FileName, options.RootPath)
+			if err != nil {
+				return err
+			}
+
 			client, err := intslack.NewClient(slack.New(options.SlackToken), options.UserMappings, options.EmailSuffix)
 			if err != nil {
 				fmt.Printf("Error, not able to create Slack client in successful command: %v", err)
@@ -47,7 +62,6 @@ func pushCommand(options *Options) *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&releaseManagerClient.BaseURL, "http-base-url", os.Getenv("ARTIFACT_URL"), "address of the http release manager server")
-	command.Flags().StringVar(&releaseManagerClient.Metadata.AuthToken, "http-auth-token", "", "auth token for the http service")
 
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
