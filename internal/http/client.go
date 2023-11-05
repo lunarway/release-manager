@@ -31,10 +31,6 @@ type Metadata struct {
 	CLIVersion string
 }
 
-func NewClient(baseURL string) Client {
-	return Client{}
-}
-
 // URL returns a URL with provided path added to the client's base URL.
 func (c *Client) URL(path string) (string, error) {
 	requestURL, err := url.Parse(fmt.Sprintf("%s/%s", c.BaseURL, path))
