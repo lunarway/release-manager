@@ -16,7 +16,7 @@ type GitConfigAPI interface {
 	CommitterDetails() (*git.CommitterDetails, error)
 }
 
-func NewApply(client *httpinternal.Client, service *string, gitConfigAPI GitConfigAPI) *cobra.Command {
+func NewApply(client *httpinternal.Client, service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "apply",
 		Short: "Apply a release policy for a service. See available commands for specific policies.",
@@ -37,34 +37,27 @@ func NewApply(client *httpinternal.Client, service *string, gitConfigAPI GitConf
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(autoRelease(client, service, gitConfigAPI))
-	command.AddCommand(branchRestriction(client, service, gitConfigAPI))
+	command.AddCommand(autoRelease(client, service))
+	command.AddCommand(branchRestriction(client, service))
 	return command
 }
 
-func autoRelease(client *httpinternal.Client, service *string, gitConfigAPI GitConfigAPI) *cobra.Command {
+func autoRelease(client *httpinternal.Client, service *string) *cobra.Command {
 	var branch, env string
 	var command = &cobra.Command{
 		Use:   "auto-release",
 		Short: "Auto-release policy for releasing branch artifacts to an environment",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(c *cobra.Command, args []string) error {
-			committer, err := gitConfigAPI.CommitterDetails()
-			if err != nil {
-				return err
-			}
-
 			var resp httpinternal.ApplyPolicyResponse
 			path, err := client.URL(pathAutoRelease)
 			if err != nil {
 				return err
 			}
 			err = client.Do(http.MethodPatch, path, httpinternal.ApplyAutoReleasePolicyRequest{
-				Service:        *service,
-				Branch:         branch,
-				Environment:    env,
-				CommitterEmail: committer.Email,
-				CommitterName:  committer.Name,
+				Service:     *service,
+				Branch:      branch,
+				Environment: env,
 			}, &resp)
 			if err != nil {
 				return err
@@ -87,7 +80,7 @@ func autoRelease(client *httpinternal.Client, service *string, gitConfigAPI GitC
 	return command
 }
 
-func branchRestriction(client *httpinternal.Client, service *string, gitConfigAPI GitConfigAPI) *cobra.Command {
+func branchRestriction(client *httpinternal.Client, service *string) *cobra.Command {
 	var branchRegex, env string
 	var command = &cobra.Command{
 		Use:   "branch-restriction",
@@ -95,22 +88,15 @@ func branchRestriction(client *httpinternal.Client, service *string, gitConfigAP
 		Long:  "Branch restriction policy for limiting releases of artifacts by their origin branch to specific environments",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(c *cobra.Command, args []string) error {
-			committer, err := gitConfigAPI.CommitterDetails()
-			if err != nil {
-				return err
-			}
-
 			var resp httpinternal.ApplyBranchRestrictionPolicyResponse
 			path, err := client.URL(pathBranchRestrction)
 			if err != nil {
 				return err
 			}
 			err = client.Do(http.MethodPatch, path, httpinternal.ApplyBranchRestrictionPolicyRequest{
-				Service:        *service,
-				BranchRegex:    branchRegex,
-				Environment:    env,
-				CommitterEmail: committer.Email,
-				CommitterName:  committer.Name,
+				Service:     *service,
+				BranchRegex: branchRegex,
+				Environment: env,
 			}, &resp)
 			if err != nil {
 				return err

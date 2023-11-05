@@ -33,8 +33,8 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 
 		logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': releasing artifact", req.Service, req.Environment, req.ArtifactID)
 		releaseID, err := flowSvc.ReleaseArtifactID(ctx, flow.Actor{
-			Name:  req.CommitterName,
-			Email: req.CommitterEmail,
+			Name:  "Subject", //req.CommitterName,
+			Email: "Subject", //req.CommitterEmail,
 		}, req.Environment, req.Service, req.ArtifactID, req.Intent)
 
 		var statusString string

@@ -32,12 +32,10 @@ type Environment struct {
 }
 
 type ReleaseRequest struct {
-	Service        string        `json:"service,omitempty"`
-	Environment    string        `json:"environment,omitempty"`
-	ArtifactID     string        `json:"artifactId,omitempty"`
-	CommitterName  string        `json:"committerName,omitempty"`
-	CommitterEmail string        `json:"committerEmail,omitempty"`
-	Intent         intent.Intent `json:"intent,omitempty"`
+	Service     string        `json:"service,omitempty"`
+	Environment string        `json:"environment,omitempty"`
+	ArtifactID  string        `json:"artifactId,omitempty"`
+	Intent      intent.Intent `json:"intent,omitempty"`
 }
 
 func (r ReleaseRequest) Validate(w http.ResponseWriter) bool {
@@ -47,12 +45,6 @@ func (r ReleaseRequest) Validate(w http.ResponseWriter) bool {
 	}
 	if emptyString(r.Environment) {
 		errs.Append(requiredField("environment"))
-	}
-	if emptyString(r.CommitterName) {
-		errs.Append(requiredField("committerName"))
-	}
-	if emptyString(r.CommitterEmail) {
-		errs.Append(requiredField("committerEmail"))
 	}
 	if emptyString(r.ArtifactID) {
 		errs.Append("required field artifact id is not specified")

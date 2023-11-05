@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewDelete(client *httpinternal.Client, service *string, gitConfigAPI GitConfigAPI) *cobra.Command {
+func NewDelete(client *httpinternal.Client, service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "delete",
 		Short: "Delete one or more policies by their id.",
@@ -41,21 +41,14 @@ Delete multiple policies:
 	$ hamctl --service product policy delete auto-release-master-dev auto-release-master-prod
 `,
 		RunE: func(c *cobra.Command, args []string) error {
-			committer, err := gitConfigAPI.CommitterDetails()
-			if err != nil {
-				return err
-			}
-
 			var resp httpinternal.DeletePolicyResponse
 			path, err := client.URL(path)
 			if err != nil {
 				return err
 			}
 			err = client.Do(http.MethodDelete, path, httpinternal.DeletePolicyRequest{
-				Service:        *service,
-				PolicyIDs:      args,
-				CommitterName:  committer.Name,
-				CommitterEmail: committer.Email,
+				Service:   *service,
+				PolicyIDs: args,
 			}, &resp)
 			if err != nil {
 				return err

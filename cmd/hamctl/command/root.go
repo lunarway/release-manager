@@ -8,7 +8,6 @@ import (
 
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
-	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -35,16 +34,13 @@ func NewRoot(version *string) (*cobra.Command, error) {
 		},
 	}
 
-	gitConfigAPI := git.NewLocalGitConfigAPI()
-	releaseClient := actions.NewReleaseHttpClient(gitConfigAPI, &client)
+	releaseClient := actions.NewReleaseHttpClient(&client)
 
 	var command = &cobra.Command{
 		Use:                    "hamctl",
 		Short:                  "hamctl controls a release manager server",
 		BashCompletionFunction: completion.Hamctl,
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
-			// all commands but version and completion requires the "service" flag
-			// if this is one of them, skip the check
 			if c.Name() == "version" || c.Name() == "completion" || c.Name() == "login" {
 				return nil
 			}
@@ -76,7 +72,7 @@ func NewRoot(version *string) (*cobra.Command, error) {
 	command.AddCommand(
 		NewCompletion(command),
 		NewDescribe(&client, &service),
-		NewPolicy(&client, &service, gitConfigAPI),
+		NewPolicy(&client, &service),
 		NewPromote(&client, &service, releaseClient),
 		NewRelease(&client, &service, loggerFunc, releaseClient),
 		NewRollback(&client, &service, loggerFunc, SelectRollbackReleaseFunc, releaseClient),

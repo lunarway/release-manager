@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewPolicy(client *http.Client, service *string, gitConfigAPI GitConfigAPI) *cobra.Command {
+func NewPolicy(client *http.Client, service *string) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "policy",
 		Short: "Manage release policies for services.",
@@ -28,8 +28,8 @@ func NewPolicy(client *http.Client, service *string, gitConfigAPI GitConfigAPI) 
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(policy.NewApply(client, service, gitConfigAPI))
+	command.AddCommand(policy.NewApply(client, service))
 	command.AddCommand(policy.NewList(client, service))
-	command.AddCommand(policy.NewDelete(client, service, gitConfigAPI))
+	command.AddCommand(policy.NewDelete(client, service))
 	return command
 }

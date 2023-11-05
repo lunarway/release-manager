@@ -13,7 +13,6 @@ import (
 	"github.com/lunarway/release-manager/cmd/hamctl/command"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/internal/artifact"
-	"github.com/lunarway/release-manager/internal/git"
 	internalhttp "github.com/lunarway/release-manager/internal/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -71,7 +70,7 @@ func TestRelease(t *testing.T) {
 		Auth:    NoAuthClient{},
 	}
 
-	releaseClient := actions.NewReleaseHttpClient(git.NewLocalGitConfigAPI(), &c)
+	releaseClient := actions.NewReleaseHttpClient(&c)
 
 	runCommand := func(t *testing.T, args ...string) []string {
 		var output []string
@@ -203,7 +202,7 @@ func maskGUID(output []string) []string {
 func TestRelease_emptyEnvValue(t *testing.T) {
 	serviceName := "service-name"
 	c := internalhttp.Client{Auth: NoAuthClient{}}
-	releaseClient := actions.NewReleaseHttpClient(git.NewLocalGitConfigAPI(), &c)
+	releaseClient := actions.NewReleaseHttpClient(&c)
 
 	cmd := command.NewRelease(&c, &serviceName, func(f string, args ...interface{}) {
 		t.Logf(f, args...)
