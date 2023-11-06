@@ -96,6 +96,12 @@ type s3storageOptions struct {
 	S3BucketName string
 }
 
+type jwtVerifierOptions struct {
+	JwksLocation string
+	Issuer       string
+	Audience     string
+}
+
 type startOptions struct {
 	slackAuthToken            *string
 	githubAPIToken            *string
@@ -106,6 +112,7 @@ type startOptions struct {
 	broker                    *brokerOptions
 	s3storage                 *s3storageOptions
 	slackMutes                *intslack.MuteOptions
+	jwtVerifier               *jwtVerifierOptions
 	gpgKeyPaths               *[]string
 	userMappings              *map[string]string
 	branchRestrictionPolicies *[]policy.BranchRestriction
@@ -509,7 +516,12 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				}
 			}()
 			go func() {
-				err := http.NewServer(
+				jwtVerifier, err := http.NewVerifier(startOptions.jwtVerifier.JwksLocation, time.Duration(30)*time.Second, startOptions.jwtVerifier.Issuer, startOptions.jwtVerifier.Audience)
+				if err != nil {
+					done <- errors.WithMessage(err, "new jwt verifier")
+					return
+				}
+				err = http.NewServer(
 					startOptions.http,
 					slackClient,
 					&flowSvc,
@@ -517,6 +529,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					&gitSvc,
 					s3storageSvc,
 					tracer,
+					jwtVerifier,
 				)
 				if err != nil {
 					done <- errors.WithMessage(err, "new http server")

@@ -23,6 +23,7 @@ func NewRoot(version string) (*cobra.Command, error) {
 	var githubAPIToken string
 	var configRepoOpts configRepoOptions
 	var gitConfigOpts git.GitConfig
+	var jwtVerifierOpts jwtVerifierOptions
 	var gpgKeyPaths []string
 	var users []string
 	var userMappings map[string]string
@@ -68,6 +69,7 @@ func NewRoot(version string) (*cobra.Command, error) {
 			gitConfigOpts:             &gitConfigOpts,
 			s3storage:                 &s3storageOpts,
 			http:                      &httpOpts,
+			jwtVerifier:               &jwtVerifierOpts,
 			gpgKeyPaths:               &gpgKeyPaths,
 			broker:                    &brokerOpts,
 			slackMutes:                &slackMuteOpts,
@@ -85,6 +87,9 @@ func NewRoot(version string) (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&configRepoOpts.ConfigRepo, "config-repo", os.Getenv("CONFIG_REPO"), "ssh url for the git config repository")
 	command.PersistentFlags().StringVar(&configRepoOpts.ArtifactFileName, "artifact-filename", "artifact.json", "the filename of the artifact to be used")
 	command.PersistentFlags().StringVar(&configRepoOpts.SSHPrivateKeyPath, "ssh-private-key", "/etc/release-manager/ssh/identity", "ssh-private-key for the config repo")
+	command.PersistentFlags().StringVar(&jwtVerifierOpts.JwksLocation, "jwks-urls", "", "URL of the JWKS for the IdP")
+	command.PersistentFlags().StringVar(&jwtVerifierOpts.Audience, "jwt-audience", "release-manager", "the expected audience of the access token")
+	command.PersistentFlags().StringVar(&jwtVerifierOpts.Issuer, "jwt-issuer", "", "the issuer of the access tokens")
 	command.PersistentFlags().StringVar(&httpOpts.GithubWebhookSecret, "github-webhook-secret", os.Getenv("GITHUB_WEBHOOK_SECRET"), "github webhook secret")
 	command.PersistentFlags().StringVar(&githubAPIToken, "github-api-token", os.Getenv("GITHUB_API_TOKEN"), "github api token for tagging releases")
 	command.PersistentFlags().StringVar(&slackAuthToken, "slack-token", os.Getenv("SLACK_TOKEN"), "token to be used to communicate with the slack api")
