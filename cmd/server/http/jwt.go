@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -66,19 +67,27 @@ const AUTH_USER_KEY = "AUTH_USER_KEY"
 //
 // If authentication fails a 401 Unauthorized HTTP status is returned with an
 // ErrorResponse body.
-func (v *Verifier) authentication(token string) func(http.Handler) http.Handler {
+func (v *Verifier) authentication(staticAuthToken string) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			bearerToken, err := ParseBearerToken(token)
-			if err != nil {
-				authorization := r.Header.Get("Authorization")
+			authorization := r.Header.Get("Authorization")
+
+			if staticAuthToken != "" {
+				// old hamctl token auth
 				t := strings.TrimPrefix(authorization, "Bearer ")
 				t = strings.TrimSpace(t)
-				if t != token {
+				if t != staticAuthToken {
 					httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
 					return
 				}
 			} else {
+				// jwt auth
+				bearerToken, err := ParseBearerToken(authorization)
+				if err != nil {
+					httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
+					return
+				}
+
 				keySet, err := v.jwkCache.Get(context.Background(), v.jwksLocation)
 				if err != nil {
 					httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
@@ -103,7 +112,8 @@ func (v *Verifier) authentication(token string) func(http.Handler) http.Handler 
 						return
 					}
 				}
-				context.WithValue(r.Context(), AUTH_USER_KEY, parsedToken.Subject())
+				ctx := context.WithValue(r.Context(), AUTH_USER_KEY, parsedToken.Subject())
+				*r = *r.WithContext(ctx)
 			}
 			h.ServeHTTP(w, r)
 		})
