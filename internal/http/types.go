@@ -32,10 +32,12 @@ type Environment struct {
 }
 
 type ReleaseRequest struct {
-	Service     string        `json:"service,omitempty"`
-	Environment string        `json:"environment,omitempty"`
-	ArtifactID  string        `json:"artifactId,omitempty"`
-	Intent      intent.Intent `json:"intent,omitempty"`
+	Service        string        `json:"service,omitempty"`
+	Environment    string        `json:"environment,omitempty"`
+	ArtifactID     string        `json:"artifactId,omitempty"`
+	CommitterName  string        `json:"committerName,omitempty"`
+	CommitterEmail string        `json:"committerEmail,omitempty"`
+	Intent         intent.Intent `json:"intent,omitempty"`
 }
 
 func (r ReleaseRequest) Validate(w http.ResponseWriter) bool {
@@ -162,12 +164,6 @@ func (r ApplyBranchRestrictionPolicyRequest) Validate(w http.ResponseWriter) boo
 	if emptyString(r.BranchRegex) {
 		errs.Append(requiredField("branch regex"))
 	}
-	if emptyString(r.CommitterName) {
-		errs.Append(requiredField("committerName"))
-	}
-	if emptyString(r.CommitterEmail) {
-		errs.Append(requiredField("committerEmail"))
-	}
 	return errs.Evaluate(w)
 }
 
@@ -197,12 +193,6 @@ func (r ApplyAutoReleasePolicyRequest) Validate(w http.ResponseWriter) bool {
 	if emptyString(r.Environment) {
 		errs.Append(requiredField("environment"))
 	}
-	if emptyString(r.CommitterName) {
-		errs.Append(requiredField("committerName"))
-	}
-	if emptyString(r.CommitterEmail) {
-		errs.Append(requiredField("committerEmail"))
-	}
 	return errs.Evaluate(w)
 }
 
@@ -224,11 +214,6 @@ func (r DeletePolicyRequest) Validate(w http.ResponseWriter) bool {
 	var errs validationErrors
 	if emptyString(r.Service) {
 		errs.Append(requiredField("service"))
-	}
-	if emptyString(r.CommitterName) {
-		errs.Append(requiredField("committerName"))
-	}
-	if emptyString(r.CommitterEmail) {
 		errs.Append(requiredField("committerEmail"))
 	}
 	ids := filterEmptyStrings(r.PolicyIDs)
