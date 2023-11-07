@@ -32,6 +32,7 @@ func reqrespLogger(h http.Handler) http.Handler {
 		duration := time.Since(start).Nanoseconds() / 1e6
 		statusCode := statusWriter.statusCode
 		requestID := getRequestID(r)
+		subject := r.Context().Value(AUTH_USER_KEY).(string)
 		fields := []interface{}{
 			"requestId", requestID,
 			"req", struct {
@@ -40,12 +41,14 @@ func reqrespLogger(h http.Handler) http.Handler {
 				Method  string            `json:"method,omitempty"`
 				Path    string            `json:"path,omitempty"`
 				Headers map[string]string `json:"headers,omitempty"`
+				Subject string            `json:"subject,omitempty"`
 			}{
 				ID:      requestID,
 				URL:     r.URL.RequestURI(),
 				Method:  r.Method,
 				Path:    r.URL.Path,
 				Headers: secureHeaders(flattenHeaders(r.Header)),
+				Subject: subject,
 			},
 			"res", struct {
 				StatusCode int `json:"statusCode,omitempty"`
