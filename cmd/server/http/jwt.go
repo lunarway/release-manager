@@ -9,6 +9,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
 )
 
@@ -83,30 +84,37 @@ func (v *Verifier) authentication(staticAuthToken string) func(http.Handler) htt
 				// jwt auth
 				bearerToken, err := ParseBearerToken(authorization)
 				if err != nil {
+					log.WithContext(r.Context()).Infof("parse bearer token failed: %v", err)
 					httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
 					return
 				}
 
 				keySet, err := v.jwkCache.Get(context.Background(), v.jwksLocation)
 				if err != nil {
+					log.WithContext(r.Context()).Infof("get jwk cache failed: %v", err)
 					httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
 					return
 				}
 
 				parsedToken, err := v.verify(bearerToken, keySet)
 				if err != nil {
+					log.WithContext(r.Context()).Infof("JWT token verification failed: %v", err)
 					if strings.Contains(err.Error(), keyNotFoundMsg) {
+						log.WithContext(r.Context()).Infof("JWT token verification: refresh jwk cache and try again")
 						freshKeys, err := v.jwkCache.Refresh(context.Background(), v.jwksLocation)
 						if err != nil {
+							log.WithContext(r.Context()).Errorf("JWT token refresh failed: %v", err)
 							httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
 							return
 						}
 						parsedToken, err = v.verify(bearerToken, freshKeys)
 						if err != nil {
+							log.WithContext(r.Context()).Infof("JWT token verification second attempt failed: %v", err)
 							httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
 							return
 						}
 					} else {
+						log.WithContext(r.Context()).Infof("JWT token verification failed: %v", err)
 						httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
 						return
 					}

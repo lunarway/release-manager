@@ -14,8 +14,10 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lunarway/release-manager/internal/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestAuthenticate_token(t *testing.T) {
@@ -85,6 +87,13 @@ func TestAuthenticate_token(t *testing.T) {
 }
 
 func TestAuthenticate_jwt(t *testing.T) {
+	log.Init(&log.Configuration{
+		Level: log.Level{
+			Level: zapcore.DebugLevel,
+		},
+		Development: true,
+	})
+
 	jwksServer, minter := getJwksEndpoint(t)
 
 	issuer := "test-issuer"
