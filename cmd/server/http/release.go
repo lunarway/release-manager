@@ -26,16 +26,24 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 		if !req.Validate(w) {
 			return
 		}
+
+		actor := flow.Actor{
+			Name:  req.CommitterName,
+			Email: req.CommitterEmail,
+		}
+		subject := r.Context().Value(AUTH_USER_KEY).(string)
+		if subject != "" {
+			actor.Email = subject
+			actor.Name = subject
+		}
+
 		logger = logger.WithFields(
 			"service", req.Service,
 			"req", req,
 			"intent", req.Intent)
 
 		logger.Infof("http: release: service '%s' environment '%s' artifact id '%s': releasing artifact", req.Service, req.Environment, req.ArtifactID)
-		releaseID, err := flowSvc.ReleaseArtifactID(ctx, flow.Actor{
-			Name:  "Subject", //req.CommitterName,
-			Email: "Subject", //req.CommitterEmail,
-		}, req.Environment, req.Service, req.ArtifactID, req.Intent)
+		releaseID, err := flowSvc.ReleaseArtifactID(ctx, actor, req.Environment, req.Service, req.ArtifactID, req.Intent)
 
 		var statusString string
 		if err != nil {
