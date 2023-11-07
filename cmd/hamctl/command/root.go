@@ -29,6 +29,7 @@ func NewRoot(version *string) (*cobra.Command, error) {
 
 	var service string
 	client := http.Client{
+		Auth: &authenticator,
 		Metadata: http.Metadata{
 			CLIVersion: *version,
 		},
