@@ -31,8 +31,7 @@ func NewUserAuthenticator(clientID, idpURL string) UserAuthenticator {
 	}
 }
 
-func (g *UserAuthenticator) Login() error {
-	ctx := context.Background()
+func (g *UserAuthenticator) Login(ctx context.Context) error {
 	response, err := g.conf.DeviceAuth(ctx)
 	if err != nil {
 		return err
