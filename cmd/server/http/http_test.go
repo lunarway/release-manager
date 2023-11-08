@@ -143,11 +143,7 @@ func TestAuthenticate(t *testing.T) {
 			w := httptest.NewRecorder()
 			verifier.authentication(serverToken)(handler).ServeHTTP(w, req)
 
-			if tc.expectedRequestContextSubject != "" {
-				assert.Equal(t, tc.expectedRequestContextSubject, req.Context().Value(AUTH_USER_KEY))
-			} else {
-				assert.Equal(t, nil, req.Context().Value(AUTH_USER_KEY))
-			}
+			assert.Equal(t, tc.expectedRequestContextSubject, UserFromContext(req.Context()))
 			assert.Equal(t, tc.status, w.Result().StatusCode, "status code not as expected")
 		})
 	}

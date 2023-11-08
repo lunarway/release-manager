@@ -34,7 +34,7 @@ func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service)
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
 		}
-		subject := r.Context().Value(AUTH_USER_KEY).(string)
+		subject := UserFromContext(r.Context())
 		if subject != "" {
 			actor.Email = subject
 			actor.Name = subject
@@ -99,7 +99,7 @@ func applyBranchRestrictionPolicy(payload *payload, policySvc *policyinternal.Se
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
 		}
-		subject := r.Context().Value(AUTH_USER_KEY).(string)
+		subject := UserFromContext(r.Context())
 		if subject != "" {
 			actor.Email = subject
 			actor.Name = subject
@@ -237,7 +237,7 @@ func deletePolicies(payload *payload, policySvc *policyinternal.Service) http.Ha
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
 		}
-		subject := r.Context().Value(AUTH_USER_KEY).(string)
+		subject := UserFromContext(r.Context())
 		if subject != "" {
 			actor.Email = subject
 			actor.Name = subject

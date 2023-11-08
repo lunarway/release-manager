@@ -28,6 +28,22 @@ type Verifier struct {
 	jwkCache JwkCache
 }
 
+type authenticatedUserContextKey struct{}
+
+func withAuthenticatedUser(ctx context.Context, user string) context.Context {
+	return context.WithValue(ctx, authenticatedUserContextKey{}, user)
+}
+
+func UserFromContext(ctx context.Context) string {
+	value := ctx.Value(authenticatedUserContextKey{})
+
+	if value == nil {
+		return ""
+	}
+
+	return value.(string)
+}
+
 func NewVerifier(jwksLocation string, jwkFetchTimeout time.Duration, issuer string, audience string) (*Verifier, error) {
 	ctx := context.Background()
 
@@ -60,8 +76,6 @@ func ParseBearerToken(token string) (string, error) {
 
 	return strings.TrimSpace(jwt), nil
 }
-
-const AUTH_USER_KEY = "AUTH_USER_KEY"
 
 // authenticate authenticates the handler against a Bearer token.
 //
@@ -119,7 +133,7 @@ func (v *Verifier) authentication(staticAuthToken string) func(http.Handler) htt
 					return
 				}
 			}
-			ctx := context.WithValue(r.Context(), AUTH_USER_KEY, parsedToken.Subject())
+			ctx := withAuthenticatedUser(r.Context(), parsedToken.Subject())
 			*r = *r.WithContext(ctx)
 
 			h.ServeHTTP(w, r)

@@ -31,7 +31,7 @@ func release(payload *payload, flowSvc *flow.Service) http.HandlerFunc {
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
 		}
-		subject := r.Context().Value(AUTH_USER_KEY).(string)
+		subject := UserFromContext(r.Context())
 		if subject != "" {
 			actor.Email = subject
 			actor.Name = subject

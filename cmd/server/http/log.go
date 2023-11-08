@@ -32,7 +32,7 @@ func reqrespLogger(h http.Handler) http.Handler {
 		duration := time.Since(start).Nanoseconds() / 1e6
 		statusCode := statusWriter.statusCode
 		requestID := getRequestID(r)
-		subject := r.Context().Value(AUTH_USER_KEY).(string)
+		subject := UserFromContext(r.Context())
 		fields := []interface{}{
 			"requestId", requestID,
 			"req", struct {
