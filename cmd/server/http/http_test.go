@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -149,6 +150,77 @@ func TestAuthenticate(t *testing.T) {
 	}
 }
 
+// TestAuthenticate_withInvalidCache tests that jwk cache refresh works as
+// intended and that tokens are accepted after a refresh
+func TestAuthenticate_withInvalidCache(t *testing.T) {
+	log.Init(&log.Configuration{
+		Level: log.Level{
+			Level: zapcore.DebugLevel,
+		},
+		Development: true,
+	})
+
+	testIssuer := "https://auth.dev.lunar.tech/"
+	testAudience := "audience"
+	testSubject := "subject"
+
+	// Set up the invalid cache
+	_, unusedPublic1 := createSigningKey(t, testIssuer)
+	unusedJWKKey := jwk.NewSet()
+	err := unusedJWKKey.AddKey(unusedPublic1)
+	require.NoError(t, err, "add key to unused JWK failed")
+
+	// Set up the valid cache
+	validPrivateKey, validPublicKey := createSigningKey(t, testIssuer)
+	validJWK := jwk.NewSet()
+	err = validJWK.AddKey(validPublicKey)
+	require.NoError(t, err, "add key to valid jwk failed")
+
+	// test server will return the valid JWK after first call
+	handlerCalled := false
+	jwkServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !handlerCalled {
+			json.NewEncoder(w).Encode(unusedJWKKey)
+		} else {
+			json.NewEncoder(w).Encode(validJWK)
+		}
+		// return valid cache second time it's called
+		handlerCalled = true
+	}))
+
+	signedJwt := createSignedJWTWithKey(t, &principal{
+		Subject:    testSubject,
+		Issuer:     testIssuer,
+		Audience:   testAudience,
+		IssuedAt:   time.Now().Add(-1 * time.Minute),
+		Expiration: time.Now().Add(time.Minute),
+	}, validPrivateKey)
+
+	// Set up the cache
+	cache := jwk.NewCache(context.Background())
+	err = cache.Register(jwkServer.URL)
+	require.NoError(t, err, "failed to register server in cache")
+
+	_, err = cache.Refresh(context.Background(), jwkServer.URL)
+	require.NoError(t, err, "failed to refresh cache")
+
+	authenticator, err := NewVerifier(jwkServer.URL, 10*time.Second, testIssuer, testAudience)
+	require.NoError(t, err, "failed to create verified")
+	authenticator.jwkCache = cache
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", signedJwt)
+
+	authenticator.authentication("static-token")(handler).ServeHTTP(w, req)
+
+	assert.Equal(t, testSubject, UserFromContext(req.Context()))
+	assert.Equal(t, http.StatusOK, w.Result().StatusCode, "status code not as expected")
+}
+
 func getJwksEndpoint(t *testing.T) (*httptest.Server, func(t *testing.T, principal principal) string) {
 	t.Helper()
 
@@ -181,7 +253,7 @@ type principal struct {
 	Audience   string
 	IssuedAt   time.Time
 	Expiration time.Time
-	Claims     map[string]string
+	Claims     map[string]interface{}
 }
 
 func createSignedJWTWithKey(t *testing.T, principal *principal, privateJwkKey jwk.Key) string {
