@@ -20,73 +20,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func TestAuthenticate_token(t *testing.T) {
-	tt := []struct {
-		name          string
-		serverToken   string
-		authorization string
-		status        int
-	}{
-		{
-			name:          "empty authorization",
-			serverToken:   "token",
-			authorization: "",
-			status:        http.StatusUnauthorized,
-		},
-		{
-			name:          "whitespace token",
-			serverToken:   "token",
-			authorization: "  ",
-			status:        http.StatusUnauthorized,
-		},
-		{
-			name:          "non-bearer authorization",
-			serverToken:   "token",
-			authorization: "non-bearer-token",
-			status:        http.StatusUnauthorized,
-		},
-		{
-			name:          "empty bearer authorization",
-			serverToken:   "token",
-			authorization: "Bearer ",
-			status:        http.StatusUnauthorized,
-		},
-		{
-			name:          "whitespace bearer authorization",
-			serverToken:   "token",
-			authorization: "Bearer      ",
-			status:        http.StatusUnauthorized,
-		},
-		{
-			name:          "wrong bearer authorization",
-			serverToken:   "token",
-			authorization: "Bearer another-token",
-			status:        http.StatusUnauthorized,
-		},
-		{
-			name:          "correct bearer authorization",
-			serverToken:   "token",
-			authorization: "Bearer token",
-			status:        http.StatusOK,
-		},
-	}
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			verifier := Verifier{}
-			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-			})
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
-			req.Header.Set("Authorization", tc.authorization)
-			w := httptest.NewRecorder()
-			verifier.authentication(tc.serverToken)(handler).ServeHTTP(w, req)
-
-			assert.Equal(t, tc.status, w.Result().StatusCode, "status code not as expected")
-		})
-	}
-}
-
-func TestAuthenticate_jwt(t *testing.T) {
+func TestAuthenticate(t *testing.T) {
 	log.Init(&log.Configuration{
 		Level: log.Level{
 			Level: zapcore.DebugLevel,
@@ -98,6 +32,7 @@ func TestAuthenticate_jwt(t *testing.T) {
 
 	issuer := "test-issuer"
 	audience := "test-audience"
+	serverToken := "server-token"
 
 	tt := []struct {
 		name string
@@ -137,7 +72,12 @@ func TestAuthenticate_jwt(t *testing.T) {
 			status:        http.StatusUnauthorized,
 		},
 		{
-			name: "valid bearer authorization",
+			name:          "correct hamctl bearer authorization",
+			authorization: "Bearer " + serverToken,
+			status:        http.StatusOK,
+		},
+		{
+			name: "valid jwt bearer authorization",
 			authorization: fmt.Sprintf("Bearer %s",
 				minter(t, principal{
 					Subject:    "sub",
@@ -201,7 +141,7 @@ func TestAuthenticate_jwt(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			req.Header.Set("Authorization", tc.authorization)
 			w := httptest.NewRecorder()
-			verifier.authentication("")(handler).ServeHTTP(w, req)
+			verifier.authentication(serverToken)(handler).ServeHTTP(w, req)
 
 			if tc.expectedRequestContextSubject != "" {
 				assert.Equal(t, tc.expectedRequestContextSubject, req.Context().Value(AUTH_USER_KEY))
