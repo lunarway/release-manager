@@ -103,7 +103,7 @@ func (v *Verifier) authentication(staticAuthToken string) func(http.Handler) htt
 				return
 			}
 
-			keySet, err := v.jwkCache.Get(context.Background(), v.jwksLocation)
+			keySet, err := v.jwkCache.Get(r.Context(), v.jwksLocation)
 			if err != nil {
 				log.WithContext(r.Context()).Infof("get jwk cache failed: %v", err)
 				httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
@@ -115,7 +115,7 @@ func (v *Verifier) authentication(staticAuthToken string) func(http.Handler) htt
 				log.WithContext(r.Context()).Infof("JWT token verification failed: %v", err)
 				if strings.Contains(err.Error(), keyNotFoundMsg) {
 					log.WithContext(r.Context()).Infof("JWT token verification: refresh jwk cache and try again")
-					freshKeys, err := v.jwkCache.Refresh(context.Background(), v.jwksLocation)
+					freshKeys, err := v.jwkCache.Refresh(r.Context(), v.jwksLocation)
 					if err != nil {
 						log.WithContext(r.Context()).Errorf("JWT token refresh failed: %v", err)
 						httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
