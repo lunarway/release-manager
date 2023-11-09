@@ -83,7 +83,7 @@ func storeAccessToken(token *oauth2.Token) error {
 	}
 	p := tokenFilePath()
 	dir := filepath.Dir(p)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
 	f, err := os.Create(p)
