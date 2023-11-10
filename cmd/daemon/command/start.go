@@ -21,6 +21,7 @@ import (
 // 3. Detects CreateContainerConfigError, and fetches the message about the wrong config.
 func StartDaemon() *cobra.Command {
 	var environment, kubeConfigPath string
+	var idpURL, clientID, clientSecret string
 	var moduloCrashReportNotif float64
 	var logConfiguration *log.Configuration
 
@@ -33,19 +34,6 @@ func StartDaemon() *cobra.Command {
 
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
-
-			idpURL := os.Getenv("HAMCTL_OAUTH_IDP_URL")
-			if idpURL == "" {
-				return errors.New("no HAMCTL_OAUTH_IDP_URL env var set")
-			}
-			clientID := os.Getenv("HAMCTL_OAUTH_CLIENT_ID")
-			if clientID == "" {
-				return errors.New("no HAMCTL_OAUTH_CLIENT_ID env var set")
-			}
-			clientSecret := os.Getenv("HAMCTL_OAUTH_CLIENT_SECRET")
-			if clientID == "" {
-				return errors.New("no HAMCTL_OAUTH_CLIENT_SECRET env var set")
-			}
 
 			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL)
 			client.Auth = &authenticator
@@ -118,10 +106,20 @@ func StartDaemon() *cobra.Command {
 	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
 	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "path to kubeconfig file. If not specified, then daemon is expected to run inside kubernetes")
 	command.Flags().Float64Var(&moduloCrashReportNotif, "modulo-crash-report-notif", 5, "modulo for how often to report CrashLoopBackOff events")
+	command.Flags().StringVar(&idpURL, "idp-url", "", "the url of the identity provider")
+	command.Flags().StringVar(&clientID, "clientid", "", "client id of this application issued by the identity provider")
+	command.Flags().StringVar(&clientSecret, "client-secret", "", "the client secret")
+
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
 	//nolint:errcheck
 	command.MarkFlagRequired("environment")
+	//nolint:errcheck
+	command.MarkFlagRequired("idp-url")
+	//nolint:errcheck
+	command.MarkFlagRequired("clientid")
+	//nolint:errcheck
+	command.MarkFlagRequired("client-secret")
 	logConfiguration = log.RegisterFlags(command)
 	return command
 }

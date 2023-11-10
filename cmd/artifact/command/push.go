@@ -10,13 +10,12 @@ import (
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	intslack "github.com/lunarway/release-manager/internal/slack"
 	"github.com/nlopes/slack"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 func pushCommand(options *Options) *cobra.Command {
 	releaseManagerClient := httpinternal.Client{}
-
+	var idpURL, clientID, clientSecret string
 	command := &cobra.Command{
 		Use:   "push",
 		Short: "push artifact to artifact repository",
@@ -24,19 +23,6 @@ func pushCommand(options *Options) *cobra.Command {
 			var artifactID string
 			var err error
 			ctx := context.Background()
-
-			idpURL := os.Getenv("HAMCTL_OAUTH_IDP_URL")
-			if idpURL == "" {
-				return errors.New("no HAMCTL_OAUTH_IDP_URL env var set")
-			}
-			clientID := os.Getenv("HAMCTL_OAUTH_CLIENT_ID")
-			if clientID == "" {
-				return errors.New("no HAMCTL_OAUTH_CLIENT_ID env var set")
-			}
-			clientSecret := os.Getenv("HAMCTL_OAUTH_CLIENT_SECRET")
-			if clientID == "" {
-				return errors.New("no HAMCTL_OAUTH_CLIENT_SECRET env var set")
-			}
 			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL)
 			releaseManagerClient.Auth = &authenticator
 
@@ -62,12 +48,19 @@ func pushCommand(options *Options) *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&releaseManagerClient.BaseURL, "http-base-url", os.Getenv("ARTIFACT_URL"), "address of the http release manager server")
+	command.Flags().StringVar(&idpURL, "idp-url", "", "the url of the identity provider")
+	command.Flags().StringVar(&clientID, "clientid", "", "client id of this application issued by the identity provider")
+	command.Flags().StringVar(&clientSecret, "client-secret", "", "the client secret")
 
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
 	//nolint:errcheck
 	command.MarkFlagRequired("http-base-url")
 	//nolint:errcheck
-	command.MarkFlagRequired("http-auth-token")
+	command.MarkFlagRequired("idp-url")
+	//nolint:errcheck
+	command.MarkFlagRequired("clientid")
+	//nolint:errcheck
+	command.MarkFlagRequired("client-secret")
 	return command
 }
