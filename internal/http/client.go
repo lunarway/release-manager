@@ -80,7 +80,6 @@ func (c *Client) Do(method string, path string, requestBody, responseBody interf
 		req.Header.Set("x-request-id", id.String())
 	}
 	req.Header.Set("X-Cli-Version", c.Metadata.CLIVersion)
-	req.Header.Set("X-HAM-TOKEN", "test")
 	resp, err := client.Do(req)
 	if err != nil {
 		var dnsError *net.DNSError
