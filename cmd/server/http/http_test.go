@@ -133,7 +133,7 @@ func TestAuthenticate(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			verifier, err := NewVerifier(jwksServer.URL, 1*time.Second, issuer, audience)
+			verifier, err := NewVerifier(context.Background(), jwksServer.URL, 1*time.Second, issuer, audience)
 			require.NoError(t, err, "failed to create verifier")
 
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -204,7 +204,7 @@ func TestAuthenticate_withInvalidCache(t *testing.T) {
 	_, err = cache.Refresh(context.Background(), jwkServer.URL)
 	require.NoError(t, err, "failed to refresh cache")
 
-	authenticator, err := NewVerifier(jwkServer.URL, 10*time.Second, testIssuer, testAudience)
+	authenticator, err := NewVerifier(context.Background(), jwkServer.URL, 10*time.Second, testIssuer, testAudience)
 	require.NoError(t, err, "failed to create verified")
 	authenticator.jwkCache = cache
 

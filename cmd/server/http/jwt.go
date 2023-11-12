@@ -44,9 +44,7 @@ func UserFromContext(ctx context.Context) string {
 	return value.(string)
 }
 
-func NewVerifier(jwksLocation string, jwkFetchTimeout time.Duration, issuer string, audience string) (*Verifier, error) {
-	ctx := context.Background()
-
+func NewVerifier(ctx context.Context, jwksLocation string, jwkFetchTimeout time.Duration, issuer string, audience string) (*Verifier, error) {
 	cache := jwk.NewCache(ctx)
 	err := cache.Register(jwksLocation, jwk.WithMinRefreshInterval(24*time.Hour))
 	if err != nil {
