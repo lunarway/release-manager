@@ -31,17 +31,13 @@ func reqrespLogger(h http.Handler) http.Handler {
 		// request duration in miliseconds
 		duration := time.Since(start).Nanoseconds() / 1e6
 		statusCode := statusWriter.statusCode
-		requestID := getRequestID(r)
 		fields := []interface{}{
-			"requestId", requestID,
 			"req", struct {
-				ID      string            `json:"id,omitempty"`
 				URL     string            `json:"url,omitempty"`
 				Method  string            `json:"method,omitempty"`
 				Path    string            `json:"path,omitempty"`
 				Headers map[string]string `json:"headers,omitempty"`
 			}{
-				ID:      requestID,
 				URL:     r.URL.RequestURI(),
 				Method:  r.Method,
 				Path:    r.URL.Path,
@@ -58,7 +54,8 @@ func reqrespLogger(h http.Handler) http.Handler {
 		if err != nil {
 			fields = append(fields, "error", err)
 		}
-		logger := log.With(fields...)
+
+		logger := log.WithContext(r.Context()).With(fields...)
 		if statusCode >= http.StatusInternalServerError {
 			logger.Errorf("[%d] %s %s", statusCode, r.Method, r.URL.Path)
 			return
