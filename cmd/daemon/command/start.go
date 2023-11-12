@@ -107,7 +107,7 @@ func StartDaemon() *cobra.Command {
 	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "path to kubeconfig file. If not specified, then daemon is expected to run inside kubernetes")
 	command.Flags().Float64Var(&moduloCrashReportNotif, "modulo-crash-report-notif", 5, "modulo for how often to report CrashLoopBackOff events")
 	command.Flags().StringVar(&idpURL, "idp-url", "", "the url of the identity provider")
-	command.Flags().StringVar(&clientID, "clientid", "", "client id of this application issued by the identity provider")
+	command.Flags().StringVar(&clientID, "client-id", "", "client id of this application issued by the identity provider")
 	command.Flags().StringVar(&clientSecret, "client-secret", "", "the client secret")
 
 	// errors are skipped here as the only case they can occour are if thee flag
