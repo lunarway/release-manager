@@ -103,10 +103,14 @@ example_resources:
 	echo "$$FLUX_KUSTOMIZATION" > examples/prod/kustomization.yaml
 
 RELEASE_MANAGER_URL=http://localhost:8080
-RELEASE_MANAGER_AUTH_TOKEN=test
+OAUTH_IDP_URL=https://idpurl
+OAUTH_CLIENT_ID=id
+OAUTH_CLIENT_SECRET=secret
 
 test_push: example example_resources
 	./artifact push \
 		--root examples \
 		--http-base-url ${RELEASE_MANAGER_URL} \
-		--http-auth-token ${RELEASE_MANAGER_AUTH_TOKEN}
+		--client-id ${OAUTH_CLIENT_ID} \
+		--client-secret ${OAUTH_CLIENT_SECRET} \
+		--idp-url ${OAUTH_IDP_URL}
