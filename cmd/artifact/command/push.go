@@ -49,7 +49,7 @@ func pushCommand(options *Options) *cobra.Command {
 	}
 	command.Flags().StringVar(&releaseManagerClient.BaseURL, "http-base-url", os.Getenv("ARTIFACT_URL"), "address of the http release manager server")
 	command.Flags().StringVar(&idpURL, "idp-url", "", "the url of the identity provider")
-	command.Flags().StringVar(&clientID, "clientid", "", "client id of this application issued by the identity provider")
+	command.Flags().StringVar(&clientID, "client-id", "", "client id of this application issued by the identity provider")
 	command.Flags().StringVar(&clientSecret, "client-secret", "", "the client secret")
 
 	// errors are skipped here as the only case they can occour are if thee flag
@@ -59,7 +59,7 @@ func pushCommand(options *Options) *cobra.Command {
 	//nolint:errcheck
 	command.MarkFlagRequired("idp-url")
 	//nolint:errcheck
-	command.MarkFlagRequired("clientid")
+	command.MarkFlagRequired("client-id")
 	//nolint:errcheck
 	command.MarkFlagRequired("client-secret")
 	return command

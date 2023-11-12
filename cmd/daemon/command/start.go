@@ -117,7 +117,7 @@ func StartDaemon() *cobra.Command {
 	//nolint:errcheck
 	command.MarkFlagRequired("idp-url")
 	//nolint:errcheck
-	command.MarkFlagRequired("clientid")
+	command.MarkFlagRequired("client-id")
 	//nolint:errcheck
 	command.MarkFlagRequired("client-secret")
 	logConfiguration = log.RegisterFlags(command)
