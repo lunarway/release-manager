@@ -3,15 +3,9 @@ package actions
 import (
 	"net/http"
 
-	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/intent"
 )
-
-//go:generate moq -rm -out config_mock.go . GitConfigAPI
-type GitConfigAPI interface {
-	CommitterDetails() (*git.CommitterDetails, error)
-}
 
 type ReleaseResult struct {
 	Response    httpinternal.ReleaseResponse
