@@ -13,21 +13,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const keyNotFoundMsg = "failed to find key with key ID"
-
-type JwkCache interface {
-	Get(ctx context.Context, url string) (jwk.Set, error)
-	Refresh(ctx context.Context, url string) (jwk.Set, error)
-}
-
-type Verifier struct {
-	jwksLocation string
-	issuer       string
-	audience     string
-
-	jwkCache JwkCache
-}
-
 type authenticatedUserContextKey struct{}
 
 func withAuthenticatedUser(ctx context.Context, user string) context.Context {
@@ -42,6 +27,21 @@ func UserFromContext(ctx context.Context) string {
 	}
 
 	return value.(string)
+}
+
+const keyNotFoundMsg = "failed to find key with key ID"
+
+type JwkCache interface {
+	Get(ctx context.Context, url string) (jwk.Set, error)
+	Refresh(ctx context.Context, url string) (jwk.Set, error)
+}
+
+type Verifier struct {
+	jwksLocation string
+	issuer       string
+	audience     string
+
+	jwkCache JwkCache
 }
 
 func NewVerifier(ctx context.Context, jwksLocation string, jwkFetchTimeout time.Duration, issuer string, audience string) (*Verifier, error) {
