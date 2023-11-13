@@ -31,7 +31,6 @@ func reqrespLogger(h http.Handler) http.Handler {
 		// request duration in miliseconds
 		duration := time.Since(start).Nanoseconds() / 1e6
 		statusCode := statusWriter.statusCode
-
 		fields := []interface{}{
 			"req", struct {
 				URL     string            `json:"url,omitempty"`
