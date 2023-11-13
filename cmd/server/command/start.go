@@ -516,7 +516,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				}
 			}()
 			go func() {
-				jwtVerifier, err := http.NewVerifier(ctx, startOptions.jwtVerifier.JwksLocation, 30*time.Second, startOptions.jwtVerifier.Issuer, startOptions.jwtVerifier.Audience)
+				jwtVerifier, err := http.NewVerifier(ctx, startOptions.jwtVerifier.JwksLocation, startOptions.jwtVerifier.Issuer, startOptions.jwtVerifier.Audience)
 				if err != nil {
 					done <- errors.WithMessage(err, "new jwt verifier")
 					return

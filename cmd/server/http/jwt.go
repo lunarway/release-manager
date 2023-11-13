@@ -44,7 +44,7 @@ type Verifier struct {
 	jwkCache JwkCache
 }
 
-func NewVerifier(ctx context.Context, jwksLocation string, jwkFetchTimeout time.Duration, issuer string, audience string) (*Verifier, error) {
+func NewVerifier(ctx context.Context, jwksLocation string, issuer string, audience string) (*Verifier, error) {
 	cache := jwk.NewCache(ctx)
 	err := cache.Register(jwksLocation, jwk.WithMinRefreshInterval(24*time.Hour))
 	if err != nil {
