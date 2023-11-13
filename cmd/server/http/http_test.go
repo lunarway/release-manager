@@ -78,6 +78,11 @@ func TestAuthenticate(t *testing.T) {
 			status:        http.StatusOK,
 		},
 		{
+			name:          "Invalid bearer token with lots of dots",
+			authorization: "Bearer ......................",
+			status:        http.StatusUnauthorized,
+		},
+		{
 			name: "valid jwt bearer authorization",
 			authorization: fmt.Sprintf("Bearer %s",
 				minter(t, principal{

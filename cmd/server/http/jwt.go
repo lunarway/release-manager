@@ -66,7 +66,7 @@ func NewVerifier(ctx context.Context, jwksLocation string, issuer string, audien
 func ParseBearerToken(token string) (string, error) {
 	jwt := strings.TrimPrefix(token, "Bearer")
 
-	tokenParts := strings.Split(jwt, ".")
+	tokenParts := strings.SplitN(jwt, ".", 4)
 
 	if len(tokenParts) != 3 {
 		return "", errors.New("invalid token format")
