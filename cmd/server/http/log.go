@@ -38,13 +38,11 @@ func reqrespLogger(h http.Handler) http.Handler {
 				Method  string            `json:"method,omitempty"`
 				Path    string            `json:"path,omitempty"`
 				Headers map[string]string `json:"headers,omitempty"`
-				Subject string            `json:"subject,omitempty"`
 			}{
 				URL:     r.URL.RequestURI(),
 				Method:  r.Method,
 				Path:    r.URL.Path,
 				Headers: secureHeaders(flattenHeaders(r.Header)),
-				Subject: subject,
 			},
 			"res", struct {
 				StatusCode int `json:"statusCode,omitempty"`

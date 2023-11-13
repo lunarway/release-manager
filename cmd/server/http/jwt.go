@@ -132,6 +132,7 @@ func (v *Verifier) authentication(staticAuthToken string) func(http.Handler) htt
 				}
 			}
 			ctx := withAuthenticatedUser(r.Context(), parsedToken.Subject())
+			ctx = log.AddContext(ctx, "subject", parsedToken.Subject())
 			*r = *r.WithContext(ctx)
 
 			h.ServeHTTP(w, r)
