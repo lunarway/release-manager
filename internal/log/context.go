@@ -14,5 +14,9 @@ func WithContext(ctx context.Context) *Logger {
 
 // AddContext adds fields to the context that can be used in WithContext.
 func AddContext(ctx context.Context, fields ...interface{}) context.Context {
+	values, ok := ctx.Value(contextKey{}).([]interface{})
+	if ok && values != nil {
+		fields = append(fields, values...)
+	}
 	return context.WithValue(ctx, contextKey{}, fields)
 }
