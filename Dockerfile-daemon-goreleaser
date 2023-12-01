@@ -1,4 +1,4 @@
-FROM alpine:3.18.4 as builder
+FROM alpine:3.18.5 as builder
 
 RUN apk update
 RUN apk add ca-certificates
