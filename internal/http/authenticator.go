@@ -57,7 +57,7 @@ func (g *UserAuthenticator) Access(ctx context.Context) (*http.Client, error) {
 	return g.conf.Client(ctx, token), nil
 }
 
-const tokenFile string = ".Config/hamctl/token.json"
+const tokenFile string = ".Config/release-manager/token.json"
 
 func tokenFilePath() string {
 	return filepath.Join(os.Getenv("HOME"), tokenFile)
