@@ -18,9 +18,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type NoAuthClient struct{}
+type NoopAuthClient struct{}
 
-func (NoAuthClient) Access(ctx context.Context) (*http.Client, error) {
+func (NoopAuthClient) Access(ctx context.Context) (*http.Client, error) {
 	return &http.Client{}, nil
 }
 
@@ -67,7 +67,7 @@ func TestRelease(t *testing.T) {
 
 	c := internalhttp.Client{
 		BaseURL: server.URL,
-		Auth:    NoAuthClient{},
+		Auth:    NoopAuthClient{},
 	}
 
 	releaseClient := actions.NewReleaseHttpClient(&c)
@@ -201,7 +201,7 @@ func maskGUID(output []string) []string {
 
 func TestRelease_emptyEnvValue(t *testing.T) {
 	serviceName := "service-name"
-	c := internalhttp.Client{Auth: NoAuthClient{}}
+	c := internalhttp.Client{Auth: NoopAuthClient{}}
 	releaseClient := actions.NewReleaseHttpClient(&c)
 
 	cmd := command.NewRelease(&c, &serviceName, func(f string, args ...interface{}) {

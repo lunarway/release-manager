@@ -69,7 +69,7 @@ func TestRollback(t *testing.T) {
 
 	c := internalhttp.Client{
 		BaseURL: server.URL,
-		Auth:    NoAuthClient{},
+		Auth:    NoopAuthClient{},
 	}
 
 	releaseClient := actions.NewReleaseHttpClient(&c)
