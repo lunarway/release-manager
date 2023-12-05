@@ -84,13 +84,15 @@ func (v *Verifier) authentication(staticAuthToken string) func(http.Handler) htt
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authorization := r.Header.Get("Authorization")
 
-			// old hamctl token auth
-			t := strings.TrimPrefix(authorization, "Bearer ")
-			t = strings.TrimSpace(t)
-			if t == staticAuthToken {
-
-				h.ServeHTTP(w, r)
-				return
+			// use value as feature toggle
+			if staticAuthToken != "" {
+				// old hamctl token auth
+				t := strings.TrimPrefix(authorization, "Bearer ")
+				t = strings.TrimSpace(t)
+				if t == staticAuthToken {
+					h.ServeHTTP(w, r)
+					return
+				}
 			}
 
 			// jwt auth
