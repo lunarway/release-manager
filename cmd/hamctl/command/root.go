@@ -16,16 +16,10 @@ import (
 
 // NewRoot returns a new instance of a hamctl command.
 func NewRoot(version *string) (*cobra.Command, error) {
-	idpURL := os.Getenv("HAMCTL_OAUTH_IDP_URL")
-	if idpURL == "" {
-		return nil, errors.New("no HAMCTL_OAUTH_IDP_URL env var set")
+	authenticator, err := setupAuthenticator()
+	if err != nil {
+		return nil, err
 	}
-	clientID := os.Getenv("HAMCTL_OAUTH_CLIENT_ID")
-	if clientID == "" {
-		return nil, errors.New("no HAMCTL_OAUTH_CLIENT_ID env var set")
-	}
-
-	authenticator := http.NewUserAuthenticator(clientID, idpURL)
 
 	var service string
 	client := http.Client{
@@ -132,4 +126,17 @@ func defaultShuttleString(shuttleLocator func() (shuttleSpec, bool), flagValue *
 	if t != "" {
 		*flagValue = t
 	}
+}
+
+func setupAuthenticator() (http.UserAuthenticator, error) {
+	idpURL := os.Getenv("HAMCTL_OAUTH_IDP_URL")
+	if idpURL == "" {
+		return http.UserAuthenticator{}, errors.New("no HAMCTL_OAUTH_IDP_URL env var set")
+	}
+	clientID := os.Getenv("HAMCTL_OAUTH_CLIENT_ID")
+	if clientID == "" {
+		return http.UserAuthenticator{}, errors.New("no HAMCTL_OAUTH_CLIENT_ID env var set")
+	}
+
+	return http.NewUserAuthenticator(clientID, idpURL), nil
 }
