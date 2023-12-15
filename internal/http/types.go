@@ -48,12 +48,6 @@ func (r ReleaseRequest) Validate(w http.ResponseWriter) bool {
 	if emptyString(r.Environment) {
 		errs.Append(requiredField("environment"))
 	}
-	if emptyString(r.CommitterName) {
-		errs.Append(requiredField("committerName"))
-	}
-	if emptyString(r.CommitterEmail) {
-		errs.Append(requiredField("committerEmail"))
-	}
 	if emptyString(r.ArtifactID) {
 		errs.Append("required field artifact id is not specified")
 	}
@@ -170,12 +164,6 @@ func (r ApplyBranchRestrictionPolicyRequest) Validate(w http.ResponseWriter) boo
 	if emptyString(r.BranchRegex) {
 		errs.Append(requiredField("branch regex"))
 	}
-	if emptyString(r.CommitterName) {
-		errs.Append(requiredField("committerName"))
-	}
-	if emptyString(r.CommitterEmail) {
-		errs.Append(requiredField("committerEmail"))
-	}
 	return errs.Evaluate(w)
 }
 
@@ -205,12 +193,6 @@ func (r ApplyAutoReleasePolicyRequest) Validate(w http.ResponseWriter) bool {
 	if emptyString(r.Environment) {
 		errs.Append(requiredField("environment"))
 	}
-	if emptyString(r.CommitterName) {
-		errs.Append(requiredField("committerName"))
-	}
-	if emptyString(r.CommitterEmail) {
-		errs.Append(requiredField("committerEmail"))
-	}
 	return errs.Evaluate(w)
 }
 
@@ -232,11 +214,6 @@ func (r DeletePolicyRequest) Validate(w http.ResponseWriter) bool {
 	var errs validationErrors
 	if emptyString(r.Service) {
 		errs.Append(requiredField("service"))
-	}
-	if emptyString(r.CommitterName) {
-		errs.Append(requiredField("committerName"))
-	}
-	if emptyString(r.CommitterEmail) {
 		errs.Append(requiredField("committerEmail"))
 	}
 	ids := filterEmptyStrings(r.PolicyIDs)

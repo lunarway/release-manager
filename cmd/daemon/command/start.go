@@ -21,6 +21,7 @@ import (
 // 3. Detects CreateContainerConfigError, and fetches the message about the wrong config.
 func StartDaemon() *cobra.Command {
 	var environment, kubeConfigPath string
+	var idpURL, clientID, clientSecret string
 	var moduloCrashReportNotif float64
 	var logConfiguration *log.Configuration
 
@@ -33,6 +34,9 @@ func StartDaemon() *cobra.Command {
 
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
+
+			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL)
+			client.Auth = &authenticator
 
 			exporter := &kubernetes.ReleaseManagerExporter{
 				Log:         log.With("type", "k8s-exporter"),
@@ -98,15 +102,24 @@ func StartDaemon() *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&client.BaseURL, "release-manager-url", os.Getenv("RELEASE_MANAGER_ADDRESS"), "address of the release-manager, e.g. http://release-manager")
-	command.Flags().StringVar(&client.Metadata.AuthToken, "auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "token to be used to communicate with the release-manager")
 	command.Flags().DurationVar(&client.Timeout, "http-timeout", 20*time.Second, "HTTP request timeout")
 	command.Flags().StringVar(&environment, "environment", "", "environment where release-daemon is running")
 	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "path to kubeconfig file. If not specified, then daemon is expected to run inside kubernetes")
 	command.Flags().Float64Var(&moduloCrashReportNotif, "modulo-crash-report-notif", 5, "modulo for how often to report CrashLoopBackOff events")
+	command.Flags().StringVar(&idpURL, "idp-url", "", "the url of the identity provider")
+	command.Flags().StringVar(&clientID, "client-id", "", "client id of this application issued by the identity provider")
+	command.Flags().StringVar(&clientSecret, "client-secret", "", "the client secret")
+
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
 	//nolint:errcheck
 	command.MarkFlagRequired("environment")
+	//nolint:errcheck
+	command.MarkFlagRequired("idp-url")
+	//nolint:errcheck
+	command.MarkFlagRequired("client-id")
+	//nolint:errcheck
+	command.MarkFlagRequired("client-secret")
 	logConfiguration = log.RegisterFlags(command)
 	return command
 }

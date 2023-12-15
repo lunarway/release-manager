@@ -1,6 +1,7 @@
 package command_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,11 +13,16 @@ import (
 	"github.com/lunarway/release-manager/cmd/hamctl/command"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/internal/artifact"
-	"github.com/lunarway/release-manager/internal/git"
 	internalhttp "github.com/lunarway/release-manager/internal/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type NoopAuthClient struct{}
+
+func (NoopAuthClient) Access(ctx context.Context) (*http.Client, error) {
+	return &http.Client{}, nil
+}
 
 func TestRelease(t *testing.T) {
 	var (
@@ -61,9 +67,10 @@ func TestRelease(t *testing.T) {
 
 	c := internalhttp.Client{
 		BaseURL: server.URL,
+		Auth:    NoopAuthClient{},
 	}
 
-	releaseClient := actions.NewReleaseHttpClient(git.NewLocalGitConfigAPI(), &c)
+	releaseClient := actions.NewReleaseHttpClient(&c)
 
 	runCommand := func(t *testing.T, args ...string) []string {
 		var output []string
@@ -194,8 +201,8 @@ func maskGUID(output []string) []string {
 
 func TestRelease_emptyEnvValue(t *testing.T) {
 	serviceName := "service-name"
-	c := internalhttp.Client{}
-	releaseClient := actions.NewReleaseHttpClient(git.NewLocalGitConfigAPI(), &c)
+	c := internalhttp.Client{Auth: NoopAuthClient{}}
+	releaseClient := actions.NewReleaseHttpClient(&c)
 
 	cmd := command.NewRelease(&c, &serviceName, func(f string, args ...interface{}) {
 		t.Logf(f, args...)

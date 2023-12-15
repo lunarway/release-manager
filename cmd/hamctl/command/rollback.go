@@ -8,18 +8,11 @@ import (
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
 	"github.com/lunarway/release-manager/cmd/hamctl/template"
-	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
-
-//go:generate moq -rm -out config_mock.go . GitConfigAPI
-
-type GitConfigAPI interface {
-	CommitterDetails() (*git.CommitterDetails, error)
-}
 
 type ReleaseArtifact interface {
 	ReleaseArtifactID(service, environment string, artifactID string, intent intent.Intent) (actions.ReleaseResult, error)

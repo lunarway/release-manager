@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/lunarway/release-manager/internal/flow"
 	"github.com/lunarway/release-manager/internal/git"
-	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/slack"
@@ -30,7 +28,7 @@ type Options struct {
 	S3WebhookSecret     string
 }
 
-func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, artifactWriteStorage ArtifactWriteStorage, tracer tracing.Tracer) error {
+func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, artifactWriteStorage ArtifactWriteStorage, tracer tracing.Tracer, jwtVerifier *Verifier) error {
 	payloader := payload{
 		tracer: tracer,
 	}
@@ -45,7 +43,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	m.Use(reqrespLogger)
 
 	hamctlMux := m.NewRoute().Subrouter()
-	hamctlMux.Use(authenticate(opts.HamCtlAuthToken))
+	hamctlMux.Use(jwtVerifier.authentication(opts.HamCtlAuthToken))
 	hamctlMux.Methods(http.MethodPost).Path("/release").Handler(release(&payloader, flowSvc))
 	hamctlMux.Methods(http.MethodGet).Path("/status").Handler(status(&payloader, flowSvc))
 
@@ -60,14 +58,14 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	hamctlMux.Methods(http.MethodGet).Path("/describe/latest-artifact/{service}").Handler(describeLatestArtifacts(&payloader, flowSvc))
 
 	daemonMux := m.NewRoute().Subrouter()
-	daemonMux.Use(authenticate(opts.DaemonAuthToken))
+	daemonMux.Use(jwtVerifier.authentication(opts.DaemonAuthToken))
 	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/deploy").Handler(daemonk8sDeployWebhook(&payloader, flowSvc))
 	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/error").Handler(daemonk8sPodErrorWebhook(&payloader, flowSvc))
 	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/joberror").Handler(daemonk8sJobErrorWebhook(&payloader, flowSvc))
 
 	// s3 endpoints
 	artifactMux := m.NewRoute().Subrouter()
-	artifactMux.Use(authenticate(opts.ArtifactAuthToken))
+	artifactMux.Use(jwtVerifier.authentication(opts.ArtifactAuthToken))
 	artifactMux.Methods(http.MethodPost).Path("/artifacts/create").Handler(createArtifact(&payloader, artifactWriteStorage))
 
 	// profiling endpoints
@@ -137,25 +135,6 @@ func trace(tracer tracing.Tracer) func(http.Handler) http.Handler {
 				span.SetTag("error", true)
 				span.SetTag("error_message", err.Error())
 			}
-		})
-	}
-}
-
-// authenticate authenticates the handler against a Bearer token.
-//
-// If authentication fails a 401 Unauthorized HTTP status is returned with an
-// ErrorResponse body.
-func authenticate(token string) func(http.Handler) http.Handler {
-	return func(h http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authorization := r.Header.Get("Authorization")
-			t := strings.TrimPrefix(authorization, "Bearer ")
-			t = strings.TrimSpace(t)
-			if t != token {
-				httpinternal.Error(w, "please provide a valid authentication token", http.StatusUnauthorized)
-				return
-			}
-			h.ServeHTTP(w, r)
 		})
 	}
 }

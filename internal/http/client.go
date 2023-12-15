@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
@@ -15,16 +16,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Authenticator interface {
+	Access(context context.Context) (*http.Client, error)
+}
+
 type Client struct {
 	BaseURL  string
 	Timeout  time.Duration
 	Metadata Metadata
+	Auth     Authenticator
 }
 
 type Metadata struct {
-	AuthToken   string
-	CLIVersion  string
-	CallerEmail string
+	CLIVersion string
 }
 
 // URL returns a URL with provided path added to the client's base URL.
@@ -52,9 +56,12 @@ func (c *Client) URLWithQuery(path string, queryParams url.Values) (string, erro
 // the server returns a status code above 399 the response is parsed as an
 // ErrorResponse object and returned as the error.
 func (c *Client) Do(method string, path string, requestBody, responseBody interface{}) error {
-	client := &http.Client{
-		Timeout: c.Timeout,
+	ctx := context.Background()
+	client, err := c.Auth.Access(ctx)
+	if err != nil {
+		return errors.Wrap(err, "please log in again to refresh the token")
 	}
+	client.Timeout = c.Timeout
 
 	var b io.ReadWriter
 	if requestBody != nil {
@@ -72,9 +79,7 @@ func (c *Client) Do(method string, path string, requestBody, responseBody interf
 	if err == nil {
 		req.Header.Set("x-request-id", id.String())
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Metadata.AuthToken)
 	req.Header.Set("X-Cli-Version", c.Metadata.CLIVersion)
-	req.Header.Set("X-Caller-Email", c.Metadata.CallerEmail)
 	resp, err := client.Do(req)
 	if err != nil {
 		var dnsError *net.DNSError

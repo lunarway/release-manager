@@ -64,6 +64,11 @@ else
 	RELEASE_MANAGER_INTEGRATION_RABBITMQ_HOST=localhost go test -count=1 ./...
 endif
 
+HAMCTL_OAUTH_IDP_URL=https://idpurl
+HAMCTL_OAUTH_CLIENT_ID=client-id
+JWKS_URLS=https://jwksurls/v1/keys
+JWT_AUDIENCE=audience
+JWT_ISSUER=issuer
 
 AUTH_TOKEN=test
 SSH_PRIVATE_KEY=~/.ssh/github
@@ -87,7 +92,10 @@ SERVER_START=./dist/server start \
 		--log.development t \
 		--config-repo ${CONFIG_REPO} \
 		--user-mappings '${USER_MAPPINGS}' \
-		--policy-branch-restrictions '${BRANCH_RESTRICTIONS}'
+		--policy-branch-restrictions '${BRANCH_RESTRICTIONS}' \
+		--jwks-urls '${JWKS_URLS}' \
+		--jwt-audience '${JWT_AUDIENCE}' \
+		--jwt-issuer '${JWT_ISSUER}'
 
 server-memory: build_server
 		$(SERVER_START) \
@@ -101,6 +109,20 @@ server-rabbitmq: build_server
 		--broker-type amqp \
 		--amqp-user ${AMQP_USER} \
 		--amqp-password ${AMQP_PASSWORD}
+
+SERVER_URL=http://localhost:8080
+DAEMON_OAUTH_IDP_URL=https://idpurl
+DAEMON_OAUTH_CLIENT_ID=client-id
+DAEMON_OAUTH_CLIENT_SECRET=secret
+
+daemon: build_daemon
+	./dist/daemon start \
+		--release-manager-url '${SERVER_URL}' \
+		--environment local \
+		--kubeconfig '${KUBECONFIG}' \
+		--idp-url '${DAEMON_OAUTH_IDP_URL}' \
+		--client-id '${DAEMON_OAUTH_CLIENT_ID}' \
+		--client-secret '${DAEMON_OAUTH_CLIENT_SECRET}'
 
 artifact-init:
 	USER_MAPPINGS="kaspernissen@gmail.com=kni@lunar.app,something@gmail.com=some@lunar.app" ./dist/artifact init --slack-token ${SLACK_TOKEN} --artifact-id "master-deed62270f-854d930ecb" --name "lunar-way-product-service" --service "product" --git-author-name "Kasper Nissen" --git-author-email "kaspernissen@gmail.com" --git-message "This is a test message" --git-committer-name "Bjørn Sørensen" --git-committer-email "test@gmail.com" --git-sha deed62270f24f1ca8cf2c19b505b2c88036e1b1c --git-branch master --url "https://bitbucket.org/LunarWay/lunar-way-product-service/commits/a05e314599a7c202724d46a009fcc0f493bce035" --ci-job-url "https://jenkins.corp.com/job/bitbucket/job/lunar-way-product-service/job/master/170/display/redirect"

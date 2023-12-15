@@ -3,15 +3,9 @@ package actions
 import (
 	"net/http"
 
-	"github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/intent"
 )
-
-//go:generate moq -rm -out config_mock.go . GitConfigAPI
-type GitConfigAPI interface {
-	CommitterDetails() (*git.CommitterDetails, error)
-}
 
 type ReleaseResult struct {
 	Response    httpinternal.ReleaseResponse
@@ -20,14 +14,12 @@ type ReleaseResult struct {
 }
 
 type ReleaseHttpClient struct {
-	gitConfigAPI GitConfigAPI
-	client       *httpinternal.Client
+	client *httpinternal.Client
 }
 
-func NewReleaseHttpClient(gitConfigAPI GitConfigAPI, client *httpinternal.Client) *ReleaseHttpClient {
+func NewReleaseHttpClient(client *httpinternal.Client) *ReleaseHttpClient {
 	return &ReleaseHttpClient{
-		gitConfigAPI: gitConfigAPI,
-		client:       client,
+		client: client,
 	}
 }
 
@@ -44,10 +36,6 @@ func (hc *ReleaseHttpClient) ReleaseArtifactID(service, environment string, arti
 // environments.
 func (hc *ReleaseHttpClient) ReleaseArtifactIDMultipleEnvironments(service string, environments []string, artifactID string, intent intent.Intent) ([]ReleaseResult, error) {
 	var results []ReleaseResult
-	committer, err := hc.gitConfigAPI.CommitterDetails()
-	if err != nil {
-		return nil, err
-	}
 	path, err := hc.client.URL("release")
 	if err != nil {
 		return nil, err
@@ -55,12 +43,10 @@ func (hc *ReleaseHttpClient) ReleaseArtifactIDMultipleEnvironments(service strin
 	for _, environment := range environments {
 		var resp httpinternal.ReleaseResponse
 		err = hc.client.Do(http.MethodPost, path, httpinternal.ReleaseRequest{
-			Service:        service,
-			Environment:    environment,
-			ArtifactID:     artifactID,
-			CommitterName:  committer.Name,
-			CommitterEmail: committer.Email,
-			Intent:         intent,
+			Service:     service,
+			Environment: environment,
+			ArtifactID:  artifactID,
+			Intent:      intent,
 		}, &resp)
 
 		results = append(results, ReleaseResult{

@@ -30,12 +30,19 @@ func applyAutoReleasePolicy(payload *payload, policySvc *policyinternal.Service)
 			return
 		}
 
-		logger = logger.WithFields("service", req.Service, "req", req)
-		logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release policy started", req.Service, req.Branch, req.Environment)
-		id, err := policySvc.ApplyAutoRelease(ctx, policyinternal.Actor{
+		actor := policyinternal.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
-		}, req.Service, req.Branch, req.Environment)
+		}
+		subject := UserFromContext(r.Context())
+		if subject != "" {
+			actor.Email = subject
+			actor.Name = subject
+		}
+
+		logger = logger.WithFields("service", req.Service, "req", req)
+		logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release policy started", req.Service, req.Branch, req.Environment)
+		id, err := policySvc.ApplyAutoRelease(ctx, actor, req.Service, req.Branch, req.Environment)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Infof("http: policy: apply: service '%s' branch '%s' environment '%s': apply auto-release cancelled", req.Service, req.Branch, req.Environment)
@@ -88,12 +95,19 @@ func applyBranchRestrictionPolicy(payload *payload, policySvc *policyinternal.Se
 			return
 		}
 
-		logger = logger.WithFields("service", req.Service, "req", req)
-		logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction policy started", req.Service, req.BranchRegex, req.Environment)
-		id, err := policySvc.ApplyBranchRestriction(ctx, policyinternal.Actor{
+		actor := policyinternal.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
-		}, req.Service, req.BranchRegex, req.Environment)
+		}
+		subject := UserFromContext(r.Context())
+		if subject != "" {
+			actor.Email = subject
+			actor.Name = subject
+		}
+
+		logger = logger.WithFields("service", req.Service, "req", req)
+		logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction policy started", req.Service, req.BranchRegex, req.Environment)
+		id, err := policySvc.ApplyBranchRestriction(ctx, actor, req.Service, req.BranchRegex, req.Environment)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction cancelled", req.Service, req.BranchRegex, req.Environment)
@@ -219,10 +233,17 @@ func deletePolicies(payload *payload, policySvc *policyinternal.Service) http.Ha
 		ids := filterEmptyStrings(req.PolicyIDs)
 		logger = logger.WithFields("service", req.Service, "req", req)
 
-		deleted, err := policySvc.Delete(ctx, policyinternal.Actor{
+		actor := policyinternal.Actor{
 			Name:  req.CommitterName,
 			Email: req.CommitterEmail,
-		}, req.Service, ids)
+		}
+		subject := UserFromContext(r.Context())
+		if subject != "" {
+			actor.Email = subject
+			actor.Name = subject
+		}
+
+		deleted, err := policySvc.Delete(ctx, actor, req.Service, ids)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				logger.Errorf("http: policy: delete: service '%s' ids %v: delete cancelled", req.Service, ids)

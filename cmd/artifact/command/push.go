@@ -15,7 +15,7 @@ import (
 
 func pushCommand(options *Options) *cobra.Command {
 	releaseManagerClient := httpinternal.Client{}
-
+	var idpURL, clientID, clientSecret string
 	command := &cobra.Command{
 		Use:   "push",
 		Short: "push artifact to artifact repository",
@@ -23,13 +23,14 @@ func pushCommand(options *Options) *cobra.Command {
 			var artifactID string
 			var err error
 			ctx := context.Background()
+			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL)
+			releaseManagerClient.Auth = &authenticator
 
-			if releaseManagerClient.Metadata.AuthToken != "" {
-				artifactID, err = flow.PushArtifactToReleaseManager(ctx, &releaseManagerClient, options.FileName, options.RootPath)
-				if err != nil {
-					return err
-				}
+			artifactID, err = flow.PushArtifactToReleaseManager(ctx, &releaseManagerClient, options.FileName, options.RootPath)
+			if err != nil {
+				return err
 			}
+
 			client, err := intslack.NewClient(slack.New(options.SlackToken), options.UserMappings, options.EmailSuffix)
 			if err != nil {
 				fmt.Printf("Error, not able to create Slack client in successful command: %v", err)
@@ -47,13 +48,19 @@ func pushCommand(options *Options) *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&releaseManagerClient.BaseURL, "http-base-url", os.Getenv("ARTIFACT_URL"), "address of the http release manager server")
-	command.Flags().StringVar(&releaseManagerClient.Metadata.AuthToken, "http-auth-token", "", "auth token for the http service")
+	command.Flags().StringVar(&idpURL, "idp-url", "", "the url of the identity provider")
+	command.Flags().StringVar(&clientID, "client-id", "", "client id of this application issued by the identity provider")
+	command.Flags().StringVar(&clientSecret, "client-secret", "", "the client secret")
 
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
 	//nolint:errcheck
 	command.MarkFlagRequired("http-base-url")
 	//nolint:errcheck
-	command.MarkFlagRequired("http-auth-token")
+	command.MarkFlagRequired("idp-url")
+	//nolint:errcheck
+	command.MarkFlagRequired("client-id")
+	//nolint:errcheck
+	command.MarkFlagRequired("client-secret")
 	return command
 }
