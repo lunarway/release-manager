@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,6 +12,10 @@ import (
 	"github.com/pkg/browser"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
+)
+
+var (
+	ErrLoginRequired = errors.New("login required")
 )
 
 type UserAuthenticator struct {
@@ -52,7 +57,7 @@ func (g *UserAuthenticator) Login(ctx context.Context) error {
 func (g *UserAuthenticator) Access(ctx context.Context) (*http.Client, error) {
 	token, err := readAccessToken()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrLoginRequired, err)
 	}
 	return g.conf.Client(ctx, token), nil
 }
