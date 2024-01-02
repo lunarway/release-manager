@@ -59,7 +59,7 @@ func (c *Client) Do(method string, path string, requestBody, responseBody interf
 	ctx := context.Background()
 	client, err := c.Auth.Access(ctx)
 	if err != nil {
-		return errors.Wrap(err, "please log in again to refresh the token")
+		return err
 	}
 	client.Timeout = c.Timeout
 
