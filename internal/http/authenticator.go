@@ -16,6 +16,7 @@ import (
 
 var (
 	ErrLoginRequired = errors.New("login required")
+	ErrTokenExpired  = errors.New("oauth2: token expired and refresh token is not set")
 )
 
 type UserAuthenticator struct {

@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -87,6 +88,12 @@ func (c *Client) Do(method string, path string, requestBody, responseBody interf
 		if stderrors.As(err, &dnsError) || (stderrors.As(err, &urlError) && stderrors.Is(err, io.EOF)) {
 			return connectivityError
 		}
+
+		// Checking on the string as errors.Is fails to match on our ErrTokenExpired which is a copy of the internal oauth2 error from golang/x/oauth2 package.
+		if strings.Contains(err.Error(), ErrTokenExpired.Error()) {
+			return fmt.Errorf("%w: %w", ErrLoginRequired, err)
+		}
+
 		return &ErrorResponse{
 			Message: err.Error(),
 			ID:      id.String(),
