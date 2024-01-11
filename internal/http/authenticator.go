@@ -108,12 +108,12 @@ type ClientAuthenticator struct {
 	conf *clientcredentials.Config
 }
 
-func NewClientAuthenticator(clientID, clientSecret, idpURL string) ClientAuthenticator {
+func NewClientAuthenticator(clientID, clientSecret, idpURL, scope string) ClientAuthenticator {
 	conf := &clientcredentials.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		TokenURL:     fmt.Sprintf("%s/v1/token", idpURL),
-		Scopes:       []string{""},
+		Scopes:       []string{scope},
 	}
 	return ClientAuthenticator{
 		conf: conf,
