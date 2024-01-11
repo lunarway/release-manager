@@ -21,7 +21,7 @@ import (
 // 3. Detects CreateContainerConfigError, and fetches the message about the wrong config.
 func StartDaemon() *cobra.Command {
 	var environment, kubeConfigPath string
-	var idpURL, clientID, clientSecret string
+	var idpURL, clientID, clientSecret, daemonScope string
 	var moduloCrashReportNotif float64
 	var logConfiguration *log.Configuration
 
@@ -35,7 +35,7 @@ func StartDaemon() *cobra.Command {
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 
-			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL, "release_deamon")
+			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL, daemonScope)
 			client.Auth = &authenticator
 
 			exporter := &kubernetes.ReleaseManagerExporter{
@@ -109,6 +109,7 @@ func StartDaemon() *cobra.Command {
 	command.Flags().StringVar(&idpURL, "idp-url", "", "the url of the identity provider")
 	command.Flags().StringVar(&clientID, "client-id", "", "client id of this application issued by the identity provider")
 	command.Flags().StringVar(&clientSecret, "client-secret", "", "the client secret")
+	command.Flags().StringVar(&daemonScope, "deamon-scope", "release_daemon", "scope to request from iDP")
 
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.

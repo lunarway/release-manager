@@ -15,7 +15,7 @@ import (
 
 func pushCommand(options *Options) *cobra.Command {
 	releaseManagerClient := httpinternal.Client{}
-	var idpURL, clientID, clientSecret string
+	var idpURL, clientID, clientSecret, artifactScope string
 	command := &cobra.Command{
 		Use:   "push",
 		Short: "push artifact to artifact repository",
@@ -23,7 +23,7 @@ func pushCommand(options *Options) *cobra.Command {
 			var artifactID string
 			var err error
 			ctx := context.Background()
-			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL, "release_artifact")
+			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL, artifactScope)
 			releaseManagerClient.Auth = &authenticator
 
 			artifactID, err = flow.PushArtifactToReleaseManager(ctx, &releaseManagerClient, options.FileName, options.RootPath)
@@ -51,6 +51,7 @@ func pushCommand(options *Options) *cobra.Command {
 	command.Flags().StringVar(&idpURL, "idp-url", "", "the url of the identity provider")
 	command.Flags().StringVar(&clientID, "client-id", "", "client id of this application issued by the identity provider")
 	command.Flags().StringVar(&clientSecret, "client-secret", "", "the client secret")
+	command.Flags().StringVar(&artifactScope, "artifact-scope", "release_artifact", "scope to request from iDP")
 
 	// errors are skipped here as the only case they can occour are if thee flag
 	// does not exist on the command.
