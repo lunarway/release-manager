@@ -35,7 +35,7 @@ func StartDaemon() *cobra.Command {
 			logConfiguration.ParseFromEnvironmnet()
 			log.Init(logConfiguration)
 
-			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL)
+			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL, "release_deamon")
 			client.Auth = &authenticator
 
 			exporter := &kubernetes.ReleaseManagerExporter{

@@ -23,7 +23,7 @@ func pushCommand(options *Options) *cobra.Command {
 			var artifactID string
 			var err error
 			ctx := context.Background()
-			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL)
+			authenticator := httpinternal.NewClientAuthenticator(clientID, clientSecret, idpURL, "release_artifact")
 			releaseManagerClient.Auth = &authenticator
 
 			artifactID, err = flow.PushArtifactToReleaseManager(ctx, &releaseManagerClient, options.FileName, options.RootPath)
