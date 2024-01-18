@@ -87,7 +87,6 @@ func readAccessToken() (*oauth2.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	token.
 	return &token, nil
 }
 
