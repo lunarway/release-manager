@@ -21,9 +21,10 @@ var (
 
 type UserAuthenticator struct {
 	conf *oauth2.Config
+	autoLogin bool
 }
 
-func NewUserAuthenticator(clientID, idpURL string) UserAuthenticator {
+func NewUserAuthenticator(clientID, idpURL string, autoLogin bool) UserAuthenticator {
 	conf := &oauth2.Config{
 		ClientID: clientID,
 		Endpoint: oauth2.Endpoint{
@@ -34,6 +35,7 @@ func NewUserAuthenticator(clientID, idpURL string) UserAuthenticator {
 	}
 	return UserAuthenticator{
 		conf: conf,
+		autoLogin: autoLogin,
 	}
 }
 
@@ -60,6 +62,12 @@ func (g *UserAuthenticator) Access(ctx context.Context) (*http.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrLoginRequired, err)
 	}
+	if !token.Valid() && g.autoLogin {
+		err = g.Login(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrLoginRequired, err)
+		}
+	}
 	return g.conf.Client(ctx, token), nil
 }
 
@@ -79,6 +87,7 @@ func readAccessToken() (*oauth2.Token, error) {
 	if err != nil {
 		return nil, err
 	}
+	token.
 	return &token, nil
 }
 
