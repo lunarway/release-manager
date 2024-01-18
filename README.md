@@ -267,11 +267,11 @@ See [Interactions](#interactions) for more examples.
 It uses a oauth2 authentication model for interacting with the server.
 Specifically the Device Authorization flow.
 
-This must be set up using the command-line arguments:
+This must be set up using the environment variables:
 
-`--idp-url` pointing to your IdP where there must be an endpoint `{idp-url}/v1/token` for exchanging tokens.
+`HAMCTL_OAUTH_IDP_URL` pointing to your IdP where there must be an endpoint `{idp-url}/v1/token` for exchanging tokens.
 
-`--client-id` which is the oauth2 client id.
+`HAMCTL_OAUTH_CLIENT_ID` which is the oauth2 client id.
 
 `hamctl` will automatically initiate a login if you do not have a valid token on your system.
 You can opt out of this behaviour by setting the environement variable `HAMCTL_OAUTH_AUTO_LOGIN=false`.
