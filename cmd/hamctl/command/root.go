@@ -137,6 +137,10 @@ func setupAuthenticator() (http.UserAuthenticator, error) {
 	if clientID == "" {
 		return http.UserAuthenticator{}, errors.New("no HAMCTL_OAUTH_CLIENT_ID env var set")
 	}
+	autoLogin := true
+	if os.Getenv("HAMCTL_OAUTH_AUTO_LOGIN") == "false" {
+		autoLogin = false
+	}
 
-	return http.NewUserAuthenticator(clientID, idpURL), nil
+	return http.NewUserAuthenticator(clientID, idpURL, autoLogin), nil
 }

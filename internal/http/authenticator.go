@@ -20,10 +20,11 @@ var (
 )
 
 type UserAuthenticator struct {
-	conf *oauth2.Config
+	conf      *oauth2.Config
+	autoLogin bool
 }
 
-func NewUserAuthenticator(clientID, idpURL string) UserAuthenticator {
+func NewUserAuthenticator(clientID, idpURL string, autoLogin bool) UserAuthenticator {
 	conf := &oauth2.Config{
 		ClientID: clientID,
 		Endpoint: oauth2.Endpoint{
@@ -33,32 +34,50 @@ func NewUserAuthenticator(clientID, idpURL string) UserAuthenticator {
 		Scopes: []string{"openid profile"},
 	}
 	return UserAuthenticator{
-		conf: conf,
+		conf:      conf,
+		autoLogin: autoLogin,
 	}
 }
 
 func (g *UserAuthenticator) Login(ctx context.Context) error {
-	response, err := g.conf.DeviceAuth(ctx)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("please enter code %s at %s\n", response.UserCode, response.VerificationURIComplete)
-	err = browser.OpenURL(response.VerificationURIComplete)
-	if err != nil {
-		return err
-	}
-
-	token, err := g.conf.DeviceAccessToken(ctx, response)
+	token, err := g.login(ctx)
 	if err != nil {
 		return err
 	}
 	return storeAccessToken(token)
 }
 
+func (g *UserAuthenticator) login(ctx context.Context) (*oauth2.Token, error) {
+	response, err := g.conf.DeviceAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("please enter code %s at %s\n", response.UserCode, response.VerificationURIComplete)
+	err = browser.OpenURL(response.VerificationURIComplete)
+	if err != nil {
+		return nil, err
+	}
+
+	return g.conf.DeviceAccessToken(ctx, response)
+}
+
 func (g *UserAuthenticator) Access(ctx context.Context) (*http.Client, error) {
 	token, err := readAccessToken()
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrLoginRequired, err)
+		if g.autoLogin {
+			token, err = g.login(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("auto login failed: %w: %w", ErrLoginRequired, err)
+			}
+		} else {
+			return nil, fmt.Errorf("%w: %w", ErrLoginRequired, err)
+		}
+	}
+	if !token.Valid() && g.autoLogin {
+		token, err = g.login(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("auto login failed: %w: %w", ErrLoginRequired, err)
+		}
 	}
 	return g.conf.Client(ctx, token), nil
 }
