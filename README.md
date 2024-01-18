@@ -264,8 +264,17 @@ Examples of commands are `hamctl release` or `hamctl status`.
 
 See [Interactions](#interactions) for more examples.
 
-It uses a token-based authentication model for interacting with the server.
-This can either be provided as a command-line argument `--http-auth-token` or using the environment variable `HAMCTL_AUTH_TOKEN`.
+It uses a oauth2 authentication model for interacting with the server.
+Specifically the Device Authorization flow.
+
+This must be set up using the command-line arguments:
+
+`--idp-url` pointing to your IdP where there must be an endpoint `{idp-url}/v1/token` for exchanging tokens.
+
+`--client-id` which is the oauth2 client id.
+
+`hamctl` will automatically initiate a login if you do not have a valid token on your system.
+You can opt out of this behaviour by setting the environement variable `HAMCTL_OAUTH_AUTO_LOGIN=false`.
 
 ### Completions
 
