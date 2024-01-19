@@ -69,6 +69,10 @@ func (g *UserAuthenticator) Access(ctx context.Context) (*http.Client, error) {
 			if err != nil {
 				return nil, fmt.Errorf("auto login failed: %w: %w", ErrLoginRequired, err)
 			}
+			err = storeAccessToken(token)
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			return nil, fmt.Errorf("%w: %w", ErrLoginRequired, err)
 		}
@@ -77,6 +81,10 @@ func (g *UserAuthenticator) Access(ctx context.Context) (*http.Client, error) {
 		token, err = g.login(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("auto login failed: %w: %w", ErrLoginRequired, err)
+		}
+		err = storeAccessToken(token)
+		if err != nil {
+			return nil, err
 		}
 	}
 	return g.conf.Client(ctx, token), nil
