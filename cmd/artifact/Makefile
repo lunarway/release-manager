@@ -7,6 +7,7 @@ example:
 	./artifact init \
 		--service "test-service"\
 		--artifact-id "${ARTIFACT_ID}"\
+		--squad "aura"\
 		--git-branch "master"\
 		--git-author-name "Kasper Nissen"\
 		--git-author-email "kni@lunar.app"\

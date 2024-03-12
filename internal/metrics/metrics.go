@@ -19,6 +19,7 @@ func NewObserver() *Observer {
 			"service",
 			"releaser",
 			"intent",
+			"squad",
 		}),
 	}
 }
@@ -28,6 +29,7 @@ type Release struct {
 	Service     string
 	Releaser    string
 	Intent      string
+	Squad       string
 }
 
 func (o *Observer) ObserveRelease(release Release) {
@@ -36,5 +38,6 @@ func (o *Observer) ObserveRelease(release Release) {
 		release.Service,
 		release.Releaser,
 		release.Intent,
+		release.Squad,
 	).Inc()
 }

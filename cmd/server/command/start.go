@@ -279,6 +279,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 						"environment", opts.Environment,
 						"namespace", opts.Namespace,
 						"artifact-id", opts.Spec.ID,
+						"squad", opts.Spec.Squad,
 						"commit-message", opts.Spec.Application.Message,
 						"commit-author", opts.Spec.Application.AuthorName,
 						"commit-author-email", opts.Spec.Application.AuthorEmail,
@@ -305,6 +306,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 							Service:     opts.Service,
 							Releaser:    opts.Releaser,
 							Intent:      opts.Intent.Type,
+							Squad:       opts.Spec.Squad,
 						},
 					)
 				},
