@@ -128,7 +128,7 @@ func (p *PodInformer) handle(e interface{}) {
 	}
 
 	if isPodOOMKilled(pod) {
-		log.Infof("Pod: %s was OOMKilled owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
+		log.With("targetPodNamespace", pod.Namespace, "targetPodName", pod.Name, "targetPodSquad", getCodeOwnerSquad(pod.Labels)).Infof("Pod: %s was OOMKilled owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
 		var errorContainers []http.ContainerError
 		for _, cst := range pod.Status.ContainerStatuses {
 			if isContainerOOMKilled(cst) {
@@ -187,7 +187,7 @@ func isPodOOMKilled(pod *corev1.Pod) bool {
 }
 
 func isContainerOOMKilled(containerStatus corev1.ContainerStatus) bool {
-	if containerStatus.State.Terminated != nil && containerStatus.State.Terminated.Reason == "OOMKilled" {
+	if containerStatus.LastTerminationState.Terminated != nil && containerStatus.LastTerminationState.Terminated.Reason == "OOMKilled" {
 		return true
 	}
 
