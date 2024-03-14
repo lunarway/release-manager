@@ -188,7 +188,7 @@ func TestIsPodOOMKilled(t *testing.T) {
 				Status: corev1.PodStatus{
 					ContainerStatuses: []corev1.ContainerStatus{
 						{
-							State: corev1.ContainerState{
+							LastTerminationState: corev1.ContainerState{
 								Terminated: &corev1.ContainerStateTerminated{},
 							},
 						},
@@ -204,7 +204,7 @@ func TestIsPodOOMKilled(t *testing.T) {
 					Phase: corev1.PodRunning,
 					ContainerStatuses: []corev1.ContainerStatus{
 						{
-							State: corev1.ContainerState{
+							LastTerminationState: corev1.ContainerState{
 								Terminated: &corev1.ContainerStateTerminated{
 									Reason: "OOMKilled",
 								},
