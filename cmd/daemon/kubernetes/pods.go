@@ -267,5 +267,16 @@ func alertSquad(squad string, annotations map[string]string) (alertChannel strin
 		}
 		return value
 	}
+
+	if destination, ok := squadCustomAlertChannel[squad]; ok {
+		return destination
+	}
+
 	return fmt.Sprintf("#squad-%s-alerts", squad)
 }
+
+var (
+	squadCustomAlertChannel = map[string]string{
+		"atlas": "squad-atlas-critical-alerts",
+	}
+)
