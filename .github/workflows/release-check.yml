@@ -1,9 +1,10 @@
 name: GoReleaser Check
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - "master"
+  pull_request:
 
 jobs:
   goreleaser-check:
