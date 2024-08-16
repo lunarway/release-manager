@@ -232,7 +232,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 								opts.Spec.Application.Message,
 								opts.Spec.ID,
 							),
-							Tags: []string{"deployment", opts.Service},
+							Tags: []string{"deployment", opts.Service, opts.Environment},
 						},
 					)
 					if err != nil {
