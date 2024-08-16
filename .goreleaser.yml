@@ -61,7 +61,7 @@ checksum:
   name_template: '{{ .ProjectName }}-checksums.txt'
 
 snapshot:
-  name_template: "git-{{.Commit}}"
+  version_template: "git-{{.Commit}}"
 
 release:
   name_template: "v{{.Version}}"
