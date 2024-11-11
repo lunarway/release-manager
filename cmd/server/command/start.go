@@ -227,7 +227,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 						grafana.AnnotateRequest{
 							What: fmt.Sprintf("Deployment: %s", opts.Service),
 							Data: fmt.Sprintf(
-								"Author: %s\nMessage: %s\nArtifactID: %s",
+								"<br>Author: %s<br>Message: %s<br>ArtifactID: %s",
 								opts.Spec.Application.AuthorName,
 								opts.Spec.Application.Message,
 								opts.Spec.ID,
