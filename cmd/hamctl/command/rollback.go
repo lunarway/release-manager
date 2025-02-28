@@ -122,7 +122,7 @@ has no effect.`,
 	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")
 	command.Flags().
 		StringVarP(&artifactID, "artifact", "", "", "artifact to roll back to. Defaults to previously released artifact for the environment")
-	command.Flags().IntVar(&artifactLength, "length", 10, "number of releases to fetch")
+	command.Flags().IntVar(&artifactLength, "length", 3, "number of releases to fetch")
 	return command
 }
 
