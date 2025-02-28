@@ -15,7 +15,10 @@ import (
 )
 
 type ReleaseArtifact interface {
-	ReleaseArtifactID(service, environment string, artifactID string, intent intent.Intent) (actions.ReleaseResult, error)
+	ReleaseArtifactID(service, environment string, artifactID string, intent intent.Intent) (
+		actions.ReleaseResult,
+		error,
+	)
 }
 
 func NewRollback(
@@ -51,7 +54,7 @@ has no effect.`,
 			var rollbackTo *httpinternal.DescribeReleaseResponseRelease
 
 			if artifactID == "" {
-				releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, 3)
+				releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, 10)
 				if err != nil {
 					return err
 				}
