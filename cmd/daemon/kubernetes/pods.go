@@ -53,10 +53,6 @@ func (p *PodInformer) handle(obj interface{}) {
 		return
 	}
 
-	if pod.Status.ContainerStatuses == nil {
-		return
-	}
-
 	// Is this a pod managed by the release manager - and does it contain the information needed?
 	if !isCorrectlyAnnotated(pod.Annotations) {
 		return
