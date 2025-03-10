@@ -54,7 +54,7 @@ dockers:
 
 archives:
   - id: archives
-    format: binary
+    formats: [ 'binary' ]
     name_template: "{{ .Binary }}-{{ .Os }}-{{ .Arch }}"
 
 checksum:
