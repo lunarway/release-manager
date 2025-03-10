@@ -46,11 +46,17 @@ func RegisterPodInformer(informerFactory informers.SharedInformerFactory, export
 		}))
 }
 
-func (p *PodInformer) handle(e interface{}) {
-	pod, ok := e.(*corev1.Pod)
-	if !ok {
+func (p *PodInformer) handle(obj interface{}) {
+	pod, ok := obj.(*corev1.Pod)
+	if !ok || pod == nil {
+		log.Errorf("Failed to cast object to Pod or Pod is nil")
 		return
 	}
+
+	if pod.Status.ContainerStatuses == nil {
+		return
+	}
+
 	// Is this a pod managed by the release manager - and does it contain the information needed?
 	if !isCorrectlyAnnotated(pod.Annotations) {
 		return
