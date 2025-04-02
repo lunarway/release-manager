@@ -15,7 +15,10 @@ import (
 )
 
 type ReleaseArtifact interface {
-	ReleaseArtifactID(service, environment string, artifactID string, intent intent.Intent) (actions.ReleaseResult, error)
+	ReleaseArtifactID(service, environment string, artifactID string, intent intent.Intent) (
+		actions.ReleaseResult,
+		error,
+	)
 }
 
 func NewRollback(
@@ -26,6 +29,7 @@ func NewRollback(
 	releaseClient ReleaseArtifact,
 ) *cobra.Command {
 	var environment, namespace, artifactID string
+	var artifactLength int
 	command := &cobra.Command{
 		Use:   "rollback",
 		Short: `Rollback to the previous artifact in an environment.`,
@@ -51,7 +55,7 @@ has no effect.`,
 			var rollbackTo *httpinternal.DescribeReleaseResponseRelease
 
 			if artifactID == "" {
-				releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, 3)
+				releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, artifactLength)
 				if err != nil {
 					return err
 				}
@@ -69,7 +73,7 @@ has no effect.`,
 				currentRelease = releasesResponse.Releases[0]
 				rollbackTo = &releasesResponse.Releases[index]
 			} else {
-				releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, 10)
+				releasesResponse, err := actions.ReleasesFromEnvironment(client, *service, environment, artifactLength)
 				if err != nil {
 					return err
 				}
@@ -118,6 +122,7 @@ has no effect.`,
 	completion.FlagAnnotation(command, "namespace", "__hamctl_get_namespaces")
 	command.Flags().
 		StringVarP(&artifactID, "artifact", "", "", "artifact to roll back to. Defaults to previously released artifact for the environment")
+	command.Flags().IntVar(&artifactLength, "length", 3, "number of releases to fetch")
 	return command
 }
 
