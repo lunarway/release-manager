@@ -38,15 +38,15 @@ func TestParseToJSONLogs(t *testing.T) {
 			err:    errors.New("invalid character 'P' looking for beginning of value"),
 		},
 	}
-	for _, tC := range testCases {
-		t.Run(tC.desc, func(t *testing.T) {
-			logs, err := parseToJSONAray(tC.input)
-			if tC.err != nil {
-				assert.EqualError(t, errors.Cause(err), tC.err.Error(), "output error not as expected")
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			logs, err := parseToJSONAray(tc.input)
+			if tc.err != nil {
+				assert.EqualError(t, errors.Cause(err), tc.err.Error(), "output error not as expected")
 			} else {
 				assert.NoError(t, err, "no output error expected")
 			}
-			assert.Equal(t, tC.output, logs, "output logs not as expected")
+			assert.Equal(t, tc.output, logs, "output logs not as expected")
 		})
 	}
 }
