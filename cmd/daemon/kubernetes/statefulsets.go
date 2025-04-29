@@ -2,11 +2,11 @@ package kubernetes
 
 import (
 	"context"
-	"strings"
 
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	appsv1 "k8s.io/api/apps/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -135,10 +135,9 @@ func annotateStatefulSet(ctx context.Context, c kubernetes.Interface, ss *appsv1
 			return nil
 		}
 		// If it's not a conflict error, return immediately
-		if !strings.Contains(err.Error(), "please apply your changes to the latest version") {
+		if !k8serrors.IsConflict(err) {
 			return err
 		}
-		// Otherwise, retry with the latest version
 	}
 	return err
 }

@@ -2,13 +2,15 @@ package kubernetes
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/fake"
 	ktesting "k8s.io/client-go/testing"
 )
@@ -118,7 +120,12 @@ func TestAnnotateStatefulSet(t *testing.T) {
 		clientset.PrependReactor("update", "statefulsets", func(action ktesting.Action) (bool, runtime.Object, error) {
 			if firstUpdate {
 				firstUpdate = false
-				return true, nil, errors.New("the object has been modified; please apply your changes to the latest version and try again")
+				// Create a proper conflict error
+				gr := schema.GroupResource{
+					Group:    "apps",
+					Resource: "statefulsets",
+				}
+				return true, nil, k8serrors.NewConflict(gr, ss.Name, fmt.Errorf("the object has been modified"))
 			}
 			return false, nil, nil // let subsequent updates go through
 		})
