@@ -26,7 +26,7 @@ require (
 	go.uber.org/multierr v1.8.0
 	go.uber.org/zap v1.23.0
 	golang.org/x/oauth2 v0.13.0
-	gopkg.in/go-playground/webhooks.v5 v5.17.0
+	gopkg.in/go-playground/webhooks.v6 v6.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
