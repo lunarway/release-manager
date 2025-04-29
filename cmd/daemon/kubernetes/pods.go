@@ -24,6 +24,10 @@ type PodInformer struct {
 	moduloCrashReportNotif float64
 }
 
+var (
+	reasonOOMKilled = "OOMKilled"
+)
+
 func RegisterPodInformer(informerFactory informers.SharedInformerFactory, exporter Exporter, handlerFactory ResourceEventHandlerFactory, clientset *kubernetes.Clientset, moduloCrashReportNotif float64) {
 	p := PodInformer{
 		clientset:              clientset,
@@ -134,10 +138,16 @@ func (p *PodInformer) handle(obj interface{}) {
 		var errorContainers []http.ContainerError
 		for _, cst := range pod.Status.ContainerStatuses {
 			if isContainerOOMKilled(cst) {
+				var message string
+				if cst.State.Terminated != nil && cst.State.Terminated.Reason == reasonOOMKilled {
+					message = cst.State.Terminated.Message
+				} else if cst.LastTerminationState.Terminated != nil && cst.LastTerminationState.Terminated.Reason == reasonOOMKilled {
+					message = cst.LastTerminationState.Terminated.Message
+				}
 				errorContainers = append(errorContainers, http.ContainerError{
 					Name:         cst.Name,
-					ErrorMessage: cst.State.Terminated.Message,
-					Type:         "OOMKilled",
+					ErrorMessage: message,
+					Type:         reasonOOMKilled,
 				})
 			}
 		}
@@ -183,16 +193,20 @@ func isPodInCreateContainerConfigError(pod *corev1.Pod) bool {
 
 func isPodOOMKilled(pod *corev1.Pod) bool {
 	for _, cst := range pod.Status.ContainerStatuses {
-		return isContainerOOMKilled(cst)
+		if isContainerOOMKilled(cst) {
+			return true
+		}
 	}
 	return false
 }
 
 func isContainerOOMKilled(containerStatus corev1.ContainerStatus) bool {
-	if containerStatus.LastTerminationState.Terminated != nil && containerStatus.LastTerminationState.Terminated.Reason == "OOMKilled" {
+	if containerStatus.State.Terminated != nil && containerStatus.State.Terminated.Reason == reasonOOMKilled {
 		return true
 	}
-
+	if containerStatus.LastTerminationState.Terminated != nil && containerStatus.LastTerminationState.Terminated.Reason == reasonOOMKilled {
+		return true
+	}
 	return false
 }
 
