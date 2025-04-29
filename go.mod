@@ -35,7 +35,10 @@ require (
 
 require github.com/gorilla/mux v1.8.0
 
-require gopkg.in/yaml.v2 v2.4.0 // indirect
+require (
+	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
+)
 
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
