@@ -81,7 +81,7 @@ endef
 export CONFIG_MAP
 
 define FLUX_KUSTOMIZATION
-apiVersion: kustomize.toolkit.fluxcd.io/v1beta1
+apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
   name: product
