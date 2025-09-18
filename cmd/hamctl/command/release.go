@@ -17,7 +17,9 @@ type ReleaseArtifactMultipleEnvironments interface {
 	ReleaseArtifactIDMultipleEnvironments(service string, environments []string, artifactID string, intent intent.Intent) ([]actions.ReleaseResult, error)
 }
 
-func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc, releaseClient ReleaseArtifactMultipleEnvironments) *cobra.Command {
+type branchGetter func() (string, error)
+
+func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc, releaseClient ReleaseArtifactMultipleEnvironments, branchGetter branchGetter) *cobra.Command {
 	var branch, artifact string
 	var environments []string
 	var command = &cobra.Command{
@@ -29,9 +31,13 @@ func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc,
 
 Release latest artifact from branch 'master' of service 'product' into environment 'dev':
 
-  hamctl release --service product --env dev --branch master`,
+  hamctl release --service product --env dev --branch master
+
+Release latest artifact from current branch of service 'product' into environment 'dev':
+
+  hamctl release --service product --env dev`,
 		Args: cobra.ExactArgs(0),
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(*cobra.Command, []string) error {
 			environments = trimEmptyValues(environments)
 			if len(environments) == 0 {
 				return errors.New("--env must contain at least one value")
@@ -41,7 +47,12 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				return errors.New("--branch and --artifact cannot both be specificed")
 
 			case branch == "" && artifact == "":
-				return errors.New("--branch or --artifact is required")
+				currentBranch, err := branchGetter()
+				if err != nil {
+					return err
+				}
+				branch = currentBranch
+				fallthrough
 			case branch != "":
 				artifactID, err := actions.ArtifactIDFromBranch(client, *service, branch)
 				if err != nil {
@@ -77,7 +88,7 @@ Release latest artifact from branch 'master' of service 'product' into environme
 	//nolint:errcheck
 	command.MarkFlagRequired("env")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
-	command.Flags().StringVarP(&branch, "branch", "b", "", "release latest artifact from this branch (mutually exclusive with --artifact)")
+	command.Flags().StringVarP(&branch, "branch", "b", "", "release latest artifact from this branch (mutually exclusive with --artifact, defaults to current branch if neither is specified)")
 	completion.FlagAnnotation(command, "branch", "__hamctl_get_branches")
 	command.Flags().StringVar(&artifact, "artifact", "", "release this artifact id (mutually exclusive with --branch)")
 	return command

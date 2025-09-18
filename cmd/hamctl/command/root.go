@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -69,7 +70,7 @@ func NewRoot(version *string) (*cobra.Command, error) {
 		NewDescribe(&client, &service),
 		NewPolicy(&client, &service),
 		NewPromote(&client, &service, releaseClient),
-		NewRelease(&client, &service, loggerFunc, releaseClient),
+		NewRelease(&client, &service, loggerFunc, releaseClient, getCurrentGitBranch),
 		NewRollback(&client, &service, loggerFunc, SelectRollbackReleaseFunc, releaseClient),
 		NewStatus(&client, &service),
 		NewVersion(*version),
@@ -143,4 +144,13 @@ func setupAuthenticator() (http.UserAuthenticator, error) {
 	}
 
 	return http.NewUserAuthenticator(clientID, idpURL, autoLogin), nil
+}
+
+func getCurrentGitBranch() (string, error) {
+	cmd := exec.Command("git", "branch", "--show-current")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", errors.WithMessage(err, "failed to get current git branch")
+	}
+	return strings.TrimSpace(string(output)), nil
 }

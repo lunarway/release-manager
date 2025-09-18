@@ -77,7 +77,7 @@ func TestRelease(t *testing.T) {
 
 		cmd := command.NewRelease(&c, &serviceName, func(f string, args ...interface{}) {
 			output = append(output, fmt.Sprintf(f, args...))
-		}, releaseClient)
+		}, releaseClient, func() (string, error) { return branch, nil })
 
 		cmd.SetArgs(args)
 
@@ -186,6 +186,27 @@ func TestRelease(t *testing.T) {
 			"[✓] Release of master-1-2 to prod initialized\n",
 		}, output)
 	})
+
+	t.Run("no branch or artifact specified uses current git branch", func(t *testing.T) {
+		foundArtifact = artifact.Spec{
+			ID:      artifactID,
+			Service: serviceName,
+		}
+		releaseResponse = func(req internalhttp.ReleaseRequest) (internalhttp.ReleaseResponse, *internalhttp.ErrorResponse) {
+			return internalhttp.ReleaseResponse{
+				Service:       serviceName,
+				ToEnvironment: req.Environment,
+				Tag:           artifactID,
+			}, nil
+		}
+
+		output := runCommand(t, "--env", "dev")
+
+		assert.Equal(t, []string{
+			fmt.Sprintf("Release of service %s using branch %s\n", serviceName, branch),
+			fmt.Sprintf("[✓] Release of %s to dev initialized\n", artifactID),
+		}, output)
+	})
 }
 
 // maskGUID masks any guid with the text GUID.
@@ -206,7 +227,7 @@ func TestRelease_emptyEnvValue(t *testing.T) {
 
 	cmd := command.NewRelease(&c, &serviceName, func(f string, args ...interface{}) {
 		t.Logf(f, args...)
-	}, releaseClient)
+	}, releaseClient, func() (string, error) { return "branch", nil })
 
 	cmd.SetArgs([]string{"--env", ""})
 
