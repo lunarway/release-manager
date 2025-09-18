@@ -152,5 +152,12 @@ func getCurrentGitBranch() (string, error) {
 	if err != nil {
 		return "", errors.WithMessage(err, "failed to get current git branch")
 	}
-	return strings.TrimSpace(string(output)), nil
+
+	branch := strings.TrimSpace(string(output))
+	if branch == "" {
+		// If we are not currently on a branch (i.e. detached HEAD) the output from git branch --show-current is empty
+		return "", errors.New("could not determine current branch. Please specify --branch or --artifact explicitly")
+	}
+
+	return branch, nil
 }
