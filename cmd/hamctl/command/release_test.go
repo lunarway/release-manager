@@ -187,7 +187,7 @@ func TestRelease(t *testing.T) {
 		}, output)
 	})
 
-	t.Run("no branch or artifact specified uses current git branch", func(t *testing.T) {
+	t.Run("current git branch", func(t *testing.T) {
 		foundArtifact = artifact.Spec{
 			ID:      artifactID,
 			Service: serviceName,
@@ -200,7 +200,7 @@ func TestRelease(t *testing.T) {
 			}, nil
 		}
 
-		output := runCommand(t, "--env", "dev")
+		output := runCommand(t, "--current-branch", "--env", "dev")
 
 		assert.Equal(t, []string{
 			fmt.Sprintf("Release of service %s using branch %s\n", serviceName, branch),
