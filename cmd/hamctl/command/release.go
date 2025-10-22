@@ -17,9 +17,13 @@ type ReleaseArtifactMultipleEnvironments interface {
 	ReleaseArtifactIDMultipleEnvironments(service string, environments []string, artifactID string, intent intent.Intent) ([]actions.ReleaseResult, error)
 }
 
-func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc, releaseClient ReleaseArtifactMultipleEnvironments) *cobra.Command {
+type branchGetter func() (string, error)
+
+func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc, releaseClient ReleaseArtifactMultipleEnvironments, branchGetter branchGetter) *cobra.Command {
 	var branch, artifact string
+	var currentBranch bool
 	var environments []string
+	var err error
 	var command = &cobra.Command{
 		Use:   "release",
 		Short: `Release a specific artifact or latest artifact from a branch into a specific environment.`,
@@ -29,19 +33,37 @@ func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc,
 
 Release latest artifact from branch 'master' of service 'product' into environment 'dev':
 
-  hamctl release --service product --env dev --branch master`,
+  hamctl release --service product --env dev --branch master
+
+Release latest artifact from current branch of service 'product' into environment 'dev':
+
+  hamctl release --service product --env dev --current-branch`,
 		Args: cobra.ExactArgs(0),
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(*cobra.Command, []string) error {
 			environments = trimEmptyValues(environments)
 			if len(environments) == 0 {
 				return errors.New("--env must contain at least one value")
 			}
 			switch {
+			case branch != "" && currentBranch:
+				return errors.New("--branch and --current-branch cannot both be specificed")
+
 			case branch != "" && artifact != "":
 				return errors.New("--branch and --artifact cannot both be specificed")
 
-			case branch == "" && artifact == "":
-				return errors.New("--branch or --artifact is required")
+			case currentBranch && artifact != "":
+				return errors.New("--current-branch and --artifact cannot both be specificed")
+
+			case branch == "" && artifact == "" && !currentBranch:
+				return errors.New("--branch, --current-branch or --artifact is required")
+
+			case currentBranch:
+				branch, err = branchGetter()
+				if err != nil {
+					return err
+				}
+				fallthrough
+
 			case branch != "":
 				artifactID, err := actions.ArtifactIDFromBranch(client, *service, branch)
 				if err != nil {
@@ -55,7 +77,7 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				for _, resp := range resps {
 					printReleaseResponse(logger, resp)
 				}
-				return nil
+
 			case artifact != "":
 				logger("Release of service: %s\n", *service)
 				resps, err := releaseClient.ReleaseArtifactIDMultipleEnvironments(*service, environments, artifact, intent.NewReleaseArtifact())
@@ -65,7 +87,6 @@ Release latest artifact from branch 'master' of service 'product' into environme
 				for _, resp := range resps {
 					printReleaseResponse(logger, resp)
 				}
-				return nil
 			}
 
 			return nil
@@ -77,9 +98,11 @@ Release latest artifact from branch 'master' of service 'product' into environme
 	//nolint:errcheck
 	command.MarkFlagRequired("env")
 	completion.FlagAnnotation(command, "env", "__hamctl_get_environments")
-	command.Flags().StringVarP(&branch, "branch", "b", "", "release latest artifact from this branch (mutually exclusive with --artifact)")
+	command.Flags().StringVarP(&branch, "branch", "b", "", "release latest artifact from this branch (mutually exclusive with --artifact and --current-branch)")
 	completion.FlagAnnotation(command, "branch", "__hamctl_get_branches")
-	command.Flags().StringVar(&artifact, "artifact", "", "release this artifact id (mutually exclusive with --branch)")
+	command.Flags().StringVar(&artifact, "artifact", "", "release this artifact id (mutually exclusive with --branch and --current-branch)")
+	command.Flags().BoolVarP(&currentBranch, "current-branch", "c", false, "release latest artifact from the current branch (mutually exclusive with --artifact and --branch)")
+	completion.FlagAnnotation(command, "branch", "__hamctl_get_branches")
 	return command
 }
 
