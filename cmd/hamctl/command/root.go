@@ -3,12 +3,12 @@ package command
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
+	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -70,7 +70,7 @@ func NewRoot(version *string) (*cobra.Command, error) {
 		NewDescribe(&client, &service),
 		NewPolicy(&client, &service),
 		NewPromote(&client, &service, releaseClient),
-		NewRelease(&client, &service, loggerFunc, releaseClient, getCurrentGitBranch),
+		NewRelease(&client, &service, loggerFunc, releaseClient, git.GetCurrentBranch),
 		NewRollback(&client, &service, loggerFunc, SelectRollbackReleaseFunc, releaseClient),
 		NewStatus(&client, &service),
 		NewVersion(*version),
@@ -144,20 +144,4 @@ func setupAuthenticator() (http.UserAuthenticator, error) {
 	}
 
 	return http.NewUserAuthenticator(clientID, idpURL, autoLogin), nil
-}
-
-func getCurrentGitBranch() (string, error) {
-	cmd := exec.Command("git", "branch", "--show-current")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", errors.WithMessage(err, "failed to get current git branch")
-	}
-
-	branch := strings.TrimSpace(string(output))
-	if branch == "" {
-		// If we are not currently on a branch (i.e. detached HEAD) the output from git branch --show-current is empty
-		return "", errors.New("could not determine current branch. Please specify --branch or --artifact explicitly")
-	}
-
-	return branch, nil
 }

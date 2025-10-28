@@ -17,13 +17,12 @@ type ReleaseArtifactMultipleEnvironments interface {
 	ReleaseArtifactIDMultipleEnvironments(service string, environments []string, artifactID string, intent intent.Intent) ([]actions.ReleaseResult, error)
 }
 
-type branchGetter func() (string, error)
+type branchGetter func() string
 
 func NewRelease(client *httpinternal.Client, service *string, logger LoggerFunc, releaseClient ReleaseArtifactMultipleEnvironments, branchGetter branchGetter) *cobra.Command {
 	var branch, artifact string
 	var currentBranch bool
 	var environments []string
-	var err error
 	var command = &cobra.Command{
 		Use:   "release",
 		Short: `Release a specific artifact or latest artifact from a branch into a specific environment.`,
@@ -58,9 +57,9 @@ Release latest artifact from current branch of service 'product' into environmen
 				return errors.New("--branch, --current-branch or --artifact is required")
 
 			case currentBranch:
-				branch, err = branchGetter()
-				if err != nil {
-					return err
+				branch = branchGetter()
+				if branch == "" {
+					return errors.New("Could not determine current branch. Specify --branch or --artifact explicitly")
 				}
 				fallthrough
 

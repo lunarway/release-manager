@@ -77,7 +77,7 @@ func TestRelease(t *testing.T) {
 
 		cmd := command.NewRelease(&c, &serviceName, func(f string, args ...interface{}) {
 			output = append(output, fmt.Sprintf(f, args...))
-		}, releaseClient, func() (string, error) { return branch, nil })
+		}, releaseClient, func() string { return branch })
 
 		cmd.SetArgs(args)
 
@@ -227,7 +227,7 @@ func TestRelease_emptyEnvValue(t *testing.T) {
 
 	cmd := command.NewRelease(&c, &serviceName, func(f string, args ...interface{}) {
 		t.Logf(f, args...)
-	}, releaseClient, func() (string, error) { return "branch", nil })
+	}, releaseClient, func() string { return "branch" })
 
 	cmd.SetArgs([]string{"--env", ""})
 
