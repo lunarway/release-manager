@@ -27,7 +27,7 @@ func daemonk8sJobErrorWebhook(payload *payload, flowSvc *flow.Service) http.Hand
 		logger = logger.WithFields("event", event)
 		err = flowSvc.NotifyK8SJobErrorEvent(ctx, &event)
 		if err != nil && errors.Cause(err) != slack.ErrUnknownEmail {
-			logger.Errorf("http: daemon k8s pod error webhook failed: %+v", err)
+			logger.Errorf("http: daemon k8s job error webhook failed: %+v", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
