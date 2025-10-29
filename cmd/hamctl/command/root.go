@@ -8,6 +8,7 @@ import (
 
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
+	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -69,7 +70,7 @@ func NewRoot(version *string) (*cobra.Command, error) {
 		NewDescribe(&client, &service),
 		NewPolicy(&client, &service),
 		NewPromote(&client, &service, releaseClient),
-		NewRelease(&client, &service, loggerFunc, releaseClient),
+		NewRelease(&client, &service, loggerFunc, releaseClient, git.GetCurrentBranch),
 		NewRollback(&client, &service, loggerFunc, SelectRollbackReleaseFunc, releaseClient),
 		NewStatus(&client, &service),
 		NewVersion(*version),

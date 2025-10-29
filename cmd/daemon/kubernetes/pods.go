@@ -154,7 +154,7 @@ func (p *PodInformer) handle(obj interface{}) {
 		event.Errors = errorContainers
 		err := p.exporter.SendPodErrorEvent(ctx, event)
 		if err != nil {
-			log.Errorf("Failed to send create container config error: %v", err)
+			log.Errorf("Failed to send pod OOMKilled error: %v", err)
 		}
 	}
 }
