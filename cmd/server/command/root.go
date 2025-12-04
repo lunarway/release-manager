@@ -14,6 +14,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func splitOrNil(s, sep string) []string {
+	if s == "" {
+		return nil
+	}
+	return strings.Split(s, sep)
+}
+
 // NewRoot returns a new instance of a hamctl command.
 func NewRoot(version string) (*cobra.Command, error) {
 	var brokerOpts brokerOptions
@@ -81,9 +88,9 @@ func NewRoot(version string) (*cobra.Command, error) {
 	)
 	command.PersistentFlags().IntVar(&httpOpts.Port, "http-port", 8080, "port of the http server")
 	command.PersistentFlags().DurationVar(&httpOpts.Timeout, "timeout", 20*time.Second, "HTTP server timeout for incomming requests")
-	command.PersistentFlags().StringVar(&httpOpts.HamCtlAuthToken, "hamctl-auth-token", os.Getenv("HAMCTL_AUTH_TOKEN"), "hamctl authentication token")
-	command.PersistentFlags().StringVar(&httpOpts.ArtifactAuthToken, "artifact-auth-token", os.Getenv("ARTIFACT_AUTH_TOKEN"), "artifact authentication token")
-	command.PersistentFlags().StringVar(&httpOpts.DaemonAuthToken, "daemon-auth-token", os.Getenv("DAEMON_AUTH_TOKEN"), "daemon webhook authentication token")
+	command.PersistentFlags().StringSliceVar(&httpOpts.HamCtlAuthTokens, "hamctl-auth-token", splitOrNil(os.Getenv("HAMCTL_AUTH_TOKEN"), ","), "hamctl authentication tokens (comma-separated)")
+	command.PersistentFlags().StringSliceVar(&httpOpts.ArtifactAuthTokens, "artifact-auth-token", splitOrNil(os.Getenv("ARTIFACT_AUTH_TOKEN"), ","), "artifact authentication tokens (comma-separated)")
+	command.PersistentFlags().StringSliceVar(&httpOpts.DaemonAuthTokens, "daemon-auth-token", splitOrNil(os.Getenv("DAEMON_AUTH_TOKEN"), ","), "daemon webhook authentication tokens (comma-separated)")
 	command.PersistentFlags().StringVar(&configRepoOpts.ConfigRepo, "config-repo", os.Getenv("CONFIG_REPO"), "ssh url for the git config repository")
 	command.PersistentFlags().StringVar(&configRepoOpts.ArtifactFileName, "artifact-filename", "artifact.json", "the filename of the artifact to be used")
 	command.PersistentFlags().StringVar(&configRepoOpts.SSHPrivateKeyPath, "ssh-private-key", "/etc/release-manager/ssh/identity", "ssh-private-key for the config repo")
