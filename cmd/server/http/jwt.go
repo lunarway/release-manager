@@ -79,19 +79,21 @@ func ParseBearerToken(token string) (string, error) {
 //
 // If authentication fails a 401 Unauthorized HTTP status is returned with an
 // ErrorResponse body.
-func (v *Verifier) authentication(staticAuthToken string) func(http.Handler) http.Handler {
+func (v *Verifier) authentication(staticAuthTokens []string) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authorization := r.Header.Get("Authorization")
 
-			// use value as feature toggle
-			if staticAuthToken != "" {
+			// use slice length as feature toggle
+			if len(staticAuthTokens) > 0 {
 				// old hamctl token auth
 				t := strings.TrimPrefix(authorization, "Bearer ")
 				t = strings.TrimSpace(t)
-				if t == staticAuthToken {
-					h.ServeHTTP(w, r)
-					return
+				for _, staticAuthToken := range staticAuthTokens {
+					if staticAuthToken != "" && t == staticAuthToken {
+						h.ServeHTTP(w, r)
+						return
+					}
 				}
 			}
 
