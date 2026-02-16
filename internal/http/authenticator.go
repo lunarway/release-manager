@@ -19,9 +19,22 @@ var (
 	ErrTokenExpired  = errors.New("oauth2: token expired and refresh token is not set")
 )
 
+type TokenStore interface {
+	storeAccessToken(token *oauth2.Token) error
+	readAccessToken() (*oauth2.Token, error)
+}
+
+type DeviceAuthenticator interface {
+	DeviceAuth(ctx context.Context, opts ...oauth2.AuthCodeOption) (*oauth2.DeviceAuthResponse, error)
+	DeviceAccessToken(ctx context.Context, da *oauth2.DeviceAuthResponse, opts ...oauth2.AuthCodeOption) (*oauth2.Token, error)
+	Client(ctx context.Context, t *oauth2.Token) *http.Client
+}
+
 type UserAuthenticator struct {
-	conf      *oauth2.Config
-	autoLogin bool
+	conf       DeviceAuthenticator
+	ts         TokenStore
+	autoLogin  bool
+	popBrowser bool
 }
 
 func NewUserAuthenticator(clientID, idpURL string, autoLogin bool) UserAuthenticator {
@@ -34,8 +47,10 @@ func NewUserAuthenticator(clientID, idpURL string, autoLogin bool) UserAuthentic
 		Scopes: []string{"openid profile"},
 	}
 	return UserAuthenticator{
-		conf:      conf,
-		autoLogin: autoLogin,
+		conf:       conf,
+		ts:         newTokenStore(),
+		autoLogin:  autoLogin,
+		popBrowser: true,
 	}
 }
 
@@ -44,7 +59,7 @@ func (g *UserAuthenticator) Login(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return storeAccessToken(token)
+	return g.ts.storeAccessToken(token)
 }
 
 func (g *UserAuthenticator) login(ctx context.Context) (*oauth2.Token, error) {
@@ -53,23 +68,24 @@ func (g *UserAuthenticator) login(ctx context.Context) (*oauth2.Token, error) {
 		return nil, err
 	}
 	fmt.Printf("please enter code %s at %s\n", response.UserCode, response.VerificationURIComplete)
-	err = browser.OpenURL(response.VerificationURIComplete)
-	if err != nil {
-		return nil, err
+	if g.popBrowser {
+		err = browser.OpenURL(response.VerificationURIComplete)
+		if err != nil {
+			return nil, err
+		}
 	}
-
 	return g.conf.DeviceAccessToken(ctx, response)
 }
 
 func (g *UserAuthenticator) Access(ctx context.Context) (*http.Client, error) {
-	token, err := readAccessToken()
+	token, err := g.ts.readAccessToken()
 	if err != nil {
 		if g.autoLogin {
 			token, err = g.login(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("auto login failed: %w: %w", ErrLoginRequired, err)
 			}
-			err = storeAccessToken(token)
+			err = g.ts.storeAccessToken(token)
 			if err != nil {
 				return nil, err
 			}
@@ -82,7 +98,7 @@ func (g *UserAuthenticator) Access(ctx context.Context) (*http.Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("auto login failed: %w: %w", ErrLoginRequired, err)
 		}
-		err = storeAccessToken(token)
+		err = g.ts.storeAccessToken(token)
 		if err != nil {
 			return nil, err
 		}
@@ -96,8 +112,18 @@ func tokenFilePath() string {
 	return filepath.Join(os.Getenv("HOME"), tokenFile)
 }
 
-func readAccessToken() (*oauth2.Token, error) {
-	data, err := os.ReadFile(tokenFilePath())
+type tokenStore struct {
+	tokenFilePath string
+}
+
+func newTokenStore() *tokenStore {
+	return &tokenStore{
+		tokenFilePath: tokenFilePath(),
+	}
+}
+
+func (ts *tokenStore) readAccessToken() (*oauth2.Token, error) {
+	data, err := os.ReadFile(ts.tokenFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -109,17 +135,16 @@ func readAccessToken() (*oauth2.Token, error) {
 	return &token, nil
 }
 
-func storeAccessToken(token *oauth2.Token) error {
+func (ts *tokenStore) storeAccessToken(token *oauth2.Token) error {
 	accessToken, err := json.Marshal(token)
 	if err != nil {
 		return err
 	}
-	p := tokenFilePath()
-	dir := filepath.Dir(p)
+	dir := filepath.Dir(ts.tokenFilePath)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
-	f, err := os.Create(p)
+	f, err := os.Create(ts.tokenFilePath)
 	if err != nil {
 		return err
 	}
