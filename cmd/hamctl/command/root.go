@@ -52,6 +52,9 @@ func NewRoot(version *string) (*cobra.Command, error) {
 			if service == "" {
 				missingFlags = append(missingFlags, "service")
 			}
+			if client.BaseURL == "" {
+				missingFlags = append(missingFlags, "http-base-url (or set HAMCTL_URL)")
+			}
 
 			if len(missingFlags) != 0 {
 				return errors.Errorf(`required flag(s) "%s" not set`, strings.Join(missingFlags, `", "`))
