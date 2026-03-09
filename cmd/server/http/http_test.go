@@ -78,7 +78,7 @@ func TestAuthenticate(t *testing.T) {
 			status:        http.StatusOK,
 		},
 		{
-			name:          "Invalid bearer token with lots of dots",
+			name:          "invalid bearer token with lots of dots",
 			authorization: "Bearer ......................",
 			status:        http.StatusUnauthorized,
 		},
@@ -147,7 +147,161 @@ func TestAuthenticate(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			req.Header.Set("Authorization", tc.authorization)
 			w := httptest.NewRecorder()
-			verifier.authentication(serverToken)(handler).ServeHTTP(w, req)
+			verifier.authentication([]string{serverToken})(handler).ServeHTTP(w, req)
+
+			assert.Equal(t, tc.expectedRequestContextSubject, UserFromContext(req.Context()))
+			assert.Equal(t, tc.status, w.Result().StatusCode, "status code not as expected")
+		})
+	}
+}
+
+func TestAuthenticate_withMultipleStaticTokens(t *testing.T) {
+	log.Init(&log.Configuration{
+		Level: log.Level{
+			Level: zapcore.DebugLevel,
+		},
+		Development: true,
+	})
+
+	jwksServer, _ := getJwksEndpoint(t)
+
+	issuer := "test-issuer"
+	audience := "test-audience"
+	firstToken := "first-token"
+	secondToken := "second-token"
+
+	tt := []struct {
+		name          string
+		staticTokens  []string
+		authorization string
+		status        int
+	}{
+		{
+			name:          "first static token accepted",
+			staticTokens:  []string{firstToken, secondToken},
+			authorization: "Bearer " + firstToken,
+			status:        http.StatusOK,
+		},
+		{
+			name:          "second static token accepted",
+			staticTokens:  []string{firstToken, secondToken},
+			authorization: "Bearer " + secondToken,
+			status:        http.StatusOK,
+		},
+		{
+			name:          "unknown token rejected",
+			staticTokens:  []string{firstToken, secondToken},
+			authorization: "Bearer unknown-token",
+			status:        http.StatusUnauthorized,
+		},
+		{
+			name:          "empty static tokens array rejects static token",
+			staticTokens:  []string{},
+			authorization: "Bearer " + firstToken,
+			status:        http.StatusUnauthorized,
+		},
+		{
+			name:          "nil static tokens array rejects static token",
+			staticTokens:  nil,
+			authorization: "Bearer " + firstToken,
+			status:        http.StatusUnauthorized,
+		},
+		{
+			name:          "empty string in token array is skipped",
+			staticTokens:  []string{"", firstToken, ""},
+			authorization: "Bearer " + firstToken,
+			status:        http.StatusOK,
+		},
+		{
+			name:          "only empty strings in token array rejects request",
+			staticTokens:  []string{"", "", ""},
+			authorization: "Bearer " + firstToken,
+			status:        http.StatusUnauthorized,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			verifier, err := NewVerifier(context.Background(), jwksServer.URL, issuer, audience)
+			require.NoError(t, err, "failed to create verifier")
+
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req.Header.Set("Authorization", tc.authorization)
+			w := httptest.NewRecorder()
+			verifier.authentication(tc.staticTokens)(handler).ServeHTTP(w, req)
+
+			assert.Equal(t, tc.status, w.Result().StatusCode, "status code not as expected")
+		})
+	}
+}
+
+// TestAuthenticate_JWTFallbackWithNoStaticTokens tests that JWT authentication
+// works when no static tokens are configured
+func TestAuthenticate_JWTFallbackWithNoStaticTokens(t *testing.T) {
+	log.Init(&log.Configuration{
+		Level: log.Level{
+			Level: zapcore.DebugLevel,
+		},
+		Development: true,
+	})
+
+	jwksServer, minter := getJwksEndpoint(t)
+
+	issuer := "test-issuer"
+	audience := "test-audience"
+
+	tt := []struct {
+		name                          string
+		staticTokens                  []string
+		authorization                 string
+		status                        int
+		expectedRequestContextSubject string
+	}{
+		{
+			name:         "empty static tokens with valid JWT succeeds",
+			staticTokens: []string{},
+			authorization: fmt.Sprintf("Bearer %s",
+				minter(t, principal{
+					Subject:    "jwt-user",
+					Issuer:     issuer,
+					Audience:   audience,
+					IssuedAt:   time.Now().Add(-1 * time.Second),
+					Expiration: time.Now().Add(10 * time.Second),
+				}),
+			),
+			status:                        http.StatusOK,
+			expectedRequestContextSubject: "jwt-user",
+		},
+		{
+			name:         "nil static tokens with valid JWT succeeds",
+			staticTokens: nil,
+			authorization: fmt.Sprintf("Bearer %s",
+				minter(t, principal{
+					Subject:    "jwt-user",
+					Issuer:     issuer,
+					Audience:   audience,
+					IssuedAt:   time.Now().Add(-1 * time.Second),
+					Expiration: time.Now().Add(10 * time.Second),
+				}),
+			),
+			status:                        http.StatusOK,
+			expectedRequestContextSubject: "jwt-user",
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			verifier, err := NewVerifier(context.Background(), jwksServer.URL, issuer, audience)
+			require.NoError(t, err, "failed to create verifier")
+
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req.Header.Set("Authorization", tc.authorization)
+			w := httptest.NewRecorder()
+			verifier.authentication(tc.staticTokens)(handler).ServeHTTP(w, req)
 
 			assert.Equal(t, tc.expectedRequestContextSubject, UserFromContext(req.Context()))
 			assert.Equal(t, tc.status, w.Result().StatusCode, "status code not as expected")
@@ -220,7 +374,7 @@ func TestAuthenticate_withInvalidCache(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", signedJwt)
 
-	authenticator.authentication("static-token")(handler).ServeHTTP(w, req)
+	authenticator.authentication([]string{"static-token"})(handler).ServeHTTP(w, req)
 
 	assert.Equal(t, testSubject, UserFromContext(req.Context()))
 	assert.Equal(t, http.StatusOK, w.Result().StatusCode, "status code not as expected")

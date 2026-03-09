@@ -6,6 +6,7 @@ import (
 	"github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/log"
 	appsv1 "k8s.io/api/apps/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -13,7 +14,7 @@ import (
 )
 
 type StatefulSetInformer struct {
-	clientset *kubernetes.Clientset
+	clientset kubernetes.Interface
 	exporter  Exporter
 }
 
@@ -108,11 +109,35 @@ func isStatefulSetSuccessful(ss *appsv1.StatefulSet) bool {
 		ss.Status.ObservedGeneration >= ss.Generation
 }
 
-func annotateStatefulSet(ctx context.Context, c *kubernetes.Clientset, ss *appsv1.StatefulSet) error {
-	observe(ss.Annotations)
-	_, err := c.AppsV1().StatefulSets(ss.Namespace).Update(ctx, ss, metav1.UpdateOptions{})
-	if err != nil {
-		return err
+func annotateStatefulSet(ctx context.Context, c kubernetes.Interface, ss *appsv1.StatefulSet) error {
+	var err error
+	maxRetries := 3
+	for i := 0; i < maxRetries; i++ {
+		// Get the latest version of the StatefulSet
+		latest, err := c.AppsV1().StatefulSets(ss.Namespace).Get(ctx, ss.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		// Apply our annotation changes to the latest version
+		if latest.Annotations == nil {
+			latest.Annotations = make(map[string]string)
+		}
+		// Copy the artifact ID from the original StatefulSet if it's not already set
+		if latest.Annotations[artifactIDAnnotationKey] == "" {
+			latest.Annotations[artifactIDAnnotationKey] = ss.Annotations[artifactIDAnnotationKey]
+		}
+		observe(latest.Annotations)
+
+		// Update with the latest version
+		_, err = c.AppsV1().StatefulSets(ss.Namespace).Update(ctx, latest, metav1.UpdateOptions{})
+		if err == nil {
+			return nil
+		}
+		// If it's not a conflict error, return immediately
+		if !k8serrors.IsConflict(err) {
+			return err
+		}
 	}
-	return nil
+	return err
 }

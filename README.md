@@ -155,7 +155,7 @@ It is also not possible to overwrite them with custom policies, e.g. changing br
 Release files are structured as shown below.
 In the root are folders for each environment, e.g. `dev`, `prod`.
 These folders contain a `releases` directory with kubernetes resource definitions of each namespace and their running applications.
-If an artifact contains a Flux `Kustomization` (`apiVersion: kustomize.toolkit.fluxcd.io/v1beta1` and `kind: Kustomization`) custom resource the release manager moves it into the `clusters` directory tree.
+If an artifact contains a Flux `Kustomization` (`apiVersion: kustomize.toolkit.fluxcd.io/v1` and `kind: Kustomization`) custom resource the release manager moves it into the `clusters` directory tree.
 This is tailored to support Flux2.
 
 A `policies` directory holds all recorded release policies.

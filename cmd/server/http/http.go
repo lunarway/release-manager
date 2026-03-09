@@ -22,9 +22,9 @@ type Options struct {
 	Port                int
 	Timeout             time.Duration
 	GithubWebhookSecret string
-	HamCtlAuthToken     string
-	DaemonAuthToken     string
-	ArtifactAuthToken   string
+	HamCtlAuthTokens    []string
+	DaemonAuthTokens    []string
+	ArtifactAuthTokens  []string
 	S3WebhookSecret     string
 }
 
@@ -43,7 +43,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	m.Use(reqrespLogger)
 
 	hamctlMux := m.NewRoute().Subrouter()
-	hamctlMux.Use(jwtVerifier.authentication(opts.HamCtlAuthToken))
+	hamctlMux.Use(jwtVerifier.authentication(opts.HamCtlAuthTokens))
 	hamctlMux.Methods(http.MethodPost).Path("/release").Handler(release(&payloader, flowSvc))
 	hamctlMux.Methods(http.MethodGet).Path("/status").Handler(status(&payloader, flowSvc))
 
@@ -58,14 +58,14 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 	hamctlMux.Methods(http.MethodGet).Path("/describe/latest-artifact/{service}").Handler(describeLatestArtifacts(&payloader, flowSvc))
 
 	daemonMux := m.NewRoute().Subrouter()
-	daemonMux.Use(jwtVerifier.authentication(opts.DaemonAuthToken))
+	daemonMux.Use(jwtVerifier.authentication(opts.DaemonAuthTokens))
 	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/deploy").Handler(daemonk8sDeployWebhook(&payloader, flowSvc))
 	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/error").Handler(daemonk8sPodErrorWebhook(&payloader, flowSvc))
 	daemonMux.Methods(http.MethodPost).Path("/webhook/daemon/k8s/joberror").Handler(daemonk8sJobErrorWebhook(&payloader, flowSvc))
 
 	// s3 endpoints
 	artifactMux := m.NewRoute().Subrouter()
-	artifactMux.Use(jwtVerifier.authentication(opts.ArtifactAuthToken))
+	artifactMux.Use(jwtVerifier.authentication(opts.ArtifactAuthTokens))
 	artifactMux.Methods(http.MethodPost).Path("/artifacts/create").Handler(createArtifact(&payloader, artifactWriteStorage))
 
 	// profiling endpoints

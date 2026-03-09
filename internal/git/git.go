@@ -542,3 +542,14 @@ func isBranchBehindOrigin(stderrData []byte) bool {
 	}
 	return false
 }
+
+// GetCurrentBranch gets the name of the current Git branch using the command "git branch --show-current"
+func GetCurrentBranch() string {
+	cmd := exec.Command("git", "branch", "--show-current")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(output))
+}
