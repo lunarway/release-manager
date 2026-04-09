@@ -6,6 +6,7 @@ builds:
   main: ./cmd/artifact/main.go
   goarch:
   - amd64
+  - arm64
   goos:
   - darwin
   - linux
@@ -16,6 +17,7 @@ builds:
   main: ./cmd/hamctl/main.go
   goarch:
   - amd64
+  - arm64
   goos:
   - darwin
   - linux
@@ -26,6 +28,7 @@ builds:
   main: ./cmd/server/main.go
   goarch:
   - amd64
+  - arm64
   goos:
   - darwin
   - linux
@@ -36,6 +39,7 @@ builds:
   main: ./cmd/daemon/main.go
   goarch:
   - amd64
+  - arm64
   goos:
   - darwin
   - linux
