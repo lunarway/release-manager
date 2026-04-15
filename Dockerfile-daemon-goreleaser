@@ -1,9 +1,10 @@
-FROM alpine:3.23.3 as builder
+FROM --platform=$BUILDPLATFORM alpine:3.23.3 AS builder
 
 RUN apk update
 RUN apk add ca-certificates
 
 FROM scratch
+ARG TARGETPLATFORM
 ENTRYPOINT [ "/daemon", "start" ]
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY daemon /
+COPY $TARGETPLATFORM/daemon /daemon
