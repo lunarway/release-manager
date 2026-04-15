@@ -46,15 +46,31 @@ builds:
   env:
     - CGO_ENABLED=0
 
-dockers:
-  - dockerfile: Dockerfile-server-goreleaser
-    image_templates:
-    - "quay.io/lunarway/release-manager:{{ .Tag }}"
+dockers_v2:
+  - id: release-manager
+    dockerfile: Dockerfile-server-goreleaser
+    ids:
+    - server
+    images:
+    - "quay.io/lunarway/release-manager"
+    tags:
+    - "{{ .Tag }}"
     extra_files:
     - ssh_config
-  - dockerfile: Dockerfile-daemon-goreleaser
-    image_templates:
-    - "quay.io/lunarway/release-daemon:{{ .Tag }}"
+    platforms:
+    - linux/amd64
+    - linux/arm64
+  - id: release-daemon
+    dockerfile: Dockerfile-daemon-goreleaser
+    ids:
+    - daemon
+    images:
+    - "quay.io/lunarway/release-daemon"
+    tags:
+    - "{{ .Tag }}"
+    platforms:
+    - linux/amd64
+    - linux/arm64
 
 archives:
   - id: archives
