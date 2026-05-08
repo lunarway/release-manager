@@ -81,6 +81,7 @@ func (s *StatefulSetInformer) handle(e interface{}) {
 		ResourceType:  "StatefulSet",
 		ArtifactID:    ss.Annotations[artifactIDAnnotationKey],
 		AuthorEmail:   ss.Annotations[authorAnnotationKey],
+		Squad:         firstNonEmpty(getSquadLabel(ss.Labels), getSquadLabel(ss.Spec.Template.Labels)),
 		AvailablePods: ss.Status.ReadyReplicas,
 		DesiredPods:   ss.Status.Replicas,
 	})

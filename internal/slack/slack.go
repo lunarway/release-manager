@@ -3,6 +3,7 @@ package slack
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/lunarway/release-manager/internal/http"
@@ -150,6 +151,7 @@ type ReleaseOptions struct {
 	CommitAuthor      string
 	CommitAuthorEmail string
 	Releaser          string
+	Squads            []string
 	Environment       string
 }
 
@@ -179,9 +181,7 @@ func (c *Client) notifySlackReleasesChannel(ctx context.Context, options Release
 		MarkdownIn: []string{"text", "fields"},
 	})
 	_, _, err := c.client.PostMessageContext(ctx, fmt.Sprintf("#releases-%s", options.Environment), asUser, attachments)
-	if err != nil {
-		return err
-	}
+	c.notifySquadReleaseChannelsBestEffort(ctx, options.Squads, options.Environment, asUser, attachments)
 	return err
 }
 
@@ -289,15 +289,12 @@ type NotifyK8sDeployOptions struct {
 	DesiredPods   int32
 	ResourceType  string
 	ArtifactID    string
+	Squad         string
 }
 
 func (c *Client) NotifyK8SDeployEvent(ctx context.Context, event NotifyK8sDeployOptions) error {
 	if c.muteOptions.Kubernetes {
 		return nil
-	}
-	userID, err := c.getIdByEmail(ctx, event.AuthorEmail)
-	if err != nil {
-		return err
 	}
 	asUser := slack.MsgOptionAsUser(true)
 	attachments := slack.MsgOptionAttachments(slack.Attachment{
@@ -306,10 +303,12 @@ func (c *Client) NotifyK8SDeployEvent(ctx context.Context, event NotifyK8sDeploy
 		Text:       fmt.Sprintf("%s deployed\n%d/%d pods are running (%s)\nArtifact: *%s*", event.Name, event.AvailablePods, event.DesiredPods, event.ResourceType, event.ArtifactID),
 		MarkdownIn: []string{"text", "fields"},
 	})
-	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
-	if err != nil {
-		return err
+	var err error
+	userID, err := c.getIdByEmail(ctx, event.AuthorEmail)
+	if err == nil {
+		_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
 	}
+	c.notifySquadReleaseChannelsBestEffort(ctx, []string{event.Squad}, event.Environment, asUser, attachments)
 	return err
 }
 
@@ -358,10 +357,6 @@ func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErro
 	if c.muteOptions.Kubernetes {
 		return nil
 	}
-	userID, err := c.getIdByEmail(ctx, event.AuthorEmail)
-	if err != nil {
-		return err
-	}
 	asUser := slack.MsgOptionAsUser(true)
 	var fields []slack.AttachmentField
 	for _, container := range event.Errors {
@@ -378,23 +373,25 @@ func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErro
 		MarkdownIn: []string{"text", "fields"},
 		Fields:     fields,
 	})
-	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
+	var err error
+	userID, err := c.getIdByEmail(ctx, event.AuthorEmail)
+	if err == nil {
+		_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
+	}
+	var alertErr error
+	if event.AlertSquad != "" {
+		_, _, alertErr = c.client.PostMessageContext(ctx, event.AlertSquad, asUser, attachments)
+	}
+	c.notifySquadReleaseChannelsBestEffort(ctx, []string{event.Squad}, event.Environment, asUser, attachments)
 	if err != nil {
 		return err
 	}
-	if event.AlertSquad != "" {
-		_, _, err = c.client.PostMessageContext(ctx, event.AlertSquad, asUser, attachments)
-	}
-	return err
+	return alertErr
 }
 
 func (c *Client) NotifyK8SJobErrorEvent(ctx context.Context, event *http.JobErrorEvent) error {
 	if c.muteOptions.Kubernetes {
 		return nil
-	}
-	userID, err := c.getIdByEmail(ctx, event.AuthorEmail)
-	if err != nil {
-		return err
 	}
 	asUser := slack.MsgOptionAsUser(true)
 	var fields []slack.AttachmentField
@@ -412,11 +409,48 @@ func (c *Client) NotifyK8SJobErrorEvent(ctx context.Context, event *http.JobErro
 		MarkdownIn: []string{"text", "fields"},
 		Fields:     fields,
 	})
-	_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
-	if err != nil {
-		return err
+	var err error
+	userID, err := c.getIdByEmail(ctx, event.AuthorEmail)
+	if err == nil {
+		_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
 	}
+	c.notifySquadReleaseChannelsBestEffort(ctx, []string{event.Squad}, event.Environment, asUser, attachments)
 	return err
+}
+
+func (c *Client) notifySquadReleaseChannelsBestEffort(ctx context.Context, squads []string, environment string, options ...slack.MsgOption) {
+	for _, channel := range squadReleaseChannels(squads, environment) {
+		_, _, err := c.client.PostMessageContext(ctx, channel, options...)
+		if err != nil {
+			log.WithContext(ctx).
+				With("channel", channel).
+				Infof("slack: skipping squad release channel notification: %v", err)
+		}
+	}
+}
+
+func squadReleaseChannels(squads []string, environment string) []string {
+	environment = strings.TrimSpace(environment)
+	if environment == "" {
+		return nil
+	}
+
+	seen := make(map[string]struct{})
+	for _, squad := range squads {
+		squad = strings.TrimSpace(squad)
+		if squad == "" {
+			continue
+		}
+		channel := fmt.Sprintf("#squad-%s-releases-%s", squad, environment)
+		seen[channel] = struct{}{}
+	}
+
+	channels := make([]string, 0, len(seen))
+	for channel := range seen {
+		channels = append(channels, channel)
+	}
+	sort.Strings(channels)
+	return channels
 }
 
 func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service, environment, branch, namespace, actorEmail string, inputErr error) error {

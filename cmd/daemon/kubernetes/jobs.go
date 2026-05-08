@@ -64,6 +64,7 @@ func (j JobInformer) handle(e interface{}) {
 			Errors:      jobErrorMessages(job),
 			ArtifactID:  job.Annotations[artifactIDAnnotationKey],
 			AuthorEmail: job.Annotations[authorAnnotationKey],
+			Squad:       firstNonEmpty(getSquadLabel(job.Labels), getSquadLabel(job.Spec.Template.Labels)),
 		})
 		if err != nil {
 			log.Errorf("Failed to send job error event: %v", err)

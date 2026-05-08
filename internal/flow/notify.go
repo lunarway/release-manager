@@ -20,6 +20,7 @@ func (s *Service) NotifyK8SDeployEvent(ctx context.Context, event *http.ReleaseE
 			DesiredPods:   event.DesiredPods,
 			ArtifactID:    event.ArtifactID,
 			AuthorEmail:   event.AuthorEmail,
+			Squad:         event.Squad,
 			Environment:   event.Environment,
 		})
 	}
