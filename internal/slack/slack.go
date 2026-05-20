@@ -3,7 +3,6 @@ package slack
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/lunarway/release-manager/internal/http"
@@ -151,7 +150,7 @@ type ReleaseOptions struct {
 	CommitAuthor      string
 	CommitAuthorEmail string
 	Releaser          string
-	Squads            []string
+	Squad             string
 	Environment       string
 }
 
@@ -181,7 +180,7 @@ func (c *Client) notifySlackReleasesChannel(ctx context.Context, options Release
 		MarkdownIn: []string{"text", "fields"},
 	})
 	_, _, err := c.client.PostMessageContext(ctx, fmt.Sprintf("#releases-%s", options.Environment), asUser, attachments)
-	c.notifySquadReleaseChannelsBestEffort(ctx, options.Squads, options.Environment, asUser, attachments)
+	c.notifySquadReleaseChannelBestEffort(ctx, options.Squad, options.Environment, asUser, attachments)
 	return err
 }
 
@@ -308,7 +307,7 @@ func (c *Client) NotifyK8SDeployEvent(ctx context.Context, event NotifyK8sDeploy
 	if err == nil {
 		_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
 	}
-	c.notifySquadReleaseChannelsBestEffort(ctx, []string{event.Squad}, event.Environment, asUser, attachments)
+	c.notifySquadReleaseChannelBestEffort(ctx, event.Squad, event.Environment, asUser, attachments)
 	return err
 }
 
@@ -382,7 +381,7 @@ func (c *Client) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErro
 	if event.AlertSquad != "" {
 		_, _, alertErr = c.client.PostMessageContext(ctx, event.AlertSquad, asUser, attachments)
 	}
-	c.notifySquadReleaseChannelsBestEffort(ctx, []string{event.Squad}, event.Environment, asUser, attachments)
+	c.notifySquadReleaseChannelBestEffort(ctx, event.Squad, event.Environment, asUser, attachments)
 	if err != nil {
 		return err
 	}
@@ -414,43 +413,30 @@ func (c *Client) NotifyK8SJobErrorEvent(ctx context.Context, event *http.JobErro
 	if err == nil {
 		_, _, err = c.client.PostMessageContext(ctx, userID, asUser, attachments)
 	}
-	c.notifySquadReleaseChannelsBestEffort(ctx, []string{event.Squad}, event.Environment, asUser, attachments)
+	c.notifySquadReleaseChannelBestEffort(ctx, event.Squad, event.Environment, asUser, attachments)
 	return err
 }
 
-func (c *Client) notifySquadReleaseChannelsBestEffort(ctx context.Context, squads []string, environment string, options ...slack.MsgOption) {
-	for _, channel := range squadReleaseChannels(squads, environment) {
-		_, _, err := c.client.PostMessageContext(ctx, channel, options...)
-		if err != nil {
-			log.WithContext(ctx).
-				With("channel", channel).
-				Infof("slack: skipping squad release channel notification: %v", err)
-		}
+func (c *Client) notifySquadReleaseChannelBestEffort(ctx context.Context, squad, environment string, options ...slack.MsgOption) {
+	channel := squadReleaseChannel(squad, environment)
+	if channel == "" {
+		return
+	}
+	_, _, err := c.client.PostMessageContext(ctx, channel, options...)
+	if err != nil {
+		log.WithContext(ctx).
+			With("channel", channel).
+			Infof("slack: skipping squad release channel notification: %v", err)
 	}
 }
 
-func squadReleaseChannels(squads []string, environment string) []string {
+func squadReleaseChannel(squad, environment string) string {
+	squad = strings.TrimSpace(squad)
 	environment = strings.TrimSpace(environment)
-	if environment == "" {
-		return nil
+	if squad == "" || environment == "" {
+		return ""
 	}
-
-	seen := make(map[string]struct{})
-	for _, squad := range squads {
-		squad = strings.TrimSpace(squad)
-		if squad == "" {
-			continue
-		}
-		channel := fmt.Sprintf("#squad-%s-releases-%s", squad, environment)
-		seen[channel] = struct{}{}
-	}
-
-	channels := make([]string, 0, len(seen))
-	for channel := range seen {
-		channels = append(channels, channel)
-	}
-	sort.Strings(channels)
-	return channels
+	return fmt.Sprintf("#squad-%s-releases-%s", squad, environment)
 }
 
 func (c *Client) NotifyReleaseManagerError(ctx context.Context, msgType, service, environment, branch, namespace, actorEmail string, inputErr error) error {

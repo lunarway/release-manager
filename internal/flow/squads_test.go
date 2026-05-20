@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSquadsFromManifests(t *testing.T) {
-	t.Run("collects distinct squads from top level, template and job template labels", func(t *testing.T) {
+func TestSquadFromManifests(t *testing.T) {
+	t.Run("returns the first squad found in manifest walk order", func(t *testing.T) {
 		dir := t.TempDir()
 
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "deployment.yaml"), []byte(`
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a-deployment.yaml"), []byte(`
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,7 +26,7 @@ spec:
         app: demo
 `), 0o600))
 
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "job.yaml"), []byte(`
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "b-job.yaml"), []byte(`
 apiVersion: batch/v1
 kind: Job
 spec:
@@ -36,7 +36,7 @@ spec:
         squad: beta
 `), 0o600))
 
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "cronjob.yaml"), []byte(`
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "c-cronjob.yaml"), []byte(`
 apiVersion: batch/v1
 kind: CronJob
 spec:
@@ -56,19 +56,37 @@ metadata:
 
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "README.txt"), []byte("not a manifest"), 0o600))
 
-		actual, err := squadsFromManifests(dir)
+		actual, err := squadFromManifests(dir)
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"alpha", "beta", "gamma"}, actual)
+		assert.Equal(t, "alpha", actual)
 	})
 
 	t.Run("returns an error for invalid yaml manifests", func(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "invalid.yaml"), []byte("metadata: ["), 0o600))
 
-		_, err := squadsFromManifests(dir)
+		_, err := squadFromManifests(dir)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "decode")
+	})
+
+	t.Run("short circuits before later invalid manifests once a squad is found", func(t *testing.T) {
+		dir := t.TempDir()
+
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a-valid.yaml"), []byte(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    squad: alpha
+`), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "z-invalid.yaml"), []byte("metadata: ["), 0o600))
+
+		actual, err := squadFromManifests(dir)
+
+		require.NoError(t, err)
+		assert.Equal(t, "alpha", actual)
 	})
 }

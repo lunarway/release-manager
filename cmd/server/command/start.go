@@ -217,7 +217,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 							CommitLink:        opts.Spec.Application.URL,
 							CommitSHA:         opts.Spec.Application.SHA,
 							Releaser:          opts.Releaser,
-							Squads:            opts.Squads,
+							Squad:             opts.Squad,
 						},
 					)
 				},

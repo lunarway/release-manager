@@ -98,7 +98,10 @@ func getSquadLabel(labels map[string]string) string {
 	if labels == nil {
 		return ""
 	}
-	return strings.TrimSpace(labels[squadLabelKey])
+	if squad, ok := labels[squadLabelKey]; ok {
+		return strings.TrimSpace(squad)
+	}
+	return ""
 }
 
 func firstNonEmpty(values ...string) string {

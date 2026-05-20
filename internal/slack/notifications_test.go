@@ -34,8 +34,6 @@ func TestNotifyRelease_postsSquadReleaseChannelsBestEffort(t *testing.T) {
 		Return("", "", nil).Once()
 	slackClient.On("PostMessageContext", mock.Anything, "#squad-alpha-releases-dev", mock.Anything, mock.Anything).
 		Return("", "", errors.New("channel_not_found")).Once()
-	slackClient.On("PostMessageContext", mock.Anything, "#squad-beta-releases-dev", mock.Anything, mock.Anything).
-		Return("", "", nil).Once()
 	slackClient.On("GetUserByEmailContext", mock.Anything, "author@corp.com").
 		Return(slackUser, nil).Once()
 	slackClient.On("PostMessageContext", mock.Anything, slackUser.ID, mock.Anything, mock.Anything).
@@ -55,7 +53,7 @@ func TestNotifyRelease_postsSquadReleaseChannelsBestEffort(t *testing.T) {
 		CommitLink:        "https://example.com",
 		Environment:       "dev",
 		Releaser:          "Releaser",
-		Squads:            []string{"beta", "alpha", "", "alpha"},
+		Squad:             "alpha",
 	})
 
 	slackClient.AssertExpectations(t)

@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -37,8 +36,8 @@ type manifestDocument struct {
 	Items    []manifestDocument `yaml:"items"`
 }
 
-func squadsFromManifests(dir string) ([]string, error) {
-	squadSet := make(map[string]struct{})
+func squadFromManifests(dir string) (string, error) {
+	var squad string
 
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -47,24 +46,26 @@ func squadsFromManifests(dir string) ([]string, error) {
 		if d.IsDir() || !isManifestFile(path) {
 			return nil
 		}
-		return scanManifestFile(path, squadSet)
+		squadInFile, err := scanManifestFile(path)
+		if err != nil {
+			return err
+		}
+		if squadInFile == "" {
+			return nil
+		}
+		squad = squadInFile
+		return filepath.SkipAll
 	})
 	if err != nil {
-		return nil, errors.WithMessage(err, "walk manifest directory")
+		return "", errors.WithMessage(err, "walk manifest directory")
 	}
-
-	squads := make([]string, 0, len(squadSet))
-	for squad := range squadSet {
-		squads = append(squads, squad)
-	}
-	sort.Strings(squads)
-	return squads, nil
+	return squad, nil
 }
 
-func scanManifestFile(path string, squadSet map[string]struct{}) error {
+func scanManifestFile(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return errors.WithMessagef(err, "open file '%s'", path)
+		return "", errors.WithMessagef(err, "open file '%s'", path)
 	}
 	defer file.Close()
 
@@ -73,31 +74,39 @@ func scanManifestFile(path string, squadSet map[string]struct{}) error {
 		var manifest manifestDocument
 		err := decoder.Decode(&manifest)
 		if err == io.EOF {
-			return nil
+			return "", nil
 		}
 		if err != nil {
-			return errors.WithMessagef(err, "decode '%s'", path)
+			return "", errors.WithMessagef(err, "decode '%s'", path)
 		}
-		collectManifestSquads(manifest, squadSet)
+		squad := squadFromManifestDocument(manifest)
+		if squad != "" {
+			return squad, nil
+		}
 	}
 }
 
-func collectManifestSquads(manifest manifestDocument, squadSet map[string]struct{}) {
-	addSquad(squadSet, manifest.Metadata.Labels["squad"])
-	addSquad(squadSet, manifest.Spec.Template.Metadata.Labels["squad"])
-	addSquad(squadSet, manifest.Spec.JobTemplate.Spec.Template.Metadata.Labels["squad"])
+func squadFromManifestDocument(manifest manifestDocument) string {
+	if squad := normalizeSquad(manifest.Metadata.Labels["squad"]); squad != "" {
+		return squad
+	}
+	if squad := normalizeSquad(manifest.Spec.Template.Metadata.Labels["squad"]); squad != "" {
+		return squad
+	}
+	if squad := normalizeSquad(manifest.Spec.JobTemplate.Spec.Template.Metadata.Labels["squad"]); squad != "" {
+		return squad
+	}
 
 	for _, item := range manifest.Items {
-		collectManifestSquads(item, squadSet)
+		if squad := squadFromManifestDocument(item); squad != "" {
+			return squad
+		}
 	}
+	return ""
 }
 
-func addSquad(squadSet map[string]struct{}, squad string) {
-	squad = strings.TrimSpace(squad)
-	if squad == "" {
-		return
-	}
-	squadSet[squad] = struct{}{}
+func normalizeSquad(squad string) string {
+	return strings.TrimSpace(squad)
 }
 
 func isManifestFile(path string) bool {

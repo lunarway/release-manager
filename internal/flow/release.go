@@ -208,10 +208,10 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		if err != nil {
 			return true, errors.WithMessage(err, "locate source spec")
 		}
-		squads, err := squadsFromManifests(sourcePath)
+		squad, err := squadFromManifests(sourcePath)
 		if err != nil {
-			logger.Errorf("flow: ReleaseArtifactID: extract squads from '%s' failed: %v", sourcePath, err)
-			squads = nil
+			logger.Errorf("flow: ReleaseArtifactID: extract squad from '%s' failed: %v", sourcePath, err)
+			squad = ""
 		}
 		artifactAuthor := commitinfo.NewPersonInfo(sourceSpec.Application.AuthorName, sourceSpec.Application.AuthorEmail)
 		releaseAuthor := commitinfo.NewPersonInfo(actor.Name, actor.Email)
@@ -232,7 +232,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 			Service:     service,
 			Environment: environment,
 			Namespace:   namespace,
-			Squads:      squads,
+			Squad:       squad,
 			Spec:        sourceSpec,
 			Releaser:    actor.Name,
 		})
