@@ -68,14 +68,14 @@ func (p *PodInformer) handle(obj interface{}) {
 
 	ctx := context.Background()
 	squad := getSquadLabel(pod.Labels)
-	alertSquadName := alertSquad(firstNonEmpty(squad, "no-one"), pod.Annotations)
+	squadAlertChannel := alertSquad(firstNonEmpty(squad, "no-one"), pod.Annotations)
 	event := http.PodErrorEvent{
 		PodName:     pod.Name,
 		Namespace:   pod.Namespace,
 		ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
 		AuthorEmail: pod.Annotations[authorAnnotationKey],
 		Squad:       squad,
-		AlertSquad:  alertSquadName,
+		AlertSquad:  squadAlertChannel,
 	}
 
 	if isPodInCrashLoopBackOff(pod) {
