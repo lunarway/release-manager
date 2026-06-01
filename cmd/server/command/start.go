@@ -161,7 +161,6 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			copier := copy.New(log.With("system", "copier"))
 			gitSvc := git.Service{
 				Tracer:            tracer,
-				Copier:            copier,
 				SSHPrivateKeyPath: startOptions.configRepo.SSHPrivateKeyPath,
 				ConfigRepoURL:     startOptions.configRepo.ConfigRepo,
 				Config:            startOptions.gitConfigOpts,

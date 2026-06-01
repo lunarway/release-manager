@@ -14,7 +14,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/lunarway/release-manager/internal/commitinfo"
-	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
@@ -36,7 +35,6 @@ type GitConfig struct {
 
 type Service struct {
 	Tracer            tracing.Tracer
-	Copier            *copy.Copier
 	SSHPrivateKeyPath string
 	ConfigRepoURL     string
 	Config            *GitConfig
