@@ -105,6 +105,9 @@ type GitService interface {
 	Commit(ctx context.Context, rootPath, changesPath, msg string) error
 	LocateServiceReleaseRollbackSkip(ctx context.Context, r *git.Repository, env, service string, n uint) (plumbing.Hash, error)
 	Checkout(ctx context.Context, rootPath string, hash plumbing.Hash) error
+	// ResetToOriginMaster fetches the latest commits from origin and hard-resets
+	// the working tree at rootPath to origin/master.
+	ResetToOriginMaster(ctx context.Context, rootPath string) error
 }
 
 // retry tries the function f until max attempts is reached

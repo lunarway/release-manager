@@ -123,6 +123,30 @@ func (s *Service) SyncMaster(ctx context.Context) error {
 	return nil
 }
 
+// ResetToOriginMaster fetches the latest commits from origin and hard-resets
+// the working tree at rootPath to origin/master. This is cheaper than a full
+// clone and is used to bring a destination clone up to date before retrying a
+// failed push.
+func (s *Service) ResetToOriginMaster(ctx context.Context, rootPath string) error {
+	span, ctx := s.Tracer.FromCtx(ctx, "git.ResetToOriginMaster")
+	defer span.Finish()
+
+	span, _ = s.Tracer.FromCtx(ctx, "fetch")
+	err := execCommand(ctx, rootPath, "git", "fetch", "origin", "master")
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "fetch origin master")
+	}
+
+	span, _ = s.Tracer.FromCtx(ctx, "reset hard")
+	err = execCommand(ctx, rootPath, "git", "reset", "--hard", "origin/master")
+	span.Finish()
+	if err != nil {
+		return errors.WithMessage(err, "reset hard to origin/master")
+	}
+	return nil
+}
+
 // Clone returns a Git repository copy from the master repository.
 func (s *Service) Clone(ctx context.Context, destination string) (*git.Repository, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Clone")

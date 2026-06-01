@@ -117,3 +117,17 @@ func (_m *MockGitService) SyncMaster(_a0 context.Context) error {
 
 	return r0
 }
+
+// ResetToOriginMaster provides a mock function with given fields: ctx, rootPath
+func (_m *MockGitService) ResetToOriginMaster(ctx context.Context, rootPath string) error {
+	ret := _m.Called(ctx, rootPath)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, rootPath)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}

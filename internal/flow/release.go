@@ -139,31 +139,44 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifactIDEvent) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ExecReleaseArtifactID")
 	defer span.Finish()
-	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
-		service := event.Service
-		branch := event.Branch
-		environment := event.Environment
-		namespace := event.Namespace
-		actor := event.Actor
-		artifactID := event.ArtifactID
 
+	service := event.Service
+	branch := event.Branch
+	environment := event.Environment
+	namespace := event.Namespace
+	actor := event.Actor
+	artifactID := event.ArtifactID
+
+	artifactSourcePath, sourcePath, closeSource, err := s.Storage.ArtifactPaths(ctx, service, environment, branch, artifactID)
+	if err != nil {
+		return errors.WithMessage(err, "get artifact paths")
+	}
+	defer closeSource(ctx)
+
+	// Allocate the destination clone once. On ErrBranchBehindOrigin the retry
+	// loop (via flow.retry → SyncMaster) updates the shared master, and we
+	// bring the destination clone up to date with ResetToOriginMaster before
+	// re-applying the (idempotent) resource copy.
+	destinationConfigRepoPath, closeDestination, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-artifact-destination")
+	if err != nil {
+		return err
+	}
+	defer closeDestination(ctx)
+
+	_, err = s.Git.Clone(ctx, destinationConfigRepoPath)
+	if err != nil {
+		return errors.WithMessagef(err, "clone destination repo into '%s'", destinationConfigRepoPath)
+	}
+
+	err = s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
 		logger := log.WithContext(ctx)
 
-		artifactSourcePath, sourcePath, closeSource, err := s.Storage.ArtifactPaths(ctx, service, environment, branch, artifactID)
-		if err != nil {
-			return true, errors.WithMessage(err, "get artifact paths")
-		}
-		defer closeSource(ctx)
-
-		destinationConfigRepoPath, closeDestination, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-artifact-destination")
-		if err != nil {
-			return true, err
-		}
-		defer closeDestination(ctx)
-
-		_, err = s.Git.Clone(ctx, destinationConfigRepoPath)
-		if err != nil {
-			return true, errors.WithMessagef(err, "clone destination repo into '%s'", destinationConfigRepoPath)
+		// On a retry the shared master has already been synced by flow.retry.
+		// Bring the destination clone to the new tip without a full re-clone.
+		if attempt > 1 {
+			if err := s.Git.ResetToOriginMaster(ctx, destinationConfigRepoPath); err != nil {
+				return true, errors.WithMessage(err, "reset destination clone to origin/master")
+			}
 		}
 
 		// release service to env from original release
