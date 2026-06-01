@@ -72,6 +72,7 @@ type NotifyReleaseOptions struct {
 	Namespace   string
 	Service     string
 	Releaser    string
+	Squad       string
 	Spec        artifact.Spec
 	Intent      intent.Intent
 }
@@ -84,6 +85,7 @@ type NotifyReleaseSucceededOptions struct {
 	DesiredPods   int32
 	ArtifactID    string
 	AuthorEmail   string
+	Squad         string
 	Environment   string
 }
 

@@ -1,9 +1,9 @@
-FROM --platform=$BUILDPLATFORM alpine:3.23.3 AS setup
+FROM --platform=$BUILDPLATFORM alpine:3.23.4 AS setup
 RUN apk add --no-cache openssh-client && \
     mkdir -p /etc/ssh && \
     ssh-keyscan github.com bitbucket.org >> /etc/ssh/ssh_known_hosts
 
-FROM alpine:3.23.3
+FROM alpine:3.23.4
 RUN apk update && \
     apk add --no-cache \
     openssh-keygen bash openssh-client git ca-certificates gnupg
