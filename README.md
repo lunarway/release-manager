@@ -315,7 +315,11 @@ When releasing applications the server will notify different upstream services a
 info  command/start.go:145  Release [dev]: verification (master-e8da185c2c-06249f1a78) by Bjørn Sørensen, author Bjørn Sørensen
 ```
 
-A Slack message is pushed to a `#releases-<env>` Slack channel.
+A Slack message is pushed to the `#releases-<env>` Slack channel for the release environment.
+
+If a `squad` label can be resolved for the release, a best-effort copy is also pushed to `#squad-<squad>-releases-<env>`. The squad notification does not affect the release flow if the label is missing, the Slack channel does not exist, or posting the message fails.
+
+Kubernetes deploy success, pod error and job error notifications follow the same squad channel pattern.
 
 ![](docs/slack_release_message.png)
 

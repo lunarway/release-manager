@@ -80,6 +80,7 @@ func (d *DeploymentInformer) handleDeployment(e interface{}) {
 		ResourceType:  "Deployment",
 		ArtifactID:    deploy.Annotations[artifactIDAnnotationKey],
 		AuthorEmail:   deploy.Annotations[authorAnnotationKey],
+		Squad:         firstNonEmpty(getSquadLabel(deploy.Labels), getSquadLabel(deploy.Spec.Template.Labels)),
 		AvailablePods: deploy.Status.AvailableReplicas,
 		DesiredPods:   *deploy.Spec.Replicas,
 	})
