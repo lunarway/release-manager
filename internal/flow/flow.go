@@ -102,6 +102,10 @@ type GitService interface {
 	SyncMaster(context.Context) error
 	Clone(context.Context, string) (*git.Repository, error)
 	MasterPath() string
+	// WithMasterPath calls fn with the master working-copy path while holding
+	// the master read lock. Use this to read files from the master copy without
+	// racing against SyncMaster.
+	WithMasterPath(ctx context.Context, fn func(masterPath string) error) error
 	Commit(ctx context.Context, rootPath, changesPath, msg string) error
 	LocateServiceReleaseRollbackSkip(ctx context.Context, r *git.Repository, env, service string, n uint) (plumbing.Hash, error)
 	Checkout(ctx context.Context, rootPath string, hash plumbing.Hash) error

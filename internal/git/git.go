@@ -46,8 +46,20 @@ type Service struct {
 	master      *git.Repository
 }
 
+// MasterPath returns the filesystem path of the master working copy.
 func (s *Service) MasterPath() string {
 	return s.masterPath
+}
+
+// WithMasterPath calls fn with the master working-copy path while holding the
+// master read lock. This allows callers to read files from the master copy
+// without racing against SyncMaster, which takes the write lock.
+func (s *Service) WithMasterPath(ctx context.Context, fn func(masterPath string) error) error {
+	span, _ := s.Tracer.FromCtx(ctx, "git.WithMasterPath")
+	defer span.Finish()
+	s.masterMutex.RLock()
+	defer s.masterMutex.RUnlock()
+	return fn(s.masterPath)
 }
 
 // InitMasterRepo clones the configuration repository into a master directory.

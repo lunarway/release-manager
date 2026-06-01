@@ -103,18 +103,19 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	// environment. If there is no artifact released to the target environment an
 	// artifact.ErrFileNotFound error is returned. This is OK as the currentSpec
 	// will then be the default value and this its ID will be the empty string.
-	destinationConfigRepoPath, closeDestinationSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-artifact-destination")
+	// The read is performed under the master read lock so it cannot race with
+	// SyncMaster (which takes the write lock).
+	var currentSpec artifact.Spec
+	err = s.Git.WithMasterPath(ctx, func(masterPath string) error {
+		var specErr error
+		currentSpec, specErr = envSpec(masterPath, s.ArtifactFileName, service, environment, namespace)
+		if specErr != nil && errors.Cause(specErr) != artifact.ErrFileNotFound {
+			return errors.WithMessage(specErr, "get current released spec")
+		}
+		return nil
+	})
 	if err != nil {
 		return "", err
-	}
-	defer closeDestinationSource(ctx)
-	_, err = s.Git.Clone(ctx, destinationConfigRepoPath)
-	if err != nil {
-		return "", errors.WithMessagef(err, "clone into '%s'", destinationConfigRepoPath)
-	}
-	currentSpec, err := envSpec(destinationConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
-	if err != nil && errors.Cause(err) != artifact.ErrFileNotFound {
-		return "", errors.WithMessage(err, "get current released spec")
 	}
 	logger.WithFields("currentSpec", currentSpec).Debugf("Found artifact '%s' in environment '%s'", currentSpec.ID, environment)
 	if currentSpec.ID == sourceSpec.ID {
