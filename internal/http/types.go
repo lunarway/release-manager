@@ -76,6 +76,7 @@ type ReleaseEvent struct {
 	DesiredPods   int32  `json:"replicas,omitempty"`
 	ArtifactID    string `json:"artifactId,omitempty"`
 	AuthorEmail   string `json:"authorEmail,omitempty"`
+	Squad         string `json:"squad,omitempty"`
 	Environment   string `json:"environment,omitempty"`
 }
 type ContainerError struct {
@@ -122,6 +123,7 @@ type JobErrorEvent struct {
 	AuthorEmail string              `json:"authorEmail,omitempty"`
 	Environment string              `json:"environment,omitempty"`
 	ArtifactID  string              `json:"artifactId,omitempty"`
+	Squad       string              `json:"squad,omitempty"`
 }
 
 type KubernetesNotifyResponse struct {

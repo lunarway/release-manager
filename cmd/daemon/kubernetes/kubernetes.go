@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
@@ -91,4 +92,24 @@ func observe(annotations map[string]string) {
 
 func isObserved(annotations map[string]string) bool {
 	return annotations[observedAnnotationKey] == annotations[artifactIDAnnotationKey]
+}
+
+func getSquadLabel(labels map[string]string) string {
+	if labels == nil {
+		return ""
+	}
+	if squad, ok := labels[squadLabelKey]; ok {
+		return strings.TrimSpace(squad)
+	}
+	return ""
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }

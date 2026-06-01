@@ -67,13 +67,15 @@ func (p *PodInformer) handle(obj interface{}) {
 	}
 
 	ctx := context.Background()
+	squad := getSquadLabel(pod.Labels)
+	squadAlertChannel := alertSquad(firstNonEmpty(squad, "no-one"), pod.Annotations)
 	event := http.PodErrorEvent{
 		PodName:     pod.Name,
 		Namespace:   pod.Namespace,
 		ArtifactID:  pod.Annotations[artifactIDAnnotationKey],
 		AuthorEmail: pod.Annotations[authorAnnotationKey],
-		Squad:       getCodeOwnerSquad(pod.Labels),
-		AlertSquad:  alertSquad(getCodeOwnerSquad(pod.Labels), pod.Annotations),
+		Squad:       squad,
+		AlertSquad:  squadAlertChannel,
 	}
 
 	if isPodInCrashLoopBackOff(pod) {
@@ -84,7 +86,7 @@ func (p *PodInformer) handle(obj interface{}) {
 				pod.Name)
 			return
 		}
-		log.Infof("Pod: %s is in CrashLoopBackOff owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
+		log.Infof("Pod: %s is in CrashLoopBackOff owned by squad %s", pod.Name, firstNonEmpty(squad, "no-one"))
 		restartCount := pod.Status.ContainerStatuses[0].RestartCount
 		if math.Mod(float64(restartCount), p.moduloCrashReportNotif) != 1 {
 			return
@@ -114,7 +116,7 @@ func (p *PodInformer) handle(obj interface{}) {
 	}
 
 	if isPodInCreateContainerConfigError(pod) {
-		log.Infof("Pod: %s is in CreateContainerConfigError owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
+		log.Infof("Pod: %s is in CreateContainerConfigError owned by squad %s", pod.Name, firstNonEmpty(squad, "no-one"))
 		// Determine which container of the deployment has CreateContainerConfigError
 		var errorContainers []http.ContainerError
 		for _, cst := range pod.Status.ContainerStatuses {
@@ -134,7 +136,7 @@ func (p *PodInformer) handle(obj interface{}) {
 	}
 
 	if isPodOOMKilled(pod) {
-		log.With("targetPodNamespace", pod.Namespace, "targetPodName", pod.Name, "targetPodSquad", getCodeOwnerSquad(pod.Labels)).Infof("Pod: %s was OOMKilled owned by squad %s", pod.Name, getCodeOwnerSquad(pod.Labels))
+		log.With("targetPodNamespace", pod.Namespace, "targetPodName", pod.Name, "targetPodSquad", firstNonEmpty(squad, "no-one")).Infof("Pod: %s was OOMKilled owned by squad %s", pod.Name, firstNonEmpty(squad, "no-one"))
 		var errorContainers []http.ContainerError
 		for _, cst := range pod.Status.ContainerStatuses {
 			if isContainerOOMKilled(cst) {
@@ -267,13 +269,6 @@ func parseToJSONAray(str string) ([]ContainerLog, error) {
 		return nil, errors.WithMessage(err, "unmarshal")
 	}
 	return logs, nil
-}
-
-func getCodeOwnerSquad(labels map[string]string) string {
-	if squad, ok := labels[squadLabelKey]; ok {
-		return squad
-	}
-	return "no-one"
 }
 
 func alertSquad(squad string, annotations map[string]string) (alertChannel string) {

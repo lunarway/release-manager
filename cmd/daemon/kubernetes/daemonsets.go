@@ -80,6 +80,7 @@ func (d *DaemonSetInformer) handle(e interface{}) {
 		ResourceType:  "DaemonSet",
 		ArtifactID:    ds.Annotations[artifactIDAnnotationKey],
 		AuthorEmail:   ds.Annotations[authorAnnotationKey],
+		Squad:         firstNonEmpty(getSquadLabel(ds.Labels), getSquadLabel(ds.Spec.Template.Labels)),
 		AvailablePods: ds.Status.NumberAvailable,
 		DesiredPods:   ds.Status.DesiredNumberScheduled,
 	})

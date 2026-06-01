@@ -217,6 +217,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 							CommitLink:        opts.Spec.Application.URL,
 							CommitSHA:         opts.Spec.Application.SHA,
 							Releaser:          opts.Releaser,
+							Squad:             opts.Squad,
 						},
 					)
 				},
@@ -342,6 +343,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 						DesiredPods:   opts.DesiredPods,
 						ResourceType:  opts.ResourceType,
 						ArtifactID:    opts.ArtifactID,
+						Squad:         opts.Squad,
 					})
 					if err != nil {
 						logger.Errorf("post k8s deploy slack message failed: %v", err)
