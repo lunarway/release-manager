@@ -131,6 +131,10 @@ func (s *Service) Clone(ctx context.Context, destination string) (*git.Repositor
 	return s.copyMaster(ctx, destination)
 }
 
+// copyMaster creates a cheap local clone of the master repository at destination
+// using git's --local transport, which hardlinks objects instead of copying them.
+// After cloning, the origin remote is repointed to ConfigRepoURL so that
+// subsequent git push origin master calls reach the real remote (GitHub).
 func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repository, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.copyMaster")
 	defer span.End()
@@ -144,11 +148,17 @@ func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repo
 	s.masterMutex.RLock()
 	defer s.masterMutex.RUnlock()
 	span.End()
-	span, _ = s.Tracer.FromCtx(ctx, "copy to destination")
-	err = s.Copier.CopyDir(ctx, s.MasterPath(), destination)
+	span, _ = s.Tracer.FromCtx(ctx, "clone to destination")
+	err = execCommand(ctx, ".", "git", "clone", "--local", s.MasterPath(), destination)
 	span.End()
 	if err != nil {
-		return nil, errors.WithMessagef(err, "copy master from '%s'", s.MasterPath())
+		return nil, errors.WithMessagef(err, "local clone master from '%s'", s.MasterPath())
+	}
+	span, _ = s.Tracer.FromCtx(ctx, "set remote url")
+	err = execCommand(ctx, destination, "git", "remote", "set-url", "origin", s.ConfigRepoURL)
+	span.Finish()
+	if err != nil {
+		return nil, errors.WithMessagef(err, "set origin remote to '%s'", s.ConfigRepoURL)
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "open repo")
 	r, err := git.PlainOpen(destination)
