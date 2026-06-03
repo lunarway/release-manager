@@ -317,7 +317,7 @@ info  command/start.go:145  Release [dev]: verification (master-e8da185c2c-06249
 
 A Slack message is pushed to the `#releases-<env>` Slack channel for the release environment.
 
-If a `squad` label can be resolved for the release, a best-effort copy is also pushed to `#squad-<squad>-releases-<env>`. The squad notification does not affect the release flow if the label is missing, the Slack channel does not exist, or posting the message fails.
+If the artifact contains a `squad`, a best-effort copy is also pushed to `#squad-<squad>-releases-<env>`. The squad notification does not affect the release flow if the artifact squad is missing, the Slack channel does not exist, or posting the message fails.
 
 Kubernetes deploy success, pod error and job error notifications follow the same squad channel pattern.
 

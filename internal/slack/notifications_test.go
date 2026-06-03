@@ -26,37 +26,70 @@ func initTestLogger() {
 func TestNotifyRelease_postsSquadReleaseChannelsBestEffort(t *testing.T) {
 	initTestLogger()
 
-	slackClient := intslack.MockSlackClient{}
-	slackClient.Test(t)
-	slackUser := &slack.User{ID: "user-id"}
+	t.Run("squad channel failure is ignored", func(t *testing.T) {
+		slackClient := intslack.MockSlackClient{}
+		slackClient.Test(t)
+		slackUser := &slack.User{ID: "user-id"}
 
-	slackClient.On("PostMessageContext", mock.Anything, "#releases-dev", mock.Anything, mock.Anything).
-		Return("", "", nil).Once()
-	slackClient.On("PostMessageContext", mock.Anything, "#squad-alpha-releases-dev", mock.Anything, mock.Anything).
-		Return("", "", errors.New("channel_not_found")).Once()
-	slackClient.On("GetUserByEmailContext", mock.Anything, "author@corp.com").
-		Return(slackUser, nil).Once()
-	slackClient.On("PostMessageContext", mock.Anything, slackUser.ID, mock.Anything, mock.Anything).
-		Return("", "", nil).Once()
+		slackClient.On("PostMessageContext", mock.Anything, "#releases-dev", mock.Anything, mock.Anything).
+			Return("", "", nil).Once()
+		slackClient.On("PostMessageContext", mock.Anything, "#squad-alpha-releases-dev", mock.Anything, mock.Anything).
+			Return("", "", errors.New("channel_not_found")).Once()
+		slackClient.On("GetUserByEmailContext", mock.Anything, "author@corp.com").
+			Return(slackUser, nil).Once()
+		slackClient.On("PostMessageContext", mock.Anything, slackUser.ID, mock.Anything, mock.Anything).
+			Return("", "", nil).Once()
 
-	client, err := intslack.NewClient(&slackClient, nil, "corp.com")
-	if !assert.NoError(t, err, "unexpected instantiation error") {
-		return
-	}
+		client, err := intslack.NewClient(&slackClient, nil, "corp.com")
+		if !assert.NoError(t, err, "unexpected instantiation error") {
+			return
+		}
 
-	client.NotifyRelease(context.Background(), intslack.ReleaseOptions{
-		Service:           "release-manager",
-		ArtifactID:        "artifact-1",
-		CommitMessage:     "ship it",
-		CommitAuthor:      "Author",
-		CommitAuthorEmail: "author@corp.com",
-		CommitLink:        "https://example.com",
-		Environment:       "dev",
-		Releaser:          "Releaser",
-		Squad:             "alpha",
+		client.NotifyRelease(context.Background(), intslack.ReleaseOptions{
+			Service:           "release-manager",
+			ArtifactID:        "artifact-1",
+			CommitMessage:     "ship it",
+			CommitAuthor:      "Author",
+			CommitAuthorEmail: "author@corp.com",
+			CommitLink:        "https://example.com",
+			Environment:       "dev",
+			Releaser:          "Releaser",
+			Squad:             "alpha",
+		})
+
+		slackClient.AssertExpectations(t)
 	})
 
-	slackClient.AssertExpectations(t)
+	t.Run("empty squad skips squad release channel", func(t *testing.T) {
+		slackClient := intslack.MockSlackClient{}
+		slackClient.Test(t)
+		slackUser := &slack.User{ID: "user-id"}
+
+		slackClient.On("PostMessageContext", mock.Anything, "#releases-dev", mock.Anything, mock.Anything).
+			Return("", "", nil).Once()
+		slackClient.On("GetUserByEmailContext", mock.Anything, "author@corp.com").
+			Return(slackUser, nil).Once()
+		slackClient.On("PostMessageContext", mock.Anything, slackUser.ID, mock.Anything, mock.Anything).
+			Return("", "", nil).Once()
+
+		client, err := intslack.NewClient(&slackClient, nil, "corp.com")
+		if !assert.NoError(t, err, "unexpected instantiation error") {
+			return
+		}
+
+		client.NotifyRelease(context.Background(), intslack.ReleaseOptions{
+			Service:           "release-manager",
+			ArtifactID:        "artifact-1",
+			CommitMessage:     "ship it",
+			CommitAuthor:      "Author",
+			CommitAuthorEmail: "author@corp.com",
+			CommitLink:        "https://example.com",
+			Environment:       "dev",
+			Releaser:          "Releaser",
+		})
+
+		slackClient.AssertExpectations(t)
+	})
 }
 
 func TestNotifyK8SDeployEvent_postsSquadReleaseChannelBestEffort(t *testing.T) {
