@@ -39,7 +39,7 @@ func (m mux) ServeMsg(ctx context.Context, msg amqp.Delivery) error {
 }
 
 func (m mux) ack(msg amqp.Delivery) {
-	err := msg.Nack(false, false)
+	err := msg.Ack(false)
 	if err != nil {
 		m.log.Errorf("ack failed for event '%s': %v", msg.Type, err)
 	}
