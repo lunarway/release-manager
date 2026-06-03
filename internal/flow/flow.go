@@ -82,7 +82,6 @@ type NotifyReleaseOptions struct {
 	Namespace   string
 	Service     string
 	Releaser    string
-	Squad       string
 	Spec        artifact.Spec
 	Intent      intent.Intent
 }
