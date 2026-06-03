@@ -406,6 +406,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				Policy:                   &policySvc,
 				Tracer:                   tracer,
 				Copier:                   copier,
+				Observer:                 metricsObserver,
 				PublishReleaseArtifactID: nil,
 				PublishNewArtifact:       nil,
 				MaxRetries:               3, // retries for comitting changes into config repo can be required for racing writes
