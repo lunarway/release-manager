@@ -38,6 +38,13 @@ var (
 	ErrReleaseProhibited             = errors.New("release prohibited")
 )
 
+// FlowObserver records the duration of flow operations. operation is the flow
+// name, start is when the operation began, and err is its final error (nil on
+// success).
+type FlowObserver interface {
+	ObserveFlowDuration(operation string, start time.Time, err error)
+}
+
 type Service struct {
 	ArtifactFileName string
 	UserMappings     map[string]string
@@ -48,6 +55,9 @@ type Service struct {
 	Storage          ArtifactReadStorage
 	Policy           *policy.Service
 	Copier           *copy.Copier
+
+	// Observer records flow operation durations. May be nil; calls must be nil-safe.
+	Observer FlowObserver
 
 	PublishReleaseArtifactID func(context.Context, ReleaseArtifactIDEvent) error
 	PublishNewArtifact       func(context.Context, NewArtifactEvent) error

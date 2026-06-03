@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"time"
 
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/commitinfo"
@@ -136,10 +137,19 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	return artifactID, nil
 }
 
-func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifactIDEvent) error {
+// ExecReleaseArtifactID executes the release of a specific artifact ID to the
+// target environment, retrying on transient git conflicts. It records total
+// elapsed time and final outcome via the service Observer (if non-nil).
+func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifactIDEvent) (err error) {
+	start := time.Now()
+	defer func() {
+		if s.Observer != nil {
+			s.Observer.ObserveFlowDuration("ExecReleaseArtifactID", start, err)
+		}
+	}()
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ExecReleaseArtifactID")
 	defer span.Finish()
-	err := s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
+	err = s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
 		service := event.Service
 		branch := event.Branch
 		environment := event.Environment
@@ -239,8 +249,5 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		logger.Infof("flow: ReleaseArtifactID: release committed: %s, ArtifactAuthor: %s, ReleaseAuthor: %s", releaseMessage, artifactAuthor, releaseAuthor)
 		return true, nil
 	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
