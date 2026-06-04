@@ -124,7 +124,7 @@ func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n 
 
 func (f *Service) getArtifactSpecFromObjectKey(ctx context.Context, objectKey string) (artifact.Spec, error) {
 	span, ctx := f.tracer.FromCtx(ctx, "s3storage.getArtifactSpecFromObjectKey")
-	defer span.Finish()
+	defer span.End()
 
 	artifactPath, close, err := f.downloadArtifact(ctx, objectKey)
 	if err != nil {
@@ -133,7 +133,7 @@ func (f *Service) getArtifactSpecFromObjectKey(ctx context.Context, objectKey st
 	defer close(ctx)
 
 	subSpan, _ := f.tracer.FromCtx(ctx, "read json file")
-	defer subSpan.Finish()
+	defer subSpan.End()
 	jsonSpec, err := os.ReadFile(path.Join(artifactPath, "artifact.json"))
 	if err != nil {
 		return artifact.Spec{}, errors.WithMessage(err, "read artifact.json file")

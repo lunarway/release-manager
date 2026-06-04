@@ -10,14 +10,14 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	policyinternal "github.com/lunarway/release-manager/internal/policy"
 	"github.com/lunarway/release-manager/internal/slack"
-	opentracing "github.com/opentracing/opentracing-go"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"gopkg.in/go-playground/webhooks.v5/github"
 )
 
 func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
-		ctx := opentracing.ContextWithSpan(context.Background(), opentracing.SpanFromContext(r.Context()))
+		ctx := oteltrace.ContextWithSpan(context.Background(), oteltrace.SpanFromContext(r.Context()))
 		logger := log.WithContext(ctx)
 		hook, _ := github.New(github.Options.Secret(githubWebhookSecret))
 		payload, err := hook.Parse(r, github.PushEvent)

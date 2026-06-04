@@ -17,7 +17,7 @@ import (
 // NewArtifact should be triggered when a new artifact is ready
 func (s *Service) NewArtifact(ctx context.Context, service, artifactID string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NewArtifact")
-	defer span.Finish()
+	defer span.End()
 
 	err := s.PublishNewArtifact(ctx, NewArtifactEvent{
 		Service:    service,
@@ -50,7 +50,7 @@ func (p *NewArtifactEvent) Unmarshal(data []byte) error {
 // ExecNewArtifact is handling behavior of release manager when new artifacts are generated and ready
 func (s *Service) ExecNewArtifact(ctx context.Context, e NewArtifactEvent) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ExecNewArtifact")
-	defer span.Finish()
+	defer span.End()
 
 	logger := log.WithContext(ctx)
 

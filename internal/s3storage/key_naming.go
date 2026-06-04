@@ -25,7 +25,7 @@ func getServiceAndBranchObjectKeyPrefix(service, branch string) string {
 
 func (f *Service) getLatestObjectKey(ctx context.Context, service string, branch string) (string, error) {
 	span, ctx := f.tracer.FromCtx(ctx, "s3storage.getLatestObjectKey")
-	defer span.Finish()
+	defer span.End()
 	prefix := getServiceAndBranchObjectKeyPrefix(service, branch)
 	list, err := f.s3client.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
 		Bucket:  aws.String(f.bucketName),

@@ -6,6 +6,7 @@ import (
 
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/multierr"
 )
 
@@ -23,15 +24,16 @@ var (
 func Do(ctx context.Context, tracer tracing.Tracer, max int, f func(context.Context, int) (bool, error)) error {
 	var errs error
 	attempt := 1
+	parentCtx := ctx
 	for {
 		select {
-		case <-ctx.Done():
-			return multierr.Append(errs, ctx.Err())
+		case <-parentCtx.Done():
+			return multierr.Append(errs, parentCtx.Err())
 		default:
-			span, ctx := tracer.FromCtxf(ctx, "retry attempt")
-			defer span.Finish()
-			span.SetTag("attempt_number", fmt.Sprintf("%d", attempt))
-			stop, err := f(ctx, attempt)
+			span, spanCtx := tracer.FromCtxf(parentCtx, "retry attempt")
+			span.SetAttributes(attribute.Int("attempt_number", attempt))
+			stop, err := f(spanCtx, attempt)
+			span.End()
 			if err == nil {
 				return nil
 			}

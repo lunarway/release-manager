@@ -20,7 +20,7 @@ type BranchRestriction struct {
 // environment env with regular expression branchRegex.
 func (s *Service) ApplyBranchRestriction(ctx context.Context, actor Actor, svc, branchRegex, env string) (string, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.ApplyBranchRestriction")
-	defer span.Finish()
+	defer span.End()
 
 	// validate branch regular expression before storring
 	re, err := regexp.Compile(branchRegex)
@@ -62,7 +62,7 @@ func (s *Service) ApplyBranchRestriction(ctx context.Context, actor Actor, svc, 
 func (s *Service) CanRelease(ctx context.Context, svc, branch, env string) (bool, error) {
 	log.WithContext(ctx).Infof("Verifying whether %s on branch %s can be released to %s", svc, branch, env)
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.CanRelease")
-	defer span.Finish()
+	defer span.End()
 	policies, err := s.Get(ctx, svc)
 	if err != nil {
 		if errors.Cause(err) == ErrNotFound {
@@ -72,7 +72,7 @@ func (s *Service) CanRelease(ctx context.Context, svc, branch, env string) (bool
 	}
 	log.WithContext(ctx).WithFields("policies", policies).Infof("Found %d restrictions", len(policies.BranchRestrictions))
 	span, _ = s.Tracer.FromCtx(ctx, "policy.canRelease")
-	defer span.Finish()
+	defer span.End()
 	return canRelease(ctx, policies, branch, env)
 }
 

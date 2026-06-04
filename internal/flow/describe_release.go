@@ -12,8 +12,9 @@ import (
 	"github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/log"
-	"github.com/opentracing/opentracing-go"
+	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type DescribeReleaseResponse struct {
@@ -33,9 +34,9 @@ type Release struct {
 // DescribeRelease returns information about a specific release in an environment.
 func (s *Service) DescribeRelease(ctx context.Context, environment, service string, count int) (DescribeReleaseResponse, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.DescribeRelease")
-	span.SetBaggageItem("count", fmt.Sprintf("%v", count))
+	span.SetAttributes(attribute.String("count", fmt.Sprintf("%v", count)))
+	defer span.End()
 
-	defer span.Finish()
 	sourceConfigRepoPath, close, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-describe-release")
 	if err != nil {
 		return DescribeReleaseResponse{}, err
@@ -76,7 +77,7 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 			return DescribeReleaseResponse{}, errors.WithMessagef(err, "parse commit info at hash '%s'", hash)
 		}
 
-		namespace, err := findNamespaceFromCommit(ctx, commitObj, s.ArtifactFileName)
+		namespace, err := findNamespaceFromCommit(ctx, s.Tracer, commitObj, s.ArtifactFileName)
 		if err != nil {
 			return DescribeReleaseResponse{}, errors.WithMessagef(err, "could not find namespace for %s", commitObj.Hash.String())
 		}
@@ -112,10 +113,10 @@ func (s *Service) DescribeRelease(ctx context.Context, environment, service stri
 	}, nil
 }
 
-func findNamespaceFromCommit(ctx context.Context, commitObj *object.Commit, artifactFileName string) (string, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "flow.findNamespace")
-	defer span.Finish()
-	span.SetTag("gitcommit", commitObj.Hash.String())
+func findNamespaceFromCommit(ctx context.Context, tracer tracing.Tracer, commitObj *object.Commit, artifactFileName string) (string, error) {
+	span, _ := tracer.FromCtx(ctx, "flow.findNamespace")
+	defer span.End()
+	span.SetAttributes(attribute.String("gitcommit", commitObj.Hash.String()))
 
 	r := regexp.MustCompile(fmt.Sprintf(`^(?P<environment>[^/]+)/releases/(?P<namespace>[^/]+)/(?P<service>[^/]+)/%s$`, regexp.QuoteMeta(artifactFileName)))
 	stats, err := commitObj.Stats()

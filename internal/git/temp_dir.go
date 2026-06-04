@@ -6,6 +6,7 @@ import (
 
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // TempDir returns a temporary directory with provided prefix.
@@ -13,16 +14,16 @@ import (
 // remove the path.
 func TempDir(ctx context.Context, tracer tracing.Tracer, prefix string) (string, func(context.Context), error) {
 	span, _ := tracer.FromCtxf(ctx, "create temp dir")
-	span.SetTag("path_prefix", prefix)
-	defer span.Finish()
+	span.SetAttributes(attribute.String("path_prefix", prefix))
+	defer span.End()
 	path, err := os.MkdirTemp("", prefix)
 	if err != nil {
 		return "", func(context.Context) {}, err
 	}
 	return path, func(ctx context.Context) {
 		span, _ := tracer.FromCtxf(ctx, "clean temp dir")
-		span.SetTag("path_prefix", prefix)
-		defer span.Finish()
+		span.SetAttributes(attribute.String("path_prefix", prefix))
+		defer span.End()
 		err := os.RemoveAll(path)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Removing temporary directory failed: path '%s': %v", path, err)
