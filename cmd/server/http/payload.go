@@ -17,7 +17,7 @@ type payload struct {
 // context ctx and reported on tracer.
 func (p *payload) encodeResponse(ctx context.Context, w io.Writer, resp interface{}) error {
 	span, _ := p.tracer.FromCtx(ctx, "json encode response")
-	defer span.Finish()
+	defer span.End()
 	err := json.NewEncoder(w).Encode(resp)
 	if err != nil {
 		return err
@@ -29,7 +29,7 @@ func (p *payload) encodeResponse(ctx context.Context, w io.Writer, resp interfac
 // context ctx and reported on tracer.
 func (p *payload) decodeResponse(ctx context.Context, r io.Reader, req interface{}) error {
 	span, _ := p.tracer.FromCtx(ctx, "json decode request")
-	defer span.Finish()
+	defer span.End()
 	decoder := json.NewDecoder(r)
 	err := decoder.Decode(req)
 	if err != nil {

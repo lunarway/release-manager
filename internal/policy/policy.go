@@ -54,7 +54,7 @@ type Actor struct {
 // policies are found a nil slice is returned.
 func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]AutoReleasePolicy, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.GetAutoReleases")
-	defer span.Finish()
+	defer span.End()
 	policies, err := s.Get(ctx, svc)
 	if err != nil {
 		if errors.Cause(err) == ErrNotFound {
@@ -76,7 +76,7 @@ func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]Au
 // policies along with the service specific ones.
 func (s *Service) Get(ctx context.Context, svc string) (Policies, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.Get")
-	defer span.Finish()
+	defer span.End()
 
 	policies, err := s.servicePolicies(svc)
 	if err != nil {
@@ -158,7 +158,7 @@ func conflictingBranchRestriction(ctx context.Context, svc string, global []Bran
 // to environment env.
 func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch, env string) (string, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.ApplyAutoRelease")
-	defer span.Finish()
+	defer span.End()
 
 	ok, err := s.CanRelease(ctx, svc, branch, env)
 	if err != nil {
@@ -182,7 +182,7 @@ func (s *Service) ApplyAutoRelease(ctx context.Context, actor Actor, svc, branch
 // Delete deletes policies by ID for service svc.
 func (s *Service) Delete(ctx context.Context, actor Actor, svc string, ids []string) (int, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.Delete")
-	defer span.Finish()
+	defer span.End()
 	commitMsg := commitinfo.PolicyUpdateDeleteCommitMessage(svc)
 	var deleted int
 	err := s.updatePolicies(ctx, actor, svc, commitMsg, func(p *Policies) {
@@ -196,7 +196,7 @@ func (s *Service) Delete(ctx context.Context, actor Actor, svc string, ids []str
 
 func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMsg string, f func(p *Policies)) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.updatePolicies")
-	defer span.Finish()
+	defer span.End()
 	return try.Do(ctx, s.Tracer, s.MaxRetries, func(ctx context.Context, attempt int) (bool, error) {
 		configRepoPath, close, err := internalgit.TempDirAsync(ctx, s.Tracer, "k8s-config-notify")
 		if err != nil {

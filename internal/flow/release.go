@@ -63,7 +63,7 @@ func (p *ReleaseArtifactIDEvent) Unmarshal(data []byte) error {
 // the changes
 func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environment, service, artifactID string, intent intent.Intent) (string, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ReleaseArtifactID")
-	defer span.Finish()
+	defer span.End()
 
 	sourceSpec, err := s.Storage.ArtifactSpecification(ctx, service, artifactID)
 	if err != nil {
@@ -148,7 +148,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		}
 	}()
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.ExecReleaseArtifactID")
-	defer span.Finish()
+	defer span.End()
 	err = s.retry(ctx, func(ctx context.Context, attempt int) (bool, error) {
 		service := event.Service
 		branch := event.Branch
@@ -198,7 +198,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 
 		kustomizationExistsSpan, _ := s.Tracer.FromCtx(ctx, "flow.kustomizationExists")
 		kustomizationPath, err := kustomizationExists(destinationPath)
-		kustomizationExistsSpan.Finish()
+		kustomizationExistsSpan.End()
 		if err != nil {
 			return true, errors.WithMessagef(err, "lookup kustomization in '%s'", destinationPath)
 		}
@@ -208,7 +208,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		if kustomizationPath != "" {
 			moveKustomizationToClustersSpan, moveKustomizationToClustersCtx := s.Tracer.FromCtx(ctx, "flow.moveKustomizationToClusters")
 			err := moveKustomizationToClusters(moveKustomizationToClustersCtx, kustomizationPath, destinationConfigRepoPath, service, environment, namespace)
-			moveKustomizationToClustersSpan.Finish()
+			moveKustomizationToClustersSpan.End()
 			if err != nil {
 				return true, errors.WithMessage(err, "move kustomization to clusters")
 			}

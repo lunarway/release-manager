@@ -162,17 +162,17 @@ type Actor struct {
 
 func (s *Service) Status(ctx context.Context, namespace, service string) (StatusResponse, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.Status")
-	defer span.Finish()
+	defer span.End()
 
 	defaultNamespaces := namespace == ""
 
 	span, _ = s.Tracer.FromCtx(ctx, "artifact specs for all environments")
 	specs, err := s.releaseSpecifications(ctx, namespace, service)
 	if err != nil {
-		span.Finish()
+		span.End()
 		return StatusResponse{}, errors.WithMessagef(err, "locate source specs for all environments")
 	}
-	span.Finish()
+	span.End()
 
 	var environments []Environment
 	for _, s := range specs {
@@ -412,7 +412,7 @@ type fileInfo struct {
 
 func (s *Service) notifyRelease(ctx context.Context, opts NotifyReleaseOptions) {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.notifyRelease")
-	defer span.Finish()
+	defer span.End()
 	if s.NotifyReleaseHook != nil {
 		go s.NotifyReleaseHook(noCancel{ctx: ctx}, opts)
 	}
@@ -430,21 +430,21 @@ func (c noCancel) Value(key interface{}) interface{} { return c.ctx.Value(key) }
 
 func (s *Service) cleanCopy(ctx context.Context, src, dest string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.cleanCopy")
-	defer span.Finish()
+	defer span.End()
 	span, _ = s.Tracer.FromCtx(ctx, "remove destination")
 	err := os.RemoveAll(dest)
-	span.Finish()
+	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "remove destination path")
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "create destination dir")
 	err = os.MkdirAll(dest, os.ModePerm)
-	span.Finish()
+	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "create destination dir")
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "copy files")
-	span.Finish()
+	span.End()
 	err = s.Copier.CopyDir(ctx, src, dest)
 	if err != nil {
 		if errors.Cause(err) == copy.ErrUnknownSource {

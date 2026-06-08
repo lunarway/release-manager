@@ -18,6 +18,7 @@ import (
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 var (
@@ -53,7 +54,7 @@ func (s *Service) MasterPath() string {
 // InitMasterRepo clones the configuration repository into a master directory.
 func (s *Service) InitMasterRepo(ctx context.Context) (func(context.Context), error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.InitMasterRepo")
-	defer span.Finish()
+	defer span.End()
 	path, close, err := TempDir(ctx, s.Tracer, "k8s-master-clone")
 	if err != nil {
 		close(ctx)
@@ -74,15 +75,15 @@ func (s *Service) InitMasterRepo(ctx context.Context) (func(context.Context), er
 
 func (s *Service) clone(ctx context.Context, destination string) (*git.Repository, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.clone")
-	defer span.Finish()
+	defer span.End()
 	authSSH, err := ssh.NewPublicKeysFromFile("git", s.SSHPrivateKeyPath, "")
 	if err != nil {
 		return nil, errors.WithMessage(err, "public keys from file")
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "remove destination")
-	span.SetTag("path", destination)
+	span.SetAttributes(attribute.String("path", destination))
 	err = os.RemoveAll(destination)
-	span.Finish()
+	span.End()
 	if err != nil {
 		return nil, errors.WithMessage(err, "remove existing destination")
 	}
@@ -92,7 +93,7 @@ func (s *Service) clone(ctx context.Context, destination string) (*git.Repositor
 		URL:  s.ConfigRepoURL,
 		Auth: authSSH,
 	})
-	span.Finish()
+	span.End()
 	if err != nil {
 		return nil, errors.WithMessage(err, "clone repo")
 	}
@@ -102,21 +103,21 @@ func (s *Service) clone(ctx context.Context, destination string) (*git.Repositor
 // SyncMaster pulls latest changes from master repo.
 func (s *Service) SyncMaster(ctx context.Context) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.SyncMaster")
-	defer span.Finish()
+	defer span.End()
 	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
 	s.masterMutex.Lock()
 	defer s.masterMutex.Unlock()
-	span.Finish()
+	span.End()
 
 	span, _ = s.Tracer.FromCtx(ctx, "fetch")
 	err := execCommand(ctx, s.MasterPath(), "git", "fetch", "origin", "master")
-	span.Finish()
+	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "fetch changes")
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "pull")
 	err = execCommand(ctx, s.MasterPath(), "git", "pull")
-	span.Finish()
+	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "pull latest")
 	}
@@ -126,32 +127,32 @@ func (s *Service) SyncMaster(ctx context.Context) error {
 // Clone returns a Git repository copy from the master repository.
 func (s *Service) Clone(ctx context.Context, destination string) (*git.Repository, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Clone")
-	defer span.Finish()
+	defer span.End()
 	return s.copyMaster(ctx, destination)
 }
 
 func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repository, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.copyMaster")
-	defer span.Finish()
+	defer span.End()
 	span, _ = s.Tracer.FromCtx(ctx, "remove destination")
 	err := os.RemoveAll(destination)
-	span.Finish()
+	span.End()
 	if err != nil {
 		return nil, errors.WithMessage(err, "remove existing destination")
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
 	s.masterMutex.RLock()
 	defer s.masterMutex.RUnlock()
-	span.Finish()
+	span.End()
 	span, _ = s.Tracer.FromCtx(ctx, "copy to destination")
 	err = s.Copier.CopyDir(ctx, s.MasterPath(), destination)
-	span.Finish()
+	span.End()
 	if err != nil {
 		return nil, errors.WithMessagef(err, "copy master from '%s'", s.MasterPath())
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "open repo")
 	r, err := git.PlainOpen(destination)
-	span.Finish()
+	span.End()
 	if err != nil {
 		return nil, errors.WithMessage(err, "open repo")
 	}
@@ -160,7 +161,7 @@ func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repo
 
 func (s *Service) Checkout(ctx context.Context, rootPath string, hash plumbing.Hash) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Checkout")
-	defer span.Finish()
+	defer span.End()
 	err := execCommand(ctx, rootPath, "git", "checkout", hash.String())
 	if err != nil {
 		return errors.WithMessage(err, "checkout hash")
@@ -175,7 +176,7 @@ func (s *Service) Checkout(ctx context.Context, rootPath string, hash plumbing.H
 // ReleaseCommitMessage.
 func (s *Service) LocateRelease(ctx context.Context, r *git.Repository, artifactID string) (plumbing.Hash, error) {
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateRelease")
-	defer span.Finish()
+	defer span.End()
 	return locate(r, locateReleaseCondition(artifactID), ErrReleaseNotFound)
 }
 
@@ -195,7 +196,7 @@ func locateReleaseCondition(artifactID string) conditionFunc {
 // ReleaseCommitMessage.
 func (s *Service) LocateServiceRelease(ctx context.Context, r *git.Repository, env, service string) (plumbing.Hash, error) {
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateServiceRelease")
-	defer span.Finish()
+	defer span.End()
 	return locate(r, locateServiceReleaseCondition(env, service), ErrReleaseNotFound)
 }
 
@@ -216,7 +217,7 @@ func locateServiceReleaseCondition(env, service string) conditionFunc {
 func (s *Service) LocateEnvRelease(ctx context.Context, r *git.Repository, env, artifactID string) (plumbing.Hash, error) {
 	artifactID = strings.TrimSpace(artifactID)
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateEnvRelease")
-	defer span.Finish()
+	defer span.End()
 	return locate(r, locateEnvReleaseCondition(env, artifactID), ErrReleaseNotFound)
 }
 
@@ -236,7 +237,7 @@ func locateEnvReleaseCondition(env, artifactID string) conditionFunc {
 // ReleaseCommitMessage or RollbackCommitMessage.
 func (s *Service) LocateServiceReleaseRollbackSkip(ctx context.Context, r *git.Repository, env, service string, n uint) (plumbing.Hash, error) {
 	span, _ := s.Tracer.FromCtx(ctx, "git.LocateServiceReleaseRollbackSkip")
-	defer span.Finish()
+	defer span.End()
 	return locate(r, locateServiceReleaseRollbackSkipCondition(env, service, n), ErrReleaseNotFound)
 }
 
@@ -300,18 +301,18 @@ func locateN(r *git.Repository, condition conditionFunc, notFoundErr error, n in
 
 func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
-	defer span.Finish()
+	defer span.End()
 
 	span, _ = s.Tracer.FromCtx(ctx, "add changes")
 	err := execCommand(ctx, rootPath, "git", "add", ".")
-	span.Finish()
+	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "add changes")
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "check for changes")
 	err = checkStatus(ctx, rootPath)
-	span.Finish()
+	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "check for changes")
 	}
@@ -328,30 +329,30 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 
 	span, _ = s.Tracer.FromCtx(ctx, "commit")
 	err = execCommand(ctx, rootPath, "git", args...)
-	span.Finish()
+	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "commit")
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "push")
-	defer span.Finish()
+	defer span.End()
 	return gitPush(ctx, rootPath)
 }
 
 func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, msg string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Commit")
-	defer span.Finish()
+	defer span.End()
 
 	span, _ = s.Tracer.FromCtx(ctx, "add changes")
 	err := execCommand(ctx, rootPath, "git", "add", ".")
-	span.Finish()
+	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "add changes")
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "check for changes")
 	err = checkStatus(ctx, rootPath)
-	span.Finish()
+	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "check for changes")
 	}
@@ -362,13 +363,13 @@ func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, autho
 		"commit",
 		fmt.Sprintf(`-m%s`, fullCommitMsg),
 	)
-	span.Finish()
+	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "commit")
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "push")
-	defer span.Finish()
+	defer span.End()
 	return gitPush(ctx, rootPath)
 }
 

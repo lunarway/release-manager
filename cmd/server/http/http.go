@@ -16,6 +16,7 @@ import (
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type Options struct {
@@ -116,24 +117,28 @@ func trace(tracer tracing.Tracer) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 			span, ctx := tracer.FromCtxf(ctx, "http %s %s", r.Method, r.URL.Path)
-			defer span.Finish()
+			defer span.End()
 			requestID := getRequestID(r)
 			ctx = tracing.WithRequestID(ctx, requestID)
 			ctx = log.AddContext(ctx, "requestId", requestID)
 			*r = *r.WithContext(ctx)
 			statusWriter := &statusCodeResponseWriter{w, http.StatusOK}
 			h.ServeHTTP(statusWriter, r)
-			span.SetTag("request.id", requestID)
-			span.SetTag("http.status_code", statusWriter.statusCode)
-			span.SetTag("http.url", r.URL.RequestURI())
-			span.SetTag("http.method", r.Method)
+			span.SetAttributes(
+				attribute.String("request.id", requestID),
+				attribute.Int("http.status_code", statusWriter.statusCode),
+				attribute.String("http.url", r.URL.RequestURI()),
+				attribute.String("http.method", r.Method),
+			)
 			if statusWriter.statusCode >= http.StatusInternalServerError {
-				span.SetTag("error", true)
+				span.SetAttributes(attribute.Bool("error", true))
 			}
 			err := ctx.Err()
 			if err != nil {
-				span.SetTag("error", true)
-				span.SetTag("error_message", err.Error())
+				span.SetAttributes(
+					attribute.Bool("error", true),
+					attribute.String("error_message", err.Error()),
+				)
 			}
 		})
 	}

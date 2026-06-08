@@ -134,7 +134,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			tracer, err := tracing.NewJaeger()
+			tracer, err := tracing.NewOTEL()
 			if err != nil {
 				return err
 			}
@@ -263,7 +263,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 							opts.Environment,
 							opts.Spec.Application.SHA,
 						)
-						span.Finish()
+						span.End()
 						if err != nil {
 							logger.Errorf(
 								"flow.NotifyReleaseHook: failed to tag source repository: %v",
@@ -412,32 +412,32 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 				MaxRetries:               3, // retries for comitting changes into config repo can be required for racing writes
 				NotifyReleaseHook: func(ctx context.Context, opts flow.NotifyReleaseOptions) {
 					span, ctx := tracer.FromCtx(ctx, "flow.NotifyReleaseHook")
-					defer span.Finish()
+					defer span.End()
 
 					for name, notifier := range releaseNotifiers {
 						span, ctx := tracer.FromCtx(ctx, fmt.Sprintf("notify %s", name))
 						notifier(ctx, opts)
-						span.Finish()
+						span.End()
 					}
 				},
 				NotifyReleaseSucceededHook: func(ctx context.Context, opts flow.NotifyReleaseSucceededOptions) {
 					span, ctx := tracer.FromCtx(ctx, "flow.NotifyReleaseSucceededHook")
-					defer span.Finish()
+					defer span.End()
 
 					for name, notifier := range releaseSucceededNotifiers {
 						span, ctx := tracer.FromCtx(ctx, fmt.Sprintf("notify %s", name))
 						notifier(ctx, opts)
-						span.Finish()
+						span.End()
 					}
 				},
 				NotifyReleaseFailedHook: func(ctx context.Context, opts flow.NotifyReleaseFailedOptions) {
 					span, ctx := tracer.FromCtx(ctx, "flow.NotifyReleaseFailedHook")
-					defer span.Finish()
+					defer span.End()
 
 					for name, notifier := range releaseFailedNotifiers {
 						span, ctx := tracer.FromCtx(ctx, fmt.Sprintf("notify %s", name))
 						notifier(ctx, opts)
-						span.Finish()
+						span.End()
 					}
 				},
 			}

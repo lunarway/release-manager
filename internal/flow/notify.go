@@ -10,7 +10,7 @@ import (
 
 func (s *Service) NotifyK8SDeployEvent(ctx context.Context, event *http.ReleaseEvent) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyK8SDeployment")
-	defer span.Finish()
+	defer span.End()
 	if s.NotifyReleaseSucceededHook != nil {
 		go s.NotifyReleaseSucceededHook(noCancel{ctx: ctx}, NotifyReleaseSucceededOptions{
 			Name:          event.Name,
@@ -30,10 +30,10 @@ func (s *Service) NotifyK8SDeployEvent(ctx context.Context, event *http.ReleaseE
 
 func (s *Service) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErrorEvent) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyK8SPodErrorEvent")
-	defer span.Finish()
+	defer span.End()
 	span, _ = s.Tracer.FromCtx(ctx, "post k8s NotifyK8SPodErrorEvent slack message")
 	err := s.Slack.NotifyK8SPodErrorEvent(ctx, event)
-	span.Finish()
+	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "post k8s NotifyK8SPodErrorEvent slack message")
 	}
@@ -55,10 +55,10 @@ func (s *Service) NotifyK8SPodErrorEvent(ctx context.Context, event *http.PodErr
 
 func (s *Service) NotifyK8SJobErrorEvent(ctx context.Context, event *http.JobErrorEvent) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "flow.NotifyK8SJobErrorEvent")
-	defer span.Finish()
+	defer span.End()
 	span, _ = s.Tracer.FromCtx(ctx, "post k8s NotifyK8SJobErrorEvent slack message")
 	err := s.Slack.NotifyK8SJobErrorEvent(ctx, event)
-	span.Finish()
+	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "post k8s NotifyK8SJobErrorEvent slack message")
 	}
