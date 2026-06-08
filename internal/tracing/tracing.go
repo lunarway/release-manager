@@ -68,7 +68,7 @@ func NewOTEL() (Tracer, error) {
 
 	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 	if endpoint == "" {
-		endpoint = "localhost:4317 (default)"
+		endpoint = "localhost:4317"
 	}
 	log.Infof("Tracing spans reported to '%s'", endpoint)
 
