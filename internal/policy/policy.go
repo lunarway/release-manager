@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	securejoin "github.com/cyphar/filepath-securejoin"
-	git "github.com/go-git/go-git/v5"
 	"github.com/lunarway/release-manager/internal/commitinfo"
 	internalgit "github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
@@ -41,7 +40,7 @@ type Service struct {
 
 type GitService interface {
 	MasterPath() string
-	Clone(context.Context, string) (*git.Repository, error)
+	ShallowClone(ctx context.Context, destination string) error
 	Commit(ctx context.Context, rootPath, changesPath, msg string) error
 }
 
@@ -210,7 +209,7 @@ func (s *Service) updatePolicies(ctx context.Context, actor Actor, svc, commitMs
 		// file flags used. This is to avoid opening and closing to file multiple
 		// times during the operation.
 		logger.Debugf("internal/policy: clone config repository")
-		_, err = s.Git.Clone(ctx, configRepoPath)
+		err = s.Git.ShallowClone(ctx, configRepoPath)
 		if err != nil {
 			return true, errors.WithMessage(err, fmt.Sprintf("clone to '%s'", configRepoPath))
 		}

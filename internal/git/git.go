@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -129,6 +130,42 @@ func (s *Service) Clone(ctx context.Context, destination string) (*git.Repositor
 	span, ctx := s.Tracer.FromCtx(ctx, "git.Clone")
 	defer span.End()
 	return s.copyMaster(ctx, destination)
+}
+
+// ShallowClone creates a depth-1 local clone of the master repository into destination.
+// It sets the remote URL to ConfigRepoURL so subsequent pushes reach the real origin.
+// Use this when the caller only needs the working tree (commit+push), not git history.
+func (s *Service) ShallowClone(ctx context.Context, destination string) error {
+	span, ctx := s.Tracer.FromCtx(ctx, "git.ShallowClone")
+	defer span.End()
+
+	span, _ = s.Tracer.FromCtx(ctx, "remove destination")
+	err := os.RemoveAll(destination)
+	span.End()
+	if err != nil {
+		return errors.WithMessage(err, "remove existing destination")
+	}
+
+	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
+	s.masterMutex.RLock()
+	defer s.masterMutex.RUnlock()
+	span.End()
+
+	span, _ = s.Tracer.FromCtx(ctx, "shallow clone")
+	err = execCommand(ctx, filepath.Dir(destination), "git", "clone", "--depth", "1", "--local", s.masterPath, destination)
+	span.End()
+	if err != nil {
+		return errors.WithMessagef(err, "shallow clone master from '%s'", s.masterPath)
+	}
+
+	span, _ = s.Tracer.FromCtx(ctx, "set remote url")
+	err = execCommand(ctx, destination, "git", "remote", "set-url", "origin", s.ConfigRepoURL)
+	span.End()
+	if err != nil {
+		return errors.WithMessage(err, "set remote url")
+	}
+
+	return nil
 }
 
 func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repository, error) {

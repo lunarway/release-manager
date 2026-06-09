@@ -53,6 +53,20 @@ func (_m *MockGitService) Clone(_a0 context.Context, _a1 string) (*git.Repositor
 	return r0, r1
 }
 
+// ShallowClone provides a mock function with given fields: ctx, destination
+func (_m *MockGitService) ShallowClone(ctx context.Context, destination string) error {
+	ret := _m.Called(ctx, destination)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, destination)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Commit provides a mock function with given fields: ctx, rootPath, changesPath, msg
 func (_m *MockGitService) Commit(ctx context.Context, rootPath string, changesPath string, msg string) error {
 	ret := _m.Called(ctx, rootPath, changesPath, msg)
