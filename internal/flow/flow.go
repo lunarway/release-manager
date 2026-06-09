@@ -112,6 +112,7 @@ type NotifyReleaseFailedOptions struct {
 type GitService interface {
 	SyncMaster(context.Context) error
 	Clone(context.Context, string) (*git.Repository, error)
+	ShallowClone(ctx context.Context, destination string) error
 	MasterPath() string
 	Commit(ctx context.Context, rootPath, changesPath, msg string) error
 	LocateServiceReleaseRollbackSkip(ctx context.Context, r *git.Repository, env, service string, n uint) (plumbing.Hash, error)

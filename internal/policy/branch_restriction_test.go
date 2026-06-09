@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	git "github.com/go-git/go-git/v5"
 	"github.com/lunarway/release-manager/internal/copy"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/lunarway/release-manager/internal/tracing"
@@ -255,15 +254,15 @@ func TestService_ApplyBranchRestriction(t *testing.T) {
 				}
 				return "testdata"
 			})
-			gitService.On("Clone", mock.Anything, mock.Anything).Return(func(ctx context.Context, path string) *git.Repository {
+			gitService.On("ShallowClone", mock.Anything, mock.Anything).Return(func(ctx context.Context, path string) error {
 				// store the destination path. It will be a temporary directory so we
 				// need it to later inspect the results of the operation
 				destinationPath = path
 				// copy testdata into path faking a master clone
 				err := copy.New(logger).CopyDir(ctx, "testdata", path)
-				assert.NoError(t, err, "unexpected error when copying in Clone")
+				assert.NoError(t, err, "unexpected error when copying in ShallowClone")
 				return nil
-			}, nil)
+			})
 			gitService.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			s := Service{
 				Tracer:                          tracing.NewNoop(),

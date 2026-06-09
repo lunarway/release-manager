@@ -109,7 +109,7 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 		return "", err
 	}
 	defer closeDestinationSource(ctx)
-	_, err = s.Git.Clone(ctx, destinationConfigRepoPath)
+	err = s.Git.ShallowClone(ctx, destinationConfigRepoPath)
 	if err != nil {
 		return "", errors.WithMessagef(err, "clone into '%s'", destinationConfigRepoPath)
 	}
@@ -171,7 +171,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 		}
 		defer closeDestination(ctx)
 
-		_, err = s.Git.Clone(ctx, destinationConfigRepoPath)
+		err = s.Git.ShallowClone(ctx, destinationConfigRepoPath)
 		if err != nil {
 			return true, errors.WithMessagef(err, "clone destination repo into '%s'", destinationConfigRepoPath)
 		}
