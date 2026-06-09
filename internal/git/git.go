@@ -378,8 +378,33 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "push")
-	defer span.End()
+	err = gitPush(ctx, rootPath)
+	span.End()
+	if err == nil {
+		return nil
+	}
+	if errors.Cause(err) != ErrBranchBehindOrigin {
+		return err
+	}
+	if rebaseErr := rebaseOntoOrigin(ctx, rootPath); rebaseErr != nil {
+		log.WithContext(ctx).WithFields("error", rebaseErr).Infof("git/Commit: rebase onto origin/master failed; falling back to outer retry")
+		return ErrBranchBehindOrigin
+	}
+	pushSpan, _ := s.Tracer.FromCtx(ctx, "push after rebase")
+	defer pushSpan.End()
 	return gitPush(ctx, rootPath)
+}
+
+// rebaseOntoOrigin fetches origin/master and rebases the current branch onto
+// it. Called after a push rejection to recover without re-cloning.
+func rebaseOntoOrigin(ctx context.Context, rootPath string) error {
+	if err := execCommand(ctx, rootPath, "git", "fetch", "origin", "master"); err != nil {
+		return errors.WithMessage(err, "fetch origin")
+	}
+	if err := execCommand(ctx, rootPath, "git", "rebase", "origin/master"); err != nil {
+		return errors.WithMessage(err, "rebase onto origin/master")
+	}
+	return nil
 }
 
 func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, msg string) error {
