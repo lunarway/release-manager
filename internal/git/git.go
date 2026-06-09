@@ -154,7 +154,7 @@ func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repo
 	}
 	span, _ = s.Tracer.FromCtx(ctx, "set remote url")
 	err = execCommand(ctx, destination, "git", "remote", "set-url", "origin", s.ConfigRepoURL)
-	span.Finish()
+	span.End()
 	if err != nil {
 		return nil, errors.WithMessagef(err, "set origin remote to '%s'", s.ConfigRepoURL)
 	}
