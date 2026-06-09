@@ -139,17 +139,11 @@ func (s *Service) ShallowClone(ctx context.Context, destination string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.ShallowClone")
 	defer span.End()
 
-	span, _ = s.Tracer.FromCtx(ctx, "remove destination")
-	err := os.RemoveAll(destination)
-	span.End()
+	unlock, err := s.prepareDestination(ctx, destination)
 	if err != nil {
-		return errors.WithMessage(err, "remove existing destination")
+		return err
 	}
-
-	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
-	s.masterMutex.RLock()
-	defer s.masterMutex.RUnlock()
-	span.End()
+	defer unlock()
 
 	span, _ = s.Tracer.FromCtx(ctx, "shallow clone")
 	err = execCommand(ctx, filepath.Dir(destination), "git", "clone", "--depth", "1", "--local", s.masterPath, destination)
@@ -171,16 +165,13 @@ func (s *Service) ShallowClone(ctx context.Context, destination string) error {
 func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repository, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.copyMaster")
 	defer span.End()
-	span, _ = s.Tracer.FromCtx(ctx, "remove destination")
-	err := os.RemoveAll(destination)
-	span.End()
+
+	unlock, err := s.prepareDestination(ctx, destination)
 	if err != nil {
-		return nil, errors.WithMessage(err, "remove existing destination")
+		return nil, err
 	}
-	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
-	s.masterMutex.RLock()
-	defer s.masterMutex.RUnlock()
-	span.End()
+	defer unlock()
+
 	span, _ = s.Tracer.FromCtx(ctx, "copy to destination")
 	err = s.Copier.CopyDir(ctx, s.MasterPath(), destination)
 	span.End()
@@ -194,6 +185,21 @@ func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repo
 		return nil, errors.WithMessage(err, "open repo")
 	}
 	return r, nil
+}
+
+// prepareDestination removes destination and acquires the master read lock.
+// The caller must defer the returned unlock function.
+func (s *Service) prepareDestination(ctx context.Context, destination string) (func(), error) {
+	span, _ := s.Tracer.FromCtx(ctx, "remove destination")
+	err := os.RemoveAll(destination)
+	span.End()
+	if err != nil {
+		return nil, errors.WithMessage(err, "remove existing destination")
+	}
+	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
+	s.masterMutex.RLock()
+	span.End()
+	return s.masterMutex.RUnlock, nil
 }
 
 func (s *Service) Checkout(ctx context.Context, rootPath string, hash plumbing.Hash) error {
