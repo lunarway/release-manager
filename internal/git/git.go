@@ -52,6 +52,21 @@ func (s *Service) MasterPath() string {
 	return s.masterPath
 }
 
+// MasterHash returns the current HEAD commit SHA of the local master clone. It
+// is read under the master read lock so it is safe to call concurrently with
+// reads and syncs.
+func (s *Service) MasterHash(ctx context.Context) (string, error) {
+	span, _ := s.Tracer.FromCtx(ctx, "git.MasterHash")
+	defer span.End()
+	s.masterMutex.RLock()
+	defer s.masterMutex.RUnlock()
+	head, err := s.master.Head()
+	if err != nil {
+		return "", errors.WithMessage(err, "resolve master HEAD")
+	}
+	return head.Hash().String(), nil
+}
+
 // InitMasterRepo clones the configuration repository into a master directory.
 func (s *Service) InitMasterRepo(ctx context.Context) (func(context.Context), error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.InitMasterRepo")

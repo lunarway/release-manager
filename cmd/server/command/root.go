@@ -94,6 +94,7 @@ func NewRoot(version string) (*cobra.Command, error) {
 	command.PersistentFlags().StringVar(&configRepoOpts.ConfigRepo, "config-repo", os.Getenv("CONFIG_REPO"), "ssh url for the git config repository")
 	command.PersistentFlags().StringVar(&configRepoOpts.ArtifactFileName, "artifact-filename", "artifact.json", "the filename of the artifact to be used")
 	command.PersistentFlags().StringVar(&configRepoOpts.SSHPrivateKeyPath, "ssh-private-key", "/etc/release-manager/ssh/identity", "ssh-private-key for the config repo")
+	command.PersistentFlags().DurationVar(&configRepoOpts.SyncInterval, "config-repo-sync-interval", 60*time.Second, "interval at which each replica re-syncs its local config repo clone as a safety net for missed config-changed broadcasts")
 	command.PersistentFlags().StringVar(&jwtVerifierOpts.JwksLocation, "jwks-urls", "", "URL of the JWKS for the IdP")
 	command.PersistentFlags().StringVar(&jwtVerifierOpts.Audience, "jwt-audience", "release-manager", "the expected audience of the access token")
 	command.PersistentFlags().StringVar(&jwtVerifierOpts.Issuer, "jwt-issuer", "", "the issuer of the access tokens")
@@ -139,6 +140,7 @@ func registerBrokerFlags(cmd *cobra.Command, c *brokerOptions) {
 	cmd.PersistentFlags().IntVar(&c.AMQP.Prefetch, "amqp-prefetch", 1, "AMQP queue prefetch")
 	cmd.PersistentFlags().StringVar(&c.AMQP.Exchange, "amqp-exchange", "release-manager", "AMQP exchange")
 	cmd.PersistentFlags().StringVar(&c.AMQP.Queue, "amqp-queue", "release-manager", "AMQP queue")
+	cmd.PersistentFlags().StringVar(&c.AMQP.BroadcastExchange, "amqp-broadcast-exchange", "release-manager-broadcast", "AMQP fanout exchange used to broadcast config-changed notifications to all replicas")
 }
 
 func registerGitFlags(cmd *cobra.Command, opts *git.GitConfig) {

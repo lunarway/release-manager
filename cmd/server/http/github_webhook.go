@@ -14,7 +14,7 @@ import (
 	"gopkg.in/go-playground/webhooks.v5/github"
 )
 
-func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, githubWebhookSecret string) http.HandlerFunc {
+func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, slackClient *slack.Client, githubWebhookSecret string, publishConfigChanged func(ctx context.Context, sha string) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// copy span from request context but ignore any deadlines on the request context
 		ctx := oteltrace.ContextWithSpan(context.Background(), oteltrace.SpanFromContext(r.Context()))
@@ -38,6 +38,18 @@ func githubWebhook(payload *payload, flowSvc *flow.Service, policySvc *policyint
 				logger.Errorf("http: github webhook: failed to sync master: %v", err)
 				w.WriteHeader(http.StatusOK)
 				return
+			}
+			// Broadcast the new HEAD so the other replicas sync their local clone
+			// too. A failure here only affects propagation speed (the ticker still
+			// heals it), so we log it and still return 200.
+			sha, err := gitSvc.MasterHash(ctx)
+			if err != nil {
+				logger.Errorf("http: github webhook: failed to read master hash: %v", err)
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			if err := publishConfigChanged(ctx, sha); err != nil {
+				logger.Errorf("http: github webhook: failed to broadcast config change: %v", err)
 			}
 			w.WriteHeader(http.StatusOK)
 			return

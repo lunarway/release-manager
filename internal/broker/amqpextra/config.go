@@ -13,6 +13,7 @@ type Config struct {
 	Exchange            string
 	Queue               string
 	RoutingKey          string
+	BroadcastExchange   string
 	Prefetch            int
 	ReconnectionTimeout time.Duration
 	ConnectionTimeout   time.Duration

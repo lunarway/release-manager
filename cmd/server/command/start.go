@@ -80,6 +80,7 @@ type amqpOptions struct {
 	Prefetch            int
 	Exchange            string
 	Queue               string
+	BroadcastExchange   string
 }
 
 type memoryOptions struct {
@@ -90,6 +91,7 @@ type configRepoOptions struct {
 	ConfigRepo        string
 	ArtifactFileName  string
 	SSHPrivateKeyPath string
+	SyncInterval      time.Duration
 }
 
 type s3storageOptions struct {
@@ -514,6 +516,9 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			flowSvc.PublishNewArtifact = func(ctx context.Context, event flow.NewArtifactEvent) error {
 				return brokerImpl.Publish(ctx, &event)
 			}
+			publishConfigChanged := func(ctx context.Context, sha string) error {
+				return brokerImpl.PublishBroadcast(ctx, &events.ConfigChangedEvent{SHA: sha})
+			}
 			defer func() {
 				err := brokerImpl.Close()
 				if err != nil {
@@ -535,6 +540,7 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 					s3storageSvc,
 					tracer,
 					jwtVerifier,
+					publishConfigChanged,
 				)
 				if err != nil {
 					done <- errors.WithMessage(err, "new http server")
@@ -544,6 +550,44 @@ func NewStart(startOptions *startOptions) *cobra.Command {
 			go func() {
 				err := brokerImpl.StartConsumer(eventHandlers, errorHandler)
 				done <- errors.WithMessage(err, "broker")
+			}()
+			// Broadcast consumer: keep this replica's local clone fresh by syncing
+			// on every config-changed broadcast. Skip the sync when the local clone
+			// already points at the broadcast SHA (e.g. our own self-delivered
+			// message or a coalesced duplicate push).
+			go func() {
+				err := brokerImpl.StartBroadcastConsumer(func(body []byte) error {
+					var event events.ConfigChangedEvent
+					if err := event.Unmarshal(body); err != nil {
+						return errors.WithMessage(err, "unmarshal config changed event")
+					}
+					currentSHA, err := gitSvc.MasterHash(ctx)
+					if err == nil && currentSHA == event.SHA {
+						log.WithContext(ctx).Debugf("Config change broadcast for %s already applied, skipping sync", event.SHA)
+						return nil
+					}
+					return gitSvc.SyncMaster(ctx)
+				})
+				done <- errors.WithMessage(err, "broadcast consumer")
+			}()
+			// Background sync ticker: a coarse safety net that heals missed
+			// broadcasts (reconnects, cold-start window before the queue is bound).
+			// Broadcasts deliver the sub-second freshness; this only bounds staleness.
+			syncCtx, cancelSync := context.WithCancel(ctx)
+			defer cancelSync()
+			go func() {
+				ticker := time.NewTicker(startOptions.configRepo.SyncInterval)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-syncCtx.Done():
+						return
+					case <-ticker.C:
+						if err := gitSvc.SyncMaster(syncCtx); err != nil {
+							log.WithContext(syncCtx).Errorf("background config repo sync failed: %v", err)
+						}
+					}
+				}
 			}()
 			if s3storageSvc != nil {
 				sqsHandler := func(msg string) error {
@@ -630,6 +674,7 @@ func getBroker(c *brokerOptions) (broker.Broker, error) {
 			InitTimeout:         amqpOptions.InitTimeout,
 			Exchange:            amqpOptions.Exchange,
 			Queue:               amqpOptions.Queue,
+			BroadcastExchange:   amqpOptions.BroadcastExchange,
 			RoutingKey:          "#",
 			Prefetch:            amqpOptions.Prefetch,
 			Logger:              log.With("system", "amqp"),
