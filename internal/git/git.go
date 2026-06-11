@@ -343,7 +343,7 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 	if errors.Cause(err) != ErrBranchBehindOrigin {
 		return err
 	}
-	if rebaseErr := rebaseOntoOrigin(ctx, rootPath); rebaseErr != nil {
+	if rebaseErr := rebaseOntoOrigin(ctx, s.Tracer, rootPath); rebaseErr != nil {
 		log.WithContext(ctx).WithFields("error", rebaseErr).Infof("git/Commit: rebase onto origin/master failed; falling back to outer retry")
 		return ErrBranchBehindOrigin
 	}
@@ -354,14 +354,17 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 
 // rebaseOntoOrigin fetches origin/master and rebases the current branch onto
 // it. Called after a push rejection to recover without re-cloning.
-func rebaseOntoOrigin(ctx context.Context, rootPath string) error {
-	if err := execCommand(ctx, rootPath, "git", "fetch", "origin", "master"); err != nil {
+func rebaseOntoOrigin(ctx context.Context, tracer tracing.Tracer, rootPath string) error {
+	fetchSpan, ctx := tracer.FromCtx(ctx, "fetch origin for rebase")
+	err := execCommand(ctx, rootPath, "git", "fetch", "origin", "master")
+	fetchSpan.End()
+	if err != nil {
 		return errors.WithMessage(err, "fetch origin")
 	}
-	if err := execCommand(ctx, rootPath, "git", "rebase", "origin/master"); err != nil {
-		return errors.WithMessage(err, "rebase onto origin/master")
-	}
-	return nil
+	rebaseSpan, ctx := tracer.FromCtx(ctx, "rebase onto origin/master")
+	err = execCommand(ctx, rootPath, "git", "rebase", "origin/master")
+	rebaseSpan.End()
+	return errors.WithMessage(err, "rebase onto origin/master")
 }
 
 func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, msg string) error {
