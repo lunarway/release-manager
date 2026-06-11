@@ -413,13 +413,15 @@ func (s *Service) rebaseOntoMaster(ctx context.Context, rootPath string) error {
 		return errors.WithMessage(err, "sync master mirror")
 	}
 
+	// Hold the read lock across the fetch so a concurrent SyncMaster cannot
+	// mutate the mirror mid-fetch, matching the locking convention used by
+	// ShallowClone and copyMaster. The subsequent rebase only touches rootPath
+	// and FETCH_HEAD, so it runs without the lock.
 	s.masterMutex.RLock()
-	masterPath := s.masterPath
-	s.masterMutex.RUnlock()
-
 	fetchSpan, fetchCtx := s.Tracer.FromCtx(ctx, "fetch master for rebase")
-	err := execCommand(fetchCtx, rootPath, "git", "fetch", masterPath, "master")
+	err := execCommand(fetchCtx, rootPath, "git", "fetch", s.masterPath, "master")
 	fetchSpan.End()
+	s.masterMutex.RUnlock()
 	if err != nil {
 		return errors.WithMessage(err, "fetch master mirror")
 	}
