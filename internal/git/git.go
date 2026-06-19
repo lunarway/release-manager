@@ -198,6 +198,21 @@ func (s *Service) copyMaster(ctx context.Context, destination string) (*git.Repo
 	return r, nil
 }
 
+// WithMasterRLock invokes fn with the master mirror's path while holding the
+// master read lock. The lock excludes concurrent SyncMaster/advanceMirror
+// writers that mutate the mirror's working tree, so fn observes a consistent
+// tree. Use it for read-only access to the mirror (e.g. reading a spec file)
+// instead of cloning into a temp dir.
+func (s *Service) WithMasterRLock(ctx context.Context, fn func(masterPath string) error) error {
+	span, _ := s.Tracer.FromCtx(ctx, "git.WithMasterRLock")
+	defer span.End()
+
+	s.masterMutex.RLock()
+	defer s.masterMutex.RUnlock()
+
+	return fn(s.masterPath)
+}
+
 // prepareDestination removes destination and acquires the master read lock.
 // The caller must defer the returned unlock function.
 func (s *Service) prepareDestination(ctx context.Context, destination string) (func(), error) {

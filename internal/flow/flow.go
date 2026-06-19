@@ -118,6 +118,7 @@ type GitService interface {
 	Clone(context.Context, string) (*git.Repository, error)
 	ShallowClone(ctx context.Context, destination string) error
 	MasterPath() string
+	WithMasterRLock(ctx context.Context, fn func(masterPath string) error) error
 	Commit(ctx context.Context, rootPath, changesPath, msg string) error
 	LocateServiceReleaseRollbackSkip(ctx context.Context, r *git.Repository, env, service string, n uint) (plumbing.Hash, error)
 	Checkout(ctx context.Context, rootPath string, hash plumbing.Hash) error

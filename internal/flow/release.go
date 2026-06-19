@@ -105,16 +105,17 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 	// environment. If there is no artifact released to the target environment an
 	// artifact.ErrFileNotFound error is returned. This is OK as the currentSpec
 	// will then be the default value and this its ID will be the empty string.
-	destinationConfigRepoPath, closeDestinationSource, err := git.TempDirAsync(ctx, s.Tracer, "k8s-config-release-artifact-destination")
-	if err != nil {
-		return "", err
-	}
-	defer closeDestinationSource(ctx)
-	err = s.Git.ShallowClone(ctx, destinationConfigRepoPath)
-	if err != nil {
-		return "", errors.WithMessagef(err, "clone into '%s'", destinationConfigRepoPath)
-	}
-	currentSpec, err := envSpec(destinationConfigRepoPath, s.ArtifactFileName, service, environment, namespace)
+	//
+	// The current spec is read straight from the master mirror's working tree
+	// (under the read lock) rather than cloning into a temp dir: this pre-check
+	// only needs to read one spec file, and the authoritative "nothing to
+	// commit" check happens later in ExecReleaseArtifactID via git status.
+	var currentSpec artifact.Spec
+	err = s.Git.WithMasterRLock(ctx, func(masterPath string) error {
+		var err error
+		currentSpec, err = envSpec(masterPath, s.ArtifactFileName, service, environment, namespace)
+		return err
+	})
 	if err != nil && errors.Cause(err) != artifact.ErrFileNotFound {
 		return "", errors.WithMessage(err, "get current released spec")
 	}

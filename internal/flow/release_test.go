@@ -152,6 +152,103 @@ func TestReleaseArtifactIDEvent_EnqueuedAt_roundtrip(t *testing.T) {
 	assert.Equal(t, original.ArtifactID, got.ArtifactID)
 }
 
+// specStorage is an ArtifactReadStorage whose source ArtifactSpecification is
+// configurable, used to drive ReleaseArtifactID's "nothing to release"
+// pre-check.
+type specStorage struct {
+	fakeStorage
+	sourceSpec artifact.Spec
+}
+
+func (s *specStorage) ArtifactSpecification(_ context.Context, _, _ string) (artifact.Spec, error) {
+	return s.sourceSpec, nil
+}
+
+// TestReleaseArtifactID_readsMirrorWithoutCloning asserts that the
+// "nothing to release" pre-check reads the current spec from the master mirror
+// under WithMasterRLock instead of cloning into a temp dir (optimisation C).
+func TestReleaseArtifactID_readsMirrorWithoutCloning(t *testing.T) {
+	t.Parallel()
+
+	// testdata/dev/releases/dev/a/artifact.json holds ID master-default-5678.
+	const currentArtifactID = "master-default-5678"
+
+	cases := []struct {
+		name            string
+		sourceID        string
+		wantErr         error
+		wantPublishCall bool
+	}{
+		{
+			name:            "current differs: publishes release event",
+			sourceID:        "master-new-9999",
+			wantErr:         nil,
+			wantPublishCall: true,
+		},
+		{
+			name:            "current matches: nothing to release",
+			sourceID:        currentArtifactID,
+			wantErr:         ErrNothingToRelease,
+			wantPublishCall: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			storage := &specStorage{
+				fakeStorage: fakeStorage{
+					// resourcesPath must exist for releaseConfigurationExists.
+					specPath:      t.TempDir(),
+					resourcesPath: t.TempDir(),
+				},
+				sourceSpec: artifact.Spec{
+					ID: tc.sourceID,
+					Application: artifact.Repository{
+						Branch: "master",
+					},
+				},
+			}
+
+			gitSvc := &MockGitService{}
+			gitSvc.Test(t)
+			// WithMasterRLock invokes the callback with the testdata mirror tree.
+			gitSvc.On("WithMasterRLock", mock.Anything, mock.AnythingOfType("func(string) error")).
+				Return(func(_ context.Context, fn func(string) error) error {
+					return fn("testdata")
+				})
+
+			svc := newTestService(t, nil, gitSvc, storage)
+			svc.CanRelease = func(context.Context, string, string, string) (bool, error) {
+				return true, nil
+			}
+			var published int
+			svc.PublishReleaseArtifactID = func(context.Context, ReleaseArtifactIDEvent) error {
+				published++
+				return nil
+			}
+
+			_, err := svc.ReleaseArtifactID(context.Background(), Actor{Name: "test", Email: "test@example.com"}, "dev", "a", tc.sourceID, intent.NewReleaseArtifact())
+
+			if tc.wantErr != nil {
+				assert.ErrorIs(t, err, tc.wantErr)
+			} else {
+				assert.NoError(t, err)
+			}
+			if tc.wantPublishCall {
+				assert.Equal(t, 1, published, "expected release event to be published")
+			} else {
+				assert.Equal(t, 0, published, "expected no release event")
+			}
+
+			// optimisation C: the pre-check must not clone.
+			gitSvc.AssertNotCalled(t, "ShallowClone", mock.Anything, mock.Anything)
+			gitSvc.AssertCalled(t, "WithMasterRLock", mock.Anything, mock.Anything)
+		})
+	}
+}
+
 // TestExecReleaseArtifactID_observationWiring tests that ObserveReleasePushDuration
 // is called correctly under different outcome scenarios.
 func TestExecReleaseArtifactID_observationWiring(t *testing.T) {

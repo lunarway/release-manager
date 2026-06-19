@@ -118,6 +118,20 @@ func (_m *MockGitService) MasterPath() string {
 	return r0
 }
 
+// WithMasterRLock provides a mock function with given fields: ctx, fn
+func (_m *MockGitService) WithMasterRLock(ctx context.Context, fn func(masterPath string) error) error {
+	ret := _m.Called(ctx, fn)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, func(string) error) error); ok {
+		r0 = rf(ctx, fn)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // SyncMaster provides a mock function with given fields: _a0
 func (_m *MockGitService) SyncMaster(_a0 context.Context) error {
 	ret := _m.Called(_a0)
