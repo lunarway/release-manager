@@ -14,6 +14,7 @@ type Config struct {
 	Queue               string
 	RoutingKey          string
 	Prefetch            int
+	WorkerCount         int
 	ReconnectionTimeout time.Duration
 	ConnectionTimeout   time.Duration
 	InitTimeout         time.Duration

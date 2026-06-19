@@ -78,6 +78,7 @@ type amqpOptions struct {
 	ConnectionTimeout   time.Duration
 	InitTimeout         time.Duration
 	Prefetch            int
+	WorkerCount         int
 	Exchange            string
 	Queue               string
 }
@@ -632,6 +633,7 @@ func getBroker(c *brokerOptions) (broker.Broker, error) {
 			Queue:               amqpOptions.Queue,
 			RoutingKey:          "#",
 			Prefetch:            amqpOptions.Prefetch,
+			WorkerCount:         amqpOptions.WorkerCount,
 			Logger:              log.With("system", "amqp"),
 		})
 	case BrokerTypeMemory:
