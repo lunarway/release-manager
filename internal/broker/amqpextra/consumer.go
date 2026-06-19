@@ -27,11 +27,11 @@ func (w *Worker) StartConsumer(handlers map[string]func([]byte) error, eventDrop
 		Queue:           w.config.Queue,
 		DurableQueue:    true,
 		RoutingPatterns: []string{w.config.RoutingKey},
-		Prefetch:        0,
+		Prefetch:        w.config.Prefetch,
 		Handle: func(message *amqp.Delivery) error {
 			return m.ServeMsg(context.Background(), *message)
 		},
-		WorkerCount: 1,
+		WorkerCount: w.config.WorkerCount,
 	}
 
 	consumersStarted := make(chan struct{})
