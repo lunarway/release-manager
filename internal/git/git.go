@@ -70,6 +70,17 @@ func (s *Service) InitMasterRepo(ctx context.Context) (func(context.Context), er
 	defer s.masterMutex.Unlock()
 	s.master = repo
 	s.masterPath = path
+
+	// The mirror is a non-bare clone with master checked out, and its working
+	// tree is read by copyMaster. updateInstead lets advanceMirror fast-forward
+	// the mirror's master ref and working tree in one atomic push after a
+	// successful origin push, keeping the next ShallowClone/copyMaster current.
+	err = execCommand(ctx, path, "git", "config", "receive.denyCurrentBranch", "updateInstead")
+	if err != nil {
+		close(ctx)
+		return nil, errors.WithMessage(err, "configure mirror receive.denyCurrentBranch")
+	}
+
 	log.WithContext(ctx).Infof("Master repo cloned into '%s'", path)
 	return close, nil
 }
@@ -378,7 +389,7 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "push")
-	err = gitPush(ctx, rootPath)
+	err = s.gitPush(ctx, rootPath)
 	span.End()
 	if err == nil {
 		return nil
@@ -392,7 +403,28 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 	}
 	pushSpan, _ := s.Tracer.FromCtx(ctx, "push after rebase")
 	defer pushSpan.End()
-	return gitPush(ctx, rootPath)
+	return s.gitPush(ctx, rootPath)
+}
+
+// advanceMirror fast-forwards the local master mirror to the commit just pushed
+// from rootPath via a local (no-network) push; updateInstead, set in
+// InitMasterRepo, moves the mirror's ref and working tree atomically.
+//
+// It takes the write lock to exclude concurrent SyncMaster and the RLock-holding
+// readers (ShallowClone, copyMaster). A failure is non-fatal: the release has
+// already shipped, and the existing rebase-on-conflict path recovers any
+// residual staleness, so the error is logged rather than returned.
+func (s *Service) advanceMirror(ctx context.Context, rootPath string) {
+	span, ctx := s.Tracer.FromCtx(ctx, "git.advanceMirror")
+	defer span.End()
+
+	s.masterMutex.Lock()
+	defer s.masterMutex.Unlock()
+
+	err := execCommand(ctx, rootPath, "git", "push", s.masterPath, "HEAD:master")
+	if err != nil {
+		log.WithContext(ctx).WithFields("error", err).Infof("git/advanceMirror: failed to advance local master mirror; next clone may sync via the retry path")
+	}
 }
 
 // rebaseOntoMaster refreshes the local master mirror, then fetches from it and
@@ -463,7 +495,7 @@ func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, autho
 
 	span, _ = s.Tracer.FromCtx(ctx, "push")
 	defer span.End()
-	return gitPush(ctx, rootPath)
+	return s.gitPush(ctx, rootPath)
 }
 
 func execCommand(ctx context.Context, rootPath string, cmdName string, args ...string) error {
@@ -569,7 +601,11 @@ func checkStatus(ctx context.Context, rootPath string) error {
 	return nil
 }
 
-func gitPush(ctx context.Context, rootPath string) error {
+// gitPush pushes rootPath's master to origin and, on success, advances the
+// local master mirror to match. Keeping the mirror advance inside the single
+// push choke point means no caller can push to origin without the mirror
+// following, so the next ShallowClone/copyMaster never starts behind origin.
+func (s *Service) gitPush(ctx context.Context, rootPath string) error {
 	cmdName := "git"
 	args := []string{"push", "origin", "master", "--porcelain"}
 	logger := log.WithContext(ctx).WithFields("root", rootPath)
@@ -607,6 +643,7 @@ func gitPush(ctx context.Context, rootPath string) error {
 		}
 		return errors.WithMessage(err, "execute command failed")
 	}
+	s.advanceMirror(ctx, rootPath)
 	return nil
 }
 
