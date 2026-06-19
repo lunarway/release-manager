@@ -386,8 +386,8 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 	if errors.Cause(err) != ErrBranchBehindOrigin {
 		return err
 	}
-	if rebaseErr := rebaseOntoOrigin(ctx, s.Tracer, rootPath); rebaseErr != nil {
-		log.WithContext(ctx).WithFields("error", rebaseErr).Infof("git/Commit: rebase onto origin/master failed; falling back to outer retry")
+	if rebaseErr := s.rebaseOntoMaster(ctx, rootPath); rebaseErr != nil {
+		log.WithContext(ctx).WithFields("error", rebaseErr).Infof("git/Commit: rebase onto master failed; falling back to outer retry")
 		return ErrBranchBehindOrigin
 	}
 	pushSpan, _ := s.Tracer.FromCtx(ctx, "push after rebase")
@@ -395,19 +395,41 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 	return gitPush(ctx, rootPath)
 }
 
-// rebaseOntoOrigin fetches origin/master and rebases the current branch onto
-// it. Called after a push rejection to recover without re-cloning.
-func rebaseOntoOrigin(ctx context.Context, tracer tracing.Tracer, rootPath string) error {
-	fetchSpan, ctx := tracer.FromCtx(ctx, "fetch origin for rebase")
-	err := execCommand(ctx, rootPath, "git", "fetch", "origin", "master")
-	fetchSpan.End()
-	if err != nil {
-		return errors.WithMessage(err, "fetch origin")
+// rebaseOntoMaster refreshes the local master mirror, then fetches from it and
+// rebases the working tree at rootPath onto the updated master. Called after a
+// push rejection to recover in place without re-cloning.
+//
+// The fetch targets the local mirror rather than the remote origin on purpose:
+// the working tree is a depth-1 shallow clone, so a fetch from the remote
+// origin would also be shallow and leave the branch without a merge base,
+// failing the rebase. The mirror shares full history with the working tree, so
+// the merge base is available locally and the fetch costs no network round
+// trip.
+func (s *Service) rebaseOntoMaster(ctx context.Context, rootPath string) error {
+	span, ctx := s.Tracer.FromCtx(ctx, "git.rebaseOntoMaster")
+	defer span.End()
+
+	if err := s.SyncMaster(ctx); err != nil {
+		return errors.WithMessage(err, "sync master mirror")
 	}
-	rebaseSpan, ctx := tracer.FromCtx(ctx, "rebase onto origin/master")
-	err = execCommand(ctx, rootPath, "git", "rebase", "origin/master")
+
+	// Hold the read lock across the fetch so a concurrent SyncMaster cannot
+	// mutate the mirror mid-fetch, matching the locking convention used by
+	// ShallowClone and copyMaster. The subsequent rebase only touches rootPath
+	// and FETCH_HEAD, so it runs without the lock.
+	s.masterMutex.RLock()
+	fetchSpan, fetchCtx := s.Tracer.FromCtx(ctx, "fetch master for rebase")
+	err := execCommand(fetchCtx, rootPath, "git", "fetch", s.masterPath, "master")
+	fetchSpan.End()
+	s.masterMutex.RUnlock()
+	if err != nil {
+		return errors.WithMessage(err, "fetch master mirror")
+	}
+
+	rebaseSpan, rebaseCtx := s.Tracer.FromCtx(ctx, "rebase onto master")
+	err = execCommand(rebaseCtx, rootPath, "git", "rebase", "FETCH_HEAD")
 	rebaseSpan.End()
-	return errors.WithMessage(err, "rebase onto origin/master")
+	return errors.WithMessage(err, "rebase onto master")
 }
 
 func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, authorName, authorEmail, msg string) error {
