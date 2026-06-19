@@ -144,15 +144,13 @@ func (s *Service) ReleaseArtifactID(ctx context.Context, actor Actor, environmen
 // elapsed time and final outcome via the service Observer (if non-nil).
 func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifactIDEvent) (err error) {
 	start := time.Now()
-	var nothingToCommit bool
 	defer func() {
 		if s.Observer != nil {
 			s.Observer.ObserveFlowDuration("ExecReleaseArtifactID", start, err)
-			// Wall-clock from intent enqueue to push. Skip no-op releases so
-			// they don't distort the latency distribution. EnqueuedAt is zero
-			// for legacy in-flight messages published before this field existed;
-			// skip those too rather than record a bogus epoch-to-now duration.
-			if !nothingToCommit && !event.EnqueuedAt.IsZero() {
+			// EnqueuedAt is zero for no-op releases (zeroed on ErrNothingToCommit
+			// below) and for legacy in-flight messages published before this field
+			// existed. Skip both to avoid distorting the latency distribution.
+			if !event.EnqueuedAt.IsZero() {
 				s.Observer.ObserveReleasePushDuration(event.EnqueuedAt, err)
 			}
 		}
@@ -237,7 +235,7 @@ func (s *Service) ExecReleaseArtifactID(ctx context.Context, event ReleaseArtifa
 			if errors.Cause(err) == git.ErrNothingToCommit {
 				logger.Infof("Environment is up to date: dropping event: %v", err)
 				// TODO: notify actor that there was nothing to commit
-				nothingToCommit = true
+				event.EnqueuedAt = time.Time{}
 				return true, nil
 			}
 			// we can see races here where other changes are committed to the master repo
