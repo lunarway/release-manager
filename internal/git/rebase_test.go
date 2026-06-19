@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/lunarway/release-manager/internal/log"
@@ -91,6 +92,70 @@ func TestCommitRebasesOntoSyncedMirrorOnConflict(t *testing.T) {
 	// path never touched the mirror, so this is the behavioural discriminator.
 	assert.FileExists(t, filepath.Join(mirrorDir, "b.txt"),
 		"recovery must sync the local master mirror")
+}
+
+// TestCommitAdvancesMirrorAfterPush verifies the self-staleness fix: after a
+// normal (non-conflicting) push, Commit fast-forwards the local master mirror
+// to the just-pushed commit, so a subsequent ShallowClone starts current rather
+// than one commit behind origin. Without the advance, the mirror would lag by
+// every release commit and the next push would be rejected as behind origin.
+func TestCommitAdvancesMirrorAfterPush(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)
+
+	ctx := context.Background()
+	root := t.TempDir()
+
+	originDir := filepath.Join(root, "origin")
+	seedDir := filepath.Join(root, "seed")
+	mirrorDir := filepath.Join(root, "mirror")
+	workDir := filepath.Join(root, "work")
+
+	runGit(t, root, "init", "--bare", "-b", "master", originDir)
+	runGit(t, root, "clone", originDir, seedDir)
+	configureIdentity(t, seedDir)
+	writeFile(t, seedDir, "a.txt", "a")
+	runGit(t, seedDir, "add", ".")
+	runGit(t, seedDir, "commit", "-m", "add a")
+	runGit(t, seedDir, "push", "origin", "master")
+
+	// Full-history mirror, configured exactly as InitMasterRepo does so the
+	// post-push advance can update the checked-out master branch in place.
+	runGit(t, root, "clone", originDir, mirrorDir)
+	runGit(t, mirrorDir, "config", "receive.denyCurrentBranch", "updateInstead")
+
+	// Depth-1 shallow working clone from the current mirror.
+	runGit(t, root, "clone", "--depth", "1", "--local", mirrorDir, workDir)
+	runGit(t, workDir, "remote", "set-url", "origin", originDir)
+	configureIdentity(t, workDir)
+
+	writeFile(t, workDir, "c.txt", "c")
+
+	s := &Service{
+		Tracer:        tracing.NewNoop(),
+		Config:        &GitConfig{User: "test", Email: "test@example.com"},
+		ConfigRepoURL: originDir,
+		masterPath:    mirrorDir,
+	}
+
+	err := s.Commit(ctx, workDir, ".", "[env/svc] release c")
+	require.NoError(t, err)
+
+	// The mirror must carry the release commit in both its ref and working tree,
+	// so a later ShallowClone/copyMaster sees it without another origin fetch.
+	assert.FileExists(t, filepath.Join(mirrorDir, "c.txt"),
+		"push must fast-forward the local master mirror")
+	assert.Equal(t, revParse(t, workDir, "HEAD"), revParse(t, mirrorDir, "master"),
+		"mirror master must match the pushed commit")
+}
+
+func revParse(t *testing.T, dir, ref string) string {
+	t.Helper()
+	cmd := exec.Command("git", "rev-parse", ref)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	require.NoErrorf(t, err, "git rev-parse %s failed: %s", ref, out)
+	return strings.TrimSpace(string(out))
 }
 
 func runGit(t *testing.T, dir string, args ...string) {
