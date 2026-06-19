@@ -43,6 +43,10 @@ var (
 // success).
 type FlowObserver interface {
 	ObserveFlowDuration(operation string, start time.Time, err error)
+	// ObserveReleasePushDuration records the wall-clock duration from release
+	// intent accepted (event enqueue) to push completion. Not called for no-op
+	// releases.
+	ObserveReleasePushDuration(start time.Time, err error)
 }
 
 type Service struct {
