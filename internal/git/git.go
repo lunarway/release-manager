@@ -526,16 +526,19 @@ func execCommand(ctx context.Context, rootPath string, cmdName string, args ...s
 	}
 
 	err = cmd.Wait()
-	logger.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
-	logger.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
+	knownErr := isKnownGitError(stderrData)
+	if err != nil || knownErr != nil {
+		if len(stdoutData) > 0 {
+			logger.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
+		}
+		if len(stderrData) > 0 {
+			logger.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
+		}
+	}
 	if err != nil {
 		return errors.WithMessage(err, "execute command failed")
 	}
-	err = isKnownGitError(stderrData)
-	if err != nil {
-		return err
-	}
-	return nil
+	return knownErr
 }
 
 // knownGitErrors contains error messages that should be considered as errors by
@@ -590,9 +593,13 @@ func checkStatus(ctx context.Context, rootPath string) error {
 	}
 
 	err = cmd.Wait()
-	logger.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
-	logger.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
 	if err != nil {
+		if len(stdoutData) > 0 {
+			logger.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
+		}
+		if len(stderrData) > 0 {
+			logger.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
+		}
 		return errors.WithMessage(err, "execute command failed")
 	}
 	if len(stdoutData) == 0 {
@@ -635,9 +642,13 @@ func (s *Service) gitPush(ctx context.Context, rootPath string) error {
 	}
 
 	err = cmd.Wait()
-	logger.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
-	logger.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
 	if err != nil {
+		if len(stdoutData) > 0 {
+			logger.Infof("git/commit: exec command '%s %s': stdout: %s", cmdName, strings.Join(args, " "), stdoutData)
+		}
+		if len(stderrData) > 0 {
+			logger.Infof("git/commit: exec command '%s %s': stderr: %s", cmdName, strings.Join(args, " "), stderrData)
+		}
 		if isBranchBehindOrigin(stderrData) {
 			return ErrBranchBehindOrigin
 		}
