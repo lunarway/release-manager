@@ -143,9 +143,12 @@ func (s *Service) Clone(ctx context.Context, destination string) (*git.Repositor
 	return s.copyMaster(ctx, destination)
 }
 
-// ShallowClone creates a depth-1 local clone of the master repository into destination.
-// It sets the remote URL to ConfigRepoURL so subsequent pushes reach the real origin.
-// Use this when the caller only needs the working tree (commit+push), not git history.
+// ShallowClone creates a hardlinked local clone of the master repository into
+// destination. Because the clone is local and not depth-limited, git hardlinks
+// the object store instead of copying it, so it is cheap and retains full
+// history. It sets the remote URL to ConfigRepoURL so subsequent pushes reach
+// the real origin. Use this when the caller only needs the working tree
+// (commit+push); the full history comes along for free.
 func (s *Service) ShallowClone(ctx context.Context, destination string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.ShallowClone")
 	defer span.End()
@@ -156,11 +159,11 @@ func (s *Service) ShallowClone(ctx context.Context, destination string) error {
 	}
 	defer unlock()
 
-	span, _ = s.Tracer.FromCtx(ctx, "shallow clone")
-	err = execCommand(ctx, filepath.Dir(destination), "git", "clone", "--depth", "1", "--local", s.masterPath, destination)
+	span, _ = s.Tracer.FromCtx(ctx, "local clone")
+	err = execCommand(ctx, filepath.Dir(destination), "git", "clone", "--local", s.masterPath, destination)
 	span.End()
 	if err != nil {
-		return errors.WithMessagef(err, "shallow clone master from '%s'", s.masterPath)
+		return errors.WithMessagef(err, "local clone master from '%s'", s.masterPath)
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "set remote url")
@@ -432,11 +435,8 @@ func (s *Service) advanceMirror(ctx context.Context, rootPath string) {
 // push rejection to recover in place without re-cloning.
 //
 // The fetch targets the local mirror rather than the remote origin on purpose:
-// the working tree is a depth-1 shallow clone, so a fetch from the remote
-// origin would also be shallow and leave the branch without a merge base,
-// failing the rebase. The mirror shares full history with the working tree, so
-// the merge base is available locally and the fetch costs no network round
-// trip.
+// the mirror shares full history with the working tree, so the merge base is
+// available locally and the fetch costs no network round trip.
 func (s *Service) rebaseOntoMaster(ctx context.Context, rootPath string) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.rebaseOntoMaster")
 	defer span.End()

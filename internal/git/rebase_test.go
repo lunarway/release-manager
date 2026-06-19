@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/lunarway/release-manager/internal/log"
@@ -151,11 +150,7 @@ func TestCommitAdvancesMirrorAfterPush(t *testing.T) {
 
 func revParse(t *testing.T, dir, ref string) string {
 	t.Helper()
-	cmd := exec.Command("git", "rev-parse", ref)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	require.NoErrorf(t, err, "git rev-parse %s failed: %s", ref, out)
-	return strings.TrimSpace(string(out))
+	return gitOutput(t, dir, "rev-parse", ref)
 }
 
 func runGit(t *testing.T, dir string, args ...string) {
