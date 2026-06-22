@@ -46,10 +46,20 @@ type Service struct {
 	masterPath  string
 	masterMutex sync.RWMutex
 	master      *git.Repository
+
+	// pushSem serializes git push origin calls to prevent branch-behind-origin
+	// conflicts when multiple workers push concurrently.
+	pushSem     chan struct{}
+	pushSemOnce sync.Once
 }
 
 func (s *Service) MasterPath() string {
 	return s.masterPath
+}
+
+func (s *Service) getPushSem() chan struct{} {
+	s.pushSemOnce.Do(func() { s.pushSem = make(chan struct{}, 1) })
+	return s.pushSem
 }
 
 // InitMasterRepo clones the configuration repository into a master directory.
@@ -389,7 +399,12 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "push")
-	err = s.gitPush(ctx, rootPath)
+	sem := s.getPushSem()
+	err = func() error {
+		sem <- struct{}{}
+		defer func() { <-sem }()
+		return s.gitPush(ctx, rootPath)
+	}()
 	span.End()
 	if err == nil {
 		return nil
@@ -403,6 +418,8 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 	}
 	pushSpan, _ := s.Tracer.FromCtx(ctx, "push after rebase")
 	defer pushSpan.End()
+	sem <- struct{}{}
+	defer func() { <-sem }()
 	return s.gitPush(ctx, rootPath)
 }
 
@@ -495,6 +512,9 @@ func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, autho
 
 	span, _ = s.Tracer.FromCtx(ctx, "push")
 	defer span.End()
+	sem := s.getPushSem()
+	sem <- struct{}{}
+	defer func() { <-sem }()
 	return s.gitPush(ctx, rootPath)
 }
 
