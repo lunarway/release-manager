@@ -116,19 +116,23 @@ func (s *Service) clone(ctx context.Context, destination string) (*git.Repositor
 func (s *Service) SyncMaster(ctx context.Context) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.SyncMaster")
 	defer span.End()
-	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
-	s.masterMutex.Lock()
-	defer s.masterMutex.Unlock()
-	span.End()
 
+	// fetch only writes FETCH_HEAD and the remote-tracking ref — no write lock needed.
 	span, _ = s.Tracer.FromCtx(ctx, "fetch")
 	err := execCommand(ctx, s.MasterPath(), "git", "fetch", "origin", "master")
 	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "fetch changes")
 	}
+
+	// pull fast-forwards HEAD — requires write exclusion.
+	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
+	s.masterMutex.Lock()
+	defer s.masterMutex.Unlock()
+	span.End()
+
 	span, _ = s.Tracer.FromCtx(ctx, "pull")
-	err = execCommand(ctx, s.MasterPath(), "git", "pull")
+	err = execCommand(ctx, s.MasterPath(), "git", "pull", "--ff-only")
 	span.End()
 	if err != nil {
 		return errors.WithMessage(err, "pull latest")
