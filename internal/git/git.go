@@ -45,7 +45,13 @@ type Service struct {
 
 	masterPath  string
 	masterMutex sync.RWMutex
-	master      *git.Repository
+	// fetchMutex serializes SyncMaster calls against each other so concurrent
+	// fetches cannot interleave their FETCH_HEAD writes. It is distinct from
+	// masterMutex on purpose: fetch only mutates remote-tracking refs and
+	// FETCH_HEAD, never the working tree, so it must not block the readers
+	// (copyMaster, ShallowClone) that masterMutex protects.
+	fetchMutex sync.Mutex
+	master     *git.Repository
 }
 
 func (s *Service) MasterPath() string {
@@ -117,7 +123,16 @@ func (s *Service) SyncMaster(ctx context.Context) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.SyncMaster")
 	defer span.End()
 
-	// fetch only writes FETCH_HEAD and the remote-tracking ref — no write lock needed.
+	// fetchMutex serializes the fetch against other SyncMaster callers so two
+	// concurrent fetches cannot race on FETCH_HEAD. It deliberately does not
+	// take masterMutex: fetch writes only FETCH_HEAD and the remote-tracking
+	// ref, never the working tree, so it must not block readers during the slow
+	// network round trip.
+	span, _ = s.Tracer.FromCtx(ctx, "lock fetch mutex")
+	s.fetchMutex.Lock()
+	defer s.fetchMutex.Unlock()
+	span.End()
+
 	span, _ = s.Tracer.FromCtx(ctx, "fetch")
 	err := execCommand(ctx, s.MasterPath(), "git", "fetch", "origin", "master")
 	span.End()
@@ -125,17 +140,20 @@ func (s *Service) SyncMaster(ctx context.Context) error {
 		return errors.WithMessage(err, "fetch changes")
 	}
 
-	// pull fast-forwards HEAD — requires write exclusion.
+	// The fast-forward moves refs/heads/master and the working tree, so it needs
+	// the write lock to exclude readers and advanceMirror. Merging FETCH_HEAD
+	// reuses the objects fetched above — unlike git pull, it triggers no second
+	// network fetch under the lock.
 	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
 	s.masterMutex.Lock()
 	defer s.masterMutex.Unlock()
 	span.End()
 
-	span, _ = s.Tracer.FromCtx(ctx, "pull")
-	err = execCommand(ctx, s.MasterPath(), "git", "pull", "--ff-only")
+	span, _ = s.Tracer.FromCtx(ctx, "merge")
+	err = execCommand(ctx, s.MasterPath(), "git", "merge", "--ff-only", "FETCH_HEAD")
 	span.End()
 	if err != nil {
-		return errors.WithMessage(err, "pull latest")
+		return errors.WithMessage(err, "merge latest")
 	}
 	return nil
 }
