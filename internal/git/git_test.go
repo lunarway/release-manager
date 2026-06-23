@@ -1,6 +1,8 @@
 package git
 
 import (
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -599,4 +601,34 @@ hint: See the 'Note about fast-forwards' in 'git push --help' for details.
 			assert.Equal(t, tc.isBehind, isBehind, "result not as expected")
 		})
 	}
+}
+
+// TestService_pushMu_serializesConcurrentPushes verifies that pushMu serializes
+// concurrent lock/unlock pairs — the same pattern used around gitPush calls in
+// Commit and SignedCommit.
+func TestService_pushMu_serializesConcurrentPushes(t *testing.T) {
+	svc := &Service{}
+
+	const workers = 5
+	var (
+		concurrent int64
+		maxSeen    int64
+		wg         sync.WaitGroup
+	)
+
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			svc.pushMu.Lock()
+			cur := atomic.AddInt64(&concurrent, 1)
+			if cur > atomic.LoadInt64(&maxSeen) {
+				atomic.StoreInt64(&maxSeen, cur)
+			}
+			atomic.AddInt64(&concurrent, -1)
+			svc.pushMu.Unlock()
+		}()
+	}
+	wg.Wait()
+	assert.Equal(t, int64(1), maxSeen, "at most one goroutine should hold the push mutex at a time")
 }
