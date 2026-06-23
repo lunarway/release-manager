@@ -603,11 +603,10 @@ hint: See the 'Note about fast-forwards' in 'git push --help' for details.
 	}
 }
 
-// TestService_pushSem_serializesConcurrentPushes verifies that getPushSem
-// lazily initializes a size-1 channel and that the channel serializes concurrent
-// acquire/release pairs — the same acquire/release pattern used around gitPush
-// calls in Commit and SignedCommit.
-func TestService_pushSem_serializesConcurrentPushes(t *testing.T) {
+// TestService_pushMu_serializesConcurrentPushes verifies that pushMu serializes
+// concurrent lock/unlock pairs — the same pattern used around gitPush calls in
+// Commit and SignedCommit.
+func TestService_pushMu_serializesConcurrentPushes(t *testing.T) {
 	svc := &Service{}
 
 	const workers = 5
@@ -617,20 +616,19 @@ func TestService_pushSem_serializesConcurrentPushes(t *testing.T) {
 		wg         sync.WaitGroup
 	)
 
-	sem := svc.getPushSem()
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			sem <- struct{}{}
+			svc.pushMu.Lock()
 			cur := atomic.AddInt64(&concurrent, 1)
 			if cur > atomic.LoadInt64(&maxSeen) {
 				atomic.StoreInt64(&maxSeen, cur)
 			}
 			atomic.AddInt64(&concurrent, -1)
-			<-sem
+			svc.pushMu.Unlock()
 		}()
 	}
 	wg.Wait()
-	assert.Equal(t, int64(1), maxSeen, "at most one goroutine should hold the push semaphore at a time")
+	assert.Equal(t, int64(1), maxSeen, "at most one goroutine should hold the push mutex at a time")
 }
