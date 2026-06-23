@@ -196,6 +196,24 @@ func (s *Service) ShallowClone(ctx context.Context, destination string) error {
 		return errors.WithMessage(err, "set remote url")
 	}
 
+	// Set the committer identity locally so any git command that writes a commit
+	// in this working tree has one. Commit injects the identity inline via -c per
+	// invocation, but the rebase recovery path (rebaseOntoMaster) shells out to a
+	// bare `git rebase`, which would otherwise abort with "unable to auto-detect
+	// email address" (exit 128) in the container, where the hostname resolves to
+	// ".(none)". Configuring it once here covers every git command in the clone.
+	span, _ = s.Tracer.FromCtx(ctx, "set identity")
+	err = execCommand(ctx, destination, "git", "config", "user.name", s.Config.User)
+	if err != nil {
+		span.End()
+		return errors.WithMessage(err, "set user name")
+	}
+	err = execCommand(ctx, destination, "git", "config", "user.email", s.Config.Email)
+	span.End()
+	if err != nil {
+		return errors.WithMessage(err, "set user email")
+	}
+
 	return nil
 }
 
