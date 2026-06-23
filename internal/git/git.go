@@ -45,7 +45,13 @@ type Service struct {
 
 	masterPath  string
 	masterMutex sync.RWMutex
-	master      *git.Repository
+	// fetchMutex serializes SyncMaster calls against each other so concurrent
+	// fetches cannot interleave their FETCH_HEAD writes. It is distinct from
+	// masterMutex on purpose: fetch only mutates remote-tracking refs and
+	// FETCH_HEAD, never the working tree, so it must not block the readers
+	// (copyMaster, ShallowClone) that masterMutex protects.
+	fetchMutex sync.Mutex
+	master     *git.Repository
 
 	// pushMu serializes git push origin calls to prevent branch-behind-origin
 	// conflicts when multiple workers push concurrently.
@@ -120,9 +126,15 @@ func (s *Service) clone(ctx context.Context, destination string) (*git.Repositor
 func (s *Service) SyncMaster(ctx context.Context) error {
 	span, ctx := s.Tracer.FromCtx(ctx, "git.SyncMaster")
 	defer span.End()
-	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
-	s.masterMutex.Lock()
-	defer s.masterMutex.Unlock()
+
+	// fetchMutex serializes the fetch against other SyncMaster callers so two
+	// concurrent fetches cannot race on FETCH_HEAD. It deliberately does not
+	// take masterMutex: fetch writes only FETCH_HEAD and the remote-tracking
+	// ref, never the working tree, so it must not block readers during the slow
+	// network round trip.
+	span, _ = s.Tracer.FromCtx(ctx, "lock fetch mutex")
+	s.fetchMutex.Lock()
+	defer s.fetchMutex.Unlock()
 	span.End()
 
 	span, _ = s.Tracer.FromCtx(ctx, "fetch")
@@ -131,11 +143,21 @@ func (s *Service) SyncMaster(ctx context.Context) error {
 	if err != nil {
 		return errors.WithMessage(err, "fetch changes")
 	}
-	span, _ = s.Tracer.FromCtx(ctx, "pull")
-	err = execCommand(ctx, s.MasterPath(), "git", "pull")
+
+	// The fast-forward moves refs/heads/master and the working tree, so it needs
+	// the write lock to exclude readers and advanceMirror. Merging FETCH_HEAD
+	// reuses the objects fetched above — unlike git pull, it triggers no second
+	// network fetch under the lock.
+	span, _ = s.Tracer.FromCtx(ctx, "lock mutex")
+	s.masterMutex.Lock()
+	defer s.masterMutex.Unlock()
+	span.End()
+
+	span, _ = s.Tracer.FromCtx(ctx, "merge")
+	err = execCommand(ctx, s.MasterPath(), "git", "merge", "--ff-only", "FETCH_HEAD")
 	span.End()
 	if err != nil {
-		return errors.WithMessage(err, "pull latest")
+		return errors.WithMessage(err, "merge latest")
 	}
 	return nil
 }
