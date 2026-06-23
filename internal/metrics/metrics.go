@@ -30,12 +30,12 @@ func NewObserver() *Observer {
 		flowDuration: promauto.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    "release_manager_flow_duration_seconds",
 			Help:    "Duration of flow operations in seconds",
-			Buckets: []float64{.05, .1, .25, .5, 1, 2.5, 5, 10, 30, 60},
+			Buckets: []float64{.05, .1, .25, .5, 1, 2.5, 5, 10, 30, 60, 120, 300},
 		}, []string{"operation", "outcome"}),
 		releasePushDuration: promauto.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    "release_manager_release_push_duration_seconds",
 			Help:    "Wall-clock duration from release intent accepted to release pushed to GitHub, in seconds",
-			Buckets: []float64{.25, .5, 1, 2.5, 5, 10, 20, 30, 60, 120},
+			Buckets: []float64{.25, .5, 1, 2.5, 5, 10, 20, 30, 60, 120, 180, 300, 600},
 		}, []string{"outcome"}),
 	}
 }
