@@ -19,7 +19,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/copy"
-	internalgit "github.com/lunarway/release-manager/internal/git"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/lunarway/release-manager/internal/log"
@@ -123,23 +122,15 @@ type GitService interface {
 	Checkout(ctx context.Context, rootPath string, hash plumbing.Hash) error
 }
 
-// retry tries the function f until max attempts is reached
+// retry tries the function f until max attempts is reached.
 // If f returns a true bool or a nil error retries are stopped and the error is
 // returned.
+//
+// On a push conflict (ErrBranchBehindOrigin) the master mirror is already
+// resynced by Commit's rebaseOntoMaster before the error surfaces, so the next
+// attempt's ShallowClone reads a fresh mirror without any extra SyncMaster here.
 func (s *Service) retry(ctx context.Context, f func(context.Context, int) (bool, error)) error {
-	return try.Do(ctx, s.Tracer, s.MaxRetries, func(ctx context.Context, attempt int) (bool, error) {
-		stop, err := f(ctx, attempt)
-		if err != nil {
-			if errors.Cause(err) == internalgit.ErrBranchBehindOrigin {
-				log.WithContext(ctx).Infof("flow/retry: master repo not aligned with origin. Syncing and retrying")
-				err := s.Git.SyncMaster(ctx)
-				if err != nil {
-					return false, errors.WithMessage(err, "sync master")
-				}
-			}
-		}
-		return stop, err
-	})
+	return try.Do(ctx, s.Tracer, s.MaxRetries, f)
 }
 
 type Environment struct {
