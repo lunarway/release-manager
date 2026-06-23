@@ -46,6 +46,10 @@ type Service struct {
 	masterPath  string
 	masterMutex sync.RWMutex
 	master      *git.Repository
+
+	// pushMu serializes git push origin calls to prevent branch-behind-origin
+	// conflicts when multiple workers push concurrently.
+	pushMu sync.Mutex
 }
 
 func (s *Service) MasterPath() string {
@@ -389,7 +393,11 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 	}
 
 	span, _ = s.Tracer.FromCtx(ctx, "push")
-	err = s.gitPush(ctx, rootPath)
+	err = func() error {
+		s.pushMu.Lock()
+		defer s.pushMu.Unlock()
+		return s.gitPush(ctx, rootPath)
+	}()
 	span.End()
 	if err == nil {
 		return nil
@@ -403,6 +411,8 @@ func (s *Service) Commit(ctx context.Context, rootPath, changesPath, msg string)
 	}
 	pushSpan, _ := s.Tracer.FromCtx(ctx, "push after rebase")
 	defer pushSpan.End()
+	s.pushMu.Lock()
+	defer s.pushMu.Unlock()
 	return s.gitPush(ctx, rootPath)
 }
 
@@ -495,6 +505,8 @@ func (s *Service) SignedCommit(ctx context.Context, rootPath, changesPath, autho
 
 	span, _ = s.Tracer.FromCtx(ctx, "push")
 	defer span.End()
+	s.pushMu.Lock()
+	defer s.pushMu.Unlock()
 	return s.gitPush(ctx, rootPath)
 }
 
