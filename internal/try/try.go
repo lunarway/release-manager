@@ -106,10 +106,7 @@ func contextSleep(ctx context.Context, d time.Duration) error {
 func (c config) backoff(attempt int) time.Duration {
 	// attempt 2 is the first wait, exponent should start at 0.
 	exp := max(attempt-2, 0)
-	ceiling := float64(c.baseDelay) * float64(int64(1)<<uint(exp))
-	if max := float64(c.maxDelay); ceiling > max {
-		ceiling = max
-	}
+	ceiling := min(float64(c.baseDelay)*float64(int64(1)<<uint(exp)), float64(c.maxDelay))
 	// full jitter in [ceiling/2, ceiling] keeps delays growing while still
 	// randomizing them so colliding releases spread out.
 	jittered := ceiling/2 + c.jitter()*(ceiling/2)
