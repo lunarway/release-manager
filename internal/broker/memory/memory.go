@@ -10,20 +10,23 @@ import (
 )
 
 type Broker struct {
-	logger *log.Logger
-	queue  chan broker.Publishable
+	logger         *log.Logger
+	queue          chan broker.Publishable
+	broadcastQueue chan broker.Publishable
 }
 
 // New allocates and returns an in-memory Broker with provided queue size.
 func New(logger *log.Logger, queueSize int) *Broker {
 	return &Broker{
-		logger: logger,
-		queue:  make(chan broker.Publishable, queueSize),
+		logger:         logger,
+		queue:          make(chan broker.Publishable, queueSize),
+		broadcastQueue: make(chan broker.Publishable, queueSize),
 	}
 }
 
 func (b *Broker) Close() error {
 	close(b.queue)
+	close(b.broadcastQueue)
 	return nil
 }
 
@@ -39,6 +42,32 @@ func (b *Broker) Publish(ctx context.Context, event broker.Publishable) error {
 			"responseTime": duration,
 		}).Info("[publisher] [OK] Published message successfully")
 	return nil
+}
+
+// PublishBroadcast publishes a message to the in-process broadcast queue. In a
+// single-process broker the only replica is this process, so the message is
+// delivered to this process' broadcast consumer.
+func (b *Broker) PublishBroadcast(ctx context.Context, event broker.Publishable) error {
+	b.logger.WithFields("message", event).Info("Publishing broadcast message")
+	b.broadcastQueue <- event
+	return nil
+}
+
+// StartBroadcastConsumer consumes messages from the in-process broadcast queue.
+// It is blocking and returns ErrBrokerClosed once the broker is closed.
+func (b *Broker) StartBroadcastConsumer(handler func([]byte) error) error {
+	for msg := range b.broadcastQueue {
+		logger := b.logger.With("eventType", msg.Type())
+		body, err := msg.Marshal()
+		if err != nil {
+			logger.Errorf("[broadcast] Could not get body of message: %v", err)
+			continue
+		}
+		if err := handler(body); err != nil {
+			logger.Errorf("[broadcast] Failed to handle message: %v", err)
+		}
+	}
+	return broker.ErrBrokerClosed
 }
 
 func (b *Broker) StartConsumer(handlers map[string]func([]byte) error, errorHandler func(msgType string, msgBody []byte, err error)) error {

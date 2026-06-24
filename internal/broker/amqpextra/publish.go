@@ -30,3 +30,25 @@ func (w *Worker) Publish(ctx context.Context, message broker.Publishable) error 
 	}
 	return nil
 }
+
+// PublishBroadcast publishes a Publishable message to the fanout broadcast
+// exchange so every replica's broadcast consumer receives a copy. It blocks
+// until the message is confirmed on the server.
+//
+// If ctx is cancelled before completing the publish the operation is cancelled.
+func (w *Worker) PublishBroadcast(ctx context.Context, message broker.Publishable) error {
+	correlationID := tracing.RequestIDFromContext(ctx)
+
+	err := w.worker.Publish(ctx, amqp.PublishDto{
+		Exchange:      w.config.BroadcastExchange,
+		RoutingKey:    "", // fanout exchanges ignore the routing key
+		MessageType:   message.Type(),
+		CorrelationID: correlationID,
+		Message:       message,
+		ExchangeType:  "fanout",
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -20,7 +20,11 @@ import (
 // If ctx is cancelled before completing the publish the operation is cancelled.
 func (w *Worker) Publish(ctx context.Context, dto PublishDto) error {
 	prefixedExchange := w.prefixed(dto.Exchange)
-	err := w.ensureExchangeDeclared(ctx, prefixedExchange)
+	exchangeType := dto.ExchangeType
+	if exchangeType == "" {
+		exchangeType = amqp.ExchangeTopic
+	}
+	err := w.ensureExchangeDeclared(ctx, prefixedExchange, exchangeType)
 	if err != nil {
 		return errors.WithMessage(err, "declare exchange")
 	}
@@ -77,15 +81,16 @@ func (w *Worker) Publish(ctx context.Context, dto PublishDto) error {
 }
 
 // ensureExchangeDeclared ensures that an exchange named prefixedExchange is
-// declared. Once it is declared for an exchange it becomes a noop.
-func (w *Worker) ensureExchangeDeclared(ctx context.Context, prefixedExchange string) error {
+// declared with the given kind. Once it is declared for an exchange it becomes
+// a noop.
+func (w *Worker) ensureExchangeDeclared(ctx context.Context, prefixedExchange, kind string) error {
 	_, ok := w.declaredExchanges[prefixedExchange]
 	if ok {
 		w.logger.Debugf("[amqp] Exchange '%s' already declared", prefixedExchange)
 		return nil
 	}
-	w.logger.Debugf("[amqp] Declaring publishing exchange '%s'", prefixedExchange)
-	err := w.declareExchange(prefixedExchange)
+	w.logger.Debugf("[amqp] Declaring publishing exchange '%s' of type '%s'", prefixedExchange, kind)
+	err := w.declareExchange(prefixedExchange, kind)
 	if err != nil {
 		return err
 	}
@@ -93,7 +98,7 @@ func (w *Worker) ensureExchangeDeclared(ctx context.Context, prefixedExchange st
 	return nil
 }
 
-func (w *Worker) declareExchange(exchange string) error {
+func (w *Worker) declareExchange(exchange, kind string) error {
 	amqpConn, err := w.dialer.Connection(context.Background())
 	if err != nil {
 		return err
@@ -107,12 +112,12 @@ func (w *Worker) declareExchange(exchange string) error {
 
 	err = channel.ExchangeDeclare(
 		exchange,
-		"topic", // kind
-		true,    // durable
-		false,   // autoDelete
-		false,   // internal
-		false,   // noWait
-		nil,     // args
+		kind,  // kind
+		true,  // durable
+		false, // autoDelete
+		false, // internal
+		false, // noWait
+		nil,   // args
 	)
 	if err != nil {
 		return err
@@ -126,4 +131,7 @@ type PublishDto struct {
 	MessageType   string
 	CorrelationID string
 	Message       interface{}
+	// ExchangeType is the kind of exchange to declare for this publish (e.g.
+	// "topic" or "fanout"). When empty it defaults to "topic".
+	ExchangeType string
 }
