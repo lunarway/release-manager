@@ -149,6 +149,72 @@ func TestCommitAdvancesMirrorAfterPush(t *testing.T) {
 		"mirror master must match the pushed commit")
 }
 
+// TestShallowCloneRecoveryUsesConfiguredIdentity reproduces the production
+// failure where the rebase recovery path exits 128 ("unable to auto-detect
+// email address"). Unlike the tests above, it builds the working tree via the
+// real ShallowClone instead of manually configuring an identity, so the working
+// tree carries only whatever identity ShallowClone sets. The rebase that
+// recovers a push conflict writes a commit and therefore needs that identity;
+// without it git aborts fatally and the release never recovers in place.
+func TestShallowCloneRecoveryUsesConfiguredIdentity(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+
+	// Force git to use only the configured identity, never an implicit
+	// user@hostname one. This reproduces the container, where the hostname
+	// resolves to ".(none)" and git refuses the auto-detected address with
+	// "fatal: unable to auto-detect email address". Without this, a developer
+	// machine's resolvable hostname would let the rebase commit succeed and mask
+	// the bug.
+	globalConfig := filepath.Join(root, "gitconfig")
+	require.NoError(t, os.WriteFile(globalConfig, []byte("[user]\n\tuseConfigOnly = true\n"), 0o644))
+	t.Setenv("GIT_CONFIG_GLOBAL", globalConfig)
+	t.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)
+
+	originDir := filepath.Join(root, "origin")
+	seedDir := filepath.Join(root, "seed")
+	mirrorDir := filepath.Join(root, "mirror")
+	workDir := filepath.Join(root, "work")
+
+	runGit(t, root, "init", "--bare", "-b", "master", originDir)
+	runGit(t, root, "clone", originDir, seedDir)
+	configureIdentity(t, seedDir)
+	writeFile(t, seedDir, "a.txt", "a")
+	runGit(t, seedDir, "add", ".")
+	runGit(t, seedDir, "commit", "-m", "add a")
+	runGit(t, seedDir, "push", "origin", "master")
+
+	runGit(t, root, "clone", originDir, mirrorDir)
+
+	s := &Service{
+		Tracer:        tracing.NewNoop(),
+		Config:        &GitConfig{User: "test", Email: "test@example.com"},
+		ConfigRepoURL: originDir,
+		masterPath:    mirrorDir,
+	}
+
+	// Build the working tree exactly as the release flow does, via ShallowClone,
+	// rather than cloning and configuring an identity by hand.
+	err := s.ShallowClone(ctx, workDir)
+	require.NoError(t, err)
+
+	// An upstream commit lands after the clones were taken, so the first push
+	// is rejected and Commit must rebase to recover.
+	writeFile(t, seedDir, "b.txt", "b")
+	runGit(t, seedDir, "add", ".")
+	runGit(t, seedDir, "commit", "-m", "add b")
+	runGit(t, seedDir, "push", "origin", "master")
+
+	writeFile(t, workDir, "c.txt", "c")
+
+	err = s.Commit(ctx, workDir, ".", "[env/svc] release c")
+	require.NoError(t, err, "rebase recovery must use the configured identity, not abort with exit 128")
+
+	pullLatest(t, seedDir)
+	assert.FileExists(t, filepath.Join(seedDir, "b.txt"))
+	assert.FileExists(t, filepath.Join(seedDir, "c.txt"))
+}
+
 func revParse(t *testing.T, dir, ref string) string {
 	t.Helper()
 	cmd := exec.Command("git", "rev-parse", ref)
