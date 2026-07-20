@@ -1,6 +1,6 @@
 module github.com/lunarway/release-manager
 
-go 1.23.0
+go 1.24
 
 toolchain go1.24.6
 
@@ -10,7 +10,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/google/uuid v1.6.0
-	github.com/johannesboyne/gofakes3 v0.0.0-20221110173912-32fb85c5aed6
+	github.com/johannesboyne/gofakes3 v1.2.0
 	github.com/makasim/amqpextra v1.1.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/nlopes/slack v0.6.0
@@ -46,6 +46,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.35.0 // indirect
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
+	go.shabbyrobe.org/gocovmerge v0.0.0-20230507111327-fa4f82cfbf4d // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
@@ -101,7 +102,6 @@ require (
 	github.com/ryszard/goskiplist v0.0.0-20150312221310-2dfbae5fcf46 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
-	github.com/shabbyrobe/gocovmerge v0.0.0-20180507124511-f6ea450bfb63 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
