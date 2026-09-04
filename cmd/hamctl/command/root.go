@@ -91,10 +91,26 @@ type shuttleSpec struct {
 }
 
 type shuttleSpecVars struct {
-	Service string `yaml:"service"`
-	K8S     struct {
-		Namespace string `yaml:"namespace"`
-	} `yaml:"k8s"`
+	Service string         `yaml:"service"`
+	K8S     shuttleSpecK8S `yaml:"k8s"`
+}
+
+type shuttleSpecK8S struct {
+	Namespace string
+}
+
+func (s *shuttleSpecK8S) UnmarshalYAML(value *yaml.Node) error {
+	var spec struct {
+		Namespace yaml.Node `yaml:"namespace"`
+	}
+	if err := value.Decode(&spec); err != nil {
+		return err
+	}
+
+	if spec.Namespace.Kind == yaml.ScalarNode {
+		s.Namespace = spec.Namespace.Value
+	}
+	return nil
 }
 
 // shuttleSpecFromFile tries to read a shuttle specification.
