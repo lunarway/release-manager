@@ -317,11 +317,23 @@ info  command/start.go:145  Release [dev]: verification (master-e8da185c2c-06249
 
 A Slack message is pushed to the `#releases-<env>` Slack channel for the release environment.
 
-If the artifact contains a `squad`, a best-effort copy is also pushed to `#squad-<squad>-releases-<env>`. The squad notification does not affect the release flow if the artifact squad is missing, the Slack channel does not exist, or posting the message fails.
+![](docs/slack_release_message.png)
+
+#### Squad notifications
+
+If the artifact contains a `squad` attribute, a best-effort copy is also pushed to `#squad-<squad>-releases-<env>` on slack.  
+The squad notification does not affect the release flow if the artifact squad is missing, the Slack channel does not exist, or posting the message fails.
 
 Kubernetes deploy success, pod error and job error notifications follow the same squad channel pattern.
 
-![](docs/slack_release_message.png)
+The squad release channel must include the `hamctl` app as participant otherwise the messages won't be posted.  
+
+![](docs/squad_slack_release_notification_add_bot.png)  
+
+After that, messages will automatically be posted to the channel:  
+![](docs/squad_slack_release_notification_posted.png)  
+
+#### Grafana  
 
 Grafana is annotated with release metadata and tag `deployment` useful for plotting on graphs to see when new releases are rolled out.
 
