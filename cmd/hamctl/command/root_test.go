@@ -58,6 +58,29 @@ func TestDefaultShuttleString(t *testing.T) {
 	}
 }
 
+func TestShuttleSpecFromFile_ParsesNamespaceComplexConfig(t *testing.T) {
+	oldWD, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, os.Chdir(oldWD)) })
+
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(dir+"/shuttle.yaml", []byte(`
+vars:
+  service: lunar-litellm
+  k8s:
+    namespace:
+      fallback: dev
+      whitelist:
+        - dev
+`), 0o600))
+	require.NoError(t, os.Chdir(dir))
+
+	spec, ok := shuttleSpecFromFile()
+	require.True(t, ok)
+	assert.Equal(t, "lunar-litellm", spec.Vars.Service)
+	assert.Empty(t, spec.Vars.K8S.Namespace)
+}
+
 func TestDefaultShuttleString_noSpec(t *testing.T) {
 	var flagValue string
 	defaultShuttleString(func() (shuttleSpec, bool) {
