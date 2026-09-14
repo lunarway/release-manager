@@ -42,3 +42,40 @@ func (w *Worker) StartConsumer(handlers map[string]func([]byte) error, eventDrop
 
 	return broker.ErrBrokerClosed
 }
+
+// StartBroadcastConsumer consumes broadcast messages from a per-replica
+// server-named fanout queue. Each replica receives a copy of every broadcast
+// message. The method is blocking and will always return with ErrBrokerClosed
+// after calls to Close.
+//
+// Deliveries are acked unconditionally: the handler is expected to be
+// idempotent (skip-if-current), so a failed handling is logged rather than
+// requeued. Recovery relies on the next broadcast or the background sync ticker.
+func (w *Worker) StartBroadcastConsumer(handler func([]byte) error) error {
+	consumer := internalamqp.ConsumerConfig{
+		Exchange: w.config.BroadcastExchange,
+		Fanout:   true,
+		// Prefetch 1 bounds in-flight unacked deliveries to one, matching the
+		// single worker below and providing backpressure on a burst of broadcasts
+		// (e.g. after a reconnect drains an accumulated queue).
+		Prefetch: 1,
+		Handle: func(message *amqp.Delivery) error {
+			if err := handler(message.Body); err != nil {
+				w.config.Logger.Errorf("[amqp] Broadcast handler failed for message type '%s': %v", message.Type, err)
+			}
+			if err := message.Ack(false); err != nil {
+				w.config.Logger.Errorf("[amqp] Broadcast ack failed for message type '%s': %v", message.Type, err)
+			}
+			return nil
+		},
+		WorkerCount: 1,
+	}
+
+	consumersStarted := make(chan struct{})
+	err := w.worker.StartConsumer([]internalamqp.ConsumerConfig{consumer}, consumersStarted)
+	if err != nil {
+		return err
+	}
+
+	return broker.ErrBrokerClosed
+}
