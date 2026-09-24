@@ -101,3 +101,53 @@ func TestBroker_PublishAndConsumer(t *testing.T) {
 	consumerWg.Wait()
 	assert.Equal(t, publishedMessages, int(receivedCount), "received messages count not as expected")
 }
+
+// TestBroker_PublishBroadcastAndConsumer tests that broadcast messages
+// published via PublishBroadcast are delivered to the broadcast consumer.
+func TestBroker_PublishBroadcastAndConsumer(t *testing.T) {
+	logger := log.New(&log.Configuration{
+		Level: log.Level{
+			Level: zapcore.DebugLevel,
+		},
+		Development: true,
+	})
+
+	publishedMessages := 100
+	var receivedCount int32
+	receivedAllEvents := make(chan struct{})
+	memoryBroker := New(logger, 5)
+
+	var consumerWg sync.WaitGroup
+	consumerWg.Add(1)
+	go func() {
+		defer consumerWg.Done()
+		err := memoryBroker.StartBroadcastConsumer(func(d []byte) error {
+			newCount := atomic.AddInt32(&receivedCount, 1)
+			if int(newCount) == publishedMessages {
+				close(receivedAllEvents)
+			}
+			var msg testEvent
+			return json.Unmarshal(d, &msg)
+		})
+		assert.EqualError(t, err, broker.ErrBrokerClosed.Error(), "unexpected broadcast consumer error")
+	}()
+
+	for i := 1; i <= publishedMessages; i++ {
+		err := memoryBroker.PublishBroadcast(context.Background(), &testEvent{
+			Message: fmt.Sprintf("Message %d", i),
+		})
+		assert.NoError(t, err, "unexpected error publishing broadcast message")
+	}
+
+	select {
+	case <-receivedAllEvents:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting to receive all broadcast events")
+	}
+
+	err := memoryBroker.Close()
+	assert.NoError(t, err, "unexpected close error")
+
+	consumerWg.Wait()
+	assert.Equal(t, publishedMessages, int(receivedCount), "received broadcast messages count not as expected")
+}
