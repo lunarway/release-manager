@@ -2,7 +2,9 @@ package flow_test
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/go-git/go-git/v5"
@@ -62,6 +64,16 @@ func TestService_DescribeRelease_basicFlow(t *testing.T) {
 		},
 	}
 	for i := range commits {
+		// Recent go-git versions reject empty commits. Add a file for each
+		// release so the test remains valid across dependency updates.
+		filename := fmt.Sprintf("commit-%d", i)
+		if err := os.WriteFile(filepath.Join(tmpDir, filename), []byte(commits[i].message), 0o644); err != nil {
+			t.Fatalf("failed to create commit file: %v", err)
+		}
+		if _, err := wt.Add(filename); err != nil {
+			t.Fatalf("failed to stage commit file: %v", err)
+		}
+
 		hash, err := wt.Commit(commits[i].message, &git.CommitOptions{
 			Author: &object.Signature{
 				Name:  "test",
