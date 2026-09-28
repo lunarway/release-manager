@@ -2,6 +2,7 @@ package amqp
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/makasim/amqpextra/consumer"
@@ -32,18 +33,32 @@ func (w *Worker) StartConsumer(consumerConfigs []ConsumerConfig, consumersStarte
 		}
 
 		prefixedQueue := w.prefixed(consumerConfig.Queue)
+
+		// queueSource configures where the consumer reads messages from. In the
+		// default mode it consumes a pre-declared durable queue by name. In fanout
+		// mode each consumer declares its own server-named, auto-delete queue on
+		// its own connection and binds it to the fanout exchange, so every consumer
+		// receives a copy of every published message and the queue is removed when
+		// the connection closes.
+		queueSource := []consumer.Option{consumer.WithQueue(prefixedQueue)}
+		queueDisplayName := prefixedQueue
+		if consumerConfig.Fanout {
+			prefixedExchange := w.prefixed(consumerConfig.Exchange)
+			queueSource = []consumer.Option{consumer.WithExchange(prefixedExchange, "")}
+			queueDisplayName = fmt.Sprintf("server-named fanout queue on exchange '%s'", prefixedExchange)
+		}
+
 		if consumerConfig.Prefetch > 0 {
-			w.logger.Infof("[amqp] Setting prefetch to '%d' for queue '%s'", consumerConfig.Prefetch, prefixedQueue)
+			w.logger.Infof("[amqp] Setting prefetch to '%d' for %s", consumerConfig.Prefetch, queueDisplayName)
 		}
 
 		if consumerConfig.WorkerCount == 0 {
 			consumerConfig.WorkerCount = 1
 		}
-		w.logger.Infof("[amqp] Setting workers to '%d' for queue '%s'", consumerConfig.WorkerCount, prefixedQueue)
+		w.logger.Infof("[amqp] Setting workers to '%d' for %s", consumerConfig.WorkerCount, queueDisplayName)
 
 		consumerState := make(chan consumer.State, 2)
-		amqpConsumer, err := w.dialer.Consumer(
-			consumer.WithQueue(prefixedQueue),
+		consumerOptions := append(queueSource,
 			consumer.WithNotify(consumerState),
 			consumer.WithHandler(consumer.Wrap(handlerFunc(consumerConfig.Handle), loggerMiddleware(w.logger))),
 			consumer.WithLogger(newLogger(w.logger, "consumer")),
@@ -51,8 +66,9 @@ func (w *Worker) StartConsumer(consumerConfigs []ConsumerConfig, consumersStarte
 			consumer.WithQos(consumerConfig.Prefetch, false),
 			consumer.WithWorker(consumer.NewParallelWorker(consumerConfig.WorkerCount)),
 		)
+		amqpConsumer, err := w.dialer.Consumer(consumerOptions...)
 		if err != nil {
-			return errors.WithMessagef(err, "instantiate consumer on exchange %v routing keys %v to queue %v", consumerConfig.Exchange, consumerConfig.RoutingPatterns, prefixedQueue)
+			return errors.WithMessagef(err, "instantiate consumer on exchange %v routing keys %v to %s", consumerConfig.Exchange, consumerConfig.RoutingPatterns, queueDisplayName)
 		}
 
 		// track when the consumer is ready
@@ -64,7 +80,7 @@ func (w *Worker) StartConsumer(consumerConfigs []ConsumerConfig, consumersStarte
 		go func() {
 			defer stopped.Done()
 			<-amqpConsumer.NotifyClosed()
-			w.logger.Infof("[amqp] Consumer on queue %v closed", prefixedQueue)
+			w.logger.Infof("[amqp] Consumer on %s closed", queueDisplayName)
 		}()
 	}
 	// when all consumers are ready, the ready WaitGroup is Done and we signal to
@@ -104,10 +120,14 @@ func (w *Worker) initializeConsumer(c ConsumerConfig) error {
 		return errors.WithMessage(err, "create channel")
 	}
 
-	w.logger.Infof("[amqp] Declaring consumer exchange '%s'", prefixedExchange)
+	exchangeType := amqp.ExchangeTopic
+	if c.Fanout {
+		exchangeType = amqp.ExchangeFanout
+	}
+	w.logger.Infof("[amqp] Declaring consumer exchange '%s' of type '%s'", prefixedExchange, exchangeType)
 	err = channel.ExchangeDeclare(
 		prefixedExchange,
-		amqp.ExchangeTopic,
+		exchangeType,
 		true,
 		false,
 		false,
@@ -115,6 +135,13 @@ func (w *Worker) initializeConsumer(c ConsumerConfig) error {
 		nil)
 	if err != nil {
 		return errors.WithMessagef(err, "declare exchange '%s'", prefixedExchange)
+	}
+
+	// In fanout mode the per-consumer queue is server-named and declared on the
+	// consumer's own connection when the consumer starts, so here we only ensure
+	// the fanout exchange exists for the consumer to bind to.
+	if c.Fanout {
+		return nil
 	}
 
 	w.logger.Infof("[amqp] Declaring queue '%s'", prefixedQueue)
@@ -167,4 +194,10 @@ type ConsumerConfig struct {
 	Handle func(*amqp.Delivery) error
 	// The number of concurrent workers. If it is not set then it will default to 1.
 	WorkerCount int
+	// Fanout enables broadcast delivery. When true the exchange is declared as a
+	// fanout exchange and the consumer declares its own server-named, auto-delete
+	// queue (bound to the exchange) so every consumer receives a copy of every
+	// message. Queue, DurableQueue, RoutingPatterns and single-active-consumer do
+	// not apply in this mode.
+	Fanout bool
 }
