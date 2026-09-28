@@ -12,7 +12,7 @@ type ResourceEventHandlerFuncs struct {
 }
 
 // OnAdd calls AddFunc if it's not nil.
-func (r ResourceEventHandlerFuncs) OnAdd(obj interface{}) {
+func (r ResourceEventHandlerFuncs) OnAdd(obj interface{}, _ bool) {
 	if r.AddFunc != nil && r.ShouldProcess() {
 		r.AddFunc(obj)
 	}
