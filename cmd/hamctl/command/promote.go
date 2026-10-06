@@ -5,6 +5,7 @@ import (
 
 	"github.com/lunarway/release-manager/cmd/hamctl/command/actions"
 	"github.com/lunarway/release-manager/cmd/hamctl/command/completion"
+	"github.com/lunarway/release-manager/internal/artifact"
 	httpinternal "github.com/lunarway/release-manager/internal/http"
 	"github.com/lunarway/release-manager/internal/intent"
 	"github.com/spf13/cobra"
@@ -33,7 +34,9 @@ func NewPromote(client *httpinternal.Client, service *string, releaseClient Rele
 			var artifactID string
 			var err error
 			if fromEnvironment == "master" {
-				artifactID, err = actions.ArtifactIDFromBranch(client, *service, "master")
+				var latest artifact.Spec
+				latest, err = actions.LatestArtifactFromBranch(client, *service, "master")
+				artifactID = latest.ID
 			} else {
 				artifactID, err = actions.ArtifactIDFromEnvironment(client, *service, namespace, fromEnvironment)
 			}
