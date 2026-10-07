@@ -13,7 +13,15 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const devBranchRestrictionID = "branch-restriction-dev"
+
 func TestCanRelease(t *testing.T) {
+	normalizedBranchRestriction := []BranchRestriction{
+		{
+			Environment: "dev",
+			BranchRegex: "^krvi_.*$",
+		},
+	}
 	tt := []struct {
 		name         string
 		branch       string
@@ -107,6 +115,27 @@ func TestCanRelease(t *testing.T) {
 			},
 			canRelease: false,
 		},
+		{
+			name:         "environment restricted to normalized branch and branch with slash",
+			branch:       branchWithSlash,
+			env:          "dev",
+			restrictions: normalizedBranchRestriction,
+			canRelease:   true,
+		},
+		{
+			name:         "environment restricted to normalized branch and normalized branch",
+			branch:       normalizedBranch,
+			env:          "dev",
+			restrictions: normalizedBranchRestriction,
+			canRelease:   true,
+		},
+		{
+			name:         "environment restricted to normalized branch and other branch with slash",
+			branch:       "other/foo",
+			env:          "dev",
+			restrictions: normalizedBranchRestriction,
+			canRelease:   false,
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
@@ -141,6 +170,52 @@ func TestService_ApplyBranchRestriction(t *testing.T) {
 			err:         errors.New("branch regex not valid: error parsing regexp: missing closing ): `^master(`"),
 		},
 		{
+			name:        "branch regex with slash",
+			svc:         "empty",
+			branchRegex: "^krvi/.*$",
+			env:         "dev",
+			id:          "",
+			err:         ErrBranchRegexContainsSlash,
+		},
+		{
+			name:        "branch regex with escaped slash",
+			svc:         "empty",
+			branchRegex: `^(master|hotfix\/.+)$`,
+			env:         "dev",
+			id:          "",
+			err:         ErrBranchRegexContainsSlash,
+		},
+		{
+			name:        "match with auto release from branch with slash",
+			svc:         autoReleaseSlashService,
+			branchRegex: "^krvi_foo$",
+			env:         "dev",
+			id:          devBranchRestrictionID,
+			polcies: Policies{
+				Service: autoReleaseSlashService,
+				AutoReleases: []AutoReleasePolicy{
+					{
+						ID:          "auto-release-krvi/foo-dev",
+						Environment: "dev",
+						Branch:      branchWithSlash,
+					},
+					{
+						ID:          "auto-release-master-prod",
+						Environment: "prod",
+						Branch:      "master",
+					},
+				},
+				BranchRestrictions: []BranchRestriction{
+					{
+						ID:          devBranchRestrictionID,
+						Environment: "dev",
+						BranchRegex: "^krvi_foo$",
+					},
+				},
+			},
+			err: nil,
+		},
+		{
 			name:        "conflict with auto release",
 			svc:         "autorelease",
 			branchRegex: "^dev$",
@@ -163,7 +238,7 @@ func TestService_ApplyBranchRestriction(t *testing.T) {
 			svc:         "autorelease",
 			branchRegex: "^master$",
 			env:         "dev",
-			id:          "branch-restriction-dev",
+			id:          devBranchRestrictionID,
 			polcies: Policies{
 				Service: "autorelease",
 				AutoReleases: []AutoReleasePolicy{
@@ -175,7 +250,7 @@ func TestService_ApplyBranchRestriction(t *testing.T) {
 				},
 				BranchRestrictions: []BranchRestriction{
 					{
-						ID:          "branch-restriction-dev",
+						ID:          devBranchRestrictionID,
 						Environment: "dev",
 						BranchRegex: "^master$",
 					},
@@ -285,7 +360,7 @@ func TestService_ApplyBranchRestriction(t *testing.T) {
 
 			// read the stored policies from the destination path
 			policies, err := s.Get(context.Background(), tc.svc)
-			if !assert.NoError(t, err, "get stored policy failed") {
+			if assert.NoError(t, err, "get stored policy failed") {
 				assert.Equal(t, tc.polcies, policies, "updated policies not as expected")
 			}
 		})
