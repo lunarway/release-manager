@@ -121,6 +121,13 @@ func applyBranchRestrictionPolicy(payload *payload, policySvc *policyinternal.Se
 				return
 			}
 			switch errorCause(err) {
+			case policyinternal.ErrBranchRegexContainsSlash:
+				logger.Infof(
+					"http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction: %v",
+					req.Service, req.BranchRegex, req.Environment, err,
+				)
+				httpinternal.Error(w, err.Error(), http.StatusBadRequest)
+				return
 			case policyinternal.ErrConflict:
 				logger.Infof("http: policy: apply: service '%s' branch regex '%s' environment '%s': apply branch-restriction rejected: conflicts with another policy: %v", req.Service, req.BranchRegex, req.Environment, err)
 				httpinternal.Error(w, "policy conflicts with another policy", http.StatusBadRequest)
