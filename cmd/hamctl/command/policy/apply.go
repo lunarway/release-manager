@@ -100,7 +100,8 @@ func branchRestriction(client *httpinternal.Client, service *string) *cobra.Comm
 			return nil
 		},
 	}
-	command.Flags().StringVar(&branchRegex, "branch-regex", "", "Regular expression defining allowed branch names")
+	command.Flags().StringVar(&branchRegex, "branch-regex", "",
+		"Regular expression defining allowed branch names, with '/' written as '_'")
 	// errors are skipped here as the only case they can occur are if the flag
 	// does not exist on the command.
 	//nolint:errcheck

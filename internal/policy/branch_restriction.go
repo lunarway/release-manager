@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 
+	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/commitinfo"
 	"github.com/lunarway/release-manager/internal/log"
 	"github.com/pkg/errors"
@@ -27,6 +29,9 @@ func (s *Service) ApplyBranchRestriction(ctx context.Context, actor Actor, svc, 
 	if err != nil {
 		return "", errors.WithMessage(err, "branch regex not valid")
 	}
+	if strings.Contains(branchRegex, "/") {
+		return "", ErrBranchRegexContainsSlash
+	}
 
 	// ensure no auto release policies will conflict with this one
 	policies, err := s.Get(ctx, svc)
@@ -34,7 +39,7 @@ func (s *Service) ApplyBranchRestriction(ctx context.Context, actor Actor, svc, 
 		return "", err
 	}
 	for _, policy := range policies.AutoReleases {
-		if policy.Environment == env && !re.MatchString(policy.Branch) {
+		if policy.Environment == env && !re.MatchString(artifact.NormalizeBranch(policy.Branch)) {
 			return "", errors.WithMessagef(ErrConflict, "conflict with %s", policy.ID)
 		}
 	}
@@ -59,6 +64,7 @@ func (s *Service) ApplyBranchRestriction(ctx context.Context, actor Actor, svc, 
 }
 
 // CanRelease returns whether service svc's branch can be released to env.
+// Branch restrictions are matched against artifact.NormalizeBranch(branch).
 func (s *Service) CanRelease(ctx context.Context, svc, branch, env string) (bool, error) {
 	log.WithContext(ctx).Infof("Verifying whether %s on branch %s can be released to %s", svc, branch, env)
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.CanRelease")
@@ -85,10 +91,7 @@ func canRelease(ctx context.Context, policies Policies, branch, env string) (boo
 		if err != nil {
 			return false, errors.WithMessage(err, "branch regex not valid regular expression")
 		}
-		if r.MatchString(branch) {
-			return true, nil
-		}
-		return false, nil
+		return r.MatchString(artifact.NormalizeBranch(branch)), nil
 	}
 	return true, nil
 }

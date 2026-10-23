@@ -110,7 +110,7 @@ func (f *Service) ArtifactSpecifications(ctx context.Context, service string, n 
 		if err != nil {
 			return nil, errors.WithMessagef(err, "failed getting object %s", *object.Key)
 		}
-		if branch != "" && artifactSpec.Application.Branch != branch {
+		if branch != "" && !artifact.SameBranch(artifactSpec.Application.Branch, branch) {
 			continue
 		}
 		artifactSpecs = append(artifactSpecs, artifactSpec)
