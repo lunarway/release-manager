@@ -1,11 +1,16 @@
 package git
 
 import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLocateReleaseCondition(t *testing.T) {
@@ -631,4 +636,181 @@ func TestService_pushMu_serializesConcurrentPushes(t *testing.T) {
 	}
 	wg.Wait()
 	assert.Equal(t, int64(1), maxSeen, "at most one goroutine should hold the push mutex at a time")
+}
+
+// localRepositoryFixture is a clone of a bare origin repository. The checked
+// out branch holds the commits first and pushed, which are pushed to origin,
+// followed by unpushed, which only exists in the clone.
+type localRepositoryFixture struct {
+	repository LocalRepository
+	originDir  string
+	branch     string
+	first      string
+	pushed     string
+	unpushed   string
+}
+
+func newLocalRepositoryFixture(t *testing.T) localRepositoryFixture {
+	t.Helper()
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)
+
+	root := t.TempDir()
+	f := localRepositoryFixture{
+		repository: LocalRepository{Dir: filepath.Join(root, "work")},
+		originDir:  filepath.Join(root, "origin"),
+		branch:     "feature/wait",
+	}
+	runGit(t, root, "init", "--bare", "-b", "master", f.originDir)
+	runGit(t, root, "clone", f.originDir, f.repository.Dir)
+	configureIdentity(t, f.repository.Dir)
+	runGit(t, f.repository.Dir, "checkout", "-b", f.branch)
+
+	f.first = commitEmpty(t, f.repository.Dir, "first")
+	f.pushed = commitEmpty(t, f.repository.Dir, "pushed")
+	runGit(t, f.repository.Dir, "push", "origin", f.branch)
+	f.unpushed = commitEmpty(t, f.repository.Dir, "unpushed")
+
+	return f
+}
+
+// pushFromOtherClone pushes a new commit to the fixture branch on origin from
+// another clone and returns its SHA.
+func (f localRepositoryFixture) pushFromOtherClone(t *testing.T) string {
+	t.Helper()
+	otherDir := filepath.Join(t.TempDir(), "other")
+	runGit(t, f.originDir, "clone", "--branch", f.branch, f.originDir, otherDir)
+	configureIdentity(t, otherDir)
+	sha := commitEmpty(t, otherDir, "from other clone")
+	runGit(t, otherDir, "push", "origin", f.branch)
+
+	return sha
+}
+
+func commitEmpty(t *testing.T, dir, message string) string {
+	t.Helper()
+	runGit(t, dir, "commit", "--allow-empty", "-m", message)
+
+	return revParse(t, dir, "HEAD")
+}
+
+func TestLocalRepository(t *testing.T) {
+	ctx := context.Background()
+	f := newLocalRepositoryFixture(t)
+	unknownSHA := strings.Repeat("0", 40)
+
+	t.Run("HeadSHA", func(t *testing.T) {
+		head, err := f.repository.HeadSHA(ctx)
+
+		require.NoError(t, err)
+		assert.Equal(t, f.unpushed, head)
+	})
+
+	t.Run("CommitExists", func(t *testing.T) {
+		tt := []struct {
+			name   string
+			sha    string
+			exists bool
+		}{
+			{name: "local commit", sha: f.unpushed, exists: true},
+			{name: "abbreviated commit", sha: f.first[:7], exists: true},
+			{name: "unknown commit", sha: unknownSHA, exists: false},
+			{name: "option", sha: "--version", exists: false},
+		}
+		for _, tc := range tt {
+			t.Run(tc.name, func(t *testing.T) {
+				assert.Equal(t, tc.exists, f.repository.CommitExists(ctx, tc.sha))
+			})
+		}
+	})
+
+	t.Run("IsAncestor", func(t *testing.T) {
+		tt := []struct {
+			name       string
+			ancestor   string
+			descendant string
+			isAncestor bool
+		}{
+			{name: "ancestor", ancestor: f.first, descendant: f.unpushed, isAncestor: true},
+			{name: "descendant", ancestor: f.unpushed, descendant: f.first, isAncestor: false},
+			{name: "same commit", ancestor: f.pushed, descendant: f.pushed, isAncestor: true},
+		}
+		for _, tc := range tt {
+			t.Run(tc.name, func(t *testing.T) {
+				isAncestor, err := f.repository.IsAncestor(ctx, tc.ancestor, tc.descendant)
+
+				require.NoError(t, err)
+				assert.Equal(t, tc.isAncestor, isAncestor)
+			})
+		}
+
+		t.Run("unknown commit", func(t *testing.T) {
+			_, err := f.repository.IsAncestor(ctx, unknownSHA, f.unpushed)
+
+			assert.ErrorContains(t, err, unknownSHA)
+		})
+	})
+
+	t.Run("IsPushed", func(t *testing.T) {
+		tt := []struct {
+			name   string
+			sha    string
+			pushed bool
+		}{
+			{name: "remote branch tip", sha: f.pushed, pushed: true},
+			{name: "ancestor of remote branch tip", sha: f.first, pushed: true},
+			{name: "local commit", sha: f.unpushed, pushed: false},
+		}
+		for _, tc := range tt {
+			t.Run(tc.name, func(t *testing.T) {
+				pushed, err := f.repository.IsPushed(ctx, tc.sha, f.branch)
+
+				require.NoError(t, err)
+				assert.Equal(t, tc.pushed, pushed)
+			})
+		}
+
+		t.Run("branch not on origin", func(t *testing.T) {
+			_, err := f.repository.IsPushed(ctx, f.first, "not-pushed")
+
+			assert.ErrorContains(t, err, "refs/remotes/origin/not-pushed")
+		})
+	})
+
+	t.Run("CountCommits", func(t *testing.T) {
+		tt := []struct {
+			name  string
+			from  string
+			to    string
+			count int
+		}{
+			{name: "ahead", from: f.first, to: f.unpushed, count: 2},
+			{name: "behind", from: f.unpushed, to: f.first, count: 0},
+			{name: "same commit", from: f.pushed, to: f.pushed, count: 0},
+		}
+		for _, tc := range tt {
+			t.Run(tc.name, func(t *testing.T) {
+				count, err := f.repository.CountCommits(ctx, tc.from, tc.to)
+
+				require.NoError(t, err)
+				assert.Equal(t, tc.count, count)
+			})
+		}
+	})
+
+	t.Run("FetchBranch", func(t *testing.T) {
+		sha := f.pushFromOtherClone(t)
+		require.False(t, f.repository.CommitExists(ctx, sha), "commit must not exist before fetch")
+
+		err := f.repository.FetchBranch(ctx, f.branch)
+
+		require.NoError(t, err)
+		assert.True(t, f.repository.CommitExists(ctx, sha), "commit must exist after fetch")
+	})
+
+	t.Run("FetchBranch branch not on origin", func(t *testing.T) {
+		err := f.repository.FetchBranch(ctx, "not-pushed")
+
+		assert.ErrorContains(t, err, "not-pushed")
+	})
 }

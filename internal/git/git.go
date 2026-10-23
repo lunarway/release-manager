@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -746,4 +747,96 @@ func GetCurrentBranch() string {
 	}
 
 	return strings.TrimSpace(string(output))
+}
+
+// remote is the name of the remote branches are pushed to and fetched from.
+const remote = "origin"
+
+// LocalRepository runs Git commands in the repository at Dir, or in the
+// current working directory if Dir is empty.
+//
+// Commit arguments are passed after --end-of-options, so values that are not
+// known to be commits, e.g. received from a server, are never parsed as
+// options.
+type LocalRepository struct {
+	Dir string
+}
+
+// HeadSHA returns the SHA of the commit HEAD points to.
+func (r LocalRepository) HeadSHA(ctx context.Context) (string, error) {
+	return r.run(ctx, "rev-parse", "HEAD")
+}
+
+// CommitExists reports whether sha names a commit in the repository.
+func (r LocalRepository) CommitExists(ctx context.Context, sha string) bool {
+	_, err := r.run(ctx, "cat-file", "-e", "--end-of-options", sha+"^{commit}")
+
+	return err == nil
+}
+
+// FetchBranch fetches branch from origin.
+func (r LocalRepository) FetchBranch(ctx context.Context, branch string) error {
+	_, err := r.run(ctx, "fetch", "--end-of-options", remote, branch)
+
+	return err
+}
+
+// IsAncestor reports whether ancestor is an ancestor of, or the same commit
+// as, descendant.
+func (r LocalRepository) IsAncestor(ctx context.Context, ancestor, descendant string) (bool, error) {
+	_, err := r.run(ctx, "merge-base", "--is-ancestor", "--end-of-options", ancestor, descendant)
+
+	// merge-base exits with 1 when ancestor is not an ancestor of descendant and
+	// with other codes on errors, e.g. when one of them is not a commit.
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// IsPushed reports whether sha is contained in the remote-tracking branch of
+// branch on origin. An error is returned if there is no such remote-tracking
+// branch.
+func (r LocalRepository) IsPushed(ctx context.Context, sha, branch string) (bool, error) {
+	return r.IsAncestor(ctx, sha, "refs/remotes/"+remote+"/"+branch)
+}
+
+// CountCommits returns the number of commits reachable from to but not from
+// from.
+func (r LocalRepository) CountCommits(ctx context.Context, from, to string) (int, error) {
+	output, err := r.run(ctx, "rev-list", "--count", "--end-of-options", from+".."+to)
+	if err != nil {
+		return 0, err
+	}
+
+	count, err := strconv.Atoi(output)
+	if err != nil {
+		return 0, errors.Wrapf(err, "parse commit count '%s'", output)
+	}
+
+	return count, nil
+}
+
+// run runs git with args and returns its trimmed standard output. Standard
+// error is included in the returned error.
+func (r LocalRepository) run(ctx context.Context, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", args...) //nolint:gosec // args are passed to git, not a shell.
+	cmd.Dir = r.Dir
+
+	output, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return "", errors.Wrapf(err, "git %s: %s", strings.Join(args, " "), bytes.TrimSpace(exitErr.Stderr))
+		}
+
+		return "", errors.Wrapf(err, "git %s", strings.Join(args, " "))
+	}
+
+	return strings.TrimSpace(string(output)), nil
 }
