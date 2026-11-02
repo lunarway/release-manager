@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	securejoin "github.com/cyphar/filepath-securejoin"
+	"github.com/lunarway/release-manager/internal/artifact"
 	"github.com/lunarway/release-manager/internal/commitinfo"
 	internalgit "github.com/lunarway/release-manager/internal/git"
 	"github.com/lunarway/release-manager/internal/log"
@@ -28,6 +29,12 @@ var (
 	ErrNotFound = errors.New("not found")
 	// ErrConflict indicates that polices are not compatible
 	ErrConflict = errors.New("conflict")
+	// ErrBranchRegexContainsSlash indicates that a branch-restriction regular
+	// expression contains a '/'. Branches are matched in the form
+	// artifact.NormalizeBranch returns, which has no '/'.
+	ErrBranchRegexContainsSlash = errors.New(
+		"branch regex must not contain '/': branches are matched with '/' replaced by '_', so write '_' instead",
+	)
 )
 
 type Service struct {
@@ -49,8 +56,9 @@ type Actor struct {
 	Email string
 }
 
-// GetAutoReleases gets stored auto-release policies for service svc. If no
-// policies are found a nil slice is returned.
+// GetAutoReleases gets stored auto-release policies for service svc and
+// branch, compared with artifact.SameBranch. If no policies are found a nil
+// slice is returned.
 func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]AutoReleasePolicy, error) {
 	span, ctx := s.Tracer.FromCtx(ctx, "policy.GetAutoReleases")
 	defer span.End()
@@ -63,7 +71,7 @@ func (s *Service) GetAutoReleases(ctx context.Context, svc, branch string) ([]Au
 	}
 	var autoReleases []AutoReleasePolicy
 	for i := range policies.AutoReleases {
-		if policies.AutoReleases[i].Branch == branch {
+		if artifact.SameBranch(policies.AutoReleases[i].Branch, branch) {
 			autoReleases = append(autoReleases, policies.AutoReleases[i])
 		}
 	}
