@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
@@ -29,7 +30,7 @@ type Options struct {
 	S3WebhookSecret     string
 }
 
-func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, artifactWriteStorage ArtifactWriteStorage, tracer tracing.Tracer, jwtVerifier *Verifier) error {
+func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, policySvc *policyinternal.Service, gitSvc *git.Service, artifactWriteStorage ArtifactWriteStorage, tracer tracing.Tracer, jwtVerifier *Verifier, publishConfigChanged func(ctx context.Context, sha string) error) error {
 	payloader := payload{
 		tracer: tracer,
 	}
@@ -78,7 +79,7 @@ func NewServer(opts *Options, slackClient *slack.Client, flowSvc *flow.Service, 
 
 	m.HandleFunc("/ping", ping)
 	m.Handle("/metrics", promhttp.Handler())
-	m.HandleFunc("/webhook/github", githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret))
+	m.HandleFunc("/webhook/github", githubWebhook(&payloader, flowSvc, policySvc, gitSvc, slackClient, opts.GithubWebhookSecret, publishConfigChanged))
 
 	s := http.Server{
 		Addr:              fmt.Sprintf(":%d", opts.Port),

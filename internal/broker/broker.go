@@ -12,6 +12,13 @@ type Broker interface {
 	// StartConsumer consumes messages on a broker. This method is blocking and
 	// will always return with ErrBrokerClosed after calls to Close.
 	StartConsumer(handlers map[string]func([]byte) error, errorHandler func(msgType string, msgBody []byte, err error)) error
+	// PublishBroadcast publishes a Publishable message to all replicas. Every
+	// running broadcast consumer in the fleet receives a copy of the message.
+	PublishBroadcast(ctx context.Context, message Publishable) error
+	// StartBroadcastConsumer consumes broadcast messages. Each replica receives
+	// every broadcast message. This method is blocking and will always return
+	// with ErrBrokerClosed after calls to Close.
+	StartBroadcastConsumer(handler func([]byte) error) error
 	// Close closes the broker.
 	Close() error
 }
