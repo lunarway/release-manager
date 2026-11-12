@@ -1,0 +1,15 @@
+{
+  "service": "autoreleaseslash",
+  "autoReleases": [
+    {
+      "id": "auto-release-krvi/foo-dev",
+      "branch": "krvi/foo",
+      "environment": "dev"
+    },
+    {
+      "id": "auto-release-master-prod",
+      "branch": "master",
+      "environment": "prod"
+    }
+  ]
+}

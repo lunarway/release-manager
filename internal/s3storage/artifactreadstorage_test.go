@@ -134,6 +134,36 @@ func TestService_ArtifactSpecifications(t *testing.T) {
 			},
 		},
 		{
+			name:    "both branch forms found by branch with slash",
+			service: "foo",
+			count:   10,
+			branch:  "krvi/foo",
+			objects: []artifact.Spec{
+				newArtifact("foo", "krvi_foo-1-2", "krvi/foo"),
+				newArtifact("foo", "krvi_foo-bar-2-3", "krvi_foo-bar"),
+				newArtifact("foo", "krvi_foo-3-4", "krvi_foo"),
+			},
+			artifacts: []artifact.Spec{
+				newArtifact("foo", "krvi_foo-1-2", "krvi/foo"),
+				newArtifact("foo", "krvi_foo-3-4", "krvi_foo"),
+			},
+		},
+		{
+			name:    "both branch forms found by normalized branch",
+			service: "foo",
+			count:   10,
+			branch:  "krvi_foo",
+			objects: []artifact.Spec{
+				newArtifact("foo", "krvi_foo-1-2", "krvi/foo"),
+				newArtifact("foo", "krvi_foo-bar-2-3", "krvi_foo-bar"),
+				newArtifact("foo", "krvi_foo-3-4", "krvi_foo"),
+			},
+			artifacts: []artifact.Spec{
+				newArtifact("foo", "krvi_foo-1-2", "krvi/foo"),
+				newArtifact("foo", "krvi_foo-3-4", "krvi_foo"),
+			},
+		},
+		{
 			name:    "more artifacts than count",
 			service: "foo",
 			count:   1,
