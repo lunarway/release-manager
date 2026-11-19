@@ -62,6 +62,17 @@ Example of a release of a specific artifact id to the `prod` environment:
 hamctl release --service example --artifact main-0017d995e3-67e9d69164 --env prod
 ```
 
+Example of a release of the artifact built from the checked out commit (`HEAD`) to the `dev` environment, e.g. right after `git push`:
+
+```
+hamctl release --service example --current-branch --wait --env dev
+```
+
+`--wait` requires `--current-branch` and `HEAD` pushed to `origin`.
+It releases the artifact built from `HEAD`, waiting up to `--wait-timeout` (default `30m`) for CI to build it.
+If an artifact of a newer commit containing `HEAD` becomes the latest first, e.g. because CI cancelled the build of `HEAD`, that artifact is released instead with a warning.
+Without `--wait`, `--current-branch` releases the latest artifact of the branch and warns if it is not built from `HEAD`.
+
 ## Status
 
 Status is a convience flow to display currently released artifact to the three different environments; `dev`,`prod`.
