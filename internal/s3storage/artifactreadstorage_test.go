@@ -2,6 +2,7 @@ package s3storage_test
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"testing"
 
@@ -276,6 +277,38 @@ func TestService_LatestArtifactSpecification(t *testing.T) {
 				newArtifact("test-service", "feature_greatwork-1234ds13g3-12s46g356g", "feature/greatwork"),
 			},
 			expectedArtifact: newArtifact("test-service", "feature_greatwork-1234ds13g3-12s46g356g", "feature/greatwork"),
+		},
+		{
+			name:    "ignores newer artifacts from branch with requested branch as prefix",
+			service: "test-service",
+			branch:  "feature",
+			storedArtifacts: []artifact.Spec{
+				newArtifact("test-service", "feature-aaaaaaa-bbbbbbb", "feature"),
+				newArtifact("test-service", "feature-x-ccccccc-ddddddd", "feature-x"),
+			},
+			expectedArtifact: newArtifact("test-service", "feature-aaaaaaa-bbbbbbb", "feature"),
+		},
+		{
+			name:    "only artifacts from branch with requested branch as prefix",
+			service: "test-service",
+			branch:  "feature",
+			storedArtifacts: []artifact.Spec{
+				newArtifact("test-service", "feature-x-ccccccc-ddddddd", "feature-x"),
+			},
+			expectedError: "get latest object key: artifact not found",
+		},
+		{
+			name:    "more artifacts than a single list page",
+			service: "test-service",
+			branch:  "master",
+			storedArtifacts: func() []artifact.Spec {
+				artifacts := make([]artifact.Spec, 1005)
+				for i := range artifacts {
+					artifacts[i] = newArtifact("test-service", fmt.Sprintf("master-%07d-aaaaaaa", i), "master")
+				}
+				return artifacts
+			}(),
+			expectedArtifact: newArtifact("test-service", "master-0001004-aaaaaaa", "master"),
 		},
 	}
 	for _, tc := range tt {
