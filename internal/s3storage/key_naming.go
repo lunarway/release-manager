@@ -3,7 +3,6 @@ package s3storage
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -27,23 +26,31 @@ func (f *Service) getLatestObjectKey(ctx context.Context, service string, branch
 	span, ctx := f.tracer.FromCtx(ctx, "s3storage.getLatestObjectKey")
 	defer span.End()
 	prefix := getServiceAndBranchObjectKeyPrefix(service, branch)
-	list, err := f.s3client.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
-		Bucket:  aws.String(f.bucketName),
-		MaxKeys: aws.Int64(1000), // TODO: Find a solution to handle more than 1000
-		Prefix:  aws.String(prefix),
+	var latest *s3.Object
+	err := f.s3client.ListObjectsV2PagesWithContext(ctx, &s3.ListObjectsV2Input{
+		Bucket: aws.String(f.bucketName),
+		Prefix: aws.String(prefix),
+	}, func(page *s3.ListObjectsV2Output, _ bool) bool {
+		for _, object := range page.Contents {
+			// Artifact IDs are {branch}-{appSha}-{planSha}, so keys with more
+			// segments after the prefix belong to branches starting with the
+			// requested branch name followed by '-', e.g. feature-x for feature.
+			if strings.Count(strings.TrimPrefix(*object.Key, prefix), "-") != 1 {
+				continue
+			}
+			if latest == nil || object.LastModified.After(*latest.LastModified) {
+				latest = object
+			}
+		}
+		return true
 	})
-
 	if err != nil {
 		return "", errors.Wrapf(err, "list objects at prefix '%s'", prefix)
 	}
 
-	sort.Slice(list.Contents, func(i, j int) bool {
-		return list.Contents[i].LastModified.After(*list.Contents[j].LastModified)
-	})
-
-	if len(list.Contents) == 0 {
+	if latest == nil {
 		return "", flow.ErrArtifactNotFound
 	}
 
-	return *list.Contents[0].Key, nil
+	return *latest.Key, nil
 }

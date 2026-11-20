@@ -12,7 +12,16 @@ import (
 	"github.com/lunarway/release-manager/internal/tracing"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
+)
+
+const (
+	// autoReleaseSlashService has an auto-release policy for branchWithSlash to
+	// dev in testdata.
+	autoReleaseSlashService = "autoreleaseslash"
+	branchWithSlash         = "krvi/foo"
+	normalizedBranch        = "krvi_foo"
 )
 
 func TestParse(t *testing.T) {
@@ -385,6 +394,85 @@ func TestService_Get(t *testing.T) {
 				assert.NoError(t, err, "unexpected error")
 			}
 
+			assert.Equal(t, tc.policies, policies, "policies not as expected")
+		})
+	}
+}
+
+func TestService_GetAutoReleases(t *testing.T) {
+	branchWithSlashPolicy := AutoReleasePolicy{
+		ID:          "auto-release-krvi/foo-dev",
+		Branch:      branchWithSlash,
+		Environment: "dev",
+	}
+	tt := []struct {
+		name     string
+		service  string
+		branch   string
+		policies []AutoReleasePolicy
+	}{
+		{
+			name:     "no policies for service",
+			service:  "unknown",
+			branch:   "master",
+			policies: nil,
+		},
+		{
+			name:    "branch without slash",
+			service: autoReleaseSlashService,
+			branch:  "master",
+			policies: []AutoReleasePolicy{
+				{
+					ID:          "auto-release-master-prod",
+					Branch:      "master",
+					Environment: "prod",
+				},
+			},
+		},
+		{
+			name:     "branch with slash matches policy for branch with slash",
+			service:  autoReleaseSlashService,
+			branch:   branchWithSlash,
+			policies: []AutoReleasePolicy{branchWithSlashPolicy},
+		},
+		{
+			name:     "normalized branch matches policy for branch with slash",
+			service:  autoReleaseSlashService,
+			branch:   normalizedBranch,
+			policies: []AutoReleasePolicy{branchWithSlashPolicy},
+		},
+		{
+			name:     "branch with same prefix as policy branch",
+			service:  autoReleaseSlashService,
+			branch:   "krvi/foo-bar",
+			policies: nil,
+		},
+		{
+			name:     "branch with other separator than policy branch",
+			service:  autoReleaseSlashService,
+			branch:   "krvi-foo",
+			policies: nil,
+		},
+	}
+	log.Init(&log.Configuration{
+		Level: log.Level{
+			Level: zapcore.DebugLevel,
+		},
+		Development: true,
+	})
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			gitService := MockGitService{}
+			gitService.On("MasterPath").Return("testdata")
+			s := Service{
+				Tracer:     tracing.NewNoop(),
+				Git:        &gitService,
+				MaxRetries: 1,
+			}
+
+			policies, err := s.GetAutoReleases(context.Background(), tc.service, tc.branch)
+
+			require.NoError(t, err, "unexpected error")
 			assert.Equal(t, tc.policies, policies, "policies not as expected")
 		})
 	}
